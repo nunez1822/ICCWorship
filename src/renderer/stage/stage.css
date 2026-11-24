@@ -1,0 +1,192 @@
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: #000;
+  color: #fff;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  overflow: hidden;
+}
+.stage-wait {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  font-size: 4vw;
+  color: #777;
+}
+.stage {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.stage-top {
+  display: flex;
+  align-items: center;
+  gap: 2vw;
+  padding: 1vh 2vw;
+  background: #111;
+  border-bottom: 2px solid #222;
+}
+.stage-clock {
+  font-size: 5.2vh;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #f6d58e;
+}
+.stage-item {
+  flex: 1;
+  min-width: 0;
+}
+.lbl {
+  font-size: 1.6vh;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #888;
+  font-weight: 700;
+}
+.stage-item .val {
+  font-size: 3.4vh;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stage-timer .val {
+  font-size: 4.4vh;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.stage-timer.over .val {
+  color: #ff5a5a;
+  animation: blink 1s infinite;
+}
+.stage-timer.warn .val {
+  color: #ffb547;
+}
+.stage-btn {
+  font-size: 3.2vh;
+  background: #222;
+  border: 2px solid #333;
+  color: #fff;
+  border-radius: 10px;
+  padding: 0.4vh 1vw;
+  cursor: pointer;
+}
+.stage-btn.on {
+  border-color: #f6d58e;
+  background: #3a2f12;
+}
+.stage-msg {
+  background: #b91c1c;
+  color: #fff;
+  font-size: 5vh;
+  font-weight: 800;
+  text-align: center;
+  padding: 1.2vh 2vw;
+}
+.stage-msg.flash {
+  animation: blink 0.5s 6;
+}
+@keyframes blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+.stage-main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 32%;
+  min-height: 0;
+}
+.stage-current {
+  position: relative;
+  padding: 3vh 3vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.stage-next {
+  border-left: 2px solid #222;
+  background: #0b0b0b;
+  padding: 2vh 1.6vw;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6vh;
+  overflow: hidden;
+  color: #bbb;
+}
+.stage-text {
+  width: 100%;
+  white-space: pre-line;
+  line-height: 1.2;
+  font-size: 3vh;
+}
+.stage-text.big {
+  font-size: 6.4vh;
+  font-weight: 700;
+  text-align: center;
+  color: #fff;
+}
+.stage-text .s {
+  margin-top: 2vh;
+  color: #9fc4ff;
+  font-style: italic;
+  font-size: 0.82em;
+}
+.stage-text.chords {
+  text-align: left;
+  font-family: Consolas, 'Cascadia Mono', monospace;
+  white-space: pre;
+  font-size: 4.2vh;
+}
+.chord-line {
+  color: #f6d58e;
+  font-weight: 800;
+  white-space: pre;
+}
+.stage-group {
+  font-size: 2.2vh;
+  color: #f6d58e;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  margin-bottom: 2vh;
+}
+.stage-title {
+  font-size: 1.15em;
+  font-weight: 800;
+  margin-bottom: 1.5vh;
+}
+.stage-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.stage-empty {
+  font-size: 6vh;
+  color: #555;
+}
+.stage-flag {
+  position: absolute;
+  top: 2vh;
+  left: 2vw;
+  background: #b91c1c;
+  padding: 0.4vh 1vw;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 2.2vh;
+}
+.next-item {
+  font-size: 3.2vh;
+  color: #ddd;
+}
+.stage-notes {
+  margin-top: auto;
+  background: #1a1a1a;
+  border-radius: 10px;
+  padding: 1.4vh 1vw;
+  font-size: 2.4vh;
+  color: #e6e6e6;
+  white-space: pre-wrap;
+}

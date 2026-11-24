@@ -1,0 +1,219 @@
+/* Projector canvas — always 1920×1080, scaled by SlideView */
+.slide-box {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  container-type: size;
+}
+.slide-canvas {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: center center;
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+}
+.slide-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.slide-dim {
+  position: absolute;
+  inset: 0;
+  background: #000;
+}
+.slide-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.slide-media.cover {
+  object-fit: cover;
+}
+.slide-media.contain {
+  object-fit: contain;
+  background: #000;
+}
+.slide-media.audio-only {
+  opacity: 0;
+}
+.slide-video-thumb {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 320px;
+  color: rgba(255, 255, 255, 0.85);
+  background: linear-gradient(135deg, #24324f, #0b1020);
+}
+
+.slide-text {
+  position: absolute;
+  inset: 70px 110px 110px 110px;
+  display: flex;
+  flex-direction: column;
+  white-space: pre-line;
+  line-height: 1.18;
+  font-size: calc(var(--fs) * var(--fit, 1));
+  overflow: hidden;
+}
+.slide-text.bottom {
+  inset: 70px 110px 70px 110px;
+}
+.slide-text-inner {
+  display: flex;
+  flex-direction: column;
+  gap: calc(28px * var(--fit, 1));
+  width: 100%;
+  flex: none;
+}
+.slide-primary {
+  width: 100%;
+}
+.slide-secondary {
+  width: 100%;
+  font-style: italic;
+  font-weight: 500;
+  opacity: 0.95;
+}
+.slide-divider {
+  width: 22%;
+  height: 4px;
+  border-radius: 4px;
+  opacity: 0.55;
+  flex: none;
+}
+.slide-text[style*='text-align: left'] .slide-divider {
+  align-self: flex-start;
+}
+.slide-title {
+  font-size: calc(var(--fs) * var(--fit, 1) * 1.35);
+  font-weight: 800;
+  line-height: 1.08;
+  margin-bottom: calc(12px * var(--fit, 1));
+}
+.slide-title-2 {
+  font-size: 0.62em;
+  font-style: italic;
+  font-weight: 600;
+  margin-top: 10px;
+}
+.slide-footer {
+  position: absolute;
+  left: 60px;
+  right: 60px;
+  bottom: 26px;
+  text-align: center;
+  font-size: 28px;
+  opacity: 0.72;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.slide-countdown {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 0 6px 30px rgba(0, 0, 0, 0.6);
+}
+.cd-label {
+  font-size: 72px;
+  font-weight: 600;
+}
+.cd-label.secondary {
+  font-size: 54px;
+  font-style: italic;
+  margin-top: 8px;
+}
+.cd-time {
+  font-size: 300px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -6px;
+  line-height: 1;
+  margin-top: 30px;
+}
+
+.slide-logo {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  display: grid;
+  place-items: center;
+  animation: fadeIn 0.5s ease both;
+}
+.slide-logo img {
+  max-width: 60%;
+  max-height: 60%;
+  object-fit: contain;
+}
+.slide-logo-name {
+  font-size: 140px;
+  font-weight: 800;
+  letter-spacing: 4px;
+  color: #f6d58e;
+  font-family: Georgia, serif;
+}
+
+.slide-black {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  animation: fadeIn 0.35s ease both;
+}
+
+.slide-message {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 140px;
+  padding: 22px 0;
+  background: linear-gradient(90deg, rgba(180, 30, 30, 0.95), rgba(120, 15, 25, 0.95));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.25;
+  font-size: 54px;
+  font-weight: 700;
+  color: #fff;
+  font-family: 'Segoe UI', sans-serif;
+  animation: slideUp 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
+  z-index: 5;
+}
+.slide-message span {
+  padding: 0 60px;
+  white-space: pre-line;
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease both;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
