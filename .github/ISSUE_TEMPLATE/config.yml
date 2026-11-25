@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: ❓ Question / Pregunta
+    url: https://github.com/nunez1822/ICCWorship/discussions/categories/q-a
+    about: Ask how to do something · Pregunte cómo hacer algo
+  - name: 🔒 Security problem / Problema de seguridad
+    url: https://github.com/nunez1822/ICCWorship/security/advisories/new
+    about: Report it privately, never in a public issue · Repórtelo en privado, nunca en un reporte público

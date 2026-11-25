@@ -35,6 +35,7 @@ usually operated by a volunteer during a live service, so reliability and simpli
 - `src/shared/`: pure logic (types, slides, scripture references, song import, dates). **Pure logic goes here, with
   a unit test in `tests/`.**
 - Data lives in `Documents\ICCWorship` (`ICCWORSHIP_DATA` overrides it; e2e runs use `.e2e-data/`).
+- Node.js 22.12+ is required (Electron 45 and Vitest 5); see `.nvmrc`.
 
 ## Commands
 ```bash
@@ -46,6 +47,9 @@ npm run e2e:launch   # app with fresh test data + CDP on :9222 for Playwright MC
 npm run smoke        # scripted end-to-end check with screenshots
 ```
 `npm test` and `npm run typecheck` must pass before any commit.
+Contributor workflow (branches, squash-merged PRs, CHANGELOG, releases) is in [CONTRIBUTING.md](CONTRIBUTING.md):
+`main` is protected, so every change goes through a pull request with green CI, and anything a user would notice
+gets a line under `[Unreleased]` in `CHANGELOG.md`.
 
 ## Keep the e2e docs in step with every change
 `docs/e2e_testing/` holds the plain-language end-to-end test cases that the `/e2e-test` skill

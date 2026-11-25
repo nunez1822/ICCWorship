@@ -6,7 +6,18 @@
   "main": "./out/main/index.js",
   "author": "ICCWorship contributors",
   "license": "MIT",
+  "homepage": "https://github.com/nunez1822/ICCWorship#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nunez1822/ICCWorship.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nunez1822/ICCWorship/issues"
+  },
   "private": true,
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",

@@ -73,9 +73,19 @@ mostrar en un idioma o **en ambos a la vez**, cambiando en vivo con una sola tec
 
 ## Instalación
 
-1. Descargue **`ICCWorship-Setup-x.y.z.exe`** (instalador) o **`ICCWorship-Portable-x.y.z.exe`** (funciona desde una memoria USB) en la página de Releases.
+1. Descargue **`ICCWorship-Setup-x.y.z.exe`** (instalador) o **`ICCWorship-Portable-x.y.z.exe`** (no necesita instalación) en la página de Releases.
+   La versión portátil guarda sus datos en la PC donde se usa (`Documentos\ICCWorship`), no en la memoria USB.
 2. Windows SmartScreen puede advertir porque la app no tiene firma digital (los certificados cuestan dinero). Haga clic en **Más información → Ejecutar de todas formas**.
 3. La primera vez que use el control desde el teléfono, el Firewall de Windows pedirá permiso — elija **Permitir** en redes privadas.
+
+## Sus datos y copias de seguridad
+
+- Todo lo que crea ICCWorship está en **`Documentos\ICCWorship`** (Ajustes → Copia de seguridad → 📂 Abrir carpeta de datos).
+- Cada día se hace una copia automática (se guardan las últimas 14 en `Documentos\ICCWorshipackups`).
+- **Cambiar de computadora:** en la PC anterior, Ajustes → Copia de seguridad → **Hacer copia ahora** a una memoria USB.
+  Instale ICCWorship en la nueva PC y elija **Restaurar** con ese archivo. Los videos e imágenes que agregó se
+  *referencian*, no se copian: copie también esos archivos.
+- No se sube nada a ningún lugar — vea [PRIVACY.md](PRIVACY.md).
 
 ## Su primer domingo (5 minutos)
 
@@ -103,8 +113,18 @@ Lo mismo funciona para NVI, RVR1960, NIV o cualquier otra versión.
 
 ## Desarrollo
 
+Requisitos: Windows 10/11, [Node.js](https://nodejs.org) 22.12 o más nuevo y Git.
 Vea la sección **Develop** del [README en inglés](README.md#develop): `npm install`, `npm run dev`,
 `npm test`, `npm run build:win`.
+
+## Contribuir
+
+Reportes de errores, traducciones, cantos de dominio público y pull requests son bienvenidos — vea
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
+- Preguntas: [Discussions](https://github.com/nunez1822/ICCWorship/discussions) · Ayuda: [SUPPORT.md](SUPPORT.md)
+- Problemas de seguridad: repórtelos en privado, vea [SECURITY.md](SECURITY.md)
+- Esperamos que todos sigan el [Código de conducta](CODE_OF_CONDUCT.md). Novedades: [CHANGELOG.md](CHANGELOG.md)
 
 ## Licencia
 

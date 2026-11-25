@@ -1,0 +1,24 @@
+name: 🌐 Translation / Traducción
+description: A wrong or missing translation, or a new language · Una traducción incorrecta o faltante, o un idioma nuevo
+labels: [translation, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        All UI text lives in `src/renderer/i18n/en.json` and `es.json`. Pull requests are welcome — see CONTRIBUTING.md.
+        Todo el texto está en `src/renderer/i18n/en.json` y `es.json`. Se aceptan pull requests — vea CONTRIBUTING.md.
+  - type: input
+    id: where
+    attributes:
+      label: Where in the app? / ¿Dónde en la app?
+      placeholder: Settings → Screens / Ajustes → Pantallas
+  - type: textarea
+    id: current
+    attributes:
+      label: Current text / Texto actual
+  - type: textarea
+    id: suggested
+    attributes:
+      label: Suggested text / Texto sugerido
+    validations:
+      required: true

@@ -1,0 +1,21 @@
+name: 💡 Feature request / Sugerir una función
+description: An idea to make ICCWorship better for churches · Una idea para mejorar ICCWorship
+labels: [enhancement, needs-triage]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve? / ¿Qué problema resolvería?
+      description: Tell us about your church's situation · Cuéntenos la situación de su iglesia
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea / Su idea
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: How do you do it today? / ¿Cómo lo hace hoy?
