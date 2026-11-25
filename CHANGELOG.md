@@ -12,8 +12,8 @@ All notable changes to ICCWorship are documented here. The format is based on
 - ESLint and Prettier, checked in CI, so every contributor's code looks the same.
 
 ### Fixed
-- The "next item" preview on the Live page and the item preview in the plan editor now update when settings,
-  songs, themes or media change, instead of showing the old version until another item is picked.
+- The Live page's preview of a selected item that isn't live yet, and the item preview in the plan editor, now
+  rebuild when settings, songs, themes or media change while the page is open.
 - The README now says Node.js 22.12 or newer is needed to build (Electron 45 requires it).
 - The README now explains that the portable version keeps its data in the PC's `Documents\ICCWorship` folder.
 
