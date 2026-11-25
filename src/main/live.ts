@@ -46,6 +46,8 @@ class LiveStore extends EventEmitter {
   progress(p: LiveState['videoProgress']): void {
     this.state.videoProgress = p
     this.emit('progress', p)
+    // a video that failed to load is not "playing" — keep the operator's controls honest
+    if (p?.error && this.state.video?.playing) this.update({ video: { ...this.state.video, playing: false } })
   }
 }
 

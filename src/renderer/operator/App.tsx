@@ -74,8 +74,8 @@ export function App() {
     const onKey = (e: KeyboardEvent) => {
       if (isTyping(e) || e.altKey) return
       const k = e.key
-      if (e.ctrlKey && (k === 'ArrowRight' || k === 'ArrowDown')) return void (e.preventDefault(), live.nextItem())
-      if (e.ctrlKey && (k === 'ArrowLeft' || k === 'ArrowUp')) return void (e.preventDefault(), live.prevItem())
+      if (e.ctrlKey && (k === 'ArrowRight' || k === 'ArrowDown')) return void (e.preventDefault(), live.enqueue(() => live.nextItem()))
+      if (e.ctrlKey && (k === 'ArrowLeft' || k === 'ArrowUp')) return void (e.preventDefault(), live.enqueue(() => live.prevItem()))
       if (e.ctrlKey || e.metaKey) return
       switch (k) {
         case ' ':
@@ -83,42 +83,42 @@ export function App() {
         case 'ArrowDown':
         case 'PageDown':
           e.preventDefault()
-          void live.next()
+          void live.enqueue(() => live.next())
           break
         case 'ArrowLeft':
         case 'ArrowUp':
         case 'PageUp':
           e.preventDefault()
-          void live.prev()
+          void live.enqueue(() => live.prev())
           break
         case 'b':
         case 'B':
         case '.':
-          void live.toggleLayer('black')
+          void live.enqueue(() => live.toggleLayer('black'))
           break
         case 'c':
         case 'C':
-          void live.toggleLayer('clearText')
+          void live.enqueue(() => live.toggleLayer('clearText'))
           break
         case 'l':
         case 'L':
-          void live.toggleLayer('logo')
+          void live.enqueue(() => live.toggleLayer('logo'))
           break
         case 'p':
         case 'P':
-          void live.videoToggle()
+          void live.enqueue(() => live.videoToggle())
           break
         case 'Escape':
-          void live.clearAll()
+          void live.enqueue(() => live.clearAll())
           break
         case '1':
-          void live.setDisplayLang('en')
+          void live.enqueue(() => live.setDisplayLang('en'))
           break
         case '2':
-          void live.setDisplayLang('es')
+          void live.enqueue(() => live.setDisplayLang('es'))
           break
         case '3':
-          void live.setDisplayLang('both')
+          void live.enqueue(() => live.setDisplayLang('both'))
           break
         case '?':
         case 'F1':
@@ -164,7 +164,7 @@ export function App() {
         <span className="small muted">{t('top.screen')}</span>
         <Seg<DisplayLang>
           value={liveState?.displayLang || settings.displayLang}
-          onChange={(v) => void live.setDisplayLang(v)}
+          onChange={(v) => void live.enqueue(() => live.setDisplayLang(v))}
           options={[
             { value: 'es', label: 'ES', title: '2' },
             { value: 'en', label: 'EN', title: '1' },

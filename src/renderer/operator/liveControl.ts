@@ -1,7 +1,8 @@
 import type { DisplayLang, LiveState, PlanItem, PlanItemType, RemoteCommand, ServicePlan, Slide, SongUsage, Theme, Background } from '@shared/types'
-import { uid } from '@shared/slides'
+import { songName, songToSlides, uid } from '@shared/slides'
 import { localDate } from '@shared/dates'
 import { buildItem } from '../lib/buildSlides'
+import { mediaUrlToPath } from '../lib/media'
 import { useApp, t } from './store'
 
 /**
@@ -13,6 +14,32 @@ import { useApp, t } from './store'
 const api = () => window.api
 const st = () => useApp.getState()
 const live = () => st().live
+
+/**
+ * Send a change to main and immediately store the merged result, so the next command
+ * computes from fresh state (not the copy that arrives later by broadcast).
+ */
+async function push(patch: Partial<LiveState>): Promise<LiveState> {
+  const s = await api().live.update(patch)
+  if (s) useApp.setState({ live: s })
+  return s
+}
+
+/**
+ * Run operator actions one at a time, in the order they were triggered. Without this, a
+ * phone tap and a key press in the same instant (or a burst of taps) each computed
+ * "slide + 1" from the same old state and moves were lost. Use at entry points only
+ * (keyboard, buttons, remote commands) — the actions call each other directly.
+ */
+let chain: Promise<void> = Promise.resolve()
+export function enqueue(fn: () => unknown): Promise<void> {
+  const r = chain.then(() => fn()).then(
+    () => undefined,
+    (e) => console.error('live action failed', e)
+  )
+  chain = r
+  return r
+}
 
 let advanceTimer: ReturnType<typeof setTimeout> | null = null
 let messageTimer: ReturnType<typeof setTimeout> | null = null
@@ -40,26 +67,44 @@ function scheduleAdvance(slide?: Slide) {
       if (!l) return
       // announcement loops wrap around inside the item
       const next = l.slideIndex + 1 < l.slides.length ? l.slideIndex + 1 : 0
-      void goSlide(next)
+      void enqueue(() => goSlide(next))
     }, slide.advanceAfter * 1000)
   }
 }
 
 /**
- * Log CCLI usage: one entry per song per service. Songs shown from a plan are logged
- * under the plan's (service) date, so a Saturday rehearsal and the Sunday service count
- * once. Songs shown ad hoc (Songs page → Show now) are logged under today's local date.
+ * Log CCLI usage: one entry per song per service.
+ * - From a plan: keyed by plan, dated with the plan's (service) date — a Saturday
+ *   rehearsal and the Sunday service count once; two services the same day count twice.
+ * - Ad hoc (Songs page → Show now): attributed to today's selected plan if there is one
+ *   (so showing a plan song from the Songs page during the service isn't counted twice),
+ *   otherwise logged as an ad-hoc use for today.
  */
 async function recordSongUsage(songId: string, plan?: ServicePlan) {
   const song = st().songs.find((s) => s.id === songId)
   if (!song) return
-  const date = plan?.date || localDate()
-  await api().db.upsert<SongUsage>('usage', { id: `${song.id}@${date}`, songId: song.id, title: song.title, ccli: song.ccli, date, planId: plan?.id })
+  const today = localDate()
+  const p = plan || (activePlan()?.date === today ? activePlan() : undefined)
+  const date = p?.date || today
+  const id = `${song.id}@${date}@${p?.id || 'adhoc'}`
+  await api().db.upsert<SongUsage>('usage', { id, songId: song.id, title: songName(song), ccli: song.ccli, date, planId: p?.id })
 }
 
 async function logSongUsage(item: PlanItem, plan?: ServicePlan) {
   if (item.type !== 'song' || !item.refId) return
   await recordSongUsage(item.refId, plan)
+}
+
+/** Warn right away if an image / background file that just went live is gone (USB stick
+ *  removed, file moved). Videos report their own load errors from the projector. */
+function checkMediaFiles(slides: Slide[], background?: Background | null): void {
+  const urls = [...slides.filter((x) => x.kind === 'image').map((x) => x.media), background?.type === 'image' || background?.type === 'video' ? background.value : undefined]
+  const paths = urls.map((u) => mediaUrlToPath(u)).filter((p): p is string => !!p)
+  if (!paths.length) return
+  void api().files.exists(paths).then((ex) => {
+    const missing = paths.filter((_, i) => !ex[i])
+    if (missing.length) st().toast(t('errors.mediaMissing', { file: missing.join(', ') }), 'err', 10_000)
+  })
 }
 
 /** Put a plan item on screen */
@@ -82,6 +127,8 @@ export async function goItem(index: number, slideIndex = 0): Promise<void> {
     itemNotes: item.notes,
     slides: built.slides,
     slideIndex: built.slides.length ? si : -1,
+    clearedFrom: undefined,
+    songId: item.type === 'song' ? item.refId : undefined,
     theme: built.theme,
     background: built.background,
     itemStartedAt: l?.itemId === item.id ? l.itemStartedAt : Date.now(),
@@ -93,8 +140,9 @@ export async function goItem(index: number, slideIndex = 0): Promise<void> {
     // going to new content lifts the logo/black/clear layers
     layers: { black: false, clearText: false, clearBackground: false, logo: false }
   }
-  await api().live.update(patch)
+  await push(patch)
   st().selectItem(item.id)
+  checkMediaFiles(built.slides, built.background)
   scheduleAdvance(built.slides[si])
   void logSongUsage(item, plan)
 }
@@ -103,7 +151,7 @@ export async function goItem(index: number, slideIndex = 0): Promise<void> {
 export async function showAdhoc(args: { title: string; type: PlanItemType; slides: Slide[]; theme?: Theme; background?: Background | null; video?: boolean; songId?: string }): Promise<void> {
   const s = st()
   const theme = args.theme || s.themes.find((x) => x.id === s.settings.defaultThemeId) || s.themes[0]
-  await api().live.update({
+  await push({
     itemIndex: -1,
     itemId: 'adhoc-' + uid(),
     itemTitle: args.title,
@@ -111,6 +159,8 @@ export async function showAdhoc(args: { title: string; type: PlanItemType; slide
     itemNotes: undefined,
     slides: args.slides,
     slideIndex: args.slides.length ? 0 : -1,
+    clearedFrom: undefined,
+    songId: args.songId,
     theme,
     background: args.background === undefined ? theme.background : args.background,
     itemStartedAt: Date.now(),
@@ -118,19 +168,44 @@ export async function showAdhoc(args: { title: string; type: PlanItemType; slide
     videoProgress: undefined,
     layers: { black: false, clearText: false, clearBackground: false, logo: false }
   })
+  checkMediaFiles(args.slides, args.background === undefined ? theme.background : args.background)
   if (args.songId) void recordSongUsage(args.songId)
+}
+
+/**
+ * The song on screen was edited (typo fix during worship): rebuild its slides and keep
+ * the current position, so the correction appears without restarting the song.
+ */
+let refreshTimer: ReturnType<typeof setTimeout> | null = null
+export function songEdited(songId: string): void {
+  if (live()?.songId !== songId) return
+  if (refreshTimer) clearTimeout(refreshTimer)
+  refreshTimer = setTimeout(() => void enqueue(() => refreshLiveSong(songId)), 400)
+}
+
+async function refreshLiveSong(songId: string): Promise<void> {
+  const l = live()
+  const song = st().songs.find((x) => x.id === songId)
+  if (!l || l.songId !== songId || !song) return
+  const plan = activePlan()
+  const item = plan?.items.find((i) => i.id === l.itemId)
+  const slides = item ? (await buildItem(item, ctx())).slides : songToSlides(song, { ccliLicense: st().settings.ccliLicense })
+  if (!slides.length) return
+  const clamp = (i: number | undefined) => (i === undefined ? undefined : Math.min(i, slides.length - 1))
+  await push({ slides, slideIndex: l.slideIndex < 0 ? -1 : clamp(l.slideIndex)!, clearedFrom: clamp(l.clearedFrom) })
 }
 
 export async function goSlide(index: number): Promise<void> {
   const l = live()
   if (!l || index < 0 || index >= l.slides.length) return
-  await api().live.update({ slideIndex: index, layers: { ...l.layers, black: false, logo: false } })
+  await push({ slideIndex: index, clearedFrom: undefined, layers: { ...l.layers, black: false, logo: false } })
   scheduleAdvance(l.slides[index])
 }
 
 export async function next(): Promise<void> {
   const l = live()
   if (!l) return
+  if (l.slideIndex < 0 && l.clearedFrom !== undefined && l.clearedFrom < l.slides.length) return goSlide(l.clearedFrom)
   if (l.slideIndex + 1 < l.slides.length) return goSlide(l.slideIndex + 1)
   return nextItem()
 }
@@ -161,15 +236,17 @@ export async function prevItem(): Promise<void> {
 export async function toggleLayer(layer: keyof LiveState['layers']): Promise<void> {
   const l = live()
   if (!l) return
-  await api().live.update({ layers: { ...l.layers, [layer]: !l.layers[layer] } })
+  await push({ layers: { ...l.layers, [layer]: !l.layers[layer] } })
 }
 
 export async function clearAll(): Promise<void> {
   if (advanceTimer) clearTimeout(advanceTimer)
   const l = live()
-  await api().live.update({
-    slides: [],
+  // Take the slide off screen but keep the item's slides: the grid still shows them, one
+  // click on a thumbnail (or Space) puts the exact slide back after an accidental Esc.
+  await push({
     slideIndex: -1,
+    clearedFrom: l && l.slideIndex >= 0 ? l.slideIndex : l?.clearedFrom,
     itemIndex: l?.itemIndex ?? -1,
     video: undefined,
     videoProgress: undefined,
@@ -179,46 +256,46 @@ export async function clearAll(): Promise<void> {
 }
 
 export async function setDisplayLang(value: DisplayLang): Promise<void> {
-  await api().live.update({ displayLang: value })
+  await push({ displayLang: value })
   void st().setSettings({ displayLang: value })
 }
 
 export async function showMessage(text: string): Promise<void> {
   const secs = st().settings.messageSeconds || 30
   if (messageTimer) clearTimeout(messageTimer)
-  await api().live.update({ message: { text, until: Date.now() + secs * 1000, seq: Date.now() } })
-  messageTimer = setTimeout(() => void api().live.update({ message: undefined }), secs * 1000 + 200)
+  await push({ message: { text, until: Date.now() + secs * 1000, seq: Date.now() } })
+  messageTimer = setTimeout(() => void enqueue(() => push({ message: undefined })), secs * 1000 + 200)
 }
 
 export async function clearMessage(): Promise<void> {
   if (messageTimer) clearTimeout(messageTimer)
-  await api().live.update({ message: undefined })
+  await push({ message: undefined })
 }
 
 export async function stageMessage(text: string): Promise<void> {
-  await api().live.update({ stageMessage: text ? { text, seq: Date.now() } : undefined })
+  await push({ stageMessage: text ? { text, seq: Date.now() } : undefined })
 }
 
 export async function videoToggle(): Promise<void> {
   const l = live()
   if (!l?.video) return
-  await api().live.update({ video: { ...l.video, playing: !l.video.playing } })
+  await push({ video: { ...l.video, playing: !l.video.playing } })
 }
 
 export async function videoSeek(seconds: number): Promise<void> {
   const l = live()
   if (!l?.video) return
-  await api().live.update({ video: { ...l.video, seekSeq: l.video.seekSeq + 1, seekTo: Math.max(0, seconds) } })
+  await push({ video: { ...l.video, seekSeq: l.video.seekSeq + 1, seekTo: Math.max(0, seconds) } })
 }
 
 export async function videoSet(patch: Partial<NonNullable<LiveState['video']>>): Promise<void> {
   const l = live()
   if (!l?.video) return
-  await api().live.update({ video: { ...l.video, ...patch } })
+  await push({ video: { ...l.video, ...patch } })
 }
 
 export async function resetServiceTimer(): Promise<void> {
-  await api().live.update({ serviceStartedAt: Date.now() })
+  await push({ serviceStartedAt: Date.now() })
 }
 
 /** Keep plan summary on stage/remote in sync when the plan is edited */
@@ -227,64 +304,69 @@ export async function syncPlanSummary(): Promise<void> {
   const l = live()
   if (!plan || !l || l.planId !== plan.id) return
   const idx = plan.items.findIndex((i) => i.id === l.itemId)
-  await api().live.update({ planItems: planSummary(plan), planTitle: plan.title, itemIndex: idx >= 0 ? idx : l.itemIndex })
+  await push({ planItems: planSummary(plan), planTitle: plan.title, itemIndex: idx >= 0 ? idx : l.itemIndex })
 }
 
 /** Commands arriving from the phone remote / stage window / projector */
-export function handleCommand(cmd: RemoteCommand | { type: 'videoEnded' }): void {
+async function runCommand(cmd: RemoteCommand | { type: 'videoEnded' }): Promise<void> {
   switch (cmd.type) {
     case 'next':
-      void next()
+      await next()
       break
     case 'prev':
-      void prev()
+      await prev()
       break
     case 'nextItem':
-      void nextItem()
+      await nextItem()
       break
     case 'prevItem':
-      void prevItem()
+      await prevItem()
       break
     case 'gotoItem':
-      void goItem(cmd.index)
+      await goItem(cmd.index)
       break
     case 'gotoSlide':
-      void goSlide(cmd.index)
+      await goSlide(cmd.index)
       break
     case 'black':
-      void toggleLayer('black')
+      await toggleLayer('black')
       break
     case 'clearText':
-      void toggleLayer('clearText')
+      await toggleLayer('clearText')
       break
     case 'logo':
-      void toggleLayer('logo')
+      await toggleLayer('logo')
       break
     case 'clearAll':
-      void clearAll()
+      await clearAll()
       break
     case 'displayLang':
-      void setDisplayLang(cmd.value)
+      await setDisplayLang(cmd.value)
       break
     case 'message':
-      void showMessage(cmd.text)
+      await showMessage(cmd.text)
       break
     case 'clearMessage':
-      void clearMessage()
+      await clearMessage()
       break
     case 'stageMessage':
-      void stageMessage(cmd.text)
+      await stageMessage(cmd.text)
       break
     case 'videoToggle':
-      void videoToggle()
+      await videoToggle()
       break
     case 'videoEnded': {
       const plan = activePlan()
       const l = live()
       const item = plan?.items.find((i) => i.id === l?.itemId)
-      if (item?.video?.autoNext) void nextItem()
-      else if (l?.video) void api().live.update({ video: { ...l.video, playing: false } })
+      if (item?.video?.autoNext) await nextItem()
+      else if (l?.video) await push({ video: { ...l.video, playing: false } })
       break
     }
   }
+}
+
+/** Phone remote / stage / projector commands — queued so simultaneous ones all apply. */
+export function handleCommand(cmd: RemoteCommand | { type: 'videoEnded' }): void {
+  void enqueue(() => runCommand(cmd))
 }

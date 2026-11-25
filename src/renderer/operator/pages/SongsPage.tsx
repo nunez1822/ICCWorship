@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { SectionType, Song, SongSection } from '@shared/types'
-import { songToSlides, uid } from '@shared/slides'
-import { detectAndParseSongFile, sectionLabel, songFromPlainText, songToOpenLyrics } from '@shared/songImport'
+import { songName, songToSlides, uid } from '@shared/slides'
+import { detectAndParseSongFile, sectionLabel, songFromPlainText, songToOpenLyrics, type SongImportError } from '@shared/songImport'
 import { useApp } from '../store'
-import { showAdhoc, activePlan, syncPlanSummary } from '../liveControl'
+import { showAdhoc, activePlan, syncPlanSummary, songEdited } from '../liveControl'
+import { usedInPlansNote } from '../../lib/planRefs'
 import { Field, Modal, confirmDel } from '../../components/ui'
 import { SlideView } from '../../components/SlideView'
 import { filterSongs } from './plan/ItemEditor'
@@ -49,8 +50,13 @@ export function SongsPage() {
               style={{ flex: 1 }}
               onClick={async () => {
                 const n = blankSong(t('songs.newTitle'))
-                await s.save('songs', n)
+                // Switch the editor to the new song *before* awaiting the disk write.
+                // (s.save updates the list synchronously.) Awaiting first left the old
+                // song's editor on screen for a moment, so a fast typist renamed it.
+                const saved = s.save('songs', n)
                 setSelId(n.id)
+                setQ('')
+                await saved
               }}
             >
               ＋ {t('songs.new')}
@@ -67,11 +73,8 @@ export function SongsPage() {
           {list.map((x) => (
             <div key={x.id} className={`list-item ${x.id === selId ? 'on' : ''}`} onClick={() => setSelId(x.id)}>
               <div style={{ minWidth: 0 }}>
-                <div className="title">{x.title}</div>
-                <div className="sub">
-                  {x.titleEs ? `${x.titleEs} · ` : ''}
-                  {x.author || ''}
-                </div>
+                <div className="title">{x.title || x.titleEs || t('songs.untitled')}</div>
+                <div className="sub">{[x.title && x.titleEs, x.author].filter(Boolean).join(' · ')}</div>
               </div>
               <span style={{ marginLeft: 'auto' }} className="row" title={t('songs.langs')}>
                 {x.sections.some((z) => z.es.trim()) && <span className="pill">ES</span>}
@@ -100,7 +103,10 @@ export function SongsPage() {
 function SongEditor({ song, onDeleted }: { song: Song; onDeleted: () => void }) {
   const { t } = useTranslation()
   const s = useApp()
-  const save = (patch: Partial<Song>) => void s.save('songs', { ...song, ...patch, updatedAt: Date.now() })
+  const save = (patch: Partial<Song>) => {
+    void s.save('songs', { ...song, ...patch, updatedAt: Date.now() })
+    songEdited(song.id) // live on screen? refresh it in place
+  }
   const setSection = (id: string, patch: Partial<SongSection>) => save({ sections: song.sections.map((x) => (x.id === id ? { ...x, ...patch } : x)) })
   const slides = useMemo(() => songToSlides(song, { ccliLicense: s.settings.ccliLicense }), [song, s.settings.ccliLicense])
   const theme = s.themes.find((x) => x.id === s.settings.defaultThemeId) || s.themes[0]
@@ -109,7 +115,7 @@ function SongEditor({ song, onDeleted }: { song: Song; onDeleted: () => void }) 
   const addToPlan = async () => {
     const plan = activePlan()
     if (!plan) return s.toast(t('songs.noActivePlan'), 'err')
-    await s.save('plans', { ...plan, items: [...plan.items, { id: uid(), type: 'song', title: song.title, refId: song.id, durationMin: 5 }], updatedAt: Date.now() })
+    await s.save('plans', { ...plan, items: [...plan.items, { id: uid(), type: 'song', title: songName(song), refId: song.id, durationMin: 5 }], updatedAt: Date.now() })
     void syncPlanSummary()
     s.toast(t('songs.addedToPlan', { plan: plan.title }))
   }
@@ -127,7 +133,7 @@ function SongEditor({ song, onDeleted }: { song: Song; onDeleted: () => void }) 
         </div>
       </div>
       <div className="row wrap" style={{ marginBottom: 16 }}>
-        <button className="btn live" onClick={() => void showAdhoc({ title: song.title, type: 'song', slides, songId: song.id })}>
+        <button className="btn live" onClick={() => void showAdhoc({ title: songName(song), type: 'song', slides, songId: song.id })}>
           ● {t('common.showNow')}
         </button>
         <button className="btn" onClick={() => void addToPlan()}>
@@ -135,7 +141,7 @@ function SongEditor({ song, onDeleted }: { song: Song; onDeleted: () => void }) 
         </button>
         <button
           className="btn"
-          onClick={() => void window.api.files.saveText(`${song.title}.xml`, songToOpenLyrics(song), [{ name: 'OpenLyrics', extensions: ['xml'] }])}
+          onClick={() => void window.api.files.saveText(`${songName(song) || 'song'}.xml`, songToOpenLyrics(song), [{ name: 'OpenLyrics', extensions: ['xml'] }])}
         >
           ⬆ {t('songs.export')}
         </button>
@@ -143,7 +149,7 @@ function SongEditor({ song, onDeleted }: { song: Song; onDeleted: () => void }) 
         <button
           className="btn ghost"
           onClick={async () => {
-            if (!confirmDel(t('songs.confirmDelete', { title: song.title }))) return
+            if (!confirmDel(t('songs.confirmDelete', { title: songName(song) }) + usedInPlansNote(s.plans, song.id, t))) return
             await s.remove('songs', song.id)
             onDeleted()
           }}
@@ -319,11 +325,13 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: (id?: s
         last = song.id
         ok++
       } catch (e) {
-        s.toast(`${p}: ${String(e)}`, 'err')
+        const file = p.split(/[\\/]/).pop() || p
+        const code = (e as SongImportError).code
+        s.toast(code ? t(`songs.importErr.${code}`, { file }) : `${file}: ${String((e as Error).message || e)}`, 'err', 8000)
       }
     }
     setBusy(false)
-    s.toast(t('songs.imported', { count: ok }))
+    if (ok) s.toast(t('songs.imported', { count: ok }))
     onDone(last)
   }
 

@@ -39,7 +39,13 @@ export async function createBackup(target: string): Promise<{ ok: boolean; path:
 }
 
 export async function restoreBackup(zipPath: string): Promise<{ ok: boolean; error?: string; safetyBackup?: string }> {
-  const zip = await JSZip.loadAsync(readFileSync(zipPath))
+  let zip: JSZip
+  try {
+    zip = await JSZip.loadAsync(readFileSync(zipPath))
+  } catch {
+    // not a zip at all (renamed text file, truncated download…) — same answer as a foreign zip
+    return { ok: false, error: 'not-a-backup' }
+  }
   if (!zip.file('iccworship-backup.json')) return { ok: false, error: 'not-a-backup' }
   // safety: back up current data before overwriting
   const safety = join(backupDir(), `before-restore-${stamp()}.zip`)

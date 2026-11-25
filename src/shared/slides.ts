@@ -106,23 +106,33 @@ export function songToSlides(song: Song, opts: { ccliLicense?: string } = {}): S
   }
   if (slides.length) {
     slides[0].footer = songFooter(song, opts.ccliLicense)
+    slides[0].footerCombined = true
   }
   return slides
 }
 
+/** Display name for a song: English title, else Spanish title (one-language songs). */
+export function songName(song: Pick<Song, 'title' | 'titleEs'>): string {
+  return song.title?.trim() || song.titleEs?.trim() || ''
+}
+
 export function songFooter(song: Song, ccliLicense?: string): BiText {
   const parts: string[] = []
-  const titleEn = song.title
-  const titleEs = song.titleEs || song.title
+  // Either title may be empty (one-language songs) — never print a dangling " / ".
+  const titleEn = song.title?.trim() || ''
+  const titleEs = song.titleEs?.trim() || ''
   if (song.author) parts.push(song.author)
   if (song.copyright) parts.push(`© ${song.copyright.replace(/^©\s*/, '')}`)
   const ccli: string[] = []
   if (song.ccli) ccli.push(`CCLI # ${song.ccli}`)
   if (song.ccli && ccliLicense) ccli.push(`CCLI License / Licencia # ${ccliLicense}`)
   const tail = [...parts, ...ccli].join(' · ')
-  const titles = titleEs && titleEs !== titleEn ? `${titleEs} / ${titleEn}` : titleEn
-  const line = [titles, tail].filter(Boolean).join(' — ')
-  return { en: line, es: line }
+  const pair = (a: string, b: string) => (a && b && a !== b ? `${a} / ${b}` : a || b)
+  // One line per language with that language's title first; the slide is marked
+  // footerCombined so only the line for the current bilingual order is shown.
+  const es = [pair(titleEs, titleEn), tail].filter(Boolean).join(' — ')
+  const en = [pair(titleEn, titleEs), tail].filter(Boolean).join(' — ')
+  return { en, es }
 }
 
 /* ------------------------------ scripture ------------------------------ */

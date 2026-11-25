@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, renameSync, writeFileSync, copyFileSync } from 'node:fs'
+import { existsSync, readFileSync, renameSync, writeFileSync, copyFileSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 
 /**
@@ -6,10 +6,22 @@ import { join } from 'node:path'
  * Writes are debounced and atomic (write temp file, then rename) so a power cut
  * during a service can never leave a half-written file. The previous version is
  * kept as <name>.json.bak.
+ *
+ * Damage handling: a file that can't be parsed is first copied aside as
+ * <name>.json.corrupt-<time> (so nothing is ever lost), the backup is used if it parses,
+ * and the problem is recorded in `problems` for the UI to show. A damaged file is never
+ * copied over a good .bak. Write errors (read-only file, disk full…) are caught and
+ * reported through `onWriteError` instead of crashing the main process.
  */
+export type StoreProblem = { name: string; kind: 'recovered' | 'unreadable'; savedAs?: string }
+
 export class JsonStore {
   private cache = new Map<string, unknown>()
   private timers = new Map<string, ReturnType<typeof setTimeout>>()
+  /** collections whose main file on disk is known to be valid (safe to copy to .bak) */
+  private healthy = new Set<string>()
+  readonly problems: StoreProblem[] = []
+  onWriteError?: (name: string, error: Error) => void
 
   constructor(private dir: string) {}
 
@@ -21,15 +33,29 @@ export class JsonStore {
     if (this.cache.has(name)) return this.cache.get(name) as T
     let value = fallback
     const f = this.file(name)
+    let damaged = false
+    let savedAs: string | undefined
+    let loaded = false
     for (const candidate of [f, f + '.bak']) {
       if (!existsSync(candidate)) continue
       try {
         value = JSON.parse(readFileSync(candidate, 'utf8')) as T
+        loaded = true
+        if (candidate === f) this.healthy.add(name)
         break
       } catch {
-        /* try backup */
+        damaged = true
+        // keep a copy of anything we can't read before it could ever be overwritten
+        const copy = `${candidate}.corrupt-${new Date().toISOString().replace(/[:.]/g, '-')}`
+        try {
+          copyFileSync(candidate, copy)
+          savedAs ??= copy
+        } catch {
+          /* ignore */
+        }
       }
     }
+    if (damaged) this.problems.push({ name, kind: loaded ? 'recovered' : 'unreadable', savedAs })
     this.cache.set(name, value)
     return value
   }
@@ -53,15 +79,28 @@ export class JsonStore {
     const value = this.cache.get(name)
     const f = this.file(name)
     const tmp = f + '.tmp'
-    writeFileSync(tmp, JSON.stringify(value, null, 1), 'utf8')
-    if (existsSync(f)) {
+    try {
+      writeFileSync(tmp, JSON.stringify(value, null, 1), 'utf8')
+      // only a known-good file may become the backup (never copy a damaged one over it)
+      if (existsSync(f) && this.healthy.has(name)) {
+        try {
+          copyFileSync(f, f + '.bak')
+        } catch {
+          /* ignore */
+        }
+      }
+      renameSync(tmp, f)
+      this.healthy.add(name)
+    } catch (e) {
       try {
-        copyFileSync(f, f + '.bak')
+        if (existsSync(tmp)) unlinkSync(tmp)
       } catch {
         /* ignore */
       }
+      const err = e as Error
+      if (this.onWriteError) this.onWriteError(name, err)
+      else console.error('could not save', name, err)
     }
-    renameSync(tmp, f)
   }
 
   flush(): void {

@@ -17,7 +17,7 @@
 1. Prayer → add "Maria" / "Por su salud" (public) and "Juan" / "Private matter" with 🔒 Private.
 2. **Show now**.
 **Expected**
-- Text says "1 open, non-private requests…"; projector shows only Maria's request.
+- Text says "1 open, non-private request can be shown on screen."; projector shows only Maria's request.
 
 ### TC-PRY-02 · Mark answered  `P2`
 **Steps**

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Assignment, PlanItem, PlanItemType, ServicePlan } from '@shared/types'
-import { uid } from '@shared/slides'
+import { songName, uid } from '@shared/slides'
 import { localDate, nextSunday } from '@shared/dates'
 import { useApp } from '../store'
 import { syncPlanSummary } from '../liveControl'
 import { Field, TYPE_ICON, fmtMin, confirmDel } from '../../components/ui'
 import { addMinutes, runSheetHtml } from '../../lib/print'
+import { itemSourceMissing } from '../../lib/planRefs'
 import { ItemEditor, SongPicker, ScripturePicker, MediaPicker, PresentationPicker } from './plan/ItemEditor'
 
 const today = () => localDate()
@@ -247,7 +248,12 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
           onClick={async () => {
             if (!confirmDel(t('plans.confirmDelete'))) return
             await s.remove('plans', plan.id)
-            if (s.activePlanId === plan.id) s.setActivePlan(undefined)
+            if (useApp.getState().activePlanId === plan.id) {
+              // pick the next upcoming plan instead of leaving the Live page pointing at nothing
+              const today = localDate()
+              const rest = useApp.getState().plans.filter((p) => !p.isTemplate).sort((a, b) => a.date.localeCompare(b.date))
+              s.setActivePlan((rest.find((p) => p.date >= today) || rest[rest.length - 1])?.id)
+            }
             onDeleted()
           }}
         >
@@ -296,7 +302,9 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
                     ⋮⋮
                   </span>
                   <span className="small muted">{start}</span>
-                  <span className="type-ico">{TYPE_ICON[it.type]}</span>
+                  <span className="type-ico" title={itemSourceMissing(it, s) ? t('plans.sourceMissing') : undefined}>
+                    {itemSourceMissing(it, s) ? '⚠' : TYPE_ICON[it.type]}
+                  </span>
                   <input
                     className="input"
                     value={it.title}
@@ -375,7 +383,7 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
         <SongPicker
           onClose={() => setPicker(null)}
           onPick={(song) => {
-            addItem({ id: uid(), type: 'song', title: song.titleEs && s.settings.uiLang === 'es' ? song.titleEs : song.title, refId: song.id, durationMin: 5 })
+            addItem({ id: uid(), type: 'song', title: (s.settings.uiLang === 'es' && song.titleEs) || songName(song), refId: song.id, durationMin: 5 })
             setPicker(null)
           }}
         />

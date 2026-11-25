@@ -211,7 +211,7 @@ function TextBlock(p: SlideViewProps & { slide: Slide }) {
       </div>
       {(footer.primary || footer.secondary) && (
         <div className="slide-footer" style={{ color: theme.color, fontFamily: `'${theme.fontFamily}', 'Segoe UI', sans-serif`, textShadow: shadow }}>
-          {[footer.primary, footer.secondary].filter(Boolean).join('   ·   ')}
+          {slide.footerCombined ? footer.primary : [footer.primary, footer.secondary].filter(Boolean).join('   ·   ')}
         </div>
       )}
     </>

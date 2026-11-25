@@ -60,8 +60,16 @@ ${plan.notes ? `<h2>${l.notes}</h2><p>${esc(plan.notes).replace(/\n/g, '<br>')}<
 </body></html>`
 }
 
+/** One CSV cell. Text starting with = + - @ (or tab/CR) would run as a formula in
+ *  Excel / Google Sheets ("CSV injection"), so it is prefixed with ' to stay plain text. */
+export function csvCell(v: string | undefined): string {
+  let t = v || ''
+  if (/^[=+\-@\t\r]/.test(t)) t = `'${t}`
+  return `"${t.replace(/"/g, '""')}"`
+}
+
 export function usageCsv(rows: SongUsage[]): string {
   const head = 'Date,Title,CCLI Song #'
-  const body = rows.map((r) => [r.date, `"${(r.title || '').replace(/"/g, '""')}"`, r.ccli || ''].join(',')).join('\r\n')
+  const body = rows.map((r) => [r.date, csvCell(r.title), r.ccli ? csvCell(r.ccli) : ''].join(',')).join('\r\n')
   return head + '\r\n' + body
 }

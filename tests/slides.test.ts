@@ -61,7 +61,17 @@ describe('songToSlides', () => {
     const slides = songToSlides(song({ title: 'Song', ccli: '123', sections: [{ id: 'a', type: 'verse', label: 'V', en: 'x', es: 'y' }] }), { ccliLicense: '999' })
     expect(slides[0].footer?.en).toContain('CCLI # 123')
     expect(slides[0].footer?.en).toContain('CCLI License / Licencia # 999')
-    expect(slides[0].footer?.es).toBe(slides[0].footer?.en)
+    expect(slides[0].footer?.es).toBe(slides[0].footer?.en) // no Spanish title → same line
+    expect(slides[0].footerCombined).toBe(true)
+  })
+
+  it('orders footer titles per language and never leaves a dangling slash', () => {
+    const both = songToSlides(song({ title: 'Holy', titleEs: 'Santo', sections: [{ id: 'a', type: 'verse', label: 'V', en: 'x', es: 'y' }] }))[0].footer!
+    expect(both.es).toBe('Santo / Holy')
+    expect(both.en).toBe('Holy / Santo')
+    const esOnly = songToSlides(song({ title: '', titleEs: 'Solo Español', sections: [{ id: 'a', type: 'verse', label: 'V', en: '', es: 'y' }] }))[0].footer!
+    expect(esOnly.es).toBe('Solo Español')
+    expect(esOnly.en).toBe('Solo Español')
   })
 
   it('builds all sample songs without empty slides', () => {

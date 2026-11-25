@@ -39,6 +39,7 @@ function Stage() {
 
   return (
     <div className="stage">
+      {status === 'offline' && <div className="stage-offline">⚠ {t('stage.offline')}</div>}
       <header className="stage-top">
         <div className="stage-clock">{new Date(now).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</div>
         <div className="stage-item">

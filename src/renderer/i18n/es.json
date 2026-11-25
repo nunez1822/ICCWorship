@@ -1,4 +1,12 @@
 {
+  "errors": {
+    "generic": "Algo salió mal.",
+    "saveFailed": "⚠ No se pudo guardar {{what}} ({{reason}}). Sus cambios se conservan mientras la aplicación esté abierta — verifique que la carpeta de datos no sea de solo lectura ni esté llena.",
+    "dataRecovered": "⚠ El archivo de {{what}} estaba dañado y se restauró desde su copia de respaldo. La copia dañada se guardó: {{file}}",
+    "dataUnreadable": "⚠ El archivo de {{what}} está dañado y no se pudo leer. Se guardó como {{file}} — restaure una copia en Ajustes → Copia de seguridad.",
+    "mediaMissing": "⚠ Archivo no encontrado: {{file}}",
+    "mediaUnplayable": "⚠ Este video no se puede reproducir (dañado o formato no compatible)."
+  },
   "common": {
     "add": "Agregar",
     "cancel": "Cancelar",
@@ -8,7 +16,8 @@
     "save": "Guardar",
     "search": "Buscar",
     "showNow": "Mostrar ahora",
-    "working": "Procesando…"
+    "working": "Procesando…",
+    "usedInPlans": "⚠ Se usa en {{count}} servicio(s) — esos elementos aparecerán como faltantes:\n{{list}}"
   },
   "nav": {
     "live": "En vivo",
@@ -135,7 +144,8 @@
     "add": "Agregar al servicio",
     "attendance": "Asistencia",
     "offering": "Total de la ofrenda",
-    "notes": "Notas"
+    "notes": "Notas",
+    "sourceMissing": "El canto, medio o presentación de este elemento fue eliminado"
   },
   "team": {
     "pending": "Pendiente",
@@ -179,6 +189,7 @@
   "songs": {
     "search": "Buscar título, letra, autor…",
     "new": "Nuevo canto",
+    "untitled": "(sin título)",
     "newTitle": "Nuevo canto",
     "import": "Importar",
     "count": "cantos",
@@ -205,7 +216,14 @@
     "clickToAdd": "Clic para agregar:",
     "resetArrangement": "Restablecer",
     "noResults": "No se encontraron cantos",
-    "imported": "{{count}} cantos importados",
+    "imported_one": "{{count}} canto importado",
+    "imported_other": "{{count}} cantos importados",
+    "importErr": {
+      "empty": "{{file}}: el archivo está vacío.",
+      "notSong": "{{file}}: no es un archivo de canto (OpenLyrics, ChordPro o texto).",
+      "damaged": "{{file}}: el archivo está dañado o incompleto.",
+      "noLyrics": "{{file}}: no se encontró letra en el archivo."
+    },
     "pasteTab": "Pegar letra",
     "filesTab": "Desde archivos",
     "pasteHelp": "Pegue el inglés en un cuadro y el español en el otro. Se detectan encabezados como “Verso 1 / Verse 1, Coro / Chorus, Puente / Bridge”; sin encabezados cada párrafo es una sección y los párrafos repetidos se toman como coro.",
@@ -228,6 +246,7 @@
       "empty": "Escriba una cita como Juan 3:16.",
       "book": "No se reconoce el libro. Pruebe “Juan”, “John”, “1 Cor”, “Salmos”…",
       "numbers": "No se reconocen los números. Pruebe 3:16 o 3:16-18.",
+      "notFound": "No se encontraron versículos en ese capítulo/versículo — revise los números (p. ej. Juan 3 tiene 36 versículos).",
       "notfound": "Ese pasaje no existe.",
       "missing": "Aún no está guardado en esta versión.",
       "version": "Versión no instalada."
@@ -236,7 +255,6 @@
     "pasteThem": "Pegarlos ahora",
     "searchPlaceholder": "Palabras a buscar, p. ej. “amaos unos a otros”",
     "searchHelp": "La búsqueda funciona en cualquier idioma e ignora los acentos.",
-    "results": "{{count}} resultados",
     "pasteIntro": "Las Biblias con derechos de autor, como La Biblia de las Américas, no pueden incluirse en una app gratuita, pero la editorial permite citar hasta 500 versículos. Copie el pasaje de la semana del sitio donde lo lee, péguelo aquí, y ICCWorship lo guarda para todos los servicios futuros. La línea de créditos requerida se agrega automáticamente.",
     "version": "Versión",
     "newPasted": "Agregar versión",
@@ -244,12 +262,10 @@
     "detect": "Detectar versículos",
     "notFound": "No se encontró el/los número(s): {{list}}. Escríbalos abajo.",
     "saveVerses": "Guardar versículos",
-    "savedVerses": "{{count}} versículos guardados",
     "overLimit": "Cuidado: hay más de {{limit}} versículos guardados. Pida permiso a la editorial o elimine algunos antiguos.",
     "stored": "versículos guardados",
     "usage": "{{count}} de {{limit}} versículos permitidos sin permiso escrito",
     "nearLimit": "Se acerca al límite — considere eliminar versículos que ya no necesite.",
-    "storedCount": "{{count}} versículos guardados",
     "noneStored": "Aún no hay versículos guardados.",
     "pastedTitle": "Usar una Biblia con derechos de autor (LBLA, NVI, RVR1960…)",
     "pastedExplain": "Cree una versión “para pegar”. Cada semana pegue los versículos que necesite; se guardan solo en esta computadora y se reutilizan automáticamente. Si la iglesia obtiene después un archivo digital con licencia, impórtelo en la pestaña Versiones y el límite desaparece.",
@@ -275,14 +291,20 @@
     "importHelp": "Para Biblias que la iglesia tiene derecho a usar: XML OSIS o USFX (por ejemplo de github.com/seven1m/open-bibles o de la editorial) o JSON de ICCWorship.",
     "chooseFile": "Elegir archivo",
     "importFailed": "No se pudo importar: {{error}}",
-    "imported": "“{{name}}” importada"
+    "imported": "“{{name}}” importada",
+    "results_one": "{{count}} resultado",
+    "results_other": "{{count}} resultados",
+    "savedVerses_one": "{{count}} versículo guardado",
+    "savedVerses_other": "{{count}} versículos guardados",
+    "storedCount_one": "{{count}} versículo guardado",
+    "storedCount_other": "{{count}} versículos guardados"
   },
   "media": {
     "title": "Medios",
-    "added": "{{count}} archivos agregados",
+    "added_one": "{{count}} archivo agregado",
+    "added_other": "{{count}} archivos agregados",
     "converting": "Convirtiendo {{name}}…",
     "renderingPages": "Procesando página {{done}} de {{total}}…",
-    "presImported": "“{{name}}” importada — {{count}} diapositivas",
     "textOnlyNote": "PowerPoint no está instalado, así que solo se importó el texto. Puede agregar traducciones a cada diapositiva.",
     "mediaFiles": "Videos, imágenes y audio",
     "addFiles": "Agregar archivos",
@@ -326,8 +348,11 @@
       "ppt-needs-office": "Los archivos .ppt antiguos necesitan PowerPoint o LibreOffice. Guárdelo como .pptx o PDF e intente de nuevo.",
       "failed": "No se pudo importar.",
       "no-slides": "No se encontraron diapositivas en ese archivo.",
-      "libreoffice-failed": "LibreOffice no pudo convertir ese archivo."
-    }
+      "libreoffice-failed": "LibreOffice no pudo convertir ese archivo.",
+      "damaged": "No se pudo importar “{{name}}”: el archivo está dañado o no es un PowerPoint / PDF válido."
+    },
+    "presImported_one": "“{{name}}” importada — {{count}} diapositiva",
+    "presImported_other": "“{{name}}” importada — {{count}} diapositivas"
   },
   "themes": {
     "title": "Temas",
@@ -393,13 +418,14 @@
     "private": "Privada (nunca se muestra en pantalla)",
     "anonymous": "Anónimo",
     "prayerSlides": "Peticiones de oración",
-    "prayerSlidesHelp": "{{count}} peticiones abiertas y no privadas se pueden mostrar en pantalla.",
     "open": "Abiertas",
     "answered": "Contestadas",
     "noRequests": "No hay nada aquí.",
     "markAnswered": "Contestada",
     "reopen": "Reabrir",
-    "confirmDeleteRequest": "¿Eliminar esta petición?"
+    "confirmDeleteRequest": "¿Eliminar esta petición?",
+    "prayerSlidesHelp_one": "{{count}} petición abierta y no privada se puede mostrar en pantalla.",
+    "prayerSlidesHelp_other": "{{count}} peticiones abiertas y no privadas se pueden mostrar en pantalla."
   },
   "reports": {
     "title": "Informes",
@@ -466,12 +492,13 @@
     "restoreConfirm": "Restaurar reemplaza los datos actuales (primero se hace una copia de seguridad). ¿Continuar?",
     "restoreFailed": "Ese archivo no es una copia de ICCWorship.",
     "openData": "Abrir carpeta de datos",
-    "autoBackups": "{{count}} copias en esta computadora",
     "about": "Acerca de",
     "aboutText": "Software libre y gratuito para presentaciones en la iglesia (licencia MIT). Hecho con amor para las iglesias que lo necesitan.",
     "credits": "Biblias incluidas: King James Version y Reina-Valera 1909 (dominio público, vía el proyecto open-bibles).",
     "dataAt": "Carpeta de datos:",
-    "showWelcome": "Mostrar la bienvenida otra vez"
+    "showWelcome": "Mostrar la bienvenida otra vez",
+    "autoBackups_one": "{{count}} copia en esta computadora",
+    "autoBackups_other": "{{count}} copias en esta computadora"
   },
   "help": {
     "title": "Atajos de teclado",
@@ -506,6 +533,7 @@
   "remote": {
     "enterPin": "Escriba el PIN que aparece en ICCWorship → Ajustes",
     "wrongPin": "PIN incorrecto",
+    "locked": "Demasiados PIN incorrectos — espere {{seconds}} s e intente de nuevo",
     "connect": "Conectar",
     "offline": "Reconectando…",
     "black": "Negro",

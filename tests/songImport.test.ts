@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { parseHeader, parsePlainSections, songFromChordPro, songFromOpenLyrics, songFromPlainText, songToOpenLyrics } from '@shared/songImport'
+import { detectAndParseSongFile, parseHeader, parsePlainSections, songFromChordPro, songFromOpenLyrics, songFromPlainText, songToOpenLyrics, type SongImportError } from '@shared/songImport'
+import { decodeText } from '@shared/textDecode'
 import { songToSlides } from '@shared/slides'
 
 describe('section headers', () => {
@@ -103,5 +104,45 @@ describe('OpenLyrics', () => {
     expect(again.titleEs).toBe('Santo')
     expect(again.author).toBe('Someone')
     expect(again.sections.map((s) => [s.en, s.es])).toEqual(song.sections.map((s) => [s.en, s.es]))
+  })
+})
+
+describe('file import validation', () => {
+  it('rejects broken, empty and foreign files instead of creating "Untitled" songs', () => {
+    const code = (name: string, content: string) => {
+      try {
+        detectAndParseSongFile(name, content)
+        return 'ok'
+      } catch (e) {
+        return (e as SongImportError).code
+      }
+    }
+    expect(code('empty.xml', '')).toBe('empty')
+    expect(code('broken.xml', '<?xml version="1.0"?><song><properties><titles><title>Broken')).toBe('damaged')
+    expect(code('page.xml', '<?xml version="1.0"?><html><body>not a song</body></html>')).toBe('notSong')
+    expect(code('nolyrics.chordpro', '{title: Only a title}')).toBe('noLyrics')
+    expect(code('ok.chordpro', '{title: Fine}\n[G]Some words')).toBe('ok')
+  })
+})
+
+describe('decodeText', () => {
+  const enc = (s: string) => new TextEncoder().encode(s)
+  it('reads UTF-8 with and without BOM', () => {
+    expect(decodeText(enc('Señor'))).toBe('Señor')
+    expect(decodeText(new Uint8Array([0xef, 0xbb, 0xbf, ...enc('Señor')]))).toBe('Señor')
+  })
+  it('falls back to Windows-1252 for ANSI files', () => {
+    expect(decodeText(new Uint8Array([0x53, 0x65, 0xf1, 0x6f, 0x72, 0x20, 0xa1]))).toBe('Señor ¡')
+  })
+  it('reads UTF-16 LE by BOM', () => {
+    const s = '¡Señor!'
+    const b = new Uint8Array(2 + s.length * 2)
+    b[0] = 0xff
+    b[1] = 0xfe
+    for (let i = 0; i < s.length; i++) {
+      b[2 + i * 2] = s.charCodeAt(i) & 0xff
+      b[3 + i * 2] = s.charCodeAt(i) >> 8
+    }
+    expect(decodeText(b)).toBe('¡Señor!')
   })
 })

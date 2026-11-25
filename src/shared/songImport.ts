@@ -341,10 +341,24 @@ ${verses}
 `
 }
 
+/** Why a song file could not be imported — mapped to a translated message by the UI. */
+export class SongImportError extends Error {
+  constructor(public code: 'empty' | 'notSong' | 'damaged' | 'noLyrics') {
+    super(code)
+  }
+}
+
 export function detectAndParseSongFile(name: string, content: string): Song {
   const lower = name.toLowerCase()
-  if (lower.endsWith('.xml') || /<song[\s>]/.test(content.slice(0, 500))) return songFromOpenLyrics(content)
-  if (/\.(cho|chopro|chordpro|crd|pro)$/.test(lower) || /\{\s*(title|t)\s*:/.test(content)) return songFromChordPro(content)
-  const title = name.replace(/\.[^.]+$/, '')
-  return songFromPlainText(title, content)
+  if (!content.trim()) throw new SongImportError('empty')
+  let song: Song
+  if (lower.endsWith('.xml') || /<song[\s>]/.test(content.slice(0, 500))) {
+    if (!/<song[\s>]/.test(content)) throw new SongImportError('notSong') // some other XML file
+    if (!/<\/song>\s*$/.test(content.trim())) throw new SongImportError('damaged') // cut off / broken
+    song = songFromOpenLyrics(content)
+  } else if (/\.(cho|chopro|chordpro|crd|pro)$/.test(lower) || /\{\s*(title|t)\s*:/.test(content)) song = songFromChordPro(content)
+  else song = songFromPlainText(name.replace(/\.[^.]+$/, ''), content)
+  // never create an empty "Untitled" song from a file that had no lyrics in it
+  if (!song.sections.some((s) => s.en.trim() || s.es.trim())) throw new SongImportError('noLyrics')
+  return song
 }

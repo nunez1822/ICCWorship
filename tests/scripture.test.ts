@@ -51,6 +51,22 @@ describe('parseReference', () => {
     const r = parseReference('John 3:16')
     expect(r.ok && r.ref.segments).toEqual([{ startChapter: 3, startVerse: 16, endChapter: 3, endVerse: 16 }])
   })
+  it('accepts "San Juan" / "S. Mateo" / "St. Luke"', () => {
+    for (const [q, num] of [['San Juan 3:16', 43], ['S. Mateo 5:3', 40], ['St. Luke 2:11', 42], ['Saint John 1:1', 43]] as const) {
+      const r = parseReference(q)
+      expect(r.ok && r.ref.book.num, q).toBe(num)
+    }
+  })
+  it('reads one-chapter books as verses ("Judas 3" = Jude 1:3)', () => {
+    const r = parseReference('Judas 3')
+    expect(r.ok && r.ref.segments).toEqual([{ startChapter: 1, startVerse: 3, endChapter: 1, endVerse: 3 }])
+    const p = parseReference('Filemón 4-6')
+    expect(p.ok && p.ref.segments).toEqual([{ startChapter: 1, startVerse: 4, endChapter: 1, endVerse: 6 }])
+    const whole = parseReference('Jude 1')
+    expect(whole.ok && whole.ref.segments).toEqual([{ startChapter: 1, endChapter: 1 }])
+    const explicit = parseReference('Jude 1:3')
+    expect(explicit.ok && explicit.ref.segments).toEqual([{ startChapter: 1, startVerse: 3, endChapter: 1, endVerse: 3 }])
+  })
   it('parses Spanish dot separator and range', () => {
     const r = parseReference('Juan 3.16-18')
     expect(r.ok && r.ref.book.num).toBe(43)

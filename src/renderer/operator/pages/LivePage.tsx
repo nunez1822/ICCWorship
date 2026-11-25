@@ -8,6 +8,7 @@ import { buildItem } from '../../lib/buildSlides'
 import { SlideView } from '../../components/SlideView'
 import { TYPE_ICON, fmtMin } from '../../components/ui'
 import { toMediaUrl } from '../../lib/media'
+import { itemSourceMissing } from '../../lib/planRefs'
 
 /** Replace every `{n}` placeholder in a message template. */
 function fillTemplate(text: string, n: string): string {
@@ -42,6 +43,7 @@ export function LivePage() {
             {plans.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.date ? `${p.date} · ` : ''}
+                {p.time && plans.filter((x) => x.date === p.date).length > 1 ? `${p.time} · ` : ''}
                 {p.title}
               </option>
             ))}
@@ -68,7 +70,7 @@ export function LivePage() {
               selected={item.id === s.selectedItemId}
               isLive={item.id === liveItemInPlan}
               onSelect={() => s.selectItem(item.id)}
-              onGo={() => void live.goItem(idx)}
+              onGo={() => void live.enqueue(() => live.goItem(idx))}
             />
           ))}
         </div>
@@ -91,6 +93,8 @@ export function LivePage() {
 
 function PlanRow(p: { item: PlanItem; index: number; selected: boolean; isLive: boolean; onSelect: () => void; onGo: () => void }) {
   const { item } = p
+  const { t } = useTranslation()
+  const missing = useApp((s) => itemSourceMissing(item, s))
   const isHeader = item.type === 'header' && !item.slides?.length
   return (
     <div
@@ -101,7 +105,11 @@ function PlanRow(p: { item: PlanItem; index: number; selected: boolean; isLive: 
     >
       <span className="type-ico">{TYPE_ICON[item.type]}</span>
       <div style={{ minWidth: 0 }}>
-        <div className="ti">{item.title}</div>
+        <div className="ti">
+          {missing && <span title={t('plans.sourceMissing')} style={{ color: 'var(--warn)' }}>⚠ </span>}
+          {item.title}
+        </div>
+        {missing && <div className="meta" style={{ color: 'var(--warn)' }}>{t('plans.sourceMissing')}</div>}
         {(item.person || item.notes) && <div className="meta">{[item.person, item.notes].filter(Boolean).join(' · ')}</div>}
       </div>
       <div className="meta" style={{ textAlign: 'right' }}>
@@ -120,7 +128,7 @@ function PlanFooter() {
       <span className="small muted" style={{ flex: 1 }}>
         {plan?.items.length} {t('live.items')} · {fmtMin(total)}
       </span>
-      <button className="btn sm" onClick={() => void live.nextItem()} title="Ctrl + →">
+      <button className="btn sm" onClick={() => void live.enqueue(() => live.nextItem())} title="Ctrl + →">
         {t('live.nextItem')} ⏭
       </button>
     </div>
@@ -173,7 +181,7 @@ function SlidesColumn({ item }: { item?: PlanItem }) {
           </button>
         )}
         {item && !isLiveItem && index >= 0 && (
-          <button className="btn sm live" onClick={() => void live.goItem(index)}>
+          <button className="btn sm live" onClick={() => void live.enqueue(() => live.goItem(index))}>
             ● {t('live.goLive')}
           </button>
         )}
@@ -193,7 +201,7 @@ function SlidesColumn({ item }: { item?: PlanItem }) {
                 <div
                   key={sl.id}
                   className={`thumb ${on ? 'live' : ''}`}
-                  onClick={() => (showLive ? void live.goSlide(i) : index >= 0 ? void live.goItem(index, i) : undefined)}
+                  onClick={() => (showLive ? void live.enqueue(() => live.goSlide(i)) : index >= 0 ? void live.enqueue(() => live.goItem(index, i)) : undefined)}
                 >
                   <div className="ratio">
                     <SlideView slide={sl} theme={theme} background={bg} displayLang={liveSt?.displayLang || 'both'} order={liveSt?.bilingualOrder || 'es-first'} thumb />
@@ -286,32 +294,33 @@ function Controls() {
 
   const sendTemplate = (tpl: { en: string; es: string }) => {
     const fill = (s: string) => fillTemplate(s, num || '?')
-    const text = l.displayLang === 'en' ? fill(tpl.en) : l.displayLang === 'es' ? fill(tpl.es) : `${fill(tpl.es)}
-${fill(tpl.en)}`
+    // both languages: follow the bilingual order setting (English on top for EN-first services)
+    const both = l.bilingualOrder === 'en-first' ? [fill(tpl.en), fill(tpl.es)] : [fill(tpl.es), fill(tpl.en)]
+    const text = l.displayLang === 'en' ? fill(tpl.en) : l.displayLang === 'es' ? fill(tpl.es) : both.join('\n')
     void live.showMessage(text)
   }
 
   return (
     <div className="controls">
       <div className="nav-big">
-        <button className="btn lg" onClick={() => void live.prev()} title="←">
+        <button className="btn lg" onClick={() => void live.enqueue(() => live.prev())} title="←">
           ◀ {t('live.prev')}
         </button>
-        <button className="btn lg primary" onClick={() => void live.next()} title={t('live.nextTip')}>
+        <button className="btn lg primary" onClick={() => void live.enqueue(() => live.next())} title={t('live.nextTip')}>
           {t('live.nextBtn')} ▶
         </button>
       </div>
       <div className="ctl-grid">
-        <button className={`btn ${l.layers.black ? 'on live-on' : ''}`} onClick={() => void live.toggleLayer('black')}>
+        <button className={`btn ${l.layers.black ? 'on live-on' : ''}`} onClick={() => void live.enqueue(() => live.toggleLayer('black'))}>
           ⬛ {t('live.black')} <span className="kbd">B</span>
         </button>
-        <button className={`btn ${l.layers.clearText ? 'on' : ''}`} onClick={() => void live.toggleLayer('clearText')}>
+        <button className={`btn ${l.layers.clearText ? 'on' : ''}`} onClick={() => void live.enqueue(() => live.toggleLayer('clearText'))}>
           🔤 {t('live.clearText')} <span className="kbd">C</span>
         </button>
-        <button className={`btn ${l.layers.logo ? 'on' : ''}`} onClick={() => void live.toggleLayer('logo')}>
+        <button className={`btn ${l.layers.logo ? 'on' : ''}`} onClick={() => void live.enqueue(() => live.toggleLayer('logo'))}>
           ✝ {t('live.logo')} <span className="kbd">L</span>
         </button>
-        <button className="btn" onClick={() => void live.clearAll()}>
+        <button className="btn" onClick={() => void live.enqueue(() => live.clearAll())}>
           🧹 {t('live.clearAll')} <span className="kbd">Esc</span>
         </button>
       </div>
@@ -319,10 +328,10 @@ ${fill(tpl.en)}`
       {l.video && (
         <div className="card" style={{ padding: 12 }}>
           <div className="row" style={{ marginBottom: 8 }}>
-            <button className="btn sm primary" onClick={() => void live.videoToggle()}>
+            <button className="btn sm primary" onClick={() => void live.enqueue(() => live.videoToggle())}>
               {l.video.playing ? '⏸ ' + t('live.pause') : '▶ ' + t('live.play')}
             </button>
-            <button className="btn sm" onClick={() => void live.videoSeek(0)}>
+            <button className="btn sm" onClick={() => void live.enqueue(() => live.videoSeek(0))}>
               ⏮
             </button>
             <label className="check small">

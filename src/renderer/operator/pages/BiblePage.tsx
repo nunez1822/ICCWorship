@@ -154,10 +154,12 @@ function Lookup({ refText, setRefText, onPasteMissing }: { refText: string; setR
             <button className="btn live" onClick={() => void show()} disabled={!res.p.ok && !res.s?.ok}>
               ● {t('common.showNow')}
             </button>
-            <button className="btn" onClick={() => void add()}>
+            <button className="btn" onClick={() => void add()} disabled={!res.p.verses.length && !res.s?.verses.length && pInfo?.source !== 'pasted'}>
               ＋ {t('songs.addToPlan')}
             </button>
           </div>
+          {/* e.g. "Juan 3:99": a valid-looking reference that matches no verse */}
+          {!res.p.verses.length && !res.s?.verses.length && pInfo?.source !== 'pasted' && <div style={{ color: 'var(--live)' }}>⚠ {t('bible.err.notFound')}</div>}
           {missing.length > 0 && pInfo?.source === 'pasted' && (
             <div className="card row" style={{ borderColor: 'var(--warn)' }}>
               <span style={{ flex: 1 }}>

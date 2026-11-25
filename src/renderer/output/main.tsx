@@ -45,6 +45,8 @@ function Output() {
     lastSeek.current = 0
     el.ontimeupdate = () => window.api.live.videoProgress({ current: el.currentTime, duration: el.duration || 0 })
     el.onloadedmetadata = () => window.api.live.videoProgress({ current: 0, duration: el.duration || 0 })
+    // tell the operator instead of sitting on a black frame that claims to be "playing"
+    el.onerror = () => window.api.live.videoProgress({ current: 0, duration: 0, error: true })
     el.onended = () => {
       if (!el.loop) window.api.live.videoEnded()
     }

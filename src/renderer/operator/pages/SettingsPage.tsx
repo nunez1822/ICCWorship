@@ -245,7 +245,10 @@ export function SettingsPage() {
                     <button
                       className="btn sm ghost"
                       onClick={async () => {
-                        if (window.confirm(t('settings.restoreConfirm'))) await window.api.backup.restore(b.path)
+                        if (window.confirm(t('settings.restoreConfirm'))) {
+                          const r = await window.api.backup.restore(b.path)
+                          if (r && !r.ok) s.toast(t('settings.restoreFailed'), 'err')
+                        }
                       }}
                     >
                       ♻️

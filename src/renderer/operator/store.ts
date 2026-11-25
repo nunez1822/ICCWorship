@@ -13,6 +13,7 @@ import type {
   Theme
 } from '@shared/types'
 import i18n from '../i18n'
+import { mediaUrlToPath } from '../lib/media'
 import { localDate } from '@shared/dates'
 
 export type Page = 'live' | 'plans' | 'songs' | 'bible' | 'media' | 'themes' | 'people' | 'reports' | 'settings'
@@ -56,10 +57,24 @@ interface AppState {
   refreshBibles: () => Promise<void>
   setActivePlan: (id?: string) => void
   selectItem: (id?: string) => void
-  toast: (text: string, kind?: Toast['kind']) => void
+  toast: (text: string, kind?: Toast['kind'], ms?: number) => void
 }
 
 let toastId = 0
+
+/** Tell the operator why a live video/image isn't showing: missing file or unplayable. */
+export async function reportMediaProblem(url: string | undefined, toast: AppState['toast']): Promise<void> {
+  const path = mediaUrlToPath(url)
+  if (!path) return
+  const [exists] = await window.api.files.exists([path])
+  toast(exists ? i18n.t('errors.mediaUnplayable') : i18n.t('errors.mediaMissing', { file: path }), 'err', 10_000)
+}
+
+/** Fill in missing fields so an incomplete record (older version, hand-edited backup,
+ *  third-party import) can't crash the editor with e.g. `undefined.join`. */
+function normalizeSong(x: Song): Song {
+  return { ...x, title: x.title ?? '', tags: x.tags ?? [], sections: (x.sections ?? []).map((z) => ({ ...z, en: z.en ?? '', es: z.es ?? '' })), arrangement: x.arrangement ?? [], linesPerSlide: x.linesPerSlide || 4 }
+}
 let listening = false
 
 export const useApp = create<AppState>((set, get) => ({
@@ -106,7 +121,7 @@ export const useApp = create<AppState>((set, get) => ({
     set({
       ready: true,
       settings,
-      songs,
+      songs: songs.map(normalizeSong),
       plans,
       media,
       presentations,
@@ -122,8 +137,23 @@ export const useApp = create<AppState>((set, get) => ({
     if (!listening) {
       listening = true
       api.live.onState((s) => set({ live: s }))
-      api.live.onProgress((p) => set({ progress: p }))
+      api.live.onProgress((p) => {
+        const wasError = get().progress?.error
+        set({ progress: p })
+        if (p?.error && !wasError) void reportMediaProblem(get().live?.video?.src || get().live?.slides[get().live?.slideIndex ?? -1]?.media, get().toast)
+      })
       api.output.onStatus((s) => set({ outputOpen: s.open }))
+      api.db.onWriteError((e) => get().toast(i18n.t('errors.saveFailed', { what: e.name, reason: e.message }), 'err'))
+      // safety net: an action that fails without its own error handling (e.g. saving a
+      // file to a folder that no longer exists) must not fail silently
+      window.addEventListener('unhandledrejection', (ev) => {
+        const msg = String((ev.reason as Error)?.message || ev.reason || '').replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+        get().toast(`⚠ ${msg || i18n.t('errors.generic')}`, 'err', 8000)
+      })
+    }
+    // damaged data files found at startup: say so (and where the damaged copy was kept)
+    for (const p of await api.db.problems()) {
+      get().toast(i18n.t(p.kind === 'recovered' ? 'errors.dataRecovered' : 'errors.dataUnreadable', { what: p.name, file: p.savedAs || '' }), 'err', 30_000)
     }
   },
 
@@ -151,7 +181,7 @@ export const useApp = create<AppState>((set, get) => ({
 
   async reload(c) {
     const list = await window.api.db.list(c)
-    set({ [c]: list } as Partial<AppState>)
+    set({ [c]: c === 'songs' ? (list as Song[]).map(normalizeSong) : list } as Partial<AppState>)
   },
 
   async setSettings(patch) {
@@ -176,10 +206,10 @@ export const useApp = create<AppState>((set, get) => ({
     set({ selectedItemId: id })
   },
 
-  toast(text, kind = 'ok') {
+  toast(text, kind = 'ok', ms) {
     const id = ++toastId
     set((s) => ({ toasts: [...s.toasts, { id, text, kind }] }))
-    setTimeout(() => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), kind === 'err' ? 6000 : 4500)
+    setTimeout(() => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), ms ?? (kind === 'err' ? 6000 : 4500))
   }
 }))
 

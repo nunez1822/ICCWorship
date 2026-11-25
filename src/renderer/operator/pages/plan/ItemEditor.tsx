@@ -67,7 +67,7 @@ export function ItemEditor({ item, onClose, onSave }: { item: PlanItem; onClose:
           {it.type === 'scripture' && (
             <ScriptureFields
               value={it.scripture || { ref: '', primary: s.settings.bibleEs, secondary: s.settings.bibleEn }}
-              onChange={(sc) => set({ scripture: sc })}
+              onChange={(sc) => set({ scripture: sc, title: followRefTitle(it, sc.ref, s.settings.uiLang) })}
             />
           )}
 
@@ -278,6 +278,23 @@ export function ItemPreview({ item }: { item: PlanItem }) {
       {built && built.slides.length > 4 && <div className="small muted">+ {built.slides.length - 4}</div>}
     </div>
   )
+}
+
+/** Names a reference could have been shown as (any UI language, or as typed). */
+function refTitles(ref: string | undefined): string[] {
+  if (!ref) return ['']
+  const p = parseReference(ref)
+  return [ref, ...(p.ok ? [formatReference(p.ref, 'en'), formatReference(p.ref, 'es')] : [])]
+}
+
+/** When the reference changes, an auto-named item ("John 3:16-17") follows it — otherwise
+ *  the stage and top bar kept the old reference while the projector showed the new one.
+ *  A title the user typed themselves is left alone. */
+function followRefTitle(item: PlanItem, newRef: string, lang: 'en' | 'es'): string {
+  const auto = refTitles(item.scripture?.ref).includes(item.title.trim())
+  if (!auto) return item.title
+  const p = parseReference(newRef)
+  return p.ok ? formatReference(p.ref, lang) : newRef
 }
 
 export function ScriptureFields({ value, onChange }: { value: { ref: string; primary: string; secondary?: string }; onChange: (v: { ref: string; primary: string; secondary?: string }) => void }) {

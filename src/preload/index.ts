@@ -22,7 +22,9 @@ const api = {
     get: <T>(c: string, id: string): Promise<T | undefined> => invoke('db:get', c, id),
     upsert: <T extends { id: string }>(c: string, item: T): Promise<T> => invoke('db:upsert', c, item),
     upsertMany: <T extends { id: string }>(c: string, items: T[]): Promise<void> => invoke('db:upsertMany', c, items),
-    remove: (c: string, id: string): Promise<void> => invoke('db:remove', c, id)
+    remove: (c: string, id: string): Promise<void> => invoke('db:remove', c, id),
+    problems: (): Promise<{ name: string; kind: 'recovered' | 'unreadable'; savedAs?: string }[]> => invoke('db:problems'),
+    onWriteError: (cb: (e: { name: string; message: string }) => void) => on('db:writeError', cb)
   },
   settings: {
     get: (): Promise<Settings> => invoke('settings:get'),
@@ -46,11 +48,11 @@ const api = {
   },
   live: {
     get: (): Promise<LiveState> => invoke('live:get'),
-    update: (patch: Partial<LiveState>): Promise<void> => invoke('live:update', patch),
+    update: (patch: Partial<LiveState>): Promise<LiveState> => invoke('live:update', patch),
     onState: (cb: (s: LiveState) => void) => on('live:state', cb),
     onProgress: (cb: (p: LiveState['videoProgress']) => void) => on('live:progress', cb),
     onCommand: (cb: (c: RemoteCommand | { type: 'videoEnded' }) => void) => on('remote:command', cb),
-    videoProgress: (p: { current: number; duration: number }) => ipcRenderer.send('output:progress', p),
+    videoProgress: (p: { current: number; duration: number; error?: boolean }) => ipcRenderer.send('output:progress', p),
     videoEnded: () => ipcRenderer.send('output:ended'),
     stageCommand: (cmd: RemoteCommand) => ipcRenderer.send('stage:command', cmd)
   },

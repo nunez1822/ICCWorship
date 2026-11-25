@@ -42,7 +42,7 @@
 **Steps**
 1. `queueOpenFiles([<abs path to fixture>])`. 2. Songs → Import → "From files" → **Choose files**.
 **Expected**
-- Toast "1 songs imported". New song "E2E Test Hymn" / "Himno de Prueba E2E", CCLI 1234567.
+- Toast "1 song imported". New song "E2E Test Hymn" / "Himno de Prueba E2E", CCLI 1234567.
 - Arrangement v1 c1 v2 c1; verse 1 has English and Spanish text.
 
 ### TC-SONG-07 · Import ChordPro and chords on stage only  `P1`

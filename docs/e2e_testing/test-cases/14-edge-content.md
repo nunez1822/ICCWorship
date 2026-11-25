@@ -98,7 +98,7 @@ printf '<?xml version="1.0"?><html><body>not a song</body></html>' > .e2e-data/t
 **Steps**
 1. Songs → Import → From files → queue `[broken.xml, empty.xml, notasong.xml, tests/fixtures/sample-openlyrics.xml]` → Choose files.
 **Expected**
-- The valid file imports ("1 songs imported"); the others produce a clear error naming the file(s).
+- The valid file imports ("1 song imported"); the others produce a clear error naming the file(s).
 - No half-empty "Untitled" songs are created for the bad files. App stays usable.
 
 ### TC-EDGE-11 · Text encodings (Windows-1252 / UTF-16)  `P2`

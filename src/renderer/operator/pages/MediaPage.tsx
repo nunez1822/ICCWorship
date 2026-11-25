@@ -6,6 +6,7 @@ import { useApp } from '../store'
 import { activePlan, showAdhoc, syncPlanSummary } from '../liveControl'
 import { Modal, Seg, confirmDel } from '../../components/ui'
 import { SlideView } from '../../components/SlideView'
+import { usedInPlansNote } from '../../lib/planRefs'
 import { AUDIO_EXT, IMAGE_EXT, VIDEO_EXT, backgroundFromMedia, fileName, kindOf, makeThumb, toMediaUrl } from '../../lib/media'
 import { renderPdfPages } from '../../lib/pdf'
 
@@ -38,7 +39,9 @@ export function MediaPage() {
     try {
       const r = await window.api.pres.import(path, prefer, reuseId)
       if (r.error) {
-        s.toast(t(`media.err.${r.error}`, { defaultValue: t('media.err.failed') + ' ' + r.error }), 'err')
+        // known codes get their own message; anything else (JSZip / pdf.js internals) gets a
+        // plain-language one instead of developer text
+        s.toast(t(`media.err.${r.error}`, { defaultValue: t('media.err.damaged', { name: fileName(path) }) }), 'err', 8000)
         return
       }
       if (r.pdfToRender) {
@@ -53,7 +56,8 @@ export function MediaPage() {
       }
       setTab('presentations')
     } catch (e) {
-      s.toast(String(e), 'err')
+      console.error('presentation import failed', e)
+      s.toast(t('media.err.damaged', { name: fileName(path) }), 'err', 8000)
     } finally {
       setBusy(null)
     }
@@ -227,7 +231,7 @@ function Library() {
           <button
             className="btn ghost"
             onClick={async () => {
-              if (!confirmDel(t('media.confirmRemove'))) return
+              if (!confirmDel(t('media.confirmRemove') + usedInPlansNote(s.plans, item.id, t))) return
               await s.remove('media', item.id)
               setSel(undefined)
             }}
@@ -316,7 +320,7 @@ function PresentationModal({ pres, onClose, onReimport }: { pres: Presentation; 
           <button
             className="btn ghost"
             onClick={async () => {
-              if (!confirmDel(t('media.confirmRemove'))) return
+              if (!confirmDel(t('media.confirmRemove') + usedInPlansNote(s.plans, pres.id, t))) return
               await s.remove('presentations', pres.id)
               onClose()
             }}

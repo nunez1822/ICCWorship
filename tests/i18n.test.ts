@@ -55,7 +55,8 @@ describe('translations', () => {
       for (const m of code.matchAll(/\bt\(\s*'([a-zA-Z0-9_.-]+)'/g)) used.add(m[1])
       for (const m of code.matchAll(/'(warn\.[a-zA-Z]+)'/g)) used.add(m[1])
     }
-    const missing = [...used].filter((k) => !EN.has(k))
+    // plural keys: t('x', { count }) resolves x_one / x_other
+    const missing = [...used].filter((k) => !EN.has(k) && !EN.has(`${k}_other`))
     expect(missing).toEqual([])
   })
 

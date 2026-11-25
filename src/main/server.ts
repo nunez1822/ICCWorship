@@ -1,3 +1,4 @@
+import { connect } from 'node:net'
 import { createServer, request, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { extname, join, normalize, resolve } from 'node:path'
@@ -117,6 +118,11 @@ function proxyToDev(req: IncomingMessage, res: ServerResponse, path: string): vo
   req.pipe(p)
 }
 
+/** The church name is user text — never put it into HTML unescaped (phones load this page). */
+function escapeHtml(v: string): string {
+  return v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
+}
+
 function handle(req: IncomingMessage, res: ServerResponse): void {
   const url = new URL(req.url || '/', 'http://x')
   let path = url.pathname
@@ -132,7 +138,7 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
       200,
       `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>ICCWorship</title>
 <style>body{font-family:system-ui;background:#0b1324;color:#fff;display:grid;place-items:center;min-height:100vh;margin:0}a{display:block;margin:12px;padding:18px 28px;border-radius:14px;background:#1d3557;color:#fff;text-decoration:none;font-size:20px;text-align:center}</style>
-<div><h1 style="text-align:center">${s.churchName || 'ICCWorship'}</h1><a href="/remote">📱 Remote / Control remoto</a><a href="/stage">🎤 Stage / Escenario</a></div>`,
+<div><h1 style="text-align:center">${escapeHtml(s.churchName || 'ICCWorship')}</h1><a href="/remote">📱 Remote / Control remoto</a><a href="/stage">🎤 Stage / Escenario</a></div>`,
       'text/html; charset=utf-8'
     )
   }
@@ -143,6 +149,22 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
   // only expose the stage/remote pages and their assets, never the operator page
   if (!/^\/(stage\.html|remote\.html|assets\/)/.test(path)) return send(res, 404, 'Not found')
   serveFile(req, res, file)
+}
+
+/* ---- PIN guessing protection: a 4-digit PIN would otherwise fall in ~10 s on the church Wi-Fi.
+   After 5 wrong PINs from one device, that device waits 30 s, doubling each time (max 10 min).
+   Other phones are unaffected; a correct PIN clears the counter. ---- */
+const pinFailures = new Map<string, { count: number; lockedUntil: number }>()
+const MAX_FREE_TRIES = 5
+function lockedFor(ip: string): number {
+  const f = pinFailures.get(ip)
+  return f ? Math.max(0, f.lockedUntil - Date.now()) : 0
+}
+function notePinFailure(ip: string): void {
+  const f = pinFailures.get(ip) || { count: 0, lockedUntil: 0 }
+  f.count++
+  if (f.count >= MAX_FREE_TRIES) f.lockedUntil = Date.now() + Math.min(30_000 * 2 ** (f.count - MAX_FREE_TRIES), 10 * 60_000)
+  pinFailures.set(ip, f)
 }
 
 function broadcast(msg: unknown): void {
@@ -171,11 +193,34 @@ live.on('change', (state: LiveState) => {
 })
 live.on('progress', (p) => broadcast({ type: 'progress', progress: p }))
 
-export function startServer(opts: { rendererDir: string; devUrl?: string }): Promise<{ ok: boolean; error?: string }> {
+/**
+ * Is something else already answering on this port (IPv4 or IPv6)? Windows lets two
+ * programs listen on the same port when one uses IPv6 ([::]) and the other IPv4
+ * (0.0.0.0), so listen() succeeds and phones silently reach the wrong program.
+ */
+function portAnswers(port: number): Promise<boolean> {
+  const probe = (host: string) =>
+    new Promise<boolean>((res) => {
+      const sock = connect({ host, port })
+      const finish = (v: boolean) => {
+        sock.destroy()
+        res(v)
+      }
+      sock.setTimeout(400, () => finish(false))
+      sock.once('connect', () => finish(true))
+      sock.once('error', () => finish(false))
+    })
+  return Promise.all([probe('127.0.0.1'), probe('::1')]).then((r) => r.some(Boolean))
+}
+
+export async function startServer(opts: { rendererDir: string; devUrl?: string }): Promise<{ ok: boolean; error?: string }> {
   rendererDir = opts.rendererDir
   devUrl = opts.devUrl
+  stopServer()
+  await closing // our own previous server must be fully closed before probing the port
+  const settings = getSettings()
+  if (settings.serverEnabled && (await portAnswers(settings.serverPort))) return { ok: false, error: 'EADDRINUSE' }
   return new Promise((done) => {
-    stopServer()
     const s = getSettings()
     if (!s.serverEnabled) return done({ ok: false, error: 'disabled' })
     server = createServer(handle)
@@ -184,8 +229,14 @@ export function startServer(opts: { rendererDir: string; devUrl?: string }): Pro
       const u = new URL(req.url || '/', 'http://x')
       const role = u.searchParams.get('role') === 'remote' ? 'remote' : 'stage'
       const pin = u.searchParams.get('pin') || ''
-      const authed = role === 'stage' || pin === getSettings().remotePin
-      ws.send(JSON.stringify({ type: 'hello', role, authed, uiLang: getSettings().uiLang }))
+      const ip = req.socket.remoteAddress || '?'
+      const lock = role === 'remote' ? lockedFor(ip) : 0
+      const authed = role === 'stage' || (lock === 0 && pin === getSettings().remotePin)
+      if (role === 'remote') {
+        if (authed) pinFailures.delete(ip)
+        else if (lock === 0) notePinFailure(ip)
+      }
+      ws.send(JSON.stringify({ type: 'hello', role, authed, locked: role === 'remote' && !authed ? Math.ceil(lockedFor(ip) / 1000) : 0, uiLang: getSettings().uiLang }))
       if (!authed) {
         setTimeout(() => ws.close(), 200)
         return
@@ -209,10 +260,15 @@ export function startServer(opts: { rendererDir: string; devUrl?: string }): Pro
   })
 }
 
+let closing: Promise<void> = Promise.resolve()
 export function stopServer(): void {
   wss?.clients.forEach((c) => c.terminate())
   wss?.close()
-  server?.close()
+  const srv = server
+  if (srv) {
+    closing = new Promise((r) => srv.close(() => r()))
+    srv.closeAllConnections?.() // keep-alive sockets would otherwise hold close() open
+  }
   wss = null
   server = null
 }
