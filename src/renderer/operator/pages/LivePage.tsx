@@ -6,7 +6,7 @@ import { useApp } from '../store'
 import * as live from '../liveControl'
 import { buildItem } from '../../lib/buildSlides'
 import { SlideView } from '../../components/SlideView'
-import { TYPE_ICON, fmtMin } from '../../components/ui'
+import { TYPE_ICON, fmtMin, itemIcon } from '../../components/ui'
 import { toMediaUrl } from '../../lib/media'
 import { itemSourceMissing } from '../../lib/planRefs'
 
@@ -104,6 +104,7 @@ function PlanRow(p: { item: PlanItem; index: number; selected: boolean; isLive: 
   const { item } = p
   const { t } = useTranslation()
   const missing = useApp((s) => itemSourceMissing(item, s))
+  const media = useApp((s) => s.media)
   const isHeader = item.type === 'header' && !item.slides?.length
   return (
     <div
@@ -112,7 +113,7 @@ function PlanRow(p: { item: PlanItem; index: number; selected: boolean; isLive: 
       onDoubleClick={p.onGo}
       title={item.notes}
     >
-      <span className="type-ico">{TYPE_ICON[item.type]}</span>
+      <span className="type-ico">{itemIcon(item, media)}</span>
       <div style={{ minWidth: 0 }}>
         <div className="ti">
           {missing && (

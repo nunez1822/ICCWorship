@@ -5,7 +5,7 @@ import { songName, uid } from '@shared/slides'
 import { localDate, nextSunday } from '@shared/dates'
 import { useApp } from '../store'
 import { syncPlanSummary } from '../liveControl'
-import { Field, TYPE_ICON, fmtMin, confirmDel } from '../../components/ui'
+import { Field, TYPE_ICON, fmtMin, confirmDel, itemIcon } from '../../components/ui'
 import { addMinutes, runSheetHtml } from '../../lib/print'
 import { itemSourceMissing } from '../../lib/planRefs'
 import { ItemEditor, SongPicker, ScripturePicker, MediaPicker, PresentationPicker } from './plan/ItemEditor'
@@ -315,7 +315,7 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
                   </span>
                   <span className="small muted">{start}</span>
                   <span className="type-ico" title={itemSourceMissing(it, s) ? t('plans.sourceMissing') : undefined}>
-                    {itemSourceMissing(it, s) ? '⚠' : TYPE_ICON[it.type]}
+                    {itemSourceMissing(it, s) ? '⚠' : itemIcon(it, s.media)}
                   </span>
                   <input
                     className="input"

@@ -169,6 +169,26 @@ try {
     const st = await op.evaluate(() => window.api.live.get())
     console.log('video:', JSON.stringify({ playing: st.video?.playing, progress: st.videoProgress }))
 
+    // while a video plays, phones get progress messages: they must not carry the file's local path
+    {
+      const { port } = await op.evaluate(() => window.api.server.info())
+      const pinNow = (await op.evaluate(() => window.api.settings.get())).remotePin
+      const seen = await new Promise((res) => {
+        const msgs = []
+        const ws = new WsClient(`ws://127.0.0.1:${port}/ws?role=stage&pin=${pinNow}`)
+        ws.on('message', (d) => msgs.push(String(d)))
+        ws.on('error', () => {})
+        setTimeout(() => {
+          ws.terminate()
+          res(msgs)
+        }, 1500)
+      })
+      const progressMsgs = seen.filter((m) => m.includes('"progress"'))
+      const leak = seen.find((m) => /Users|media:\/\/|[A-Za-z]:\\/.test(m))
+      console.log('video progress to phones has no local paths:', progressMsgs.length && !leak ? '✓' : `✗ ${progressMsgs.length} ${leak?.slice(0, 120)}`)
+      if (!progressMsgs.length || leak) errors.push('LAN progress messages leak a local path (or none were sent)')
+    }
+
     // The projector page crashes in the middle of the video: it must come back by itself, showing what is live
     // and continuing the video where it was (not from the start, with sound, mid-service).
     const before = (await op.evaluate(() => window.api.live.get())).videoProgress?.current || 0

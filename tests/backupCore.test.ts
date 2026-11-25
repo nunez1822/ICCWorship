@@ -4,14 +4,15 @@ import { checkSchema, runMigrations, SCHEMA_VERSION, type Migration } from '@sha
 
 describe('backup manifest', () => {
   it('accepts backups from 1.0 and from now', () => {
-    expect(checkManifest({ app: 'ICCWorship', version: 1, createdAt: 'x' })).toEqual({ ok: true, format: 1 })
-    expect(checkManifest(makeManifest('1.1.0'))).toEqual({ ok: true, format: 1 })
+    expect(checkManifest({ app: 'ICCWorship', version: 1, createdAt: 'x' })).toEqual({ ok: true, format: 1, schemaVersion: undefined })
+    expect(checkManifest(makeManifest('1.1.0'))).toEqual({ ok: true, format: 1, schemaVersion: SCHEMA_VERSION })
     expect(makeManifest('1.1.0').schemaVersion).toBe(SCHEMA_VERSION)
   })
   it('refuses other files and backups made by a newer layout', () => {
     expect(checkManifest(null)).toEqual({ ok: false, error: 'not-a-backup' })
     expect(checkManifest({ app: 'Other' })).toEqual({ ok: false, error: 'not-a-backup' })
     expect(checkManifest({ app: 'ICCWorship', format: 99 })).toEqual({ ok: false, error: 'newer-format' })
+    expect(checkManifest({ app: 'ICCWorship', format: 1, schemaVersion: SCHEMA_VERSION + 1 })).toEqual({ ok: false, error: 'newer-schema' })
   })
 })
 

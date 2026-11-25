@@ -24,7 +24,8 @@ function walk(dir: string, out: string[] = []): string[] {
     const p = join(dir, f)
     const st = statSync(p)
     if (st.isDirectory()) walk(p, out)
-    else if (!f.endsWith('.tmp')) out.push(p)
+    // .tmp: a save in progress; .bak: the previous version of a file that is in the backup itself
+    else if (!f.endsWith('.tmp') && !f.endsWith('.bak')) out.push(p)
   }
   return out
 }
@@ -148,7 +149,9 @@ async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: Restor
     // 3. which version wrote it? newer → refuse; older → upgrade the staged copy
     const metaRel = join('data', 'meta.json')
     const meta = staged.has(metaRel) ? json(metaRel) : {}
-    const check = checkSchema(meta?.schemaVersion)
+    // the higher of the two wins: the zip's meta.json, or what its manifest says
+    const versions = [meta?.schemaVersion, m.schemaVersion].filter((v): v is number => typeof v === 'number')
+    const check = checkSchema(versions.length ? Math.max(...versions) : undefined)
     if (check.kind === 'newer') return { ok: false, error: 'newer-schema' }
     if (check.kind === 'migrate') {
       runMigrations(
@@ -212,6 +215,7 @@ function replaceFrom(root: string, staged: Map<string, string>): void {
   for (const inc of INCLUDE) {
     for (const f of walk(join(root, inc))) {
       const rel = relative(root, f)
+      // .bak files of the replaced data are removed too (walk() skips them, so remove them here)
       if (!keep.has(rel.toLowerCase()) && !/\.corrupt-/.test(rel)) unlinkSync(f)
     }
   }

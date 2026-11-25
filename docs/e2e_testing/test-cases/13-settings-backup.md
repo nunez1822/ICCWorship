@@ -80,10 +80,12 @@
   `system.json` of a diagnostics export says features are software/disabled). Untick it afterwards.
 
 ### TC-BAK-04 · A backup from a newer version is refused  `P1`
-**Setup (node):** take a backup zip and change its `iccworship-backup.json` to `{"app":"ICCWorship","format":1,"schemaVersion":99}`
-(or `"format": 99`). **Steps** — Restore… that zip.
+**Setup (node):** make three copies of a backup zip: (1) `iccworship-backup.json` → `{"app":"ICCWorship","format":99}`;
+(2) `iccworship-backup.json` → `{"app":"ICCWorship","format":1,"schemaVersion":99}`; (3) `data/meta.json` →
+`{"seeded":1,"schemaVersion":99}` (what a real newer version writes). **Steps** — Restore… each.
 **Expected**
-- "That backup was made by a newer ICCWorship. Install the latest version…" — nothing changed, no reload.
+- All three: "That backup was made by a newer ICCWorship. Install the latest version…" — nothing changed, no
+  reload, no new `before-restore-…` zip.
 
 ### TC-BAK-05 · Damaged backup changes nothing  `P1`
 **Setup (node):** a backup zip whose `data/songs.json` is `[{"id":` (truncated). **Steps** — Restore… it.

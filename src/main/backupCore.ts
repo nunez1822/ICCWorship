@@ -19,15 +19,19 @@ export function makeManifest(appVersion: string, now = new Date()): BackupManife
   return { app: 'ICCWorship', format: BACKUP_FORMAT, schemaVersion: SCHEMA_VERSION, appVersion, createdAt: now.toISOString() }
 }
 
-export type ManifestCheck = { ok: true; format: number } | { ok: false; error: 'not-a-backup' | 'newer-format' }
+export type ManifestCheck = { ok: true; format: number; schemaVersion?: number } | { ok: false; error: 'not-a-backup' | 'newer-format' | 'newer-schema' }
 
 /** 1.0.x wrote { app, version: 1 }; later versions { app, format, schemaVersion, … }. */
 export function checkManifest(raw: unknown): ManifestCheck {
   if (!raw || typeof raw !== 'object' || (raw as { app?: unknown }).app !== 'ICCWorship') return { ok: false, error: 'not-a-backup' }
-  const m = raw as { format?: unknown; version?: unknown }
+  const m = raw as { format?: unknown; version?: unknown; schemaVersion?: unknown }
   const format = typeof m.format === 'number' ? m.format : typeof m.version === 'number' ? m.version : 1
   if (format > BACKUP_FORMAT) return { ok: false, error: 'newer-format' }
-  return { ok: true, format }
+  // the manifest says which data schema is inside (1.0's manifests don't): a newer one is refused even if the
+  // zip's own meta.json is missing or says otherwise
+  const schemaVersion = typeof m.schemaVersion === 'number' ? m.schemaVersion : undefined
+  if (schemaVersion !== undefined && schemaVersion > SCHEMA_VERSION) return { ok: false, error: 'newer-schema' }
+  return { ok: true, format, schemaVersion }
 }
 
 /* ------------------------------ automatic backups ------------------------------ */

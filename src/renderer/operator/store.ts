@@ -223,6 +223,8 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   toast(text, kind = 'ok', ms) {
+    // the same message twice in a row (one action reported by two checks, a double click) is shown once
+    if (get().toasts.some((x) => x.text === text)) return
     const id = ++toastId
     set((s) => ({ toasts: [...s.toasts, { id, text, kind }] }))
     setTimeout(() => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), ms ?? (kind === 'err' ? 6000 : 4500))

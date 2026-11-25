@@ -40,6 +40,7 @@ function Remote() {
         <p>{t('remote.enterPin')}</p>
         <input
           inputMode="numeric"
+          aria-label="PIN"
           maxLength={6}
           value={entry}
           onChange={(e) => setEntry(e.target.value.replace(/\D/g, ''))}
