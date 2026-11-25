@@ -1,5 +1,6 @@
 import type { SectionType, Song, SongSection } from './types'
 import { uid } from './slides'
+import { stripTags } from './textDecode'
 
 /* --------------------------- section headers --------------------------- */
 
@@ -279,11 +280,12 @@ export function songFromOpenLyrics(xml: string): Song {
     const lang = ((/lang="([^"]+)"/.exec(attrs) || [])[1] || '').toLowerCase()
     const linesBlocks = [...m[2].matchAll(/<lines\b[^>]*>([\s\S]*?)<\/lines>/g)].map((l) =>
       xmlDecode(
-        l[1]
-          .replace(/<chord\s+name="([^"]+)"\s*\/>/g, '[$1]')
-          .replace(/<br\s*\/?>/g, '\n')
-          .replace(/<comment>[\s\S]*?<\/comment>/g, '')
-          .replace(/<[^>]+>/g, '')
+        stripTags(
+          l[1]
+            .replace(/<chord\s+name="([^"]+)"\s*\/>/g, '[$1]')
+            .replace(/<br\s*\/?>/g, '\n')
+            .replace(/<comment>[\s\S]*?<\/comment>/g, '')
+        )
       )
         .split('\n')
         .map((x) => x.trim())

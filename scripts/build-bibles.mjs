@@ -169,7 +169,8 @@ async function ensure(file) {
 
 const decode = (s) =>
   s
-    .replace(/<[^>]+>/g, '')
+    .replace(/<[^<>]*>/g, '')
+    .replace(/<[^<>]*>/g, '') // twice: nested leftovers like <a<b>> (build-time only; output is plain text)
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')

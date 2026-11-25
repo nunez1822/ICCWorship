@@ -112,3 +112,14 @@ export function useLiveFeed(role: 'stage' | 'remote', pin?: string) {
 
   return { state, progress, status, send, lockedSec }
 }
+
+/**
+ * The slide image URLs the stage / remote pages may load: the LAN server's opaque /file/<token> links, or — in
+ * the app's own stage window — media:// files. Anything else in the received state is ignored.
+ */
+export function safeMediaSrc(u: string | undefined): string | undefined {
+  if (!u) return undefined
+  if (/^\/file\/[0-9a-f]{16,64}$/.test(u)) return u
+  if (typeof window !== 'undefined' && window.api && u.startsWith('media://local/')) return u
+  return undefined
+}
