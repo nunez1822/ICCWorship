@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import '../i18n'
 import { pickLangs } from '@shared/slides'
 import type { DisplayLang } from '@shared/types'
-import { useLiveFeed } from '../lib/liveFeed'
+import { safeMediaSrc, useLiveFeed } from '../lib/liveFeed'
 import { rememberPin, usePin } from '../lib/pin'
 import './remote.css'
 
@@ -91,7 +91,7 @@ function Remote() {
         {state.layers.black ? (
           <span>⬛ {t('remote.black')}</span>
         ) : cur?.kind === 'image' && cur.media ? (
-          <img src={cur.media} alt="" />
+          <img src={safeMediaSrc(cur.media)} alt="" />
         ) : (
           <>
             {title.primary && <b>{title.primary}</b>}

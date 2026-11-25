@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import '../i18n'
 import { formatClock, pickLangs, stripChords, upcomingSlideIndex } from '@shared/slides'
 import type { Slide } from '@shared/types'
-import { useLiveFeed } from '../lib/liveFeed'
+import { safeMediaSrc, useLiveFeed } from '../lib/liveFeed'
 import { rememberPin, usePin } from '../lib/pin'
 import { PinScreen } from '../components/PinScreen'
 import './stage.css'
@@ -137,7 +137,7 @@ function StageSlide({
 }) {
   if (!slide) return <div className="stage-empty">—</div>
   if ((slide.kind === 'image' || slide.kind === 'video') && slide.media) {
-    return slide.kind === 'image' ? <img className="stage-img" src={slide.media} alt="" /> : <div className="stage-empty">🎬 {slide.group}</div>
+    return slide.kind === 'image' ? <img className="stage-img" src={safeMediaSrc(slide.media)} alt="" /> : <div className="stage-empty">🎬 {slide.group}</div>
   }
   if (slide.kind === 'countdown') return <div className="stage-empty">⏱ {formatClock(Math.max(0, (slide.countdownTo || 0) - Date.now()))}</div>
   const src = chords && slide.chords ? slide.chords : slide.text
