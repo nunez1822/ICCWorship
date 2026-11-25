@@ -81,7 +81,7 @@ mostrar en un idioma o **en ambos a la vez**, cambiando en vivo con una sola tec
 ## Sus datos y copias de seguridad
 
 - Todo lo que crea ICCWorship está en **`Documentos\ICCWorship`** (Ajustes → Copia de seguridad → 📂 Abrir carpeta de datos).
-- Cada día se hace una copia automática (se guardan las últimas 14 en `Documentos\ICCWorshipackups`).
+- Cada día se hace una copia automática (se guardan las últimas 14 en `Documentos\ICCWorship\backups`).
 - **Cambiar de computadora:** en la PC anterior, Ajustes → Copia de seguridad → **Hacer copia ahora** a una memoria USB.
   Instale ICCWorship en la nueva PC y elija **Restaurar** con ese archivo. Los videos e imágenes que agregó se
   *referencian*, no se copian: copie también esos archivos.
