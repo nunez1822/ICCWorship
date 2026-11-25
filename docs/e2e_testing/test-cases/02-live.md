@@ -82,3 +82,36 @@ Default start: welcome finished (English), Live page, sample plan selected.
 1. Plans → create a **Blank plan** for a date. 2. Live → choose it in the plan dropdown.
 **Expected**
 - Plan list is empty with a helpful message; choosing the original plan restores its items.
+
+### TC-LIVE-12 · Preview of a selected item follows a default-theme change  `P1`
+**Pre:** default. Doxology uses the default theme (its ⚙ editor shows "Default theme"); Doxology is not live.
+**Steps**
+1. Live → single-click **Doxology** (do not double-click). Note the thumbnails' background.
+2. Themes → **Make default** on a theme with a clearly different background (e.g. "Sunrise / Amanecer").
+3. Go back to Live without clicking any item.
+4. Afterwards, make the original theme the default again.
+**Expected**
+- After step 3 Doxology is still selected and its thumbnails already use the new default theme's background;
+  no need to click another item and back.
+- The projector did not change.
+
+### TC-LIVE-13 · Switching items never shows the previous item's slides  `P1`
+**Pre:** default; Holy, Holy, Holy and John 3:16-17 are not live.
+**Steps**
+1. Single-click **Holy, Holy, Holy** and wait for its verse thumbnails.
+2. Single-click **John 3:16-17**, and take a snapshot straight away.
+3. Click John 3:16-17's first thumbnail.
+**Expected**
+- At every moment after step 2 the middle column shows either "Working…" or John 3:16-17's verse slides,
+  never Holy, Holy, Holy's verses under the John 3:16-17 title.
+- Step 3 puts **John 3:16-17** live at slide 1.
+
+### TC-LIVE-14 · Screen language keys don't rebuild a previewed item  `P2`
+**Pre:** the Countdown item counts down for 5 minutes (default); Welcome is live.
+**Steps**
+1. Single-click **Countdown** (do not double-click). Wait ~10 s and note the preview clock (about 4:50).
+2. Press `2`, then `3`.
+**Expected**
+- The preview clock keeps counting down from where it was. It never jumps back to 5:00, and the thumbnails don't
+  flicker or reload.
+- The projector switches language as in TC-LIVE-03.

@@ -5,7 +5,8 @@
     "dataRecovered": "⚠ El archivo de {{what}} estaba dañado y se restauró desde su copia de respaldo. La copia dañada se guardó: {{file}}",
     "dataUnreadable": "⚠ El archivo de {{what}} está dañado y no se pudo leer. Se guardó como {{file}} — restaure una copia en Ajustes → Copia de seguridad.",
     "mediaMissing": "⚠ Archivo no encontrado: {{file}}",
-    "mediaUnplayable": "⚠ Este video no se puede reproducir (dañado o formato no compatible)."
+    "mediaUnplayable": "⚠ Este video no se puede reproducir (dañado o formato no compatible).",
+    "previewFailed": "⚠ No se pudo preparar la vista previa de «{{title}}». Verifique que su canto, versión de la Biblia o archivo todavía existe."
   },
   "common": {
     "add": "Agregar",
