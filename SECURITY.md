@@ -26,7 +26,7 @@ surface is small, and most of it is on the church's local network:
 
 | Surface | Who can reach it | Protection |
 |---|---|---|
-| Phone remote and stage display server (`http://<pc>:7272`, on by default) | Anyone on the same Wi-Fi/LAN | A PIN is required to *control* slides from a phone. PIN guessing is rate-limited and locked out. The stage display is read-only. Only the media currently on screen can be downloaded. |
+| Phone remote and stage display server (`http://<pc>:7272`, on by default) | Anyone on the same Wi-Fi/LAN | A PIN is required to *control* slides from a phone. PIN guessing is rate-limited and locked out. The stage display (`/stage`) is read-only and needs **no PIN**: anyone on the network can see the current and next slide, slide and item notes, and messages, so don't put private notes on items. Only the media currently on screen can be downloaded. |
 | The app itself | Whoever uses the PC | Isolated renderers (context isolation), a content-security policy, and no remote content |
 
 **Known limits.** The LAN server uses plain HTTP, not HTTPS: phones can't trust a self-signed certificate
@@ -61,7 +61,7 @@ superficie de red es pequeña, y casi toda está en la red local de la iglesia:
 
 | Superficie | Quién la alcanza | Protección |
 |---|---|---|
-| Servidor del control remoto y la pantalla de escenario (`http://<pc>:7272`, activo por defecto) | Cualquiera en la misma Wi-Fi/red | Se necesita un PIN para *controlar* las diapositivas desde un teléfono. Los intentos de adivinar el PIN tienen límite y bloqueo. La pantalla de escenario es de solo lectura. Solo se pueden descargar los archivos que están en pantalla. |
+| Servidor del control remoto y la pantalla de escenario (`http://<pc>:7272`, activo por defecto) | Cualquiera en la misma Wi-Fi/red | Se necesita un PIN para *controlar* las diapositivas desde un teléfono. Los intentos de adivinar el PIN tienen límite y bloqueo. La pantalla de escenario (`/stage`) es de solo lectura y **no pide PIN**: cualquiera en la red puede ver la diapositiva actual y la siguiente, las notas de diapositivas y de elementos, y los mensajes, así que no ponga notas privadas en los elementos. Solo se pueden descargar los archivos que están en pantalla. |
 | La app | Quien use la PC | Procesos de interfaz aislados (context isolation), política de seguridad de contenido y sin contenido remoto |
 
 **Límites conocidos.** El servidor de la red local usa HTTP, no HTTPS: los teléfonos no confían en un
