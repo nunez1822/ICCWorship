@@ -161,3 +161,28 @@ describe('binary files are not songs', () => {
     expect(detectAndParseSongFile('canto.txt', 'Señor, ¡te alabo!\n\tCon todo mi corazón').sections.length).toBe(1)
   })
 })
+
+describe('duplicate songs on import', () => {
+  const lib = [
+    { ...songFromPlainText('Amazing Grace', 'Amazing grace how sweet the sound'), id: 'a', ccli: '22025' },
+    { ...songFromPlainText('Holy Holy Holy', 'Holy holy holy Lord God Almighty'), id: 'b' }
+  ]
+  it('matches the same CCLI number', async () => {
+    const { findDuplicateSong } = await import('@shared/songImport')
+    const s = { ...songFromPlainText('Sublime Gracia', 'Sublime gracia del Señor'), ccli: '22025' }
+    expect(findDuplicateSong(s, lib)?.id).toBe('a')
+  })
+  it('matches title + first line, ignoring case, accents and punctuation', async () => {
+    const { findDuplicateSong } = await import('@shared/songImport')
+    expect(findDuplicateSong(songFromPlainText('holy, holy, holy!', 'Holy, holy, holy! Lord God Almighty'), lib)?.id).toBe('b')
+  })
+  it('does not match a different song that shares a title', async () => {
+    const { findDuplicateSong } = await import('@shared/songImport')
+    expect(findDuplicateSong(songFromPlainText('Holy Holy Holy', 'A completely different first line'), lib)).toBeUndefined()
+  })
+  it('names kept copies "(2)", "(3)"…', async () => {
+    const { copyTitle } = await import('@shared/songImport')
+    expect(copyTitle('Amazing Grace', ['Amazing Grace'])).toBe('Amazing Grace (2)')
+    expect(copyTitle('Amazing Grace', ['Amazing Grace', 'amazing grace (2)'])).toBe('Amazing Grace (3)')
+  })
+})

@@ -159,6 +159,17 @@ export function App() {
             <span className={`dot ${isLive ? 'live' : ''}`} style={isLive ? { background: '#fff' } : undefined} /> {isLive ? t('top.onAir') : t('top.offAir')}
           </span>
           {liveState?.itemTitle && liveState.slideIndex >= 0 && <span className="pill">{liveState.itemTitle}</span>}
+          {/* a cover is up: the audience does not see the slide the operator is moving through */}
+          {liveState?.layers.black && (
+            <span className="pill live" title={t('top.coverHelp')}>
+              ⬛ {t('top.blackUp')}
+            </span>
+          )}
+          {liveState?.layers.logo && !liveState.layers.black && (
+            <span className="pill gold" title={t('top.coverHelp')}>
+              ✝ {t('top.logoUp')}
+            </span>
+          )}
         </div>
         <div className="spacer" />
         <span className="small muted">{t('top.screen')}</span>

@@ -115,10 +115,13 @@ $t = "{title: Señor Jesús}`n[G]Canción de alabanza, ¡Señor!"
 
 ### TC-EDGE-12 · Importing the same song twice  `P1`
 **Steps**
-1. Import `sample-openlyrics.xml`. Edit its English title to `E2E Test Hymn (edited)`.
-2. Import the same file again.
+1. Import `sample-openlyrics.xml`. Change its Author to `EDITED`.
+2. Import the same file again → choose **Skip them**. 3. Again → **Replace**. 4. Again → **Keep both**.
+5. Media → Import PowerPoint / PDF `sample.pdf` twice; then add `sample.jpg` to the library twice.
 **Expected**
-- The edited song is **not** overwritten. Either the second import is skipped with a notice, or a second song is created and the two are clearly distinguishable in the list.
+- Step 2–4: a panel "1 song is already in your library" (matched by CCLI number, or title + first line) with Skip / Replace / Keep both.
+  Skip: nothing changes ("1 song skipped"). Replace: same library entry (plans keep it), author back to the file's. Keep both: a second song "E2E Test Hymn (2)".
+- Step 5: the PDF asks "Already imported" — Update (same presentation) / Keep both / Cancel; the image says "1 file was already in the library".
 
 ### TC-EDGE-13 · Long and emoji screen messages  `P1` 📸
 **Steps**

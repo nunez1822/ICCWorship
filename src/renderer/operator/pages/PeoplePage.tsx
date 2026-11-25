@@ -176,9 +176,9 @@ function Teams() {
           <Field label={t('people.positions')}>
             <div className="row wrap" style={{ gap: 6 }}>
               {tm.positions.map((p, i) => (
-                <span key={i} className="chip x" onClick={() => save({ ...tm, positions: tm.positions.filter((_, j) => j !== i) })}>
+                <button type="button" key={i} className="chip x" aria-label={`${p} ✕`} onClick={() => save({ ...tm, positions: tm.positions.filter((_, j) => j !== i) })}>
                   {p}
-                </span>
+                </button>
               ))}
               <input
                 className="input"

@@ -20,11 +20,17 @@ export function MediaPage() {
   const [over, setOver] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
 
+  /** the same file imported again: Update / Keep both / Cancel (ProPresenter-style) */
+  const [ask, setAsk] = useState<{ name: string; resolve: (c: 'update' | 'keep' | 'cancel') => void } | null>(null)
+  const askDuplicate = (name: string) => new Promise<'update' | 'keep' | 'cancel'>((resolve) => setAsk({ name, resolve }))
+
   const addMediaPaths = async (paths: string[]) => {
     const known = new Set(s.media.map((m) => m.path.toLowerCase()))
     let n = 0
+    let already = 0
     for (const p of paths) {
       const kind = kindOf(p)
+      if (kind && known.has(p.toLowerCase())) already++
       if (!kind || known.has(p.toLowerCase())) continue
       setBusy(`${t('common.working')} ${fileName(p)}`)
       const thumb = await makeThumb(p, kind)
@@ -33,6 +39,17 @@ export function MediaPage() {
     }
     setBusy(null)
     if (n) s.toast(t('media.added', { count: n }))
+    if (already) s.toast(t('media.alreadyIn', { count: already }), 'info')
+  }
+
+  /** import, but ask first when that file is already in the presentations list */
+  const importOrAsk = async (path: string) => {
+    const existing = s.presentations.find((x) => x.sourcePath.toLowerCase() === path.toLowerCase())
+    if (!existing) return importPresentation(path)
+    const choice = await askDuplicate(existing.name)
+    setAsk(null)
+    if (choice === 'update') return importPresentation(path, undefined, existing.id)
+    if (choice === 'keep') return importPresentation(path)
   }
 
   const importPresentation = async (path: string, prefer?: 'powerpoint' | 'libreoffice' | 'text', reuseId?: string) => {
@@ -68,7 +85,7 @@ export function MediaPage() {
     const pres = paths.filter((p) => PRES_EXT.includes(p.split('.').pop()!.toLowerCase()))
     const media = paths.filter((p) => !pres.includes(p))
     if (media.length) await addMediaPaths(media)
-    for (const p of pres) await importPresentation(p)
+    for (const p of pres) await importOrAsk(p)
   }
 
   return (
@@ -102,7 +119,7 @@ export function MediaPage() {
           className="btn primary"
           onClick={async () => {
             const paths = await window.api.files.open({ multi: true, filters: [{ name: 'PowerPoint / PDF', extensions: PRES_EXT }] })
-            for (const p of paths) await importPresentation(p)
+            for (const p of paths) await importOrAsk(p)
           }}
         >
           📊 {t('media.importPres')}
@@ -131,6 +148,27 @@ export function MediaPage() {
         </button>
       </div>
       {tab === 'library' ? <Library /> : <Presentations onReimport={(p) => void importPresentation(p.sourcePath, undefined, p.id)} />}
+      {ask && (
+        <Modal
+          title={`⚠ ${t('media.dupTitle')}`}
+          onClose={() => ask.resolve('cancel')}
+          footer={
+            <>
+              <button className="btn" onClick={() => ask.resolve('cancel')}>
+                {t('common.cancel')}
+              </button>
+              <button className="btn" onClick={() => ask.resolve('keep')} title={t('media.dupKeepHelp')}>
+                {t('songs.dupKeep')}
+              </button>
+              <button className="btn primary" onClick={() => ask.resolve('update')} title={t('media.dupUpdateHelp')}>
+                ↻ {t('media.dupUpdate')}
+              </button>
+            </>
+          }
+        >
+          <p>{t('media.dupText', { name: ask.name })}</p>
+        </Modal>
+      )}
     </div>
   )
 }

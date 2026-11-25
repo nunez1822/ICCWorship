@@ -129,9 +129,9 @@ function Lookup({ refText, setRefText, onPasteMissing }: { refText: string; setR
           {suggestions.length > 0 && (
             <div className="row wrap" style={{ gap: 6, marginTop: 6 }}>
               {suggestions.map((b) => (
-                <span key={b} className="chip" onClick={() => setRefText(b + ' ')}>
+                <button type="button" key={b} className="chip" onClick={() => setRefText(b + ' ')}>
                   {b}
-                </span>
+                </button>
               ))}
             </div>
           )}

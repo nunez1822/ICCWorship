@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { SectionType, Song, SongSection } from '@shared/types'
 import { songName, songToSlides, uid } from '@shared/slides'
-import { detectAndParseSongFile, sectionLabel, songFromPlainText, songToOpenLyrics, type SongImportError } from '@shared/songImport'
+import { copyTitle, detectAndParseSongFile, findDuplicateSong, sectionLabel, songFromPlainText, songToOpenLyrics, type SongImportError } from '@shared/songImport'
 import { useApp } from '../store'
 import { showAdhoc, activePlan, syncPlanSummary, songEdited } from '../liveControl'
 import { usedInPlansNote } from '../../lib/planRefs'
@@ -251,18 +251,25 @@ function SongEditor({ song, onDeleted }: { song: Song; onDeleted: () => void }) 
               {order.map((id, i) => {
                 const sec = song.sections.find((x) => x.id === id)
                 return (
-                  <span key={i} className="chip x" title={t('songs.removeFromArrangement')} onClick={() => save({ arrangement: order.filter((_, j) => j !== i) })}>
+                  <button
+                    type="button"
+                    key={i}
+                    className="chip x"
+                    title={t('songs.removeFromArrangement')}
+                    aria-label={`${sec?.label || '?'} — ${t('songs.removeFromArrangement')}`}
+                    onClick={() => save({ arrangement: order.filter((_, j) => j !== i) })}
+                  >
                     {sec?.label || '?'}
-                  </span>
+                  </button>
                 )
               })}
             </div>
             <div className="row wrap small muted" style={{ marginTop: 10, gap: 6 }}>
               {t('songs.clickToAdd')}
               {song.sections.map((sec) => (
-                <span key={sec.id} className="chip" onClick={() => save({ arrangement: [...order, sec.id] })}>
+                <button type="button" key={sec.id} className="chip" onClick={() => save({ arrangement: [...order, sec.id] })}>
                   ＋ {sec.label}
-                </span>
+                </button>
               ))}
               {song.arrangement.length > 0 && (
                 <button className="btn sm ghost" onClick={() => save({ arrangement: [] })}>
@@ -310,6 +317,9 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: (id?: s
   const [en, setEn] = useState('')
   const [es, setEs] = useState('')
   const [busy, setBusy] = useState(false)
+  /** songs that are already in the library, waiting for Skip / Replace / Keep both */
+  const [dups, setDups] = useState<{ song: Song; existing: Song }[] | null>(null)
+  const [lastId, setLastId] = useState<string | undefined>()
 
   const importFiles = async () => {
     const paths = await window.api.files.open({ multi: true, filters: [{ name: 'Songs (OpenLyrics, ChordPro, Text)', extensions: ['xml', 'cho', 'chopro', 'chordpro', 'crd', 'pro', 'txt'] }] })
@@ -317,11 +327,19 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: (id?: s
     setBusy(true)
     let last: string | undefined
     let ok = 0
+    const found: { song: Song; existing: Song }[] = []
+    const library = [...s.songs]
     for (const p of paths) {
       try {
         const content = await window.api.files.readText(p)
         const song = detectAndParseSongFile(p.split(/[\\/]/).pop() || p, content)
+        const existing = findDuplicateSong(song, library)
+        if (existing) {
+          found.push({ song, existing })
+          continue
+        }
         await s.save('songs', song)
+        library.push(song) // two copies of the same song in one batch count as a duplicate too
         last = song.id
         ok++
       } catch (e) {
@@ -332,6 +350,41 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: (id?: s
     }
     setBusy(false)
     if (ok) s.toast(t('songs.imported', { count: ok }))
+    if (found.length) {
+      setLastId(last)
+      setDups(found)
+      return
+    }
+    onDone(last)
+  }
+
+  /** what to do with every song that is already in the library */
+  const resolveDups = async (choice: 'skip' | 'replace' | 'keep') => {
+    if (!dups) return
+    let last = lastId
+    let n = 0
+    const titles = s.songs.map((x) => x.title)
+    for (const { song, existing } of dups) {
+      if (choice === 'skip') continue
+      if (choice === 'replace') {
+        // same library entry (plans keep pointing at it), new words
+        await s.save('songs', { ...song, id: existing.id, createdAt: existing.createdAt })
+        songEdited(existing.id) // on screen right now? show the new words
+        last = existing.id
+      } else {
+        const copy = { ...song }
+        if (copy.title) copy.title = copyTitle(copy.title, titles)
+        else if (copy.titleEs) copy.titleEs = copyTitle(copy.titleEs, s.songs.map((x) => x.titleEs || ''))
+        titles.push(copy.title)
+        await s.save('songs', copy)
+        last = copy.id
+      }
+      n++
+    }
+    if (choice === 'skip') s.toast(t('songs.dupSkipped', { count: dups.length }))
+    else if (choice === 'replace') s.toast(t('songs.dupReplaced', { count: n }))
+    else s.toast(t('songs.imported', { count: n }))
+    setDups(null)
     onDone(last)
   }
 
@@ -393,6 +446,33 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: (id?: s
               <span className="lang-tag">ESPAÑOL</span>
               <textarea className="textarea" style={{ width: '100%' }} rows={16} value={es} onChange={(e) => setEs(e.target.value)} placeholder={'Verso 1\n...\n\nCoro\n...'} />
             </div>
+          </div>
+        </div>
+      ) : dups ? (
+        <div className="col" style={{ padding: 12 }}>
+          <h3 style={{ margin: 0 }}>⚠ {t('songs.dupTitle', { count: dups.length })}</h3>
+          <p className="muted" style={{ margin: 0 }}>
+            {t('songs.dupHelp')}
+          </p>
+          <ul style={{ margin: '4px 0 8px 18px' }}>
+            {dups.slice(0, 8).map(({ song, existing }) => (
+              <li key={song.id}>
+                <b>{songName(song)}</b>
+                {existing.ccli ? ` · CCLI ${existing.ccli}` : ''}
+              </li>
+            ))}
+            {dups.length > 8 && <li>…</li>}
+          </ul>
+          <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+            <button className="btn primary" onClick={() => void resolveDups('skip')} title={t('songs.dupSkipHelp')}>
+              {t('songs.dupSkip')}
+            </button>
+            <button className="btn" onClick={() => void resolveDups('replace')} title={t('songs.dupReplaceHelp')}>
+              {t('songs.dupReplace')}
+            </button>
+            <button className="btn" onClick={() => void resolveDups('keep')} title={t('songs.dupKeepHelp')}>
+              {t('songs.dupKeep')}
+            </button>
           </div>
         </div>
       ) : (

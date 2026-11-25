@@ -377,3 +377,50 @@ export function detectAndParseSongFile(name: string, content: string): Song {
   if (!song.sections.some((s) => s.en.trim() || s.es.trim())) throw new SongImportError('noLyrics')
   return song
 }
+
+// ------------------------------------------------------------------------------------------
+// Duplicates on import (Skip / Replace / Keep both, like EasyWorship and ProPresenter)
+// ------------------------------------------------------------------------------------------
+
+const normKey = (x?: string) =>
+  (x || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+
+const firstLine = (s: Song) => {
+  for (const sec of s.sections) for (const t of [sec.en, sec.es]) {
+    const l = (t || '').split('\n').find((x) => x.trim())
+    if (l) return normKey(l)
+  }
+  return ''
+}
+
+/**
+ * The library song an imported song duplicates: same CCLI number, or the same title (either
+ * language) and the same first lyric line. Different songs that share a title don't match.
+ */
+export function findDuplicateSong(song: Song, library: Song[]): Song | undefined {
+  const ccli = (song.ccli || '').trim()
+  if (ccli) {
+    const byCcli = library.find((x) => (x.ccli || '').trim() === ccli)
+    if (byCcli) return byCcli
+  }
+  const titles = [song.title, song.titleEs].map(normKey).filter(Boolean)
+  const line = firstLine(song)
+  return library.find((x) => {
+    const xt = [x.title, x.titleEs].map(normKey).filter(Boolean)
+    return xt.some((t) => titles.includes(t)) && firstLine(x) === line
+  })
+}
+
+/** "Title (2)", "Title (3)"… — first free name for a kept copy */
+export function copyTitle(title: string, taken: string[]): string {
+  const set = new Set(taken.map((x) => x.toLowerCase()))
+  for (let n = 2; ; n++) {
+    const name = `${title} (${n})`
+    if (!set.has(name.toLowerCase())) return name
+  }
+}

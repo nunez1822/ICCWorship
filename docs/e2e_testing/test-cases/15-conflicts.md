@@ -112,10 +112,13 @@ keyboard together.
 ### TC-CONF-14 · Black/logo survive language and video changes  `P1`
 **Steps**
 1. Video live and playing → press `B` → press `2`, then `3` → press `B` again.
-2. Song live → `L` → `Space` → `L`.
+2. Song live → `L` → `Space` → `Ctrl+→` → `L`. 3. Same with `B` instead of `L`.
 **Expected**
 - Video keeps its play state; language change applies when Black is turned off.
-- Record whether `Space` while Logo is up advances the hidden slide. Expected: after `L` again the operator sees which slide is live (no surprise jump the audience notices).
+- Black and Logo are screen covers (as in EasyWorship / ProPresenter): while one is up, `Space` / `Ctrl+→` move the
+  live slide underneath — the projector keeps showing the cover; the Live grid, stage and phone follow the hidden slide.
+- The top bar shows "⬛ Screen is black" / "✝ Logo is showing" while a cover is up; the stage shows the same flag.
+- Turning the cover off (`L` / `B`) reveals the slide the operator moved to.
 
 ### TC-CONF-15 · Projector window closed while live  `P1`
 **Steps**

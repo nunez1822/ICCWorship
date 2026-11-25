@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { Children, cloneElement, isValidElement, useEffect, useId, type ReactElement, type ReactNode } from 'react'
 import type { PlanItemType } from '@shared/types'
 
 export function Modal(p: { title: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
@@ -28,12 +28,35 @@ export function Modal(p: { title: ReactNode; onClose: () => void; children: Reac
   )
 }
 
+/**
+ * A labelled form field, done the accessible way (WCAG / WAI-ARIA, as in Microsoft and Apple
+ * apps): one input / select / textarea gets a real <label for>, so screen readers and
+ * "click the label" both work. Anything else (a row of buttons, several checkboxes, a
+ * custom control) becomes a named group, so the label no longer leaks into the name of
+ * whatever happens to be the first button inside it.
+ */
 export function Field(p: { label: ReactNode; children: ReactNode; style?: React.CSSProperties }) {
+  const id = useId()
+  const kids = Children.toArray(p.children)
+  const only = kids.length === 1 && isValidElement(kids[0]) ? (kids[0] as ReactElement<{ id?: string }>) : null
+  if (only && typeof only.type === 'string' && ['input', 'select', 'textarea'].includes(only.type)) {
+    const controlId = only.props.id || id
+    return (
+      <div className="field" style={p.style}>
+        <label className="field-label" htmlFor={controlId}>
+          {p.label}
+        </label>
+        {cloneElement(only, { id: controlId })}
+      </div>
+    )
+  }
   return (
-    <label className="field" style={p.style}>
-      <span>{p.label}</span>
+    <div className="field" style={p.style} role="group" aria-labelledby={id}>
+      <span className="field-label" id={id}>
+        {p.label}
+      </span>
       {p.children}
-    </label>
+    </div>
   )
 }
 
@@ -41,7 +64,7 @@ export function Seg<T extends string>(p: { value: T; options: { value: T; label:
   return (
     <div className="seg">
       {p.options.map((o) => (
-        <button key={o.value} className={o.value === p.value ? 'on' : ''} onClick={() => p.onChange(o.value)} title={o.title}>
+        <button key={o.value} className={o.value === p.value ? 'on' : ''} aria-pressed={o.value === p.value} onClick={() => p.onChange(o.value)} title={o.title}>
           {o.label}
         </button>
       ))}

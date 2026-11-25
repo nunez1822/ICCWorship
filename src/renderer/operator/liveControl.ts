@@ -137,8 +137,9 @@ export async function goItem(index: number, slideIndex = 0): Promise<void> {
       ? { src: built.slides[0]?.media || '', playing: true, loop: item.video?.loop ?? false, volume: item.video?.volume ?? 1, seekSeq: 0, seekTo: 0 }
       : undefined,
     videoProgress: undefined,
-    // going to new content lifts the logo/black/clear layers
-    layers: { black: false, clearText: false, clearBackground: false, logo: false }
+    // Black and Logo are screen covers (as in EasyWorship / ProPresenter / MediaShout): they
+    // stay up while the operator moves on underneath, until turned off. Clear text resets.
+    layers: { black: !!l?.layers.black, clearText: false, clearBackground: false, logo: !!l?.layers.logo }
   }
   await push(patch)
   st().selectItem(item.id)
@@ -172,7 +173,8 @@ export async function showAdhoc(args: { title: string; type: PlanItemType; slide
     itemStartedAt: Date.now(),
     video: args.video ? { src: args.slides[0]?.media || '', playing: true, loop: false, volume: 1, seekSeq: 0, seekTo: 0 } : undefined,
     videoProgress: undefined,
-    layers: { black: false, clearText: false, clearBackground: false, logo: false }
+    // screen covers stay up (see goItem)
+    layers: { black: !!live()?.layers.black, clearText: false, clearBackground: false, logo: !!live()?.layers.logo }
   })
   // the Live page grid shows the selected item; clear it so the ad-hoc slides that are on
   // screen are what the operator sees (and a thumbnail click doesn't replace them)
@@ -207,7 +209,8 @@ async function refreshLiveSong(songId: string): Promise<void> {
 export async function goSlide(index: number): Promise<void> {
   const l = live()
   if (!l || index < 0 || index >= l.slides.length) return
-  await push({ slideIndex: index, clearedFrom: undefined, layers: { ...l.layers, black: false, logo: false } })
+  // covers (black / logo) stay up: the operator can line up the next slide, then reveal it
+  await push({ slideIndex: index, clearedFrom: undefined })
   scheduleAdvance(l.slides[index])
 }
 

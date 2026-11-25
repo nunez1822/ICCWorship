@@ -78,6 +78,7 @@ function Stage() {
       <main className="stage-main">
         <section className="stage-current">
           {state.layers.black && <div className="stage-flag">⬛ {t('stage.black')}</div>}
+          {state.layers.logo && !state.layers.black && <div className="stage-flag">✝ {t('stage.logo')}</div>}
           <StageSlide slide={cur} state={state} chords={chords && hasChords} big />
         </section>
         <aside className="stage-next">
