@@ -7,6 +7,7 @@ import { Field, Seg, confirmDel } from '../../components/ui'
 import { SlideView } from '../../components/SlideView'
 import { toMediaUrl } from '../../lib/media'
 import { themeBackground } from '../../lib/buildSlides'
+import { updateLive } from '../liveControl'
 
 const FONTS = ['Segoe UI', 'Arial', 'Calibri', 'Cambria', 'Georgia', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Times New Roman', 'Garamond', 'Bahnschrift', 'Impact', 'Candara', 'Constantia', 'Corbel']
 
@@ -93,7 +94,7 @@ function ThemeEditor({ theme, onDuplicate, onDeleted }: { theme: Theme; onDuplic
       // compare with what the theme actually put on screen: the fallback gradient when its
       // image/video was removed from the library
       const bgFromTheme = l.background?.value === themeBackground(theme, s.media).value
-      void window.api.live.update(bgFromTheme ? { theme: next, background: themeBackground(next, s.media) } : { theme: next })
+      void updateLive(bgFromTheme ? { theme: next, background: themeBackground(next, s.media) } : { theme: next })
     }
   }
   const setBg = (patch: Partial<Background>) => save({ background: { ...theme.background, ...patch } })
@@ -214,7 +215,7 @@ function ThemeEditor({ theme, onDuplicate, onDeleted }: { theme: Theme; onDuplic
               ⧉ {t('themes.duplicate')}
             </button>
           )}
-          <button className="btn" onClick={() => void window.api.live.update({ theme, background: themeBackground(theme, s.media) })}>
+          <button className="btn" onClick={() => void updateLive({ theme, background: themeBackground(theme, s.media) })}>
             📺 {t('themes.applyLive')}
           </button>
           {!ro && (

@@ -259,7 +259,9 @@ export function songFromOpenLyrics(xml: string): Song {
     if (lang.startsWith('es')) song.titleEs = val
     else if (song.title === 'Untitled') song.title = val
   }
-  if (song.title === 'Untitled' && song.titleEs) song.title = song.titleEs
+  // only a Spanish title: a one-language Spanish song (same as a Spanish-only paste), not
+  // the same name twice as "Cuán Grande / Cuán Grande"
+  if (song.title === 'Untitled' && song.titleEs) song.title = ''
   const authors = [...xml.matchAll(/<author(?=[\s>])[^>]*>([\s\S]*?)<\/author>/g)].map((m) => xmlDecode(m[1].trim()))
   if (authors.length) song.author = authors.join(', ')
   const cr = /<copyright>([\s\S]*?)<\/copyright>/.exec(xml)
@@ -326,11 +328,19 @@ export function songToOpenLyrics(song: Song): string {
     )
     .join('\n')
   const order = (song.arrangement.length ? song.arrangement : song.sections.map((s) => s.id)).map((id) => names.get(id)).filter(Boolean).join(' ')
+  // a one-language Spanish song has no English title: write only the titles it has (an empty
+  // <title> makes other OpenLyrics apps show it as untitled)
+  const titlesXml = [
+    song.title?.trim() ? `<title lang="en">${esc(song.title)}</title>` : '',
+    song.titleEs?.trim() ? `<title lang="es">${esc(song.titleEs)}</title>` : ''
+  ]
+    .filter(Boolean)
+    .join('\n      ')
   return `<?xml version="1.0" encoding="UTF-8"?>
 <song xmlns="http://openlyrics.info/namespace/2009/song" version="0.9" createdIn="ICCWorship">
   <properties>
     <titles>
-      <title lang="en">${esc(song.title)}</title>${song.titleEs ? `\n      <title lang="es">${esc(song.titleEs)}</title>` : ''}
+      ${titlesXml}
     </titles>${song.author ? `\n    <authors><author>${esc(song.author)}</author></authors>` : ''}${song.copyright ? `\n    <copyright>${esc(song.copyright)}</copyright>` : ''}${song.ccli ? `\n    <ccliNo>${esc(song.ccli)}</ccliNo>` : ''}
     <verseOrder>${order}</verseOrder>
   </properties>

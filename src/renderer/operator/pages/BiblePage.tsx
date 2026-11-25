@@ -151,7 +151,13 @@ function Lookup({ refText, setRefText, onPasteMissing }: { refText: string; setR
           <VersionSelect
             value={secondary}
             onChange={(v) => {
-              if (v && v === primary && secondary) setPrimary(secondary)
+              if (v && v === primary) {
+                // swap; with no second version yet, the main one moves to another version
+                // (the usual other language first), so the same text never shows twice
+                const other = secondary || [s.settings.bibleEs, s.settings.bibleEn, ...s.bibles.map((b) => b.id)].find((id) => id && id !== v)
+                if (!other) return
+                setPrimary(other)
+              }
               setSecondary(v)
             }}
             allowNone

@@ -144,8 +144,10 @@ function People() {
               const note = inPlans.length ? '\n\n' + t('people.assignedIn', { count: inPlans.length }) : ''
               if (!confirmDel(t('people.confirmDelete') + note)) return
               await s.remove('people', person.id)
-              // free their team slots so plans don't keep an assignment to nobody
-              for (const p of inPlans) await s.save('plans', { ...p, team: p.team.filter((a) => a.personId !== person.id) })
+              // their positions stay as open slots (the run sheet shows them unfilled), so the
+              // team leader can see someone still has to be found
+              for (const p of inPlans)
+                await s.save('plans', { ...p, team: p.team.map((a) => (a.personId === person.id ? { ...a, personId: '', status: 'pending' as const } : a)), updatedAt: Date.now() })
               setSel(undefined)
             }}
           >

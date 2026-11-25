@@ -5,6 +5,7 @@ import { uid } from '@shared/slides'
 import { useApp } from '../store'
 import { Field, Seg } from '../../components/ui'
 import { IMAGE_EXT } from '../../lib/media'
+import { updateLive } from '../liveControl'
 
 export function SettingsPage() {
   const { t } = useTranslation()
@@ -93,7 +94,7 @@ export function SettingsPage() {
                   value={st.bilingualOrder}
                   onChange={(v) => {
                     void s.setSettings({ bilingualOrder: v })
-                    void window.api.live.update({ bilingualOrder: v })
+                    void updateLive({ bilingualOrder: v })
                   }}
                   options={[
                     { value: 'es-first', label: t('settings.esFirst') },

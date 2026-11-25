@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { MediaItem, MediaKind, Presentation, Slide } from '@shared/types'
 import { uid } from '@shared/slides'
 import { useApp } from '../store'
-import { activePlan, showAdhoc, syncPlanSummary } from '../liveControl'
+import { activePlan, showAdhoc, syncPlanSummary, updateLive } from '../liveControl'
 import { Modal, Seg, confirmDel } from '../../components/ui'
 import { SlideView } from '../../components/SlideView'
 import { usedInPlansNote } from '../../lib/planRefs'
@@ -44,7 +44,8 @@ export function MediaPage() {
 
   /** import, but ask first when that file is already in the presentations list */
   const importOrAsk = async (path: string) => {
-    const existing = s.presentations.find((x) => x.sourcePath.toLowerCase() === path.toLowerCase())
+    // fresh list, not this render's copy: a file picked twice in one batch is already in it
+    const existing = useApp.getState().presentations.find((x) => x.sourcePath.toLowerCase() === path.toLowerCase())
     if (!existing) return importPresentation(path)
     const choice = await askDuplicate(existing.name)
     setAsk(null)
@@ -209,7 +210,7 @@ function Library() {
   }
   const useAsBackground = async (m: MediaItem) => {
     const bg = backgroundFromMedia(m.path)
-    if (bg) await window.api.live.update({ background: bg })
+    if (bg) await updateLive({ background: bg })
     s.toast(t('media.bgApplied'))
   }
 
@@ -277,7 +278,7 @@ function Library() {
               // it was the background on screen right now: fall back immediately
               const l = useApp.getState().live
               if (l?.background?.value === toMediaUrl(item.path)) {
-                void window.api.live.update({ background: themeBackground(l.theme, useApp.getState().media) })
+                void updateLive({ background: themeBackground(l.theme, useApp.getState().media) })
               }
             }}
           >

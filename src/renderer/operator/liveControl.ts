@@ -43,6 +43,8 @@ export const enqueue = createActionQueue((e) => {
 })
 
 let advanceTimer: ReturnType<typeof setTimeout> | null = null
+/** a video that started while Black / Logo was up: held paused, plays when the cover lifts */
+let heldVideoSrc: string | undefined
 /** the video Esc took off screen, and where it was, so Space / a thumbnail click resumes it */
 let clearedVideo: { video: NonNullable<LiveState['video']>; at: number } | undefined
 let messageTimer: ReturnType<typeof setTimeout> | null = null
@@ -122,6 +124,7 @@ export async function goItem(index: number, slideIndex = 0): Promise<void> {
   if (!plan || !item) return
   const built = await buildItem(item, ctx())
   if (built.warning) st().toast(t(built.warning), 'err')
+  heldVideoSrc = undefined
   const si = Math.max(0, Math.min(slideIndex < 0 ? built.slides.length - 1 : slideIndex, built.slides.length - 1))
   const l = live()
   const patch: Partial<LiveState> = {
@@ -157,8 +160,21 @@ export async function goItem(index: number, slideIndex = 0): Promise<void> {
   void logSongUsage(item, plan)
 }
 
-/** Show something that is not part of the plan (from Bible / Media / Songs pages) */
-export async function showAdhoc(args: { title: string; type: PlanItemType; slides: Slide[]; theme?: Theme; background?: Background | null; video?: boolean; songId?: string }): Promise<void> {
+/**
+ * Show something that is not part of the plan (from Bible / Media / Songs pages). Queued
+ * like key presses, so a Space pressed at the same moment can't apply an old slide index
+ * to the new slides.
+ */
+export function showAdhoc(args: Parameters<typeof showAdhocNow>[0]): Promise<void> {
+  return enqueue(() => showAdhocNow(args))
+}
+
+/** Change live state from a page (theme edits, background, bilingual order) — queued too. */
+export function updateLive(patch: Partial<LiveState>): Promise<void> {
+  return enqueue(() => push(patch))
+}
+
+async function showAdhocNow(args: { title: string; type: PlanItemType; slides: Slide[]; theme?: Theme; background?: Background | null; video?: boolean; songId?: string }): Promise<void> {
   const s = st()
   // nothing to show (e.g. a song with no lyrics yet): say so instead of blanking the screen
   if (!args.slides.length) {
@@ -168,6 +184,7 @@ export async function showAdhoc(args: { title: string; type: PlanItemType; slide
   const theme = args.theme || s.themes.find((x) => x.id === s.settings.defaultThemeId) || s.themes[0]
   const background = args.background === undefined ? themeBackground(theme, s.media) : args.background
   clearedVideo = undefined
+  heldVideoSrc = undefined
   await push({
     itemIndex: -1,
     itemId: 'adhoc-' + uid(),
@@ -208,7 +225,8 @@ async function refreshLiveSong(songId: string): Promise<void> {
   const l = live()
   const song = st().songs.find((x) => x.id === songId)
   if (!l || l.songId !== songId || !song) return
-  const plan = activePlan()
+  // the plan the song went live from (the operator may have selected another plan since)
+  const plan = st().plans.find((p) => p.id === l.planId)
   const item = plan?.items.find((i) => i.id === l.itemId)
   const slides = item ? (await buildItem(item, ctx())).slides : songToSlides(song, { ccliLicense: st().settings.ccliLicense })
   if (!slides.length) return
@@ -239,14 +257,22 @@ export async function goSlide(index: number): Promise<void> {
 /** playback state for a slide that starts a video (none for other slides) */
 function startVideo(slide: Slide | undefined, item?: PlanItem): LiveState['video'] {
   if (slide?.kind !== 'video' || !slide.media) return undefined
-  return { src: slide.media, playing: true, loop: item?.video?.loop ?? false, volume: item?.video?.volume ?? 1, seekSeq: 0, seekTo: 0 }
+  return holdUnderCover({ src: slide.media, playing: true, loop: item?.video?.loop ?? false, volume: item?.video?.volume ?? 1, seekSeq: 0, seekTo: 0 })
+}
+
+/** Black / Logo is up: the audience can't see the video, so don't play its sound yet. */
+function holdUnderCover(v: NonNullable<LiveState['video']>): NonNullable<LiveState['video']> {
+  const layers = live()?.layers
+  if (!layers?.black && !layers?.logo) return v
+  heldVideoSrc = v.src
+  return { ...v, playing: false }
 }
 
 function resumeVideo(src: string, itemId?: string): NonNullable<LiveState['video']> {
   const c = clearedVideo
-  if (c && c.video.src === src) return { ...c.video, playing: true, seekSeq: c.video.seekSeq + 1, seekTo: c.at }
+  if (c && c.video.src === src) return holdUnderCover({ ...c.video, playing: true, seekSeq: c.video.seekSeq + 1, seekTo: c.at })
   const item = activePlan()?.items.find((i) => i.id === itemId)
-  return { src, playing: true, loop: item?.video?.loop ?? false, volume: item?.video?.volume ?? 1, seekSeq: 0, seekTo: 0 }
+  return holdUnderCover({ src, playing: true, loop: item?.video?.loop ?? false, volume: item?.video?.volume ?? 1, seekSeq: 0, seekTo: 0 })
 }
 
 export async function next(): Promise<void> {
@@ -288,12 +314,18 @@ export async function prevItem(): Promise<void> {
 export async function toggleLayer(layer: keyof LiveState['layers']): Promise<void> {
   const l = live()
   if (!l) return
-  await push({ layers: { ...l.layers, [layer]: !l.layers[layer] } })
+  const layers = { ...l.layers, [layer]: !l.layers[layer] }
+  const patch: Partial<LiveState> = { layers }
+  // the last cover came off: a video held under it starts now
+  if (!layers.black && !layers.logo && heldVideoSrc && l.video?.src === heldVideoSrc && !l.video.playing) patch.video = { ...l.video, playing: true }
+  if (!layers.black && !layers.logo) heldVideoSrc = undefined
+  await push(patch)
 }
 
 export async function clearAll(): Promise<void> {
   if (advanceTimer) clearTimeout(advanceTimer)
   const l = live()
+  heldVideoSrc = undefined // Esc lifts the covers; a resumed video plays
   // remember a playing video and its position (a finished one starts over)
   const p = st().progress
   if (l?.video) {

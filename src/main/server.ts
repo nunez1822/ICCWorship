@@ -60,8 +60,10 @@ function refreshAllowList(state: LiveState): void {
     if (p) allowedFiles.add(normalize(p).toLowerCase())
   }
   // Cleared screen (Esc): the slides stay in the state so the operator can resume, but they
-  // are not on screen, so phones must not be able to fetch them.
+  // are not on screen, so phones must not be able to fetch them — except the one slide the
+  // stage display previews as "Next" (the one Space puts back).
   if (state.slideIndex >= 0) state.slides.forEach((s) => add(s.media))
+  else if (state.clearedFrom !== undefined) add(state.slides[state.clearedFrom]?.media)
   add(state.background?.value)
   add(state.logoPath ? toMediaUrl(state.logoPath) : undefined)
 }

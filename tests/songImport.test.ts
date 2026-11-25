@@ -203,3 +203,24 @@ describe('Keep both: copy names', () => {
     expect([a.title, b.title]).toEqual(['Holy (2)', 'Holy (3)'])
   })
 })
+
+describe('OpenLyrics: one-language Spanish songs', () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<song xmlns="http://openlyrics.info/namespace/2009/song" version="0.9">
+  <properties><titles><title lang="es">Cuán Grande Es Él</title></titles></properties>
+  <lyrics><verse name="v1" lang="es"><lines>Señor mi Dios</lines></verse></lyrics>
+</song>`
+  it('a Spanish-only title is not copied into the English title', () => {
+    const song = songFromOpenLyrics(xml)
+    expect(song.title).toBe('')
+    expect(song.titleEs).toBe('Cuán Grande Es Él')
+  })
+  it('export writes no empty <title>, and the round trip keeps the titles', () => {
+    const song = songFromOpenLyrics(xml)
+    const out = songToOpenLyrics(song)
+    expect(out).not.toMatch(/<title[^>]*><\/title>/)
+    expect(out).toContain('<title lang="es">Cuán Grande Es Él</title>')
+    const again = songFromOpenLyrics(out)
+    expect([again.title, again.titleEs]).toEqual(['', 'Cuán Grande Es Él'])
+  })
+})
