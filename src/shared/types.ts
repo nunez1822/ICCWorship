@@ -131,17 +131,7 @@ export interface Presentation {
 }
 
 /* ---------------- Service plans ---------------- */
-export type PlanItemType =
-  | 'song'
-  | 'scripture'
-  | 'announcement'
-  | 'media'
-  | 'presentation'
-  | 'countdown'
-  | 'notes'
-  | 'header'
-  | 'blank'
-  | 'prayer'
+export type PlanItemType = 'song' | 'scripture' | 'announcement' | 'media' | 'presentation' | 'countdown' | 'notes' | 'header' | 'blank' | 'prayer'
 
 export interface CountdownConfig {
   mode: 'time' | 'duration'

@@ -7,14 +7,40 @@ const esc = (s: unknown) =>
     .replace(/>/g, '&gt;')
 
 const L = {
-  en: { order: 'Order of Service', time: 'Time', item: 'Item', who: 'Who', min: 'Min', notes: 'Notes', team: 'Team', total: 'Total', printed: 'Printed with ICCWorship — free & open-source church software', position: 'Position', person: 'Person', status: 'Status' },
-  es: { order: 'Orden del Servicio', time: 'Hora', item: 'Elemento', who: 'Quién', min: 'Min', notes: 'Notas', team: 'Equipo', total: 'Total', printed: 'Impreso con ICCWorship — software libre y gratuito para iglesias', position: 'Puesto', person: 'Persona', status: 'Estado' }
+  en: {
+    order: 'Order of Service',
+    time: 'Time',
+    item: 'Item',
+    who: 'Who',
+    min: 'Min',
+    notes: 'Notes',
+    team: 'Team',
+    total: 'Total',
+    printed: 'Printed with ICCWorship — free & open-source church software',
+    position: 'Position',
+    person: 'Person',
+    status: 'Status'
+  },
+  es: {
+    order: 'Orden del Servicio',
+    time: 'Hora',
+    item: 'Elemento',
+    who: 'Quién',
+    min: 'Min',
+    notes: 'Notas',
+    team: 'Equipo',
+    total: 'Total',
+    printed: 'Impreso con ICCWorship — software libre y gratuito para iglesias',
+    position: 'Puesto',
+    person: 'Persona',
+    status: 'Estado'
+  }
 }
 
 export function addMinutes(hhmm: string, minutes: number): string {
   const [h, m] = (hhmm || '00:00').split(':').map((x) => parseInt(x, 10) || 0)
   const total = h * 60 + m + Math.round(minutes)
-  const hh = Math.floor(((total % 1440) + 1440) % 1440 / 60)
+  const hh = Math.floor((((total % 1440) + 1440) % 1440) / 60)
   const mm = ((total % 60) + 60) % 60
   return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
 }

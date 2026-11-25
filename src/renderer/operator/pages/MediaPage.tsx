@@ -139,7 +139,9 @@ export function MediaPage() {
         <button
           className="btn"
           onClick={async () =>
-            void addMediaPaths(await window.api.files.open({ multi: true, filters: [{ name: t('media.mediaFiles'), extensions: [...VIDEO_EXT, ...IMAGE_EXT, ...AUDIO_EXT] }] }))
+            void addMediaPaths(
+              await window.api.files.open({ multi: true, filters: [{ name: t('media.mediaFiles'), extensions: [...VIDEO_EXT, ...IMAGE_EXT, ...AUDIO_EXT] }] })
+            )
           }
         >
           ＋ {t('media.addFiles')}
@@ -232,7 +234,11 @@ function Library() {
   const addToPlan = async (m: MediaItem) => {
     const plan = activePlan()
     if (!plan) return s.toast(t('songs.noActivePlan'), 'err')
-    await s.save('plans', { ...plan, items: [...plan.items, { id: uid(), type: 'media', title: m.name, refId: m.id, durationMin: 3, video: { loop: false, autoNext: false, volume: 1 } }], updatedAt: Date.now() })
+    await s.save('plans', {
+      ...plan,
+      items: [...plan.items, { id: uid(), type: 'media', title: m.name, refId: m.id, durationMin: 3, video: { loop: false, autoNext: false, volume: 1 } }],
+      updatedAt: Date.now()
+    })
     void syncPlanSummary()
     s.toast(t('songs.addedToPlan', { plan: plan.date ? `${plan.date} · ${plan.title}` : plan.title }))
   }
@@ -354,7 +360,10 @@ function Presentations({ onReimport }: { onReimport: (p: Presentation) => void }
       <div className="media-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
         {s.presentations.map((p) => (
           <div key={p.id} className="media-card" onClick={() => setOpen(p)}>
-            <div className="mthumb" style={p.slides[0]?.image ? { backgroundImage: `url("${p.slides[0].image}")`, backgroundSize: 'contain', backgroundColor: '#000' } : undefined}>
+            <div
+              className="mthumb"
+              style={p.slides[0]?.image ? { backgroundImage: `url("${p.slides[0].image}")`, backgroundSize: 'contain', backgroundColor: '#000' } : undefined}
+            >
               {!p.slides[0]?.image && '📝'}
             </div>
             <span className="pill badge">{t(`media.method.${p.method}`)}</span>
@@ -374,13 +383,25 @@ function PresentationModal({ pres, onClose, onReimport }: { pres: Presentation; 
   const s = useApp()
   const theme = s.themes.find((x) => x.id === s.settings.defaultThemeId) || s.themes[0]
   const slides: Slide[] = useMemo(
-    () => pres.slides.map((x, i) => ({ id: `${pres.id}-${i}`, kind: x.image ? 'image' : 'text', media: x.image, text: x.text, notes: x.notes, group: String(i + 1) })),
+    () =>
+      pres.slides.map((x, i) => ({
+        id: `${pres.id}-${i}`,
+        kind: x.image ? 'image' : 'text',
+        media: x.image,
+        text: x.text,
+        notes: x.notes,
+        group: String(i + 1)
+      })),
     [pres]
   )
   const addToPlan = async () => {
     const plan = activePlan()
     if (!plan) return s.toast(t('songs.noActivePlan'), 'err')
-    await s.save('plans', { ...plan, items: [...plan.items, { id: uid(), type: 'presentation', title: pres.name, refId: pres.id, durationMin: 10 }], updatedAt: Date.now() })
+    await s.save('plans', {
+      ...plan,
+      items: [...plan.items, { id: uid(), type: 'presentation', title: pres.name, refId: pres.id, durationMin: 10 }],
+      updatedAt: Date.now()
+    })
     void syncPlanSummary()
     s.toast(t('songs.addedToPlan', { plan: plan.date ? `${plan.date} · ${plan.title}` : plan.title }))
   }
@@ -430,11 +451,17 @@ function PresentationModal({ pres, onClose, onReimport }: { pres: Presentation; 
       <div className="small muted" style={{ marginBottom: 10 }}>
         {t(`media.method.${pres.method}`)} · {pres.sourcePath}
       </div>
-      {pres.method === 'text' && <div className="card small" style={{ marginBottom: 12 }}>💡 {t('media.translateHelp')}</div>}
+      {pres.method === 'text' && (
+        <div className="card small" style={{ marginBottom: 12 }}>
+          💡 {t('media.translateHelp')}
+        </div>
+      )}
       <div className="col">
         {pres.slides.map((sl, i) => (
           <div key={i} style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 12, alignItems: 'start' }}>
-            <div className="monitor-frame">{theme && <SlideView slide={slides[i]} theme={theme} displayLang="both" order={s.settings.bilingualOrder} thumb />}</div>
+            <div className="monitor-frame">
+              {theme && <SlideView slide={slides[i]} theme={theme} displayLang="both" order={s.settings.bilingualOrder} thumb />}
+            </div>
             <div className="col" style={{ gap: 6 }}>
               {pres.method === 'text' ? (
                 <div className="grid2">
@@ -443,14 +470,24 @@ function PresentationModal({ pres, onClose, onReimport }: { pres: Presentation; 
                     rows={4}
                     value={sl.text?.en || ''}
                     placeholder="English"
-                    onChange={(e) => void s.save('presentations', { ...pres, slides: pres.slides.map((x, j) => (j === i ? { ...x, text: { ...x.text, en: e.target.value } } : x)) })}
+                    onChange={(e) =>
+                      void s.save('presentations', {
+                        ...pres,
+                        slides: pres.slides.map((x, j) => (j === i ? { ...x, text: { ...x.text, en: e.target.value } } : x))
+                      })
+                    }
                   />
                   <textarea
                     className="textarea"
                     rows={4}
                     value={sl.text?.es || ''}
                     placeholder="Español"
-                    onChange={(e) => void s.save('presentations', { ...pres, slides: pres.slides.map((x, j) => (j === i ? { ...x, text: { ...x.text, es: e.target.value } } : x)) })}
+                    onChange={(e) =>
+                      void s.save('presentations', {
+                        ...pres,
+                        slides: pres.slides.map((x, j) => (j === i ? { ...x, text: { ...x.text, es: e.target.value } } : x))
+                      })
+                    }
                   />
                 </div>
               ) : (

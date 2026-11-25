@@ -9,7 +9,23 @@ import { toMediaUrl } from '../../lib/media'
 import { themeBackground } from '../../lib/buildSlides'
 import { updateLive } from '../liveControl'
 
-const FONTS = ['Segoe UI', 'Arial', 'Calibri', 'Cambria', 'Georgia', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Times New Roman', 'Garamond', 'Bahnschrift', 'Impact', 'Candara', 'Constantia', 'Corbel']
+const FONTS = [
+  'Segoe UI',
+  'Arial',
+  'Calibri',
+  'Cambria',
+  'Georgia',
+  'Verdana',
+  'Tahoma',
+  'Trebuchet MS',
+  'Times New Roman',
+  'Garamond',
+  'Bahnschrift',
+  'Impact',
+  'Candara',
+  'Constantia',
+  'Corbel'
+]
 
 const GRADIENTS = [
   'radial-gradient(ellipse at 50% 30%, #1d3557 0%, #0b1324 70%, #05080f 100%)',
@@ -25,7 +41,10 @@ const GRADIENTS = [
 const SAMPLE: Slide = {
   id: 'sample',
   kind: 'text',
-  text: { es: 'Porque de tal manera amó Dios al mundo,\nque ha dado a su Hijo unigénito', en: 'For God so loved the world,\nthat he gave his only begotten Son' },
+  text: {
+    es: 'Porque de tal manera amó Dios al mundo,\nque ha dado a su Hijo unigénito',
+    en: 'For God so loved the world,\nthat he gave his only begotten Son'
+  },
   footer: { es: 'Juan 3:16 (RV1909)', en: 'John 3:16 (KJV)' }
 }
 
@@ -75,7 +94,9 @@ export function ThemesPage() {
           ))}
         </div>
       </aside>
-      <div className="content">{theme && <ThemeEditor key={theme.id} theme={theme} onDuplicate={duplicate} onDeleted={() => setSelId(s.settings.defaultThemeId)} />}</div>
+      <div className="content">
+        {theme && <ThemeEditor key={theme.id} theme={theme} onDuplicate={duplicate} onDeleted={() => setSelId(s.settings.defaultThemeId)} />}
+      </div>
     </div>
   )
 }
@@ -150,7 +171,15 @@ function ThemeEditor({ theme, onDuplicate, onDeleted }: { theme: Theme; onDuplic
           </div>
           <div className="row wrap">
             <Field label={t('themes.align')}>
-              <Seg value={theme.align} onChange={(v) => save({ align: v })} options={[{ value: 'left', label: '⟸' }, { value: 'center', label: '☰' }, { value: 'right', label: '⟹' }]} />
+              <Seg
+                value={theme.align}
+                onChange={(v) => save({ align: v })}
+                options={[
+                  { value: 'left', label: '⟸' },
+                  { value: 'center', label: '☰' },
+                  { value: 'right', label: '⟹' }
+                ]}
+              />
             </Field>
             <Field label={t('themes.position')}>
               <Seg
@@ -167,7 +196,19 @@ function ThemeEditor({ theme, onDuplicate, onDeleted }: { theme: Theme; onDuplic
           <div className="section-title">{t('themes.background')}</div>
           <Seg
             value={theme.background.type}
-            onChange={(v) => setBg({ type: v, value: v === 'color' ? '#000000' : v === 'gradient' ? GRADIENTS[0] : visual.find((m) => m.kind === v)?.path ? toMediaUrl(visual.find((m) => m.kind === v)!.path) : '' })}
+            onChange={(v) =>
+              setBg({
+                type: v,
+                value:
+                  v === 'color'
+                    ? '#000000'
+                    : v === 'gradient'
+                      ? GRADIENTS[0]
+                      : visual.find((m) => m.kind === v)?.path
+                        ? toMediaUrl(visual.find((m) => m.kind === v)!.path)
+                        : ''
+              })
+            }
             options={[
               { value: 'color', label: t('themes.bg.color') },
               { value: 'gradient', label: t('themes.bg.gradient') },
@@ -175,14 +216,23 @@ function ThemeEditor({ theme, onDuplicate, onDeleted }: { theme: Theme; onDuplic
               { value: 'video', label: t('themes.bg.video') }
             ]}
           />
-          {theme.background.type === 'color' && <input type="color" className="input" style={{ width: 120 }} value={theme.background.value} onChange={(e) => setBg({ value: e.target.value })} />}
+          {theme.background.type === 'color' && (
+            <input type="color" className="input" style={{ width: 120 }} value={theme.background.value} onChange={(e) => setBg({ value: e.target.value })} />
+          )}
           {theme.background.type === 'gradient' && (
             <div className="row wrap">
               {GRADIENTS.map((g) => (
                 <div
                   key={g}
                   onClick={() => !ro && setBg({ value: g })}
-                  style={{ width: 70, height: 40, borderRadius: 8, background: g, cursor: 'pointer', border: theme.background.value === g ? '2px solid var(--accent)' : '2px solid var(--border)' }}
+                  style={{
+                    width: 70,
+                    height: 40,
+                    borderRadius: 8,
+                    background: g,
+                    cursor: 'pointer',
+                    border: theme.background.value === g ? '2px solid var(--accent)' : '2px solid var(--border)'
+                  }}
                 />
               ))}
             </div>
@@ -238,7 +288,15 @@ function ThemeEditor({ theme, onDuplicate, onDeleted }: { theme: Theme; onDuplic
           <div className="section-title" style={{ flex: 1 }}>
             {t('item.preview')}
           </div>
-          <Seg value={lang} onChange={setLang} options={[{ value: 'es', label: 'ES' }, { value: 'en', label: 'EN' }, { value: 'both', label: 'ES + EN' }]} />
+          <Seg
+            value={lang}
+            onChange={setLang}
+            options={[
+              { value: 'es', label: 'ES' },
+              { value: 'en', label: 'EN' },
+              { value: 'both', label: 'ES + EN' }
+            ]}
+          />
         </div>
         <div className="monitor-frame">
           <SlideView slide={SAMPLE} theme={theme} displayLang={lang} order={s.settings.bilingualOrder} />

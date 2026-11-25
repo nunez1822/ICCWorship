@@ -46,14 +46,33 @@ export function SettingsPage() {
             </Field>
             <div className="row wrap">
               <Field label={t('settings.appLanguage')}>
-                <Seg<Lang> value={st.uiLang} onChange={(v) => void s.setSettings({ uiLang: v })} options={[{ value: 'es', label: 'Español' }, { value: 'en', label: 'English' }]} />
+                <Seg<Lang>
+                  value={st.uiLang}
+                  onChange={(v) => void s.setSettings({ uiLang: v })}
+                  options={[
+                    { value: 'es', label: 'Español' },
+                    { value: 'en', label: 'English' }
+                  ]}
+                />
               </Field>
               <Field label={t('settings.appearance')}>
-                <Seg value={st.operatorTheme} onChange={(v) => void s.setSettings({ operatorTheme: v })} options={[{ value: 'dark', label: `🌙 ${t('settings.dark')}` }, { value: 'light', label: `☀️ ${t('settings.light')}` }]} />
+                <Seg
+                  value={st.operatorTheme}
+                  onChange={(v) => void s.setSettings({ operatorTheme: v })}
+                  options={[
+                    { value: 'dark', label: `🌙 ${t('settings.dark')}` },
+                    { value: 'light', label: `☀️ ${t('settings.light')}` }
+                  ]}
+                />
               </Field>
             </div>
             <Field label={t('settings.ccliLicense')}>
-              <input className="input" value={st.ccliLicense || ''} onChange={(e) => void s.setSettings({ ccliLicense: e.target.value })} placeholder="1234567" />
+              <input
+                className="input"
+                value={st.ccliLicense || ''}
+                onChange={(e) => void s.setSettings({ ccliLicense: e.target.value })}
+                placeholder="1234567"
+              />
             </Field>
           </div>
 
@@ -73,7 +92,11 @@ export function SettingsPage() {
                 </span>
               </label>
             ))}
-            {displays.length < 2 && <div className="small" style={{ color: 'var(--warn)' }}>ℹ {t('settings.oneScreen')}</div>}
+            {displays.length < 2 && (
+              <div className="small" style={{ color: 'var(--warn)' }}>
+                ℹ {t('settings.oneScreen')}
+              </div>
+            )}
             <div className="row wrap">
               <button className="btn" onClick={() => (s.outputOpen ? window.api.output.close() : window.api.output.open())}>
                 {s.outputOpen ? t('settings.closeOutput') : t('settings.openOutput')}
@@ -86,7 +109,8 @@ export function SettingsPage() {
               </button>
             </div>
             <label className="check">
-              <input type="checkbox" checked={st.outputEnabled} onChange={(e) => void s.setSettings({ outputEnabled: e.target.checked })} /> {t('settings.openOnStart')}
+              <input type="checkbox" checked={st.outputEnabled} onChange={(e) => void s.setSettings({ outputEnabled: e.target.checked })} />{' '}
+              {t('settings.openOnStart')}
             </label>
             <div className="row wrap">
               <Field label={t('settings.bilingualOrder')}>
@@ -105,7 +129,15 @@ export function SettingsPage() {
             </div>
             <Field label={t('settings.logo')}>
               <div className="row">
-                {st.logoPath ? <span className="small" style={{ flex: 1, wordBreak: 'break-all' }}>{st.logoPath}</span> : <span className="small muted" style={{ flex: 1 }}>{t('settings.noLogo')}</span>}
+                {st.logoPath ? (
+                  <span className="small" style={{ flex: 1, wordBreak: 'break-all' }}>
+                    {st.logoPath}
+                  </span>
+                ) : (
+                  <span className="small muted" style={{ flex: 1 }}>
+                    {t('settings.noLogo')}
+                  </span>
+                )}
                 <button
                   className="btn sm"
                   onClick={async () => {
@@ -154,7 +186,14 @@ export function SettingsPage() {
               </button>
               <span style={{ flex: 1 }} />
               <Field label={t('settings.messageSeconds')}>
-                <input className="input" type="number" min={5} style={{ width: 90 }} value={st.messageSeconds} onChange={(e) => void s.setSettings({ messageSeconds: Math.max(5, +e.target.value) })} />
+                <input
+                  className="input"
+                  type="number"
+                  min={5}
+                  style={{ width: 90 }}
+                  value={st.messageSeconds}
+                  onChange={(e) => void s.setSettings({ messageSeconds: Math.max(5, +e.target.value) })}
+                />
               </Field>
             </div>
           </div>
@@ -165,7 +204,8 @@ export function SettingsPage() {
             <h2>📱 {t('settings.remote')}</h2>
             <div className="small muted">{t('settings.remoteHelp')}</div>
             <label className="check">
-              <input type="checkbox" checked={st.serverEnabled} onChange={(e) => void s.setSettings({ serverEnabled: e.target.checked }).then(refresh)} /> {t('settings.enableRemote')}
+              <input type="checkbox" checked={st.serverEnabled} onChange={(e) => void s.setSettings({ serverEnabled: e.target.checked }).then(refresh)} />{' '}
+              {t('settings.enableRemote')}
             </label>
             {server && st.serverEnabled && (
               <div className="row" style={{ alignItems: 'flex-start', gap: 18 }}>
@@ -186,7 +226,11 @@ export function SettingsPage() {
                       🎤 <b>{u}/stage</b>
                     </div>
                   ))}
-                  {!server.urls.length && <div className="small" style={{ color: 'var(--warn)' }}>{t('settings.noNetwork')}</div>}
+                  {!server.urls.length && (
+                    <div className="small" style={{ color: 'var(--warn)' }}>
+                      {t('settings.noNetwork')}
+                    </div>
+                  )}
                   <div className="row">
                     <span className="small">PIN:</span>
                     <b style={{ fontSize: 22, letterSpacing: 4 }}>{st.remotePin}</b>
@@ -201,7 +245,13 @@ export function SettingsPage() {
               </div>
             )}
             <Field label={t('settings.port')}>
-              <input className="input" type="number" style={{ width: 120 }} value={st.serverPort} onChange={(e) => void s.setSettings({ serverPort: +e.target.value || 7272 }).then(refresh)} />
+              <input
+                className="input"
+                type="number"
+                style={{ width: 120 }}
+                value={st.serverPort}
+                onChange={(e) => void s.setSettings({ serverPort: +e.target.value || 7272 }).then(refresh)}
+              />
             </Field>
             <div className="small muted">🛡️ {t('settings.firewall')}</div>
           </div>

@@ -72,7 +72,13 @@ export function Seg<T extends string>(p: { value: T; options: { value: T; label:
   return (
     <div className="seg">
       {p.options.map((o) => (
-        <button key={o.value} className={o.value === p.value ? 'on' : ''} aria-pressed={o.value === p.value} onClick={() => p.onChange(o.value)} title={o.title}>
+        <button
+          key={o.value}
+          className={o.value === p.value ? 'on' : ''}
+          aria-pressed={o.value === p.value}
+          onClick={() => p.onChange(o.value)}
+          title={o.title}
+        >
           {o.label}
         </button>
       ))}

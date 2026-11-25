@@ -97,7 +97,15 @@ export function createPasted(meta: { id?: string; name: string; abbrev: string; 
   loadAll()
   const id = meta.id || meta.abbrev.toLowerCase().replace(/[^a-z0-9]+/g, '-')
   const existing = partial.get(id)
-  const b: PartialBible = { id, name: meta.name, abbrev: meta.abbrev, lang: meta.lang, copyright: meta.copyright, verseLimit: meta.verseLimit, verses: existing?.verses || {} }
+  const b: PartialBible = {
+    id,
+    name: meta.name,
+    abbrev: meta.abbrev,
+    lang: meta.lang,
+    copyright: meta.copyright,
+    verseLimit: meta.verseLimit,
+    verses: existing?.verses || {}
+  }
   partial.set(id, b)
   savePartial(b)
   return infoPartial(b)

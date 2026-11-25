@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { detectAndParseSongFile, nameCopy, parseHeader, parsePlainSections, songFromChordPro, songFromOpenLyrics, songFromPlainText, songToOpenLyrics, type SongImportError } from '@shared/songImport'
+import {
+  detectAndParseSongFile,
+  nameCopy,
+  parseHeader,
+  parsePlainSections,
+  songFromChordPro,
+  songFromOpenLyrics,
+  songFromPlainText,
+  songToOpenLyrics,
+  type SongImportError
+} from '@shared/songImport'
 import { decodeText } from '@shared/textDecode'
 import { songToSlides } from '@shared/slides'
 
