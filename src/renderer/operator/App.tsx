@@ -141,7 +141,10 @@ export function App() {
     )
   }
 
-  const isLive = !!liveState && liveState.slideIndex >= 0 && !liveState.layers.black
+  // a cover (black / logo) is what the audience sees: its pill replaces ON AIR / Off air,
+  // so the bar never says "Off air" over a black screen or "ON AIR" under the logo
+  const cover = liveState?.layers.black ? 'black' : liveState?.layers.logo ? 'logo' : null
+  const isLive = !!liveState && liveState.slideIndex >= 0 && !cover
 
   return (
     <div className="shell">
@@ -155,17 +158,19 @@ export function App() {
           </div>
         </div>
         <div className="status-strip">
-          <span className={`pill ${isLive ? 'live' : ''}`}>
-            <span className={`dot ${isLive ? 'live' : ''}`} style={isLive ? { background: '#fff' } : undefined} /> {isLive ? t('top.onAir') : t('top.offAir')}
-          </span>
+          {!cover && (
+            <span className={`pill ${isLive ? 'live' : ''}`}>
+              <span className={`dot ${isLive ? 'live' : ''}`} style={isLive ? { background: '#fff' } : undefined} /> {isLive ? t('top.onAir') : t('top.offAir')}
+            </span>
+          )}
           {liveState?.itemTitle && liveState.slideIndex >= 0 && <span className="pill">{liveState.itemTitle}</span>}
           {/* a cover is up: the audience does not see the slide the operator is moving through */}
-          {liveState?.layers.black && (
+          {cover === 'black' && (
             <span className="pill live" title={t('top.coverHelp')}>
               ⬛ {t('top.blackUp')}
             </span>
           )}
-          {liveState?.layers.logo && !liveState.layers.black && (
+          {cover === 'logo' && (
             <span className="pill gold" title={t('top.coverHelp')}>
               ✝ {t('top.logoUp')}
             </span>

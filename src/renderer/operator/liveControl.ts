@@ -3,6 +3,7 @@ import { songName, songToSlides, uid } from '@shared/slides'
 import { localDate } from '@shared/dates'
 import { buildItem, themeBackground } from '../lib/buildSlides'
 import { mediaUrlToPath } from '../lib/media'
+import { createActionQueue } from '../lib/actionQueue'
 import { useApp, t, toastError } from './store'
 
 /**
@@ -33,20 +34,13 @@ async function push(patch: Partial<LiveState>): Promise<LiveState> {
  * phone tap and a key press in the same instant (or a burst of taps) each computed
  * "slide + 1" from the same old state and moves were lost. Use at entry points only
  * (keyboard, buttons, remote commands) — the actions call each other directly.
+ * A failed action shows a toast (a key press or phone tap must not fail silently) and the
+ * queue keeps going.
  */
-let chain: Promise<void> = Promise.resolve()
-export function enqueue(fn: () => unknown): Promise<void> {
-  const r = chain.then(() => fn()).then(
-    () => undefined,
-    (e) => {
-      // keep the queue going, but don't let a key press or phone tap fail silently
-      console.error('live action failed', e)
-      toastError(e)
-    }
-  )
-  chain = r
-  return r
-}
+export const enqueue = createActionQueue((e) => {
+  console.error('live action failed', e)
+  toastError(e)
+})
 
 let advanceTimer: ReturnType<typeof setTimeout> | null = null
 /** the video Esc took off screen, and where it was, so Space / a thumbnail click resumes it */
@@ -147,9 +141,9 @@ export async function goItem(index: number, slideIndex = 0): Promise<void> {
     background: built.background,
     itemStartedAt: l?.itemId === item.id ? l.itemStartedAt : Date.now(),
     serviceStartedAt: l?.serviceStartedAt || Date.now(),
-    video: built.isVideo
-      ? { src: built.slides[0]?.media || '', playing: true, loop: item.video?.loop ?? false, volume: item.video?.volume ?? 1, seekSeq: 0, seekTo: 0 }
-      : undefined,
+    // the slide it starts on decides: a media item, or a video slide inside an
+    // announcement / header (which otherwise sat on a frozen first frame)
+    video: startVideo(built.slides[si], item),
     videoProgress: undefined,
     // Black and Logo are screen covers (as in EasyWorship / ProPresenter / MediaShout): they
     // stay up while the operator moves on underneath, until turned off. Clear text resets.
@@ -187,7 +181,7 @@ export async function showAdhoc(args: { title: string; type: PlanItemType; slide
     theme,
     background,
     itemStartedAt: Date.now(),
-    video: args.video ? { src: args.slides[0]?.media || '', playing: true, loop: false, volume: 1, seekSeq: 0, seekTo: 0 } : undefined,
+    video: args.video || args.slides[0]?.kind === 'video' ? startVideo(args.slides[0]) : undefined,
     videoProgress: undefined,
     // screen covers stay up (see goItem)
     layers: { black: !!live()?.layers.black, clearText: false, clearBackground: false, logo: !!live()?.layers.logo }
@@ -228,14 +222,24 @@ export async function goSlide(index: number): Promise<void> {
   const slide = l.slides[index]
   // covers (black / logo) stay up: the operator can line up the next slide, then reveal it
   const patch: Partial<LiveState> = { slideIndex: index, clearedFrom: undefined }
-  // a video slide coming back after Esc needs its playback state again (Esc dropped it),
-  // or the projector would sit on a frozen first frame with no play controls
+  // A video slide needs playback state (after Esc, or reached inside an announcement),
+  // or the projector sits on a frozen first frame with no play controls. Leaving a video
+  // slide for a text / image one drops it, so no stale video controls stay up.
   if (slide.kind === 'video' && slide.media && l.video?.src !== slide.media) {
     patch.video = resumeVideo(slide.media, l.itemId)
+    patch.videoProgress = undefined
+  } else if (slide.kind !== 'video' && l.video) {
+    patch.video = undefined
     patch.videoProgress = undefined
   }
   await push(patch)
   scheduleAdvance(slide)
+}
+
+/** playback state for a slide that starts a video (none for other slides) */
+function startVideo(slide: Slide | undefined, item?: PlanItem): LiveState['video'] {
+  if (slide?.kind !== 'video' || !slide.media) return undefined
+  return { src: slide.media, playing: true, loop: item?.video?.loop ?? false, volume: item?.video?.volume ?? 1, seekSeq: 0, seekTo: 0 }
 }
 
 function resumeVideo(src: string, itemId?: string): NonNullable<LiveState['video']> {
