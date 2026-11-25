@@ -146,10 +146,7 @@ export const useApp = create<AppState>((set, get) => ({
       api.db.onWriteError((e) => get().toast(i18n.t('errors.saveFailed', { what: e.name, reason: e.message }), 'err'))
       // safety net: an action that fails without its own error handling (e.g. saving a
       // file to a folder that no longer exists) must not fail silently
-      window.addEventListener('unhandledrejection', (ev) => {
-        const msg = String((ev.reason as Error)?.message || ev.reason || '').replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
-        get().toast(`⚠ ${msg || i18n.t('errors.generic')}`, 'err', 8000)
-      })
+      window.addEventListener('unhandledrejection', (ev) => toastError(ev.reason))
     }
     // damaged data files found at startup: say so (and where the damaged copy was kept)
     for (const p of await api.db.problems()) {
@@ -212,5 +209,11 @@ export const useApp = create<AppState>((set, get) => ({
     setTimeout(() => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), ms ?? (kind === 'err' ? 6000 : 4500))
   }
 }))
+
+/** Tell the operator an action failed (instead of failing silently). */
+export function toastError(e: unknown): void {
+  const msg = String((e as Error)?.message || e || '').replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+  useApp.getState().toast(`⚠ ${msg || i18n.t('errors.generic')}`, 'err', 8000)
+}
 
 export const t = (key: string, opts?: Record<string, unknown>): string => i18n.t(key, opts ?? {}) as string

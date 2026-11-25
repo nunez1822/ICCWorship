@@ -3,7 +3,7 @@ import { songName, songToSlides, uid } from '@shared/slides'
 import { localDate } from '@shared/dates'
 import { buildItem, themeBackground } from '../lib/buildSlides'
 import { mediaUrlToPath } from '../lib/media'
-import { useApp, t } from './store'
+import { useApp, t, toastError } from './store'
 
 /**
  * Everything the operator (keyboard, mouse, phone remote) can do to the screens.
@@ -38,13 +38,19 @@ let chain: Promise<void> = Promise.resolve()
 export function enqueue(fn: () => unknown): Promise<void> {
   const r = chain.then(() => fn()).then(
     () => undefined,
-    (e) => console.error('live action failed', e)
+    (e) => {
+      // keep the queue going, but don't let a key press or phone tap fail silently
+      console.error('live action failed', e)
+      toastError(e)
+    }
   )
   chain = r
   return r
 }
 
 let advanceTimer: ReturnType<typeof setTimeout> | null = null
+/** the video Esc took off screen, and where it was, so Space / a thumbnail click resumes it */
+let clearedVideo: { video: NonNullable<LiveState['video']>; at: number } | undefined
 let messageTimer: ReturnType<typeof setTimeout> | null = null
 
 function ctx() {
@@ -149,6 +155,7 @@ export async function goItem(index: number, slideIndex = 0): Promise<void> {
     // stay up while the operator moves on underneath, until turned off. Clear text resets.
     layers: { black: !!l?.layers.black, clearText: false, clearBackground: false, logo: !!l?.layers.logo }
   }
+  clearedVideo = undefined
   await push(patch)
   st().selectItem(item.id)
   checkMediaFiles(built.slides, built.background)
@@ -166,6 +173,7 @@ export async function showAdhoc(args: { title: string; type: PlanItemType; slide
   }
   const theme = args.theme || s.themes.find((x) => x.id === s.settings.defaultThemeId) || s.themes[0]
   const background = args.background === undefined ? themeBackground(theme, s.media) : args.background
+  clearedVideo = undefined
   await push({
     itemIndex: -1,
     itemId: 'adhoc-' + uid(),
@@ -217,9 +225,24 @@ async function refreshLiveSong(songId: string): Promise<void> {
 export async function goSlide(index: number): Promise<void> {
   const l = live()
   if (!l || index < 0 || index >= l.slides.length) return
+  const slide = l.slides[index]
   // covers (black / logo) stay up: the operator can line up the next slide, then reveal it
-  await push({ slideIndex: index, clearedFrom: undefined })
-  scheduleAdvance(l.slides[index])
+  const patch: Partial<LiveState> = { slideIndex: index, clearedFrom: undefined }
+  // a video slide coming back after Esc needs its playback state again (Esc dropped it),
+  // or the projector would sit on a frozen first frame with no play controls
+  if (slide.kind === 'video' && slide.media && l.video?.src !== slide.media) {
+    patch.video = resumeVideo(slide.media, l.itemId)
+    patch.videoProgress = undefined
+  }
+  await push(patch)
+  scheduleAdvance(slide)
+}
+
+function resumeVideo(src: string, itemId?: string): NonNullable<LiveState['video']> {
+  const c = clearedVideo
+  if (c && c.video.src === src) return { ...c.video, playing: true, seekSeq: c.video.seekSeq + 1, seekTo: c.at }
+  const item = activePlan()?.items.find((i) => i.id === itemId)
+  return { src, playing: true, loop: item?.video?.loop ?? false, volume: item?.video?.volume ?? 1, seekSeq: 0, seekTo: 0 }
 }
 
 export async function next(): Promise<void> {
@@ -267,6 +290,12 @@ export async function toggleLayer(layer: keyof LiveState['layers']): Promise<voi
 export async function clearAll(): Promise<void> {
   if (advanceTimer) clearTimeout(advanceTimer)
   const l = live()
+  // remember a playing video and its position (a finished one starts over)
+  const p = st().progress
+  if (l?.video) {
+    const ended = !!p && p.duration > 0 && p.current >= p.duration - 0.3
+    clearedVideo = { video: l.video, at: p && !p.error && !ended ? p.current : 0 }
+  }
   // Take the slide off screen but keep the item's slides: the grid still shows them, one
   // click on a thumbnail (or Space) puts the exact slide back after an accidental Esc.
   await push({

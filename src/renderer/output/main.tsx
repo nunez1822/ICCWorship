@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { LiveState } from '@shared/types'
 import { SlideView } from '../components/SlideView'
 import { toMediaUrl } from '../lib/media'
@@ -10,6 +10,8 @@ function Output() {
   const [state, setState] = useState<LiveState | null>(null)
   const video = useRef<HTMLVideoElement | null>(null)
   const lastSeek = useRef(0)
+  const stateRef = useRef<LiveState | null>(null)
+  stateRef.current = state
   const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
@@ -38,7 +40,10 @@ function Output() {
     if (!vs.playing && !v.paused) v.pause()
   }, [state?.video, state?.seq])
 
-  const attachVideo = (el: HTMLVideoElement | null) => {
+  // Stable on purpose: a new callback each render made React detach and re-attach the
+  // <video> on every state change, which reset lastSeek and jumped the video back to
+  // the last seek point (and paused it there when it ended).
+  const attachVideo = useCallback((el: HTMLVideoElement | null) => {
     if (video.current === el) return
     video.current = el
     if (!el) return
@@ -50,13 +55,13 @@ function Output() {
     el.onended = () => {
       if (!el.loop) window.api.live.videoEnded()
     }
-    const vs = state?.video
+    const vs = stateRef.current?.video
     if (vs) {
       el.loop = vs.loop
       el.volume = vs.volume
       if (vs.playing) void el.play().catch(() => {})
     }
-  }
+  }, [])
 
   if (!state?.theme) return <div className="output-root" />
   const slide = state.slideIndex >= 0 ? state.slides[state.slideIndex] : null

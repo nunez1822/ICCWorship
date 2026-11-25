@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { detectAndParseSongFile, parseHeader, parsePlainSections, songFromChordPro, songFromOpenLyrics, songFromPlainText, songToOpenLyrics, type SongImportError } from '@shared/songImport'
+import { detectAndParseSongFile, nameCopy, parseHeader, parsePlainSections, songFromChordPro, songFromOpenLyrics, songFromPlainText, songToOpenLyrics, type SongImportError } from '@shared/songImport'
 import { decodeText } from '@shared/textDecode'
 import { songToSlides } from '@shared/slides'
 
@@ -184,5 +184,22 @@ describe('duplicate songs on import', () => {
     const { copyTitle } = await import('@shared/songImport')
     expect(copyTitle('Amazing Grace', ['Amazing Grace'])).toBe('Amazing Grace (2)')
     expect(copyTitle('Amazing Grace', ['Amazing Grace', 'amazing grace (2)'])).toBe('Amazing Grace (3)')
+  })
+})
+
+describe('Keep both: copy names', () => {
+  const es = (titleEs: string) => ({ ...songFromPlainText('x', 'line'), title: '', titleEs })
+  it('two Spanish-only duplicates in one import get different names', () => {
+    const taken = { titles: ['Amazing Grace'], titlesEs: ['Cuán Grande'] }
+    const a = nameCopy(es('Cuán Grande'), taken)
+    const b = nameCopy(es('Cuán Grande'), taken)
+    expect([a.titleEs, b.titleEs]).toEqual(['Cuán Grande (2)', 'Cuán Grande (3)'])
+    expect(a.title).toBe('')
+  })
+  it('songs with a main title are named by it', () => {
+    const taken = { titles: ['Holy'], titlesEs: [] as string[] }
+    const a = nameCopy({ ...songFromPlainText('Holy', 'line') }, taken)
+    const b = nameCopy({ ...songFromPlainText('Holy', 'line') }, taken)
+    expect([a.title, b.title]).toEqual(['Holy (2)', 'Holy (3)'])
   })
 })

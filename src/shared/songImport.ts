@@ -416,6 +416,20 @@ export function findDuplicateSong(song: Song, library: Song[]): Song | undefined
   })
 }
 
+/**
+ * Name a "Keep both" copy so it clashes neither with the library nor with copies made
+ * earlier in the same import (one-language Spanish songs are named by their Spanish
+ * title). The new name is added to `taken`.
+ */
+export function nameCopy(song: Song, taken: { titles: string[]; titlesEs: string[] }): Song {
+  const copy = { ...song }
+  if (copy.title) copy.title = copyTitle(copy.title, taken.titles)
+  else if (copy.titleEs) copy.titleEs = copyTitle(copy.titleEs, taken.titlesEs)
+  taken.titles.push(copy.title)
+  taken.titlesEs.push(copy.titleEs || '')
+  return copy
+}
+
 /** "Title (2)", "Title (3)"… — first free name for a kept copy */
 export function copyTitle(title: string, taken: string[]): string {
   const set = new Set(taken.map((x) => x.toLowerCase()))

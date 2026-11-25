@@ -38,15 +38,19 @@ export function Modal(p: { title: ReactNode; onClose: () => void; children: Reac
 export function Field(p: { label: ReactNode; children: ReactNode; style?: React.CSSProperties }) {
   const id = useId()
   const kids = Children.toArray(p.children)
-  const only = kids.length === 1 && isValidElement(kids[0]) ? (kids[0] as ReactElement<{ id?: string }>) : null
-  if (only && typeof only.type === 'string' && ['input', 'select', 'textarea'].includes(only.type)) {
-    const controlId = only.props.id || id
+  const [first, ...rest] = kids
+  // The mode depends only on what the children ARE, never on how many are showing right
+  // now: a helper that appears under the input (search suggestions) must not flip the
+  // field to the other layout, which would throw the input away mid-typing.
+  if (isFormControl(first) && !rest.some(isFormControl)) {
+    const controlId = first.props.id || id
     return (
       <div className="field" style={p.style}>
         <label className="field-label" htmlFor={controlId}>
           {p.label}
         </label>
-        {cloneElement(only, { id: controlId })}
+        {/* always an array with the toArray keys, so the input keeps its identity */}
+        {[cloneElement(first, { id: controlId }), ...rest]}
       </div>
     )
   }
@@ -58,6 +62,10 @@ export function Field(p: { label: ReactNode; children: ReactNode; style?: React.
       {p.children}
     </div>
   )
+}
+
+function isFormControl(x: unknown): x is ReactElement<{ id?: string }> {
+  return isValidElement(x) && typeof x.type === 'string' && ['input', 'select', 'textarea'].includes(x.type)
 }
 
 export function Seg<T extends string>(p: { value: T; options: { value: T; label: ReactNode; title?: string }[]; onChange: (v: T) => void }) {

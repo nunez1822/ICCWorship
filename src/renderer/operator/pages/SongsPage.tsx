@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { SectionType, Song, SongSection } from '@shared/types'
 import { songName, songToSlides, uid } from '@shared/slides'
-import { copyTitle, detectAndParseSongFile, findDuplicateSong, sectionLabel, songFromPlainText, songToOpenLyrics, type SongImportError } from '@shared/songImport'
+import { detectAndParseSongFile, nameCopy, findDuplicateSong, sectionLabel, songFromPlainText, songToOpenLyrics, type SongImportError } from '@shared/songImport'
 import { useApp } from '../store'
 import { showAdhoc, activePlan, syncPlanSummary, songEdited } from '../liveControl'
 import { usedInPlansNote } from '../../lib/planRefs'
@@ -363,7 +363,8 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: (id?: s
     if (!dups) return
     let last = lastId
     let n = 0
-    const titles = s.songs.map((x) => x.title)
+    // names already taken, including copies made earlier in this same import
+    const taken = { titles: s.songs.map((x) => x.title), titlesEs: s.songs.map((x) => x.titleEs || '') }
     for (const { song, existing } of dups) {
       if (choice === 'skip') continue
       if (choice === 'replace') {
@@ -372,10 +373,7 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: (id?: s
         songEdited(existing.id) // on screen right now? show the new words
         last = existing.id
       } else {
-        const copy = { ...song }
-        if (copy.title) copy.title = copyTitle(copy.title, titles)
-        else if (copy.titleEs) copy.titleEs = copyTitle(copy.titleEs, s.songs.map((x) => x.titleEs || ''))
-        titles.push(copy.title)
+        const copy = nameCopy(song, taken)
         await s.save('songs', copy)
         last = copy.id
       }

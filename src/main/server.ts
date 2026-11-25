@@ -8,6 +8,7 @@ import QRCode from 'qrcode'
 import type { LiveState, RemoteCommand } from '@shared/types'
 import { live } from './live'
 import { getSettings } from './db'
+import { PinGuard } from './pinGuard'
 
 /**
  * Local network server for the stage display and phone remote.
@@ -153,21 +154,8 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
   serveFile(req, res, file)
 }
 
-/* ---- PIN guessing protection: a 4-digit PIN would otherwise fall in ~10 s on the church Wi-Fi.
-   After 5 wrong PINs from one device, that device waits 30 s, doubling each time (max 10 min).
-   Other phones are unaffected; a correct PIN clears the counter. ---- */
-const pinFailures = new Map<string, { count: number; lockedUntil: number }>()
-const MAX_FREE_TRIES = 5
-function lockedFor(ip: string): number {
-  const f = pinFailures.get(ip)
-  return f ? Math.max(0, f.lockedUntil - Date.now()) : 0
-}
-function notePinFailure(ip: string): void {
-  const f = pinFailures.get(ip) || { count: 0, lockedUntil: 0 }
-  f.count++
-  if (f.count >= MAX_FREE_TRIES) f.lockedUntil = Date.now() + Math.min(30_000 * 2 ** (f.count - MAX_FREE_TRIES), 10 * 60_000)
-  pinFailures.set(ip, f)
-}
+// PIN guessing protection (lockout after repeated wrong PINs) — see pinGuard.ts
+const pins = new PinGuard()
 
 /** sockets that passed the PIN check (stage needs none) — only they receive live data */
 const authedSockets = new WeakSet<WebSocket>()
@@ -285,13 +273,13 @@ async function doStart(opts: { rendererDir: string; devUrl?: string }, my: numbe
       const role = u.searchParams.get('role') === 'remote' ? 'remote' : 'stage'
       const pin = u.searchParams.get('pin') || ''
       const ip = req.socket.remoteAddress || '?'
-      const lock = role === 'remote' ? lockedFor(ip) : 0
+      const lock = role === 'remote' ? pins.lockedFor(ip) : 0
       const authed = role === 'stage' || (lock === 0 && pin === getSettings().remotePin)
       if (role === 'remote') {
-        if (authed) pinFailures.delete(ip)
-        else if (lock === 0) notePinFailure(ip)
+        if (authed) pins.succeed(ip)
+        else if (lock === 0) pins.fail(ip)
       }
-      ws.send(JSON.stringify({ type: 'hello', role, authed, locked: role === 'remote' && !authed ? Math.ceil(lockedFor(ip) / 1000) : 0, uiLang: getSettings().uiLang }))
+      ws.send(JSON.stringify({ type: 'hello', role, authed, locked: role === 'remote' && !authed ? Math.ceil(pins.lockedFor(ip) / 1000) : 0, uiLang: getSettings().uiLang }))
       if (!authed) {
         setTimeout(() => ws.close(), 200)
         return

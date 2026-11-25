@@ -3,7 +3,7 @@ import { createReadStream, existsSync, statSync, writeFileSync, readFileSync } f
 import { extname, join } from 'node:path'
 import { Readable } from 'node:stream'
 import type { LiveState, RemoteCommand, Settings } from '@shared/types'
-import { db, getSettings, isCollection, seedIfEmpty, setSettings } from './db'
+import { COLLECTIONS, db, getSettings, isCollection, seedIfEmpty, setSettings } from './db'
 import * as bible from './bible'
 import { live } from './live'
 import { mediaUrlToPath, serverInfo, setCommandHandler, startServer, stopServer } from './server'
@@ -232,7 +232,12 @@ function registerIpc(): void {
 
   // database
   // hand the startup problems over once (the operator may initialise more than once)
-  h('db:problems', () => db().problems.splice(0))
+  // read every collection first: one the operator doesn't load at startup (the CCLI usage
+  // log) would otherwise be found damaged later, after this report — and never shown
+  h('db:problems', () => {
+    for (const c of COLLECTIONS) db().list(c)
+    return db().problems.splice(0)
+  })
   {
     // a failed save (read-only file, disk full…) must reach the operator, not crash main
     const lastWarn = new Map<string, number>()

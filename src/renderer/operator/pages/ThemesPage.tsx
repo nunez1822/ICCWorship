@@ -90,7 +90,9 @@ function ThemeEditor({ theme, onDuplicate, onDeleted }: { theme: Theme; onDuplic
     // editing the theme that is on screen: show the change now, not at the next item
     const l = s.live
     if (l?.theme?.id === theme.id) {
-      const bgFromTheme = l.background?.value === theme.background.value
+      // compare with what the theme actually put on screen: the fallback gradient when its
+      // image/video was removed from the library
+      const bgFromTheme = l.background?.value === themeBackground(theme, s.media).value
       void window.api.live.update(bgFromTheme ? { theme: next, background: themeBackground(next, s.media) } : { theme: next })
     }
   }
