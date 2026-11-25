@@ -242,7 +242,7 @@ function Library() {
     void syncPlanSummary()
     s.toast(t('songs.addedToPlan', { plan: plan.date ? `${plan.date} · ${plan.title}` : plan.title }))
   }
-  const useAsBackground = async (m: MediaItem) => {
+  const setAsBackground = async (m: MediaItem) => {
     const bg = backgroundFromMedia(m.path)
     if (bg) await updateLive({ background: bg })
     s.toast(t('media.bgApplied'))
@@ -299,7 +299,7 @@ function Library() {
             ＋ {t('songs.addToPlan')}
           </button>
           {item.kind !== 'audio' && (
-            <button className="btn" onClick={() => void useAsBackground(item)}>
+            <button className="btn" onClick={() => void setAsBackground(item)}>
               🌄 {t('media.useAsBg')}
             </button>
           )}

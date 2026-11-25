@@ -89,7 +89,6 @@ function parseNumbers(nums: string): RefSegment[] | null {
 
     if (start.ch !== null) {
       // "3:16" or "3:16-18" or "3:16-4:2"
-      currentChapter = start.ch
       let endChapter: number = start.ch
       let endVerse = start.v!
       if (end) {

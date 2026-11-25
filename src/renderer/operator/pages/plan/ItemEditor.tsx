@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { MediaItem, PlanItem, Presentation, Slide, Song, Theme, Background } from '@shared/types'
 import { parseReference, formatReference } from '@shared/scriptureRef'
-import { useApp } from '../../store'
+import { useApp, t as tr } from '../../store'
 import { Field, Modal, TYPE_ICON } from '../../../components/ui'
 import { SlideView } from '../../../components/SlideView'
 import { buildItem } from '../../../lib/buildSlides'
@@ -297,24 +297,36 @@ export function ItemPreview({ item, planDate }: { item: PlanItem; planDate?: str
   const { t } = useTranslation()
   const s = useApp()
   const [built, setBuilt] = useState<{ slides: Slide[]; theme: Theme; background: Background | null } | null>(null)
+  // only the settings buildItem reads: the EN/ES/Both toggle also writes settings and must not rebuild
+  const { defaultThemeId, ccliLicense } = s.settings
   useEffect(() => {
     let cancel = false
     const h = setTimeout(() => {
-      void buildItem(item, {
+      buildItem(item, {
         songs: s.songs,
         media: s.media,
         presentations: s.presentations,
         themes: s.themes,
-        settings: s.settings,
+        settings: { defaultThemeId, ccliLicense },
         bibles: s.bibles,
         planDate
-      }).then((b) => !cancel && setBuilt(b))
+      }).then(
+        (b) => {
+          if (!cancel) setBuilt(b)
+        },
+        (e: unknown) => {
+          if (cancel) return
+          console.error('preview build failed', e)
+          setBuilt(null)
+          useApp.getState().toast(tr('errors.previewFailed', { title: item.title }), 'err', 8000)
+        }
+      )
     }, 250)
     return () => {
       cancel = true
       clearTimeout(h)
     }
-  }, [item, planDate])
+  }, [item, planDate, s.songs, s.media, s.presentations, s.themes, defaultThemeId, ccliLicense, s.bibles])
   return (
     <div className="col" style={{ position: 'sticky', top: 0, alignSelf: 'start' }}>
       <div className="section-title">

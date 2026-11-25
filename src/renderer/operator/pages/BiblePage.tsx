@@ -108,6 +108,7 @@ function Lookup({ refText, setRefText, onPasteMissing }: { refText: string; setR
   useEffect(() => {
     if (parsed?.ok) void lookup()
     else setRes(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `parsed` and `lookup` are derived from these inputs
   }, [refText, primary, secondary])
 
   const show = async () => {
@@ -300,6 +301,7 @@ function PasteVerses({ initialRef }: { initialRef: string }) {
 
   useEffect(() => {
     if (!vid && pasted[0]) setVid(pasted[0].id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- pick a default only when the number of pasted versions changes
   }, [pasted.length])
   useEffect(() => {
     if (vid) void window.api.bible.listPasted(vid).then(setStored)

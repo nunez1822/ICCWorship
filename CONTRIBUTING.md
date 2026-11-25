@@ -30,8 +30,13 @@ npm install
 npm run dev        # hot-reload development
 npm test           # unit tests: must pass
 npm run typecheck  # must pass
+npm run lint       # must pass
+npm run format     # Prettier formats the code; CI checks it
 npm run build && npm run smoke   # end-to-end check with screenshots (smoke-shots/)
 ```
+
+The whole codebase was reformatted with Prettier once. To keep `git blame` useful, run
+`git config blame.ignoreRevsFile .git-blame-ignore-revs` once in your clone.
 
 Pure logic belongs in `src/shared/` with a unit test in `tests/`. UI goes in `src/renderer/`.
 Main-process features expose a typed method in `src/preload/index.ts`. See [CLAUDE.md](CLAUDE.md) for a map of
@@ -47,9 +52,9 @@ Playwright MCP servers in `.mcp.json`.
 1. Fork, then create a branch from `main` (`fix/…`, `feat/…`, `docs/…`, `chore/…`).
 2. One topic per PR, with a short description and, for UI changes, a screenshot.
 3. Add a line to `CHANGELOG.md` under **[Unreleased]** for anything a user would notice.
-4. CI (type check, tests, build) must be green. The smoke test on Windows also runs but isn't required yet. `main` is protected: every change lands
-   through a pull request and is **squash-merged**, so the PR title becomes the commit message. Write it as a
-   clear sentence.
+4. CI (type check, lint, format check, tests, build) must be green. The smoke test on Windows also runs but isn't
+   required yet. `main` is protected: every change lands through a pull request and is **squash-merged**, so the
+   PR title becomes the commit message. Write it as a clear sentence.
 
 Commit messages and PRs can be in English or Spanish; both are fine.
 

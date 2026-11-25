@@ -24,6 +24,7 @@ function Stage() {
     setFlash(true)
     const tm = setTimeout(() => setFlash(false), 4000)
     return () => clearTimeout(tm)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- flash once per new message (seq), not on every state push
   }, [state?.stageMessage?.seq])
 
   if (!state) return <div className="stage-wait">{status === 'offline' ? t('stage.offline') : '…'}</div>

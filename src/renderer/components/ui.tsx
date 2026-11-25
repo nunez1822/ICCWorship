@@ -11,6 +11,7 @@ export function Modal(p: { title: ReactNode; onClose: () => void; children: Reac
     }
     window.addEventListener('keydown', k, true)
     return () => window.removeEventListener('keydown', k, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only onClose is used; `p` is a new object every render
   }, [p.onClose])
   return (
     <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && p.onClose()}>

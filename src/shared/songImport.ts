@@ -4,7 +4,7 @@ import { uid } from './slides'
 /* --------------------------- section headers --------------------------- */
 
 const HEADER_RE =
-  /^\s*[\[(]?\s*(verse|verso|estrofa|v|chorus|coro|estribillo|c|ch|pre[- ]?chorus|pre[- ]?coro|pre|bridge|puente|b|tag|intro|outro|ending|final|interlude|interludio|refrain)\s*(\d*)\s*[\])]?\s*:?\s*$/i
+  /^\s*[[(]?\s*(verse|verso|estrofa|v|chorus|coro|estribillo|c|ch|pre[- ]?chorus|pre[- ]?coro|pre|bridge|puente|b|tag|intro|outro|ending|final|interlude|interludio|refrain)\s*(\d*)\s*[\])]?\s*:?\s*$/i
 
 const TYPE_MAP: Record<string, SectionType> = {
   verse: 'verse',

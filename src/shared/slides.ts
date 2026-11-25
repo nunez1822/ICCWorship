@@ -73,7 +73,7 @@ export function songToSlides(song: Song, opts: { ccliLicense?: string } = {}): S
     const enChordP = paragraphs(section.en || '')
     const esChordP = paragraphs(section.es || '')
 
-    let pairs: { en: string[]; es: string[]; enC: string[]; esC: string[] }[] = []
+    let pairs: { en: string[]; es: string[]; enC: string[]; esC: string[] }[]
     if (enP.length && esP.length && enP.length === esP.length) {
       pairs = enP.map((p, i) => ({ en: p, es: esP[i], enC: enChordP[i] || p, esC: esChordP[i] || esP[i] }))
     } else {

@@ -42,11 +42,13 @@ usually operated by a volunteer during a live service, so reliability and simpli
 npm run dev          # hot-reload development
 npm test             # unit tests. Use this, not `npx vitest` (see scripts/test.mjs: Windows drive-letter case issue)
 npm run typecheck    # must pass
+npm run lint         # ESLint: must pass (no errors)
+npm run format       # Prettier: format everything (CI runs format:check)
 npm run build        # needed before e2e:launch / smoke
 npm run e2e:launch   # app with fresh test data + CDP on :9222 for Playwright MCP (add -- --keep to reuse data)
 npm run smoke        # scripted end-to-end check with screenshots
 ```
-`npm test` and `npm run typecheck` must pass before any commit.
+`npm test`, `npm run typecheck`, `npm run lint` and `npm run format:check` must pass before any commit.
 Contributor workflow (branches, squash-merged PRs, CHANGELOG, releases) is in [CONTRIBUTING.md](CONTRIBUTING.md):
 `main` is protected, so every change goes through a pull request with green CI, and anything a user would notice
 gets a line under `[Unreleased]` in `CHANGELOG.md`.
