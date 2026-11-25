@@ -25,6 +25,8 @@
    9. Section header 10. Blank.
 **Expected**
 - Each item appears with the right icon; the ⚙ editor preview on the right shows sensible slides.
+- On a plan dated in a later week, the Countdown preview counts down to **that** date (e.g. "3d 21:37:49"), not to
+  tomorrow's time of day.
 
 ### TC-PLAN-05 · Item editor  `P1`
 **Steps**

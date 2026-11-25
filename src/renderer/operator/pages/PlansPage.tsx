@@ -375,6 +375,7 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
       {editing && (
         <ItemEditor
           item={plan.items.find((x) => x.id === editing.id) || editing}
+          planDate={plan.date}
           onClose={() => setEditing(null)}
           onSave={(item) => {
             void setItems(plan.items.map((x) => (x.id === item.id ? item : x)))

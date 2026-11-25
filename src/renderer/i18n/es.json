@@ -103,6 +103,7 @@
     "pause": "Pausa",
     "play": "Reproducir",
     "loop": "Repetir",
+    "videoError": "⚠ El proyector no puede reproducir este video: el archivo falta o está dañado. Presione Espacio para continuar.",
     "clock": "Hora",
     "item": "Elemento",
     "itemTimerTip": "Tiempo en este elemento vs. minutos planeados",

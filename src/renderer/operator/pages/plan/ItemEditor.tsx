@@ -10,7 +10,7 @@ import { toMediaUrl } from '../../../lib/media'
 import { filterSongs, songSecondTitle } from '../../../lib/songSearch'
 import { songName } from '@shared/slides'
 
-export function ItemEditor({ item, onClose, onSave }: { item: PlanItem; onClose: () => void; onSave: (i: PlanItem) => void }) {
+export function ItemEditor({ item, planDate, onClose, onSave }: { item: PlanItem; planDate?: string; onClose: () => void; onSave: (i: PlanItem) => void }) {
   const { t } = useTranslation()
   const s = useApp()
   const [it, setIt] = useState<PlanItem>(item)
@@ -241,7 +241,7 @@ export function ItemEditor({ item, onClose, onSave }: { item: PlanItem; onClose:
             <textarea className="textarea" rows={2} value={it.notes || ''} onChange={(e) => set({ notes: e.target.value })} placeholder={t('item.notesHelp')} />
           </Field>
         </div>
-        <ItemPreview item={it} />
+        <ItemPreview item={it} planDate={planDate} />
       </div>
     </Modal>
   )
@@ -255,20 +255,20 @@ function swap<T>(arr: T[], a: number, b: number): T[] {
   return c
 }
 
-export function ItemPreview({ item }: { item: PlanItem }) {
+export function ItemPreview({ item, planDate }: { item: PlanItem; planDate?: string }) {
   const { t } = useTranslation()
   const s = useApp()
   const [built, setBuilt] = useState<{ slides: Slide[]; theme: Theme; background: Background | null } | null>(null)
   useEffect(() => {
     let cancel = false
     const h = setTimeout(() => {
-      void buildItem(item, { songs: s.songs, media: s.media, presentations: s.presentations, themes: s.themes, settings: s.settings, bibles: s.bibles }).then((b) => !cancel && setBuilt(b))
+      void buildItem(item, { songs: s.songs, media: s.media, presentations: s.presentations, themes: s.themes, settings: s.settings, bibles: s.bibles, planDate }).then((b) => !cancel && setBuilt(b))
     }, 250)
     return () => {
       cancel = true
       clearTimeout(h)
     }
-  }, [item])
+  }, [item, planDate])
   return (
     <div className="col" style={{ position: 'sticky', top: 0, alignSelf: 'start' }}>
       <div className="section-title">

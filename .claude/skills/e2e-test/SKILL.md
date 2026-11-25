@@ -37,7 +37,12 @@ Do **not** fix bugs during the run — record them. Read `docs/e2e_testing/READM
 - Native file dialogs: first `browser_evaluate` on the operator tab
   `await window.api.e2e.queueOpenFiles(['<absolute path>'])` or `await window.api.e2e.queueSaveFile('<absolute path>')`,
   then click the button. Fixtures: `<repo>/tests/fixtures/`. Write outputs to `<repo>/.e2e-data/`.
-- `window.confirm` prompts → `browser_handle_dialog` (accept unless the case says otherwise).
+- `window.confirm` prompts: the Playwright MCP dismisses (= cancels) a dialog when the tool call that opened it
+  ends, so `browser_handle_dialog` usually comes too late. To accept, stub it in the **same** `browser_run_code_unsafe`
+  call before clicking: `await page.evaluate(() => { window.confirm = () => true })` (restore it afterwards). Don't
+  also add a `page.on('dialog')` handler — two handlers race ("dialog already handled").
+- Never click **🖨️ Print**: it opens the native Windows print dialog, which blocks the page and hangs the MCP
+  connection (~30 min timeout). Print and **📄 PDF** use the same `runSheetHtml`, so check the PDF instead.
 - Remote PIN: `browser_evaluate` → `(await window.api.settings.get()).remotePin`.
 - Screenshot every failure and every case marked 📸; save into `docs/e2e_testing/results/`
   with names like `<runstamp>-TC-LIVE-01.png`.

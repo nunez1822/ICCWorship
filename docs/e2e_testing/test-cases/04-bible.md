@@ -8,7 +8,7 @@
 - Verse 16 (RV1909) starts "Porque de tal manera amó Dios al mundo"; KJV starts "For God so loved the world".
 
 ### TC-BIB-02 · Reference formats  `P0`
-**Steps** — type each and check the heading:
+**Steps** — type each and check the heading (it also shows the second version's name after " · ", e.g. "Juan 3:16 · John 3:16"; check the part before it):
 | Input | Expected heading |
 |---|---|
 | `Jn 3:16` | Juan 3:16 |

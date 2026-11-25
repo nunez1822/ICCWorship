@@ -1,13 +1,14 @@
 import JSZip from 'jszip'
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
-import { dirname, join, normalize, relative, resolve, sep } from 'node:path'
+import { dirname, join, relative, resolve, sep } from 'node:path'
 import { backupDir, dataRoot } from './paths'
 import { db } from './db'
 import { localDate, localStamp } from '@shared/dates'
 import { reload as reloadBibles } from './bible'
+import { RESTORE_DIRS, restoreTarget } from './restorePath'
 
-/** Folders inside Documents\ICCWorship that belong in a backup */
-const INCLUDE = ['data', join('cache', 'presentations')]
+/** Folders inside Documents\ICCWorship that belong in a backup (and the only ones a restore writes) */
+const INCLUDE = RESTORE_DIRS
 
 function walk(dir: string, out: string[] = []): string[] {
   if (!existsSync(dir)) return out
@@ -57,9 +58,9 @@ export async function restoreBackup(zipPath: string): Promise<{ ok: boolean; err
   for (const name of Object.keys(zip.files)) {
     const entry = zip.files[name]
     if (entry.dir || name === 'iccworship-backup.json') continue
-    if (!/^(data|cache\/presentations)\//.test(name)) continue
-    const dest = resolve(root, normalize(name))
-    if (!dest.startsWith(root + sep)) continue // zip-slip protection
+    // only into data/ and cache/presentations/, whatever `..` the name contains (zip-slip)
+    const dest = restoreTarget(root, name)
+    if (!dest) continue
     mkdirSync(dirname(dest), { recursive: true })
     writeFileSync(dest, await entry.async('nodebuffer'))
   }

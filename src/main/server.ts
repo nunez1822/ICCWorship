@@ -123,6 +123,9 @@ function proxyToDev(req: IncomingMessage, res: ServerResponse, path: string): vo
   req.pipe(p)
 }
 
+/** the stage/remote pages' icon (same as in remote.html / stage.html) */
+const FAVICON = '<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%23f6b93b%22/%3E%3Cpath d=%22M44 14h12v24h22v12H56v38H44V50H22V38h22z%22 fill=%22%230b1324%22/%3E%3C/svg%3E" />'
+
 /** The church name is user text — never put it into HTML unescaped (phones load this page). */
 function escapeHtml(v: string): string {
   return v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
@@ -136,12 +139,17 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
     if (!allowedFiles.has(normalize(p).toLowerCase())) return send(res, 403, 'Forbidden')
     return serveFile(req, res, p)
   }
+  // phones ask for /favicon.ico on every page: answer "nothing here" instead of a 404 error
+  if (path === '/favicon.ico') {
+    res.writeHead(204).end()
+    return
+  }
   if (path === '/' || path === '') {
     const s = getSettings()
     return send(
       res,
       200,
-      `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>ICCWorship</title>
+      `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>ICCWorship</title>${FAVICON}
 <style>body{font-family:system-ui;background:#0b1324;color:#fff;display:grid;place-items:center;min-height:100vh;margin:0}a{display:block;margin:12px;padding:18px 28px;border-radius:14px;background:#1d3557;color:#fff;text-decoration:none;font-size:20px;text-align:center}</style>
 <div><h1 style="text-align:center">${escapeHtml(s.churchName || 'ICCWorship')}</h1><a href="/remote">📱 Remote / Control remoto</a><a href="/stage">🎤 Stage / Escenario</a></div>`,
       'text/html; charset=utf-8'

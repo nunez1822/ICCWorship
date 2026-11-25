@@ -103,6 +103,7 @@
     "pause": "Pause",
     "play": "Play",
     "loop": "Loop",
+    "videoError": "⚠ The projector can't play this video — the file is missing or damaged. Press Space to move on.",
     "clock": "Clock",
     "item": "Item",
     "itemTimerTip": "Time on this item vs. planned minutes",

@@ -161,13 +161,13 @@ function SlidesColumn({ item }: { item?: PlanItem }) {
       setBuilt(null)
       return
     }
-    void buildItem(item, { songs: s.songs, media: s.media, presentations: s.presentations, themes: s.themes, settings: s.settings, bibles: s.bibles }).then((b) => {
+    void buildItem(item, { songs: s.songs, media: s.media, presentations: s.presentations, themes: s.themes, settings: s.settings, bibles: s.bibles, planDate: plan?.date }).then((b) => {
       if (!cancel) setBuilt({ ...b, itemId: item.id })
     })
     return () => {
       cancel = true
     }
-  }, [item, isLiveItem, s.songs, s.media, s.presentations, s.themes, s.bibles])
+  }, [item, isLiveItem, s.songs, s.media, s.presentations, s.themes, s.bibles, plan?.date])
 
   // what to show: live slides if the selected item (or nothing selected) is live
   const showLive = isLiveItem || (!item && !!liveSt && liveSt.slides.length > 0)
@@ -339,6 +339,12 @@ function Controls() {
 
       {l.video && (
         <div className="card" style={{ padding: 12 }}>
+          {/* stays up (unlike the toast) while the broken video is live */}
+          {progress?.error && (
+            <div className="small" role="alert" style={{ color: 'var(--live)', marginBottom: 8 }}>
+              {t('live.videoError')}
+            </div>
+          )}
           <div className="row" style={{ marginBottom: 8 }}>
             <button className="btn sm primary" onClick={() => void live.enqueue(() => live.videoToggle())}>
               {l.video.playing ? '⏸ ' + t('live.pause') : '▶ ' + t('live.play')}

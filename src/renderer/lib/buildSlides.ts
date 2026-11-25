@@ -1,5 +1,5 @@
 import type { Background, MediaItem, PlanItem, Presentation, Settings, Slide, Song, Theme, BibleVersionInfo } from '@shared/types'
-import { notesToSlides, scriptureToSlides, songToSlides, targetTimeToday, uid } from '@shared/slides'
+import { countdownTarget, notesToSlides, scriptureToSlides, songToSlides, uid } from '@shared/slides'
 import { backgroundFromMedia, isVideoUrl, toMediaUrl } from './media'
 
 export interface BuildContext {
@@ -9,6 +9,8 @@ export interface BuildContext {
   themes: Theme[]
   settings: Settings
   bibles: BibleVersionInfo[]
+  /** the plan's date (YYYY-MM-DD): a "count down to HH:MM" aims at that day */
+  planDate?: string
 }
 
 export interface BuiltItem {
@@ -99,7 +101,7 @@ export async function buildItem(item: PlanItem, ctx: BuildContext): Promise<Buil
     }
     case 'countdown': {
       const c = item.countdown || { mode: 'duration', minutes: 5 }
-      const to = c.mode === 'time' && c.time ? targetTimeToday(c.time) : Date.now() + (c.minutes || 5) * 60_000
+      const to = c.mode === 'time' && c.time ? countdownTarget(c.time, ctx.planDate) : Date.now() + (c.minutes || 5) * 60_000
       return { ...base, slides: [{ id: uid(), kind: 'countdown', countdownTo: to, countdownLabel: c.label }] }
     }
     case 'blank':

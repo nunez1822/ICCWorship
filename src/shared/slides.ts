@@ -317,15 +317,34 @@ export function targetTimeToday(hhmm: string, now = Date.now()): number {
   return d.getTime()
 }
 
+/**
+ * epoch ms a "count down to HH:MM" item aims at. A plan dated in the future counts down to
+ * that day (a countdown previewed on Wednesday for Sunday's 11:00 must not say "21 h");
+ * otherwise — today's service, a template, an old plan reused — the next HH:MM as before.
+ */
+export function countdownTarget(hhmm: string, planDate?: string, now = Date.now()): number {
+  const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(planDate || '')
+  if (d) {
+    const [h, m] = hhmm.split(':').map((x) => parseInt(x, 10))
+    const t = new Date(+d[1], +d[2] - 1, +d[3], h || 0, m || 0, 0, 0).getTime()
+    if (t > now) return t
+  }
+  return targetTimeToday(hhmm, now)
+}
+
 export function formatClock(ms: number): string {
   let s = Math.floor(Math.abs(ms) / 1000)
   // a few ms "in the past" (clock skew between windows) must not show as -0:00
   const neg = ms < 0 && s > 0
+  const days = Math.floor(s / 86400)
+  s -= days * 86400
   const h = Math.floor(s / 3600)
   s -= h * 3600
   const m = Math.floor(s / 60)
   s -= m * 60
   const pad = (n: number) => String(n).padStart(2, '0')
+  // a countdown to a service days away: "3d 21:37:49" instead of "93:37:49"
+  if (days) return `${neg ? '-' : ''}${days}d ${pad(h)}:${pad(m)}:${pad(s)}`
   return (neg ? '-' : '') + (h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`)
 }
 

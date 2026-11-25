@@ -53,11 +53,13 @@ Stop the app: `taskkill /F /IM electron.exe`. Relaunch keeping data: `npm run e2
 
 ### TC-RES-07 · Media missing when it goes live  `P0`
 **Steps**
-1. Copy sample.mp4 to `.e2e-data/tmp/gone.mp4`, add it to the library and to the plan.
+1. Copy sample.mp4 to `.e2e-data/tmp/gone.mp4`, add it to the library and to the plan, with another item after it.
 2. Delete `gone.mp4` from disk (simulates a USB stick that was removed). Go live on the item.
 **Expected**
-- Operator shows a clear "file missing" message on the item; the projector shows the theme background or black — not a frozen frame or an error page.
-- `Space` moves on normally.
+- Operator shows a clear "file missing" message (toast "⚠ File not found: …"); the projector shows the theme background or black — not a frozen frame or an error page.
+- While the item stays live, the video panel keeps a red "The projector can't play this video…" line (it does not disappear with the toast).
+- Double-click the same item again while it is live: the message appears **again** (not only the first time).
+- `Space` moves on to the next item normally.
 
 ### TC-RES-08 · Restore a backup made on another computer  `P1`
 **Steps**

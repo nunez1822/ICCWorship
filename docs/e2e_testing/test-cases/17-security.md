@@ -35,7 +35,12 @@ http://localhost:7272/file?p=<abs path of a library image that is NOT live right
 ```
 **Expected**
 - All return 403 or 404 — never 200. (`/file` only serves media that is on screen right now.)
-- While that image **is** live, its `/file?p=` URL returns 200; after Esc it returns 403 again.
+- While that image **is** live, its `/file?p=` URL returns 200.
+- After `Esc` it **still returns 200**: Esc keeps the cleared slide so `Space` can put it back (TC-CONF-16), and
+  the stage display previews it as "Next" (`refreshAllowList` in `src/main/server.ts`). Only that one slide stays
+  allowed — the item's other image slides return 403 after Esc.
+- After moving to another item (`Ctrl+→`), the image's URL returns 403.
+- `http://localhost:7272/favicon.ico` → 204 (no 404 error in the phone's console).
 
 ### TC-SEC-04 · PIN guessing is slowed down  `P1`
 **Steps** — operator tab `browser_evaluate` (or a node script) tries 50 wrong PINs:
@@ -67,13 +72,20 @@ let n = 0; for (let i = 0; i < 50; i++) { await new Promise(r => { const w = new
 ```js
 const JSZip = require('jszip'); const fs = require('fs'); const z = new JSZip();
 z.file('iccworship-backup.json', '{"app":"ICCWorship","version":1}');
+// a real data file, so the zip passes the backup check and the path guard is what gets tested
+z.file('data/zz-e2e-marker.json', '[]');
 z.file('../../ZIPSLIP-EVIL.txt', 'x'); z.file('data/../../ZIPSLIP-EVIL2.txt', 'x');
+z.file('data/../ZIPSLIP-ROOT.json', 'x');
 z.generateAsync({ type: 'nodebuffer' }).then(b => fs.writeFileSync('.e2e-data/tmp/evil.zip', b))
 ```
 **Steps**
-1. Restore… → `evil.zip`.
+1. Restore… → `evil.zip` (accept the confirm).
 **Expected**
-- No `ZIPSLIP-EVIL*.txt` appears anywhere outside `.e2e-data/` (check repo root and its parent).
+- The restore **runs** (app reloads, a `before-restore-…` safety zip appears) — the zip must get past the backup
+  check, otherwise the path guard is never exercised.
+- `.e2e-data/data/zz-e2e-marker.json` exists (the legitimate entry was restored).
+- No `ZIPSLIP-EVIL*.txt` appears anywhere outside `.e2e-data/` (check repo root and its parent), and no
+  `ZIPSLIP-ROOT.json` appears directly in `.e2e-data/` (only `data/` and `cache/presentations/` are restored into).
 
 ### TC-SEC-08 · CCLI CSV is safe to open in Excel  `P2`
 **Steps**

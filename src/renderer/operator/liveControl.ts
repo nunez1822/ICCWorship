@@ -51,7 +51,7 @@ let messageTimer: ReturnType<typeof setTimeout> | null = null
 
 function ctx() {
   const s = st()
-  return { songs: s.songs, media: s.media, presentations: s.presentations, themes: s.themes, settings: s.settings, bibles: s.bibles }
+  return { songs: s.songs, media: s.media, presentations: s.presentations, themes: s.themes, settings: s.settings, bibles: s.bibles, planDate: activePlan()?.date }
 }
 
 export function activePlan(): ServicePlan | undefined {

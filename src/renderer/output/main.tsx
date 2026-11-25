@@ -38,6 +38,10 @@ function Output() {
     }
     if (vs.playing && v.paused) void v.play().catch(() => {})
     if (!vs.playing && !v.paused) v.pause()
+    // The same broken video put live again keeps this <video> (same src: no new load, no new
+    // error event) while the operator reset its progress — report the error again, so the
+    // operator is told every time instead of only the first.
+    if (v.error && !state?.videoProgress?.error) window.api.live.videoProgress({ current: 0, duration: 0, error: true })
   }, [state?.video, state?.seq])
 
   // Stable on purpose: a new callback each render made React detach and re-attach the
@@ -48,8 +52,9 @@ function Output() {
     video.current = el
     if (!el) return
     lastSeek.current = 0
-    el.ontimeupdate = () => window.api.live.videoProgress({ current: el.currentTime, duration: el.duration || 0 })
-    el.onloadedmetadata = () => window.api.live.videoProgress({ current: 0, duration: el.duration || 0 })
+    // a failed load still fires timeupdate (position reset to 0): don't let it wipe the error
+    el.ontimeupdate = () => !el.error && window.api.live.videoProgress({ current: el.currentTime, duration: el.duration || 0 })
+    el.onloadedmetadata = () => !el.error && window.api.live.videoProgress({ current: 0, duration: el.duration || 0 })
     // tell the operator instead of sitting on a black frame that claims to be "playing"
     el.onerror = () => window.api.live.videoProgress({ current: 0, duration: 0, error: true })
     el.onended = () => {

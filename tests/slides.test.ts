@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SAMPLE_SONGS } from '@shared/defaults'
-import { notesToSlides, pickLangs, scriptureToSlides, songToSlides, splitLongText, stripChords, formatClock, upcomingSlideIndex } from '@shared/slides'
+import { countdownTarget, notesToSlides, pickLangs, scriptureToSlides, songToSlides, splitLongText, stripChords, formatClock, targetTimeToday, upcomingSlideIndex } from '@shared/slides'
 import type { PassageResult, Slide, Song } from '@shared/types'
 
 const song = (over: Partial<Song>): Song => ({
@@ -148,6 +148,24 @@ describe('formatClock', () => {
     expect(formatClock(65_000)).toBe('1:05')
     expect(formatClock(3_725_000)).toBe('1:02:05')
     expect(formatClock(-5_000)).toBe('-0:05')
+  })
+  it('shows days for a countdown to a service days away', () => {
+    expect(formatClock((3 * 86400 + 21 * 3600 + 37 * 60 + 49) * 1000)).toBe('3d 21:37:49')
+    expect(formatClock(86400_000)).toBe('1d 00:00:00')
+  })
+})
+
+describe('countdownTarget', () => {
+  // Wednesday 2026-11-25 13:00 local time
+  const now = new Date(2026, 10, 25, 13, 0).getTime()
+  it("counts down to the plan's own date when it is still ahead", () => {
+    expect(countdownTarget('11:00', '2026-11-29', now)).toBe(new Date(2026, 10, 29, 11, 0).getTime())
+  })
+  it('falls back to the next HH:MM for today, a template (no date) or an old plan', () => {
+    expect(countdownTarget('14:00', '2026-11-25', now)).toBe(targetTimeToday('14:00', now))
+    expect(countdownTarget('11:00', undefined, now)).toBe(targetTimeToday('11:00', now))
+    expect(countdownTarget('11:00', '', now)).toBe(targetTimeToday('11:00', now))
+    expect(countdownTarget('11:00', '2026-11-01', now)).toBe(targetTimeToday('11:00', now))
   })
 })
 
