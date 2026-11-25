@@ -73,7 +73,8 @@ let n = 0; for (let i = 0; i < 50; i++) { await new Promise(r => { const w = new
 3. Export the run sheet PDF and print preview of a plan containing the Prayer item.
 **Expected**
 - `SECRET-PRIVATE-TEXT` appears in **no** network message, stage, phone, projector, PDF or printout.
-- No network message contains a local file path (`C:\…`, the Windows user name) or a `media://` URL.
+- No network message contains a local file path (`C:\…`, the Windows user name) or a `media://` URL — also
+  while a video plays (the `progress` messages).
 
 ### TC-SEC-07 · Malicious backup can't write outside the data folder  `P0`
 **Setup (node, from repo root):**
