@@ -5,7 +5,8 @@
     "dataRecovered": "⚠ The {{what}} file was damaged and was restored from its backup. The damaged copy was kept: {{file}}",
     "dataUnreadable": "⚠ The {{what}} file is damaged and could not be read. It was kept as {{file}} — restore a backup in Settings → Backup.",
     "mediaMissing": "⚠ File not found: {{file}}",
-    "mediaUnplayable": "⚠ This video can't be played (damaged or unsupported format)."
+    "mediaUnplayable": "⚠ This video can't be played (damaged or unsupported format).",
+    "previewFailed": "⚠ Could not prepare the preview of “{{title}}”. Check that its song, Bible version or file still exists."
   },
   "common": {
     "add": "Add",

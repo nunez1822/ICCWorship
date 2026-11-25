@@ -53,9 +53,8 @@ Playwright MCP servers in `.mcp.json`.
 2. One topic per PR, with a short description and, for UI changes, a screenshot.
 3. Add a line to `CHANGELOG.md` under **[Unreleased]** for anything a user would notice.
 4. CI (type check, lint, format check, tests, build) must be green. The smoke test on Windows also runs but isn't
-   required yet. `main` is protected: every change lands
-   through a pull request and is **squash-merged**, so the PR title becomes the commit message. Write it as a
-   clear sentence.
+   required yet. `main` is protected: every change lands through a pull request and is **squash-merged**, so the
+   PR title becomes the commit message. Write it as a clear sentence.
 
 Commit messages and PRs can be in English or Spanish; both are fine.
 
