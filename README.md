@@ -76,7 +76,10 @@ same time**, switchable live with one key.
 1. Download **`ICCWorship-Setup-x.y.z.exe`** (installer) or **`ICCWorship-Portable-x.y.z.exe`** (no installation needed) from the Releases page.
    The portable version still keeps its data on the PC it runs on (`Documents\ICCWorship`), not on the USB stick.
 2. Windows SmartScreen may warn because the app is not code-signed (signing certificates cost money). Click **More info → Run anyway**.
-3. The first time you use the phone remote, Windows Firewall asks to allow ICCWorship — choose **Allow** on private networks.
+3. **Optional: verify your download.** Each release lists SHA-256 checksums (`SHA256SUMS.txt`); in PowerShell,
+   `Get-FileHash .\ICCWorship-Setup-x.y.z.exe` must print the same value. With the GitHub CLI you can also confirm the
+   file was built by this repository's release workflow: `gh attestation verify ICCWorship-Setup-x.y.z.exe --repo nunez1822/ICCWorship`.
+4. The first time you use the phone remote, Windows Firewall asks to allow ICCWorship — choose **Allow** on private networks.
 
 ## Your data and backups
 

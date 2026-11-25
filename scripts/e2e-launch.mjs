@@ -5,6 +5,9 @@
  *   npm run e2e:launch            → fresh, empty test data every time
  *   npm run e2e:launch -- --keep  → keep the data from the previous run
  *   npm run e2e:launch -- --fullscreen → let the projector go full-screen on a 2nd monitor
+ *   npm run e2e:launch -- --packaged   → run the installed-style build (dist/win-unpacked, from `npm run build:dir`)
+ *                                       instead of the dev build. Packaged builds ignore ICCWORSHIP_E2E, so only
+ *                                       cases without native file dialogs can run against it.
  *
  * - Uses its own data folder (.e2e-data/) so your real Documents\ICCWorship is never touched.
  * - Opens Chrome DevTools Protocol on http://localhost:9222 so Playwright MCP can attach:
@@ -21,8 +24,10 @@ const args = process.argv.slice(2)
 const data = join(root, '.e2e-data')
 const port = process.env.E2E_CDP_PORT || '9222'
 
-if (!existsSync(join(root, 'out', 'main', 'index.js'))) {
-  console.error('Build first:  npm run build')
+const packaged = args.includes('--packaged')
+const packagedExe = join(root, 'dist', 'win-unpacked', 'ICCWorship.exe')
+if (packaged ? !existsSync(packagedExe) : !existsSync(join(root, 'out', 'main', 'index.js'))) {
+  console.error(packaged ? 'Build the packaged app first:  npm run build:dir' : 'Build first:  npm run build')
   process.exit(1)
 }
 if (!args.includes('--keep')) rmSync(data, { recursive: true, force: true })
@@ -34,11 +39,14 @@ if (!args.includes('--fullscreen')) env.ICCWORSHIP_WINDOWED = '1'
 delete env.ELECTRON_RENDERER_URL
 
 console.log(`ICCWorship E2E
+  app         : ${packaged ? packagedExe + ' (packaged)' : 'out/ (dev build)'}
   data folder : ${data}${args.includes('--keep') ? ' (kept)' : ' (fresh)'}
   CDP endpoint: http://localhost:${port}
   stage/remote: http://localhost:7272/stage  ·  /remote (PIN in Settings)
 Press Ctrl+C to stop.`)
 
-const child = spawn(electron, [root, `--remote-debugging-port=${port}`], { env, stdio: 'inherit' })
+const cmd = packaged ? packagedExe : electron
+const cmdArgs = packaged ? [`--remote-debugging-port=${port}`] : [root, `--remote-debugging-port=${port}`]
+const child = spawn(cmd, cmdArgs, { env, stdio: 'inherit' })
 child.on('exit', (code) => process.exit(code ?? 0))
 process.on('SIGINT', () => child.kill())

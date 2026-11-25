@@ -31,7 +31,7 @@ export default tseslint.config(
   },
   {
     // Playwright scripts pass callbacks that run inside the app's pages
-    files: ['scripts/smoke.mjs', 'scripts/e2e-launch.mjs'],
+    files: ['scripts/smoke.mjs', 'scripts/e2e-launch.mjs', 'scripts/packaged-check.mjs'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } }
   },
   {

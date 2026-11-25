@@ -10,6 +10,13 @@ All notable changes to ICCWorship are documented here. The format is based on
 - Security policy, privacy statement, code of conduct, support guide, issue and pull-request templates.
 - Continuous integration on Windows (type check, unit tests, build, smoke test) for every pull request.
 - ESLint and Prettier, checked in CI, so every contributor's code looks the same.
+- Releases are built by GitHub Actions, with SHA-256 checksums and signed build provenance; see "Verify your
+  download" in the README.
+- The app now includes the licences of the open-source software it is built with (`THIRD_PARTY_NOTICES.md`
+  in the install folder).
+
+### Removed
+- The untested macOS and Linux build targets. ICCWorship is a Windows app.
 
 ### Fixed
 - The "next item" preview on the Live page and the item preview in the plan editor now update when settings,

@@ -8,6 +8,8 @@ files:
   - out/**
   - package.json
   - '!**/*.map'
+  - '!out/renderer/.vite/**'
+  - '!out/THIRD_PARTY_NOTICES.md'
 extraResources:
   - from: resources
     to: resources
@@ -15,6 +17,8 @@ extraResources:
       - bibles/**
       - icon.png
       - icon.ico
+  - from: out/THIRD_PARTY_NOTICES.md
+    to: THIRD_PARTY_NOTICES.md
 asar: true
 win:
   icon: resources/icon.ico
@@ -34,9 +38,3 @@ nsis:
   artifactName: ${productName}-Setup-${version}.${ext}
 portable:
   artifactName: ${productName}-Portable-${version}.${ext}
-mac:
-  target: dmg
-  category: public.app-category.productivity
-linux:
-  target: AppImage
-  category: Office

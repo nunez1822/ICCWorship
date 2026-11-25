@@ -27,11 +27,13 @@
     "bibles": "node scripts/build-bibles.mjs",
     "smoke": "node scripts/smoke.mjs",
     "e2e:launch": "node scripts/e2e-launch.mjs",
-    "build:win": "electron-vite build && electron-builder --win --config electron-builder.yml",
-    "build:dir": "electron-vite build && electron-builder --win --dir --config electron-builder.yml",
+    "build:win": "electron-vite build && node scripts/licenses.mjs && electron-builder --win --publish never --config electron-builder.yml",
+    "build:dir": "electron-vite build && node scripts/licenses.mjs && electron-builder --win --dir --publish never --config electron-builder.yml",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "licenses": "node scripts/licenses.mjs",
+    "packaged-check": "node scripts/packaged-check.mjs"
   },
   "dependencies": {
     "jszip": "^3.10.2",

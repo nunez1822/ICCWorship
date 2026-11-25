@@ -32,6 +32,8 @@ export default defineConfig({
     },
     plugins: [react()],
     build: {
+      // Licence report of every bundled package, merged into THIRD_PARTY_NOTICES.md by scripts/licenses.mjs
+      license: { fileName: '.vite/license.json' },
       rollupOptions: {
         input: {
           index: resolve(import.meta.dirname, 'src/renderer/index.html'),
