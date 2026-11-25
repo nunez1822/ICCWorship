@@ -18,7 +18,10 @@ export type ParseResult = { ok: true; ref: ParsedRef } | { ok: false; error: 'em
 
 const SINGLE_CHAPTER = new Set(['Obad', 'Phlm', '2John', '3John', 'Jude'])
 
-const HEAD = /^\s*((?:[1-3]|i{1,3}|1st|2nd|3rd|1ro|2do|3ro|1er|3er|primera?o?|segund[ao]|tercer[ao]?|first|second|third)?\s*\.?\s*[^\d:;,\-–—]+?)\s*\.?\s*(\d[\d\s:.,;\-–—]*)?\s*$/i
+const ORDINAL = String.raw`(?:[1-3]|i{1,3}|1st|2nd|3rd|1ro|2do|3ro|1er|3er|primera?o?|segund[ao]|tercer[ao]?|first|second|third)`
+const HEAD = new RegExp(String.raw`^\s*(${ORDINAL}?\s*\.?\s*[^\d:;,\-–—]+?)\s*\.?\s*(\d[\d\s:.,;\-–—]*)?\s*$`, 'i')
+/** a "San" / "Saint" before the book name, also after a book number (kept as $1) */
+const SAINT = new RegExp(String.raw`^(\s*(?:${ORDINAL}\s*\.?\s*)?)(?:san|santo|s\.|saint|st\.?)\s+`, 'i')
 
 /**
  * Parse references such as:
@@ -30,8 +33,9 @@ export function parseReference(input: string): ParseResult {
   if (!raw) return { ok: false, error: 'empty' }
   const m = HEAD.exec(raw)
   if (!m) return { ok: false, error: 'book' }
-  // "San Juan 3:16", "S. Mateo 5", "Saint John 3:16", "St. Luke 2" — how many people say it
-  const book = findBook(m[1]) ?? findBook(m[1].replace(/^\s*(san|santo|s\.|saint|st\.?)\s+/i, ''))
+  // "San Juan 3:16", "S. Mateo 5", "Saint John 3:16", "St. Luke 2", and after a book number
+  // "1 San Juan 4:8", "2 San Pedro 1:3" — how many people say it
+  const book = findBook(m[1]) ?? findBook(m[1].replace(SAINT, '$1'))
   if (!book) return { ok: false, error: 'book' }
   let nums = (m[2] || '').replace(/[–—]/g, '-').replace(/\s+/g, '')
   if (!nums) {

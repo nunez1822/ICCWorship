@@ -50,7 +50,7 @@ export async function restoreBackup(zipPath: string): Promise<{ ok: boolean; err
   // a manifest with no data files would "restore" nothing and still reload the app
   if (!Object.keys(zip.files).some((n) => /^data\/[^/]+\.json$/.test(n) && !zip.files[n].dir)) return { ok: false, error: 'not-a-backup' }
   // safety: back up current data before overwriting
-  const safety = join(backupDir(), `before-restore-${stamp()}.zip`)
+  const safety = freeName(backupDir(), `before-restore-${stamp()}`)
   await createBackup(safety)
   db().reset()
   const root = resolve(dataRoot())
@@ -69,6 +69,14 @@ export async function restoreBackup(zipPath: string): Promise<{ ok: boolean; err
 }
 
 const stamp = () => localStamp()
+
+/** `<base>.zip`, or `<base>-2.zip`, `-3`… if taken: a second restore in the same minute must
+ *  never overwrite the first safety backup (it may be the only copy of the original data). */
+function freeName(dir: string, base: string): string {
+  let p = join(dir, `${base}.zip`)
+  for (let n = 2; existsSync(p); n++) p = join(dir, `${base}-${n}.zip`)
+  return p
+}
 
 /** One automatic backup per day in Documents\ICCWorship\backups, keep the newest 14 */
 export async function autoBackup(): Promise<void> {

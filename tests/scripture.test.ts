@@ -57,6 +57,15 @@ describe('parseReference', () => {
       expect(r.ok && r.ref.book.num, q).toBe(num)
     }
   })
+  it('accepts "San" / "Saint" after a book number ("1 San Juan 4:8")', () => {
+    for (const [q, num] of [['1 San Juan 4:8', 62], ['2 San Pedro 1:3', 61], ['1 S. Juan 1:9', 62], ['1 St. John 4:8', 62], ['Primera San Juan 3:1', 62], ['3 San Juan 4', 64]] as const) {
+      const r = parseReference(q)
+      expect(r.ok && r.ref.book.num, q).toBe(num)
+    }
+    // the chapter / verse survive the prefix
+    const r = parseReference('1 San Juan 4:8')
+    expect(r.ok && r.ref.segments).toEqual([{ startChapter: 4, startVerse: 8, endChapter: 4, endVerse: 8 }])
+  })
   it('reads one-chapter books as verses ("Judas 3" = Jude 1:3)', () => {
     const r = parseReference('Judas 3')
     expect(r.ok && r.ref.segments).toEqual([{ startChapter: 1, startVerse: 3, endChapter: 1, endVerse: 3 }])

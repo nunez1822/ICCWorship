@@ -231,7 +231,10 @@ async function refreshLiveSong(songId: string): Promise<void> {
   const slides = item ? (await buildItem(item, ctx())).slides : songToSlides(song, { ccliLicense: st().settings.ccliLicense })
   if (!slides.length) return
   const clamp = (i: number | undefined) => (i === undefined ? undefined : Math.min(i, slides.length - 1))
-  await push({ slides, slideIndex: l.slideIndex < 0 ? -1 : clamp(l.slideIndex)!, clearedFrom: clamp(l.clearedFrom) })
+  // a renamed song: the stage and the top bar show the new title too (a plan item keeps the
+  // title the plan gives it, as goItem does)
+  const itemTitle = item ? item.title : songName(song)
+  await push({ slides, slideIndex: l.slideIndex < 0 ? -1 : clamp(l.slideIndex)!, clearedFrom: clamp(l.clearedFrom), itemTitle })
 }
 
 export async function goSlide(index: number): Promise<void> {
@@ -250,6 +253,9 @@ export async function goSlide(index: number): Promise<void> {
     patch.video = undefined
     patch.videoProgress = undefined
   }
+  // the position Esc saved is good for one resume only: once the operator resumed or moved
+  // to another slide, coming back to the video starts it fresh
+  clearedVideo = undefined
   await push(patch)
   scheduleAdvance(slide)
 }
@@ -270,6 +276,7 @@ function holdUnderCover(v: NonNullable<LiveState['video']>): NonNullable<LiveSta
 
 function resumeVideo(src: string, itemId?: string): NonNullable<LiveState['video']> {
   const c = clearedVideo
+  clearedVideo = undefined // used once (see goSlide)
   if (c && c.video.src === src) return holdUnderCover({ ...c.video, playing: true, seekSeq: c.video.seekSeq + 1, seekTo: c.at })
   const item = activePlan()?.items.find((i) => i.id === itemId)
   return holdUnderCover({ src, playing: true, loop: item?.video?.loop ?? false, volume: item?.video?.volume ?? 1, seekSeq: 0, seekTo: 0 })
@@ -281,16 +288,28 @@ export async function next(): Promise<void> {
   // Resume after an accidental Esc — but only while the operator is still on the plan that
   // item came from (an ad-hoc item has no plan). After switching plans, Space starts the
   // selected plan instead of bringing back something from another service.
-  const samePlan = l.itemIndex < 0 || l.planId === activePlan()?.id
-  if (l.slideIndex < 0 && samePlan && l.clearedFrom !== undefined && l.clearedFrom < l.slides.length) return goSlide(l.clearedFrom)
-  if (l.slideIndex < 0 && !samePlan) return nextItem()
+  if (canResumeCleared(l)) return goSlide(l.clearedFrom!)
+  if (l.slideIndex < 0 && !onActivePlan(l)) return nextItem()
   if (l.slideIndex + 1 < l.slides.length) return goSlide(l.slideIndex + 1)
   return nextItem()
+}
+
+/** ad-hoc items have no plan; a plan item counts only while its plan is the selected one */
+function onActivePlan(l: LiveState): boolean {
+  return l.itemIndex < 0 || l.planId === activePlan()?.id
+}
+
+/** Esc took a slide off screen and the operator is still on that item's plan */
+function canResumeCleared(l: LiveState): boolean {
+  return l.slideIndex < 0 && onActivePlan(l) && l.clearedFrom !== undefined && l.clearedFrom < l.slides.length
 }
 
 export async function prev(): Promise<void> {
   const l = live()
   if (!l) return
+  // after an accidental Esc, ← brings the cleared slide back (like Space), instead of
+  // jumping to the previous plan item
+  if (canResumeCleared(l)) return goSlide(l.clearedFrom!)
   if (l.slideIndex > 0) return goSlide(l.slideIndex - 1)
   const plan = activePlan()
   if (plan && l.itemIndex > 0 && l.planId === plan.id) return goItem(l.itemIndex - 1, -1)
@@ -378,17 +397,23 @@ function videoEnded(l: LiveState): boolean {
   return !!l.video && !l.video.playing && !!p && !p.error && p.duration > 0 && p.current >= p.duration - 0.3
 }
 
-export async function videoSeek(seconds: number): Promise<void> {
+/**
+ * Video controls. Call them through `enqueue` (they compute from the live video, like the
+ * other actions). `src` is the video the control belonged to when it was used: if another
+ * item went live while the action waited in the queue, it is dropped instead of seeking
+ * or changing the volume of a video the operator wasn't looking at.
+ */
+export async function videoSeek(seconds: number, src?: string): Promise<void> {
   const l = live()
-  if (!l?.video) return
+  if (!l?.video || (src !== undefined && l.video.src !== src)) return
   // seeking a finished video means "play it again from there"
   const playing = l.video.playing || videoEnded(l)
   await push({ video: { ...l.video, playing, seekSeq: l.video.seekSeq + 1, seekTo: Math.max(0, seconds) } })
 }
 
-export async function videoSet(patch: Partial<NonNullable<LiveState['video']>>): Promise<void> {
+export async function videoSet(patch: Partial<NonNullable<LiveState['video']>>, src?: string): Promise<void> {
   const l = live()
-  if (!l?.video) return
+  if (!l?.video || (src !== undefined && l.video.src !== src)) return
   // turning Loop on after the video already ended restarts it
   if (patch.loop && videoEnded(l)) {
     await push({ video: { ...l.video, ...patch, playing: true, seekSeq: l.video.seekSeq + 1, seekTo: 0 } })

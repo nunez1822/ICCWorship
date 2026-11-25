@@ -10,10 +10,15 @@ import { join } from 'node:path'
  * Damage handling: a file that can't be parsed is first copied aside as
  * <name>.json.corrupt-<time> (so nothing is ever lost), the backup is used if it parses,
  * and the problem is recorded in `problems` for the UI to show. A damaged file is never
- * copied over a good .bak. Write errors (read-only file, disk full…) are caught and
- * reported through `onWriteError` instead of crashing the main process.
+ * copied over a good .bak. Write errors (read-only file, disk full, a file briefly locked
+ * by antivirus…) are caught and reported through `onWriteError` instead of crashing the
+ * main process, and the save is retried (every few seconds, and again by `flush()` at quit)
+ * until it succeeds — the operator is told their changes are kept, so they must reach disk.
  */
 export type StoreProblem = { name: string; kind: 'recovered' | 'unreadable'; savedAs?: string }
+
+/** how long to wait before trying a failed save again */
+export const RETRY_MS = 3000
 
 export class JsonStore {
   private cache = new Map<string, unknown>()
@@ -78,6 +83,8 @@ export class JsonStore {
 
   private flushOne(name: string): void {
     this.timers.delete(name)
+    // forgotten by reset() (a restore replaced the files): nothing of ours left to write
+    if (!this.cache.has(name)) return
     const value = this.cache.get(name)
     const f = this.file(name)
     const tmp = f + '.tmp'
@@ -99,12 +106,19 @@ export class JsonStore {
       } catch {
         /* ignore */
       }
+      // keep it pending: a retry (or flush() at quit) writes it once the file is free again,
+      // even if the operator makes no further edit
+      this.timers.set(
+        name,
+        setTimeout(() => this.flushOne(name), RETRY_MS)
+      )
       const err = e as Error
       if (this.onWriteError) this.onWriteError(name, err)
       else console.error('could not save', name, err)
     }
   }
 
+  /** Write everything pending now — including saves that failed earlier and wait for a retry. */
   flush(): void {
     for (const name of [...this.timers.keys()]) {
       const t = this.timers.get(name)
@@ -116,6 +130,9 @@ export class JsonStore {
   /** forget cached values (after a restore) */
   reset(): void {
     this.flush()
+    // a save that still fails is dropped: the restore replaces that data on disk
+    for (const t of this.timers.values()) clearTimeout(t)
+    this.timers.clear()
     this.cache.clear()
     // the files on disk were replaced: nothing is known to be good until read again
     this.healthy.clear()

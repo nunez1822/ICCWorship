@@ -69,7 +69,9 @@ export function ItemEditor({ item, onClose, onSave }: { item: PlanItem; onClose:
           {it.type === 'scripture' && (
             <ScriptureFields
               value={it.scripture || { ref: '', primary: s.settings.bibleEs, secondary: s.settings.bibleEn }}
-              onChange={(sc) => set({ scripture: sc, title: followRefTitle(it, sc.ref, s.settings.uiLang) })}
+              // only a new reference renames the item: changing just a Bible version must not
+              // re-format an auto title made in the other UI language ("John 3:16" → "Juan 3:16")
+              onChange={(sc) => set(sc.ref === it.scripture?.ref ? { scripture: sc } : { scripture: sc, title: followRefTitle(it, sc.ref, s.settings.uiLang) })}
             />
           )}
 

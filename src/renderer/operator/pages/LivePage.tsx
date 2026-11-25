@@ -301,13 +301,15 @@ function Controls() {
   const serviceElapsed = l.serviceStartedAt ? now - l.serviceStartedAt : 0
   const over = planned > 0 && itemElapsed > planned * 60_000
   const lang = settings.uiLang
+  // the video these controls act on (see live.videoSeek / videoSet)
+  const videoSrc = l.video?.src
 
   const sendTemplate = (tpl: { en: string; es: string }) => {
     const fill = (s: string) => fillTemplate(s, num || '?')
     // both languages: follow the bilingual order setting (English on top for EN-first services)
     const both = l.bilingualOrder === 'en-first' ? [fill(tpl.en), fill(tpl.es)] : [fill(tpl.es), fill(tpl.en)]
     const text = l.displayLang === 'en' ? fill(tpl.en) : l.displayLang === 'es' ? fill(tpl.es) : both.join('\n')
-    void live.showMessage(text)
+    void live.enqueue(() => live.showMessage(text))
   }
 
   return (
@@ -341,11 +343,16 @@ function Controls() {
             <button className="btn sm primary" onClick={() => void live.enqueue(() => live.videoToggle())}>
               {l.video.playing ? '⏸ ' + t('live.pause') : '▶ ' + t('live.play')}
             </button>
-            <button className="btn sm" onClick={() => void live.enqueue(() => live.videoSeek(0))}>
+            <button className="btn sm" onClick={() => void live.enqueue(() => live.videoSeek(0, videoSrc))}>
               ⏮
             </button>
             <label className="check small">
-              <input type="checkbox" checked={l.video.loop} onChange={(e) => void live.videoSet({ loop: e.target.checked })} /> {t('live.loop')}
+              <input type="checkbox" checked={l.video.loop} onChange={(e) => {
+                  // read now: React resets the controlled box before the queued action runs
+                  const loop = e.target.checked
+                  void live.enqueue(() => live.videoSet({ loop }, videoSrc))
+                }}
+              /> {t('live.loop')}
             </label>
             <span style={{ flex: 1 }} />
             <span className="small" style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -356,14 +363,19 @@ function Controls() {
             className="progress"
             onClick={(e) => {
               const r = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
-              if (progress?.duration) void live.videoSeek(((e.clientX - r.left) / r.width) * progress.duration)
+              if (!progress?.duration) return
+              const to = ((e.clientX - r.left) / r.width) * progress.duration
+              void live.enqueue(() => live.videoSeek(to, videoSrc))
             }}
           >
             <div style={{ width: `${progress?.duration ? (progress.current / progress.duration) * 100 : 0}%` }} />
           </div>
           <div className="row" style={{ marginTop: 8 }}>
             <span className="small muted">🔊</span>
-            <input type="range" min={0} max={1} step={0.05} value={l.video.volume} onChange={(e) => void live.videoSet({ volume: +e.target.value })} style={{ flex: 1 }} />
+            <input type="range" min={0} max={1} step={0.05} value={l.video.volume} onChange={(e) => {
+                const volume = +e.target.value
+                void live.enqueue(() => live.videoSet({ volume }, videoSrc))
+              }} style={{ flex: 1 }} />
           </div>
         </div>
       )}
@@ -379,7 +391,7 @@ function Controls() {
           </div>
           <div className={`val ${over ? 'over' : ''}`}>{l.itemStartedAt ? formatClock(itemElapsed) : '—'}</div>
         </div>
-        <div className="timer" onDoubleClick={() => void live.resetServiceTimer()} title={t('live.serviceTimerTip')}>
+        <div className="timer" onDoubleClick={() => void live.enqueue(() => live.resetServiceTimer())} title={t('live.serviceTimerTip')}>
           <div className="lbl">{t('live.service')}</div>
           <div className="val">{l.serviceStartedAt ? formatClock(serviceElapsed) : '—'}</div>
         </div>
@@ -405,16 +417,21 @@ function Controls() {
           onChange={(e) => setMsgText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && msgText.trim()) {
-              void live.showMessage(msgText.trim())
+              const text = msgText.trim()
+              void live.enqueue(() => live.showMessage(text))
               setMsgText('')
             }
           }}
         />
-        <button className="btn sm" disabled={!msgText.trim()} onClick={() => (void live.showMessage(msgText.trim()), setMsgText(''))}>
+        <button className="btn sm" disabled={!msgText.trim()} onClick={() => {
+            const text = msgText.trim()
+            void live.enqueue(() => live.showMessage(text))
+            setMsgText('')
+          }}>
           {t('live.show')}
         </button>
         {l.message && (
-          <button className="btn sm danger" onClick={() => void live.clearMessage()}>
+          <button className="btn sm danger" onClick={() => void live.enqueue(() => live.clearMessage())}>
             ✕
           </button>
         )}
@@ -428,20 +445,30 @@ function Controls() {
           placeholder={t('live.stagePlaceholder')}
           value={stageText}
           onChange={(e) => setStageText(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && void live.stageMessage(stageText.trim())}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return
+            const text = stageText.trim()
+            void live.enqueue(() => live.stageMessage(text))
+          }}
         />
-        <button className="btn sm" onClick={() => void live.stageMessage(stageText.trim())}>
+        <button className="btn sm" onClick={() => {
+            const text = stageText.trim()
+            void live.enqueue(() => live.stageMessage(text))
+          }}>
           {t('live.send')}
         </button>
         {l.stageMessage && (
-          <button className="btn sm danger" onClick={() => (void live.stageMessage(''), setStageText(''))}>
+          <button className="btn sm danger" onClick={() => (void live.enqueue(() => live.stageMessage('')), setStageText(''))}>
             ✕
           </button>
         )}
       </div>
       <div className="row wrap" style={{ gap: 6 }}>
         {['wrap', 'slow', 'repeat', 'louder'].map((k) => (
-          <button key={k} className="btn sm ghost" onClick={() => void live.stageMessage(t(`stageQuick.${k}`))}>
+          <button key={k} className="btn sm ghost" onClick={() => {
+              const text = t(`stageQuick.${k}`)
+              void live.enqueue(() => live.stageMessage(text))
+            }}>
             {t(`stageQuick.${k}`)}
           </button>
         ))}
