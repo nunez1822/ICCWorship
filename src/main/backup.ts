@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync,
 import { dirname, join, normalize, relative, resolve, sep } from 'node:path'
 import { backupDir, dataRoot } from './paths'
 import { db } from './db'
+import { localDate, localStamp } from '@shared/dates'
 import { reload as reloadBibles } from './bible'
 
 /** Folders inside Documents\ICCWorship that belong in a backup */
@@ -59,12 +60,12 @@ export async function restoreBackup(zipPath: string): Promise<{ ok: boolean; err
   return { ok: true, safetyBackup: safety }
 }
 
-const stamp = () => new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16)
+const stamp = () => localStamp()
 
 /** One automatic backup per day in Documents\ICCWorship\backups, keep the newest 14 */
 export async function autoBackup(): Promise<void> {
   const dir = backupDir()
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localDate()
   const existing = readdirSync(dir).filter((f) => f.startsWith('auto-')).sort()
   if (existing.some((f) => f.includes(today))) return
   await createBackup(join(dir, `auto-${today}.zip`))

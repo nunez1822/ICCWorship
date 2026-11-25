@@ -260,7 +260,7 @@ export function songFromOpenLyrics(xml: string): Song {
     else if (song.title === 'Untitled') song.title = val
   }
   if (song.title === 'Untitled' && song.titleEs) song.title = song.titleEs
-  const authors = [...xml.matchAll(/<author[^>]*>([\s\S]*?)<\/author>/g)].map((m) => xmlDecode(m[1].trim()))
+  const authors = [...xml.matchAll(/<author(?=[\s>])[^>]*>([\s\S]*?)<\/author>/g)].map((m) => xmlDecode(m[1].trim()))
   if (authors.length) song.author = authors.join(', ')
   const cr = /<copyright>([\s\S]*?)<\/copyright>/.exec(xml)
   if (cr) song.copyright = xmlDecode(cr[1].trim())

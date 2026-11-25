@@ -13,6 +13,7 @@ import type {
   Theme
 } from '@shared/types'
 import i18n from '../i18n'
+import { localDate } from '@shared/dates'
 
 export type Page = 'live' | 'plans' | 'songs' | 'bible' | 'media' | 'themes' | 'people' | 'reports' | 'settings'
 
@@ -99,7 +100,7 @@ export const useApp = create<AppState>((set, get) => ({
     document.documentElement.lang = settings.uiLang
     document.documentElement.dataset.theme = settings.operatorTheme
     // default active plan: next upcoming (or most recent) non-template plan
-    const today = new Date().toISOString().slice(0, 10)
+    const today = localDate()
     const real = plans.filter((p) => !p.isTemplate).sort((a, b) => a.date.localeCompare(b.date))
     const active = real.find((p) => p.date >= today) || real[real.length - 1]
     set({
@@ -178,7 +179,7 @@ export const useApp = create<AppState>((set, get) => ({
   toast(text, kind = 'ok') {
     const id = ++toastId
     set((s) => ({ toasts: [...s.toasts, { id, text, kind }] }))
-    setTimeout(() => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), kind === 'err' ? 6000 : 3200)
+    setTimeout(() => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), kind === 'err' ? 6000 : 4500)
   }
 }))
 

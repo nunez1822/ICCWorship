@@ -2,19 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Assignment, PlanItem, PlanItemType, ServicePlan } from '@shared/types'
 import { uid } from '@shared/slides'
+import { localDate, nextSunday } from '@shared/dates'
 import { useApp } from '../store'
 import { syncPlanSummary } from '../liveControl'
 import { Field, TYPE_ICON, fmtMin, confirmDel } from '../../components/ui'
 import { addMinutes, runSheetHtml } from '../../lib/print'
 import { ItemEditor, SongPicker, ScripturePicker, MediaPicker, PresentationPicker } from './plan/ItemEditor'
 
-const today = () => new Date().toISOString().slice(0, 10)
-
-function nextSunday(): string {
-  const d = new Date()
-  d.setDate(d.getDate() + ((7 - d.getDay()) % 7 || 7))
-  return d.toISOString().slice(0, 10)
-}
+const today = () => localDate()
 
 export function newPlanFrom(template: ServicePlan | undefined, title: string): ServicePlan {
   const t = Date.now()
@@ -99,7 +94,10 @@ export function PlansPage() {
 
 function NewPlanModal({ onClose, onCreate }: { onClose: () => void; onCreate: (p: ServicePlan) => void }) {
   const { t } = useTranslation()
-  const templates = useApp((s) => s.plans.filter((p) => p.isTemplate))
+  // Select the stable array and derive in useMemo: a selector returning a fresh
+  // array every call makes useSyncExternalStore loop forever (React error #185).
+  const plans = useApp((s) => s.plans)
+  const templates = useMemo(() => plans.filter((p) => p.isTemplate), [plans])
   const [tpl, setTpl] = useState(templates[0]?.id || '')
   const [date, setDate] = useState(nextSunday())
   return (

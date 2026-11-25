@@ -34,7 +34,12 @@ export function ThemesPage() {
   const theme = s.themes.find((x) => x.id === selId) || s.themes[0]
 
   const duplicate = async (th: Theme) => {
-    const copy: Theme = { ...th, id: uid(), name: `${th.name} (${t('themes.copy')})`, builtIn: false }
+    // "Name (copy)", then "Name (copy 2)", "Name (copy 3)"… so duplicates stay distinguishable
+    const base = `${th.name} (${t('themes.copy')}`
+    const taken = new Set(s.themes.map((x) => x.name))
+    let name = `${base})`
+    for (let n = 2; taken.has(name); n++) name = `${base} ${n})`
+    const copy: Theme = { ...th, id: uid(), name, builtIn: false }
     await s.save('themes', copy)
     setSelId(copy.id)
   }

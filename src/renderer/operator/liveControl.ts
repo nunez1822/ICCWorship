@@ -1,5 +1,6 @@
 import type { DisplayLang, LiveState, PlanItem, PlanItemType, RemoteCommand, ServicePlan, Slide, SongUsage, Theme, Background } from '@shared/types'
 import { uid } from '@shared/slides'
+import { localDate } from '@shared/dates'
 import { buildItem } from '../lib/buildSlides'
 import { useApp, t } from './store'
 
@@ -44,13 +45,21 @@ function scheduleAdvance(slide?: Slide) {
   }
 }
 
+/**
+ * Log one CCLI use per song per day. The date is the local day the song was actually
+ * on screen — not the plan's date, which may be a future Sunday and would then fall
+ * outside the Reports range (which ends today).
+ */
+async function recordSongUsage(songId: string, planId?: string) {
+  const song = st().songs.find((s) => s.id === songId)
+  if (!song) return
+  const date = localDate()
+  await api().db.upsert<SongUsage>('usage', { id: `${song.id}@${date}`, songId: song.id, title: song.title, ccli: song.ccli, date, planId })
+}
+
 async function logSongUsage(item: PlanItem, plan?: ServicePlan) {
   if (item.type !== 'song' || !item.refId) return
-  const song = st().songs.find((s) => s.id === item.refId)
-  if (!song) return
-  const date = plan?.date || new Date().toISOString().slice(0, 10)
-  const id = `${song.id}@${date}`
-  await api().db.upsert<SongUsage>('usage', { id, songId: song.id, title: song.title, ccli: song.ccli, date, planId: plan?.id })
+  await recordSongUsage(item.refId, plan?.id)
 }
 
 /** Put a plan item on screen */
@@ -109,13 +118,7 @@ export async function showAdhoc(args: { title: string; type: PlanItemType; slide
     videoProgress: undefined,
     layers: { black: false, clearText: false, clearBackground: false, logo: false }
   })
-  if (args.songId) {
-    const song = s.songs.find((x) => x.id === args.songId)
-    if (song) {
-      const date = new Date().toISOString().slice(0, 10)
-      void api().db.upsert<SongUsage>('usage', { id: `${song.id}@${date}`, songId: song.id, title: song.title, ccli: song.ccli, date })
-    }
-  }
+  if (args.songId) void recordSongUsage(args.songId)
 }
 
 export async function goSlide(index: number): Promise<void> {

@@ -54,16 +54,17 @@ $ErrorActionPreference = 'Stop'
 $app = New-Object -ComObject PowerPoint.Application
 $pres = $app.Presentations.Open($src, -1, 0, 0)
 try {
-  $w = $pres.PageSetup.SlideWidth
-  $h = $pres.PageSetup.SlideHeight
-  $H = 1080
-  $W = [int]([math]::Round($H * $w / $h))
+  # NB: PowerShell variable names are case-insensitive — keep these names distinct.
+  $slideW = $pres.PageSetup.SlideWidth
+  $slideH = $pres.PageSetup.SlideHeight
+  $outH = 1080
+  $outW = [int]([math]::Round($outH * $slideW / $slideH))
   $notes = New-Object System.Collections.ArrayList
   $i = 0
   foreach ($s in $pres.Slides) {
     $i++
     $file = Join-Path $out ("slide{0:D3}.png" -f $i)
-    $s.Export($file, 'PNG', $W, $H)
+    $s.Export($file, 'PNG', $outW, $outH)
     $n = ''
     try {
       foreach ($shape in $s.NotesPage.Shapes) {

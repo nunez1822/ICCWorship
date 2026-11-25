@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import '../i18n'
 import { pickLangs } from '@shared/slides'
@@ -36,6 +36,16 @@ function Remote() {
   const [tab, setTab] = useState<'slides' | 'plan' | 'msg'>('slides')
   const [msg, setMsg] = useState('')
   const [stageMsg, setStageMsg] = useState('')
+
+  // Opening a new #pin=… link in an already-open tab (e.g. scanning the QR code again)
+  // only changes the hash — no page load — so pick the new PIN up here.
+  useEffect(() => {
+    const onHash = () => {
+      if (/pin=\d+/.test(location.hash)) setPin(readPin())
+    }
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
 
   if (status === 'badpin' || !pin) {
     return (

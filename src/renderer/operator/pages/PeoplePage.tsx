@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Lang, Person, PrayerRequest, Team } from '@shared/types'
 import { uid } from '@shared/slides'
+import { localDate } from '@shared/dates'
 import { useApp } from '../store'
 import { activePlan, showAdhoc, syncPlanSummary } from '../liveControl'
 import { Field, Seg, confirmDel } from '../../components/ui'
@@ -246,7 +247,7 @@ function Prayer() {
           className="btn primary"
           disabled={!req.trim()}
           onClick={async () => {
-            await s.save('prayer', { id: uid(), name: name.trim() || t('people.anonymous'), request: req.trim(), date: new Date().toISOString().slice(0, 10), status: 'open', private: priv } satisfies PrayerRequest)
+            await s.save('prayer', { id: uid(), name: name.trim() || t('people.anonymous'), request: req.trim(), date: localDate(), status: 'open', private: priv } satisfies PrayerRequest)
             setName('')
             setReq('')
             setPriv(false)

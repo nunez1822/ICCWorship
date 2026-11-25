@@ -4,13 +4,14 @@ import type { SongUsage } from '@shared/types'
 import { useApp } from '../store'
 import { Field } from '../../components/ui'
 import { usageCsv } from '../../lib/print'
+import { localDate } from '@shared/dates'
 
 export function ReportsPage() {
   const { t } = useTranslation()
   const s = useApp()
   const year = new Date().getFullYear()
   const [from, setFrom] = useState(`${year}-01-01`)
-  const [to, setTo] = useState(new Date().toISOString().slice(0, 10))
+  const [to, setTo] = useState(localDate())
   const [usage, setUsage] = useState<SongUsage[]>([])
 
   useEffect(() => {

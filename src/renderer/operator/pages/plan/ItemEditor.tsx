@@ -395,7 +395,8 @@ export function ScripturePicker({ onClose, onPick }: { onClose: () => void; onPi
 
 export function MediaPicker({ onClose, onPick, kinds }: { onClose: () => void; onPick: (m: MediaItem) => void; kinds?: MediaItem['kind'][] }) {
   const { t } = useTranslation()
-  const media = useApp((s) => s.media.filter((m) => !kinds || kinds.includes(m.kind)))
+  const allMedia = useApp((s) => s.media)
+  const media = useMemo(() => allMedia.filter((m) => !kinds || kinds.includes(m.kind)), [allMedia, kinds])
   return (
     <Modal wide title={`🎬 ${t('types.media')}`} onClose={onClose}>
       {!media.length && <div className="empty">{t('media.empty')}</div>}

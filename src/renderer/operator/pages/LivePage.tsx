@@ -9,6 +9,11 @@ import { SlideView } from '../../components/SlideView'
 import { TYPE_ICON, fmtMin } from '../../components/ui'
 import { toMediaUrl } from '../../lib/media'
 
+/** Replace every `{n}` placeholder in a message template. */
+function fillTemplate(text: string, n: string): string {
+  return text.replace(/\{n\}/g, n)
+}
+
 function useNow(ms = 1000) {
   const [now, setNow] = useState(Date.now())
   useEffect(() => {
@@ -280,7 +285,7 @@ function Controls() {
   const lang = settings.uiLang
 
   const sendTemplate = (tpl: { en: string; es: string }) => {
-    const fill = (s: string) => s.replace('{n}', num || '?')
+    const fill = (s: string) => fillTemplate(s, num || '?')
     const text = l.displayLang === 'en' ? fill(tpl.en) : l.displayLang === 'es' ? fill(tpl.es) : `${fill(tpl.es)}
 ${fill(tpl.en)}`
     void live.showMessage(text)
@@ -366,7 +371,7 @@ ${fill(tpl.en)}`
         <input className="input" style={{ width: 70 }} placeholder="#" value={num} onChange={(e) => setNum(e.target.value)} />
         <div className="row wrap" style={{ gap: 6 }}>
           {settings.messageTemplates.map((tpl) => (
-            <button key={tpl.id} className="btn sm" onClick={() => sendTemplate(tpl)} title={lang === 'es' ? tpl.es : tpl.en}>
+            <button key={tpl.id} className="btn sm" onClick={() => sendTemplate(tpl)} title={fillTemplate(lang === 'es' ? tpl.es : tpl.en, num || '…')}>
               {(lang === 'es' ? tpl.es : tpl.en).replace(/[,:].*$/, '').replace(/#?\{n\}/g, '').trim().slice(0, 24)}
             </button>
           ))}

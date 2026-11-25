@@ -158,7 +158,7 @@ export function App() {
           <span className={`pill ${isLive ? 'live' : ''}`}>
             <span className={`dot ${isLive ? 'live' : ''}`} style={isLive ? { background: '#fff' } : undefined} /> {isLive ? t('top.onAir') : t('top.offAir')}
           </span>
-          {liveState?.itemTitle && <span className="pill">{liveState.itemTitle}</span>}
+          {liveState?.itemTitle && liveState.slideIndex >= 0 && <span className="pill">{liveState.itemTitle}</span>}
         </div>
         <div className="spacer" />
         <span className="small muted">{t('top.screen')}</span>
