@@ -70,6 +70,7 @@ All notable changes to ICCWorship are documented here. The format is based on
 - Bible files and backups are written safely (a power cut can't leave half a file); data files are flushed to
   disk before they replace the old version.
 - Safety backups (`before-restore-…`) piled up forever; the newest 5 of each kind are kept.
+- Backups are smaller: they no longer include the `.bak` copies of files that are already in the backup.
 - Changes made just before Windows shuts down, restarts or goes to sleep are saved (they could be lost before).
 - Restoring a backup no longer occasionally reported an error although it had worked.
 - PDFs with JPEG 2000 or JBIG2 images (most scanned PDFs) imported with blank pages; they now show the images.
