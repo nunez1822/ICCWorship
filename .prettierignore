@@ -1,0 +1,10 @@
+out/
+dist/
+node_modules/
+resources/
+tests/fixtures/
+docs/
+smoke-shots/
+.e2e-data/
+package-lock.json
+*.md

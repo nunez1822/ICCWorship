@@ -109,18 +109,23 @@ describe('live control', () => {
       { id: 'b', type: 'video', title: 'B', slides: [video('vb', 'media://b.mp4')] } as unknown as PlanItem
     ])
     await live.goItem(0)
-    await Promise.all([live.enqueue(() => live.goItem(1)), live.enqueue(() => live.videoSet({ volume: 0.2 }, 'media://a.mp4')), live.enqueue(() => live.videoSeek(50, 'media://a.mp4'))])
+    await Promise.all([
+      live.enqueue(() => live.goItem(1)),
+      live.enqueue(() => live.videoSet({ volume: 0.2 }, 'media://a.mp4')),
+      live.enqueue(() => live.videoSeek(50, 'media://a.mp4'))
+    ])
     expect(L().video).toMatchObject({ src: 'media://b.mp4', volume: 1, seekTo: 0 })
     await live.enqueue(() => live.videoSet({ volume: 0.4 }, 'media://b.mp4'))
     expect(L().video).toMatchObject({ src: 'media://b.mp4', volume: 0.4 })
   })
 
   describe("the projector's 'video ended'", () => {
-    const items = () => [
-      { id: 'a', type: 'video', title: 'A', slides: [video('va', 'media://a.mp4')], video: { loop: false, autoNext: true, volume: 1 } },
-      { id: 'b', type: 'video', title: 'B', slides: [video('vb', 'media://b.mp4')], video: { loop: false, autoNext: true, volume: 1 } },
-      { id: 'c', type: 'announcement', title: 'C', slides: [text('c')] }
-    ] as unknown as PlanItem[]
+    const items = () =>
+      [
+        { id: 'a', type: 'video', title: 'A', slides: [video('va', 'media://a.mp4')], video: { loop: false, autoNext: true, volume: 1 } },
+        { id: 'b', type: 'video', title: 'B', slides: [video('vb', 'media://b.mp4')], video: { loop: false, autoNext: true, volume: 1 } },
+        { id: 'c', type: 'announcement', title: 'C', slides: [text('c')] }
+      ] as unknown as PlanItem[]
     const settle = () => live.enqueue(async () => {})
 
     it('moves on when the live video ends and its item has Auto-next', async () => {
@@ -155,7 +160,16 @@ describe('live control', () => {
   it('a renamed live song shows its new title on the stage and top bar', async () => {
     vi.useFakeTimers()
     setup([])
-    const song: Song = { id: 's1', title: 'Sublime Graica', tags: [], sections: [{ id: 'x', type: 'verse', label: 'V1', en: '', es: 'Sublime gracia' }], arrangement: [], linesPerSlide: 2, createdAt: 0, updatedAt: 0 }
+    const song: Song = {
+      id: 's1',
+      title: 'Sublime Graica',
+      tags: [],
+      sections: [{ id: 'x', type: 'verse', label: 'V1', en: '', es: 'Sublime gracia' }],
+      arrangement: [],
+      linesPerSlide: 2,
+      createdAt: 0,
+      updatedAt: 0
+    }
     state.current.songs = [song]
     await live.showAdhoc({ title: 'Sublime Graica', type: 'song', slides: [text('a')], songId: 's1' })
     state.current.songs = [{ ...song, title: 'Sublime Gracia' } as Song]

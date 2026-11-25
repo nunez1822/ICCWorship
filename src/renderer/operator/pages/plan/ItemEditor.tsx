@@ -80,7 +80,14 @@ export function ItemEditor({ item, planDate, onClose, onSave }: { item: PlanItem
               {it.type === 'notes' && <div className="small muted">💡 {t('item.blanksHelp')}</div>}
               {it.type === 'announcement' && (
                 <Field label={t('item.loopSeconds')}>
-                  <input className="input" type="number" min={0} style={{ width: 120 }} value={it.loopSeconds || 0} onChange={(e) => set({ loopSeconds: +e.target.value })} />
+                  <input
+                    className="input"
+                    type="number"
+                    min={0}
+                    style={{ width: 120 }}
+                    value={it.loopSeconds || 0}
+                    onChange={(e) => set({ loopSeconds: +e.target.value })}
+                  />
                 </Field>
               )}
               {(it.slides || []).map((sl, i) => (
@@ -145,7 +152,11 @@ export function ItemEditor({ item, planDate, onClose, onSave }: { item: PlanItem
           {it.type === 'media' && (
             <>
               <Field label={t('types.media')}>
-                <select className="select" value={it.refId} onChange={(e) => set({ refId: e.target.value, title: s.media.find((m) => m.id === e.target.value)?.name || it.title })}>
+                <select
+                  className="select"
+                  value={it.refId}
+                  onChange={(e) => set({ refId: e.target.value, title: s.media.find((m) => m.id === e.target.value)?.name || it.title })}
+                >
                   {s.media.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.kind === 'video' ? '🎬' : m.kind === 'audio' ? '🎧' : '🖼'} {m.name}
@@ -156,14 +167,23 @@ export function ItemEditor({ item, planDate, onClose, onSave }: { item: PlanItem
               {s.media.find((m) => m.id === it.refId)?.kind !== 'image' && (
                 <div className="row wrap">
                   <label className="check">
-                    <input type="checkbox" checked={!!it.video?.loop} onChange={(e) => set({ video: { ...defVideo(it), loop: e.target.checked } })} /> {t('item.loop')}
+                    <input type="checkbox" checked={!!it.video?.loop} onChange={(e) => set({ video: { ...defVideo(it), loop: e.target.checked } })} />{' '}
+                    {t('item.loop')}
                   </label>
                   <label className="check">
-                    <input type="checkbox" checked={!!it.video?.autoNext} onChange={(e) => set({ video: { ...defVideo(it), autoNext: e.target.checked } })} /> {t('item.autoNext')}
+                    <input type="checkbox" checked={!!it.video?.autoNext} onChange={(e) => set({ video: { ...defVideo(it), autoNext: e.target.checked } })} />{' '}
+                    {t('item.autoNext')}
                   </label>
                   <label className="check">
                     🔊
-                    <input type="range" min={0} max={1} step={0.05} value={it.video?.volume ?? 1} onChange={(e) => set({ video: { ...defVideo(it), volume: +e.target.value } })} />
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={it.video?.volume ?? 1}
+                      onChange={(e) => set({ video: { ...defVideo(it), volume: +e.target.value } })}
+                    />
                   </label>
                 </div>
               )}
@@ -186,11 +206,21 @@ export function ItemEditor({ item, planDate, onClose, onSave }: { item: PlanItem
             <div className="col">
               <div className="row">
                 <label className="check">
-                  <input type="radio" checked={it.countdown?.mode !== 'duration'} onChange={() => set({ countdown: { ...it.countdown, mode: 'time' } })} /> {t('item.untilTime')}
+                  <input type="radio" checked={it.countdown?.mode !== 'duration'} onChange={() => set({ countdown: { ...it.countdown, mode: 'time' } })} />{' '}
+                  {t('item.untilTime')}
                 </label>
-                <input className="input" type="time" value={it.countdown?.time || '11:00'} onChange={(e) => set({ countdown: { ...it.countdown!, mode: 'time', time: e.target.value } })} />
+                <input
+                  className="input"
+                  type="time"
+                  value={it.countdown?.time || '11:00'}
+                  onChange={(e) => set({ countdown: { ...it.countdown!, mode: 'time', time: e.target.value } })}
+                />
                 <label className="check" style={{ marginLeft: 20 }}>
-                  <input type="radio" checked={it.countdown?.mode === 'duration'} onChange={() => set({ countdown: { ...it.countdown, mode: 'duration', minutes: it.countdown?.minutes || 5 } })} />{' '}
+                  <input
+                    type="radio"
+                    checked={it.countdown?.mode === 'duration'}
+                    onChange={() => set({ countdown: { ...it.countdown, mode: 'duration', minutes: it.countdown?.minutes || 5 } })}
+                  />{' '}
                   {t('item.forMinutes')}
                 </label>
                 <input
@@ -204,10 +234,18 @@ export function ItemEditor({ item, planDate, onClose, onSave }: { item: PlanItem
               </div>
               <div className="grid2">
                 <Field label={`${t('item.label')} (ES)`}>
-                  <input className="input" value={it.countdown?.label?.es || ''} onChange={(e) => set({ countdown: { ...it.countdown!, label: { ...it.countdown?.label, es: e.target.value } } })} />
+                  <input
+                    className="input"
+                    value={it.countdown?.label?.es || ''}
+                    onChange={(e) => set({ countdown: { ...it.countdown!, label: { ...it.countdown?.label, es: e.target.value } } })}
+                  />
                 </Field>
                 <Field label={`${t('item.label')} (EN)`}>
-                  <input className="input" value={it.countdown?.label?.en || ''} onChange={(e) => set({ countdown: { ...it.countdown!, label: { ...it.countdown?.label, en: e.target.value } } })} />
+                  <input
+                    className="input"
+                    value={it.countdown?.label?.en || ''}
+                    onChange={(e) => set({ countdown: { ...it.countdown!, label: { ...it.countdown?.label, en: e.target.value } } })}
+                  />
                 </Field>
               </div>
             </div>
@@ -262,13 +300,21 @@ export function ItemPreview({ item, planDate }: { item: PlanItem; planDate?: str
   useEffect(() => {
     let cancel = false
     const h = setTimeout(() => {
-      void buildItem(item, { songs: s.songs, media: s.media, presentations: s.presentations, themes: s.themes, settings: s.settings, bibles: s.bibles, planDate }).then((b) => !cancel && setBuilt(b))
+      void buildItem(item, {
+        songs: s.songs,
+        media: s.media,
+        presentations: s.presentations,
+        themes: s.themes,
+        settings: s.settings,
+        bibles: s.bibles,
+        planDate
+      }).then((b) => !cancel && setBuilt(b))
     }, 250)
     return () => {
       cancel = true
       clearTimeout(h)
     }
-  }, [item, planDate])
+  }, [item, planDate, s.songs, s.media, s.presentations, s.themes, s.settings, s.bibles])
   return (
     <div className="col" style={{ position: 'sticky', top: 0, alignSelf: 'start' }}>
       <div className="section-title">
@@ -276,7 +322,14 @@ export function ItemPreview({ item, planDate }: { item: PlanItem; planDate?: str
       </div>
       {built?.slides.slice(0, 4).map((sl) => (
         <div key={sl.id} className="monitor-frame">
-          <SlideView slide={sl} theme={built.theme} background={built.background} displayLang={s.live?.displayLang || 'both'} order={s.settings.bilingualOrder} thumb />
+          <SlideView
+            slide={sl}
+            theme={built.theme}
+            background={built.background}
+            displayLang={s.live?.displayLang || 'both'}
+            order={s.settings.bilingualOrder}
+            thumb
+          />
         </div>
       ))}
       {built && built.slides.length > 4 && <div className="small muted">+ {built.slides.length - 4}</div>}
@@ -301,16 +354,32 @@ function followRefTitle(item: PlanItem, newRef: string, lang: 'en' | 'es'): stri
   return p.ok ? formatReference(p.ref, lang) : newRef
 }
 
-export function ScriptureFields({ value, onChange }: { value: { ref: string; primary: string; secondary?: string }; onChange: (v: { ref: string; primary: string; secondary?: string }) => void }) {
+export function ScriptureFields({
+  value,
+  onChange
+}: {
+  value: { ref: string; primary: string; secondary?: string }
+  onChange: (v: { ref: string; primary: string; secondary?: string }) => void
+}) {
   const { t } = useTranslation()
   const bibles = useApp((s) => s.bibles)
   const parsed = value.ref ? parseReference(value.ref) : null
   return (
     <div className="col">
       <Field label={t('bible.reference')}>
-        <input className="input big" placeholder="Juan 3:16-18 · John 3:16 · Sal 23" value={value.ref} onChange={(e) => onChange({ ...value, ref: e.target.value })} autoFocus />
+        <input
+          className="input big"
+          placeholder="Juan 3:16-18 · John 3:16 · Sal 23"
+          value={value.ref}
+          onChange={(e) => onChange({ ...value, ref: e.target.value })}
+          autoFocus
+        />
       </Field>
-      {parsed && !parsed.ok && <div className="small" style={{ color: 'var(--live)' }}>⚠ {t(`bible.err.${parsed.error}`)}</div>}
+      {parsed && !parsed.ok && (
+        <div className="small" style={{ color: 'var(--live)' }}>
+          ⚠ {t(`bible.err.${parsed.error}`)}
+        </div>
+      )}
       {parsed?.ok && (
         <div className="small muted">
           ✓ {formatReference(parsed.ref, 'es')} · {formatReference(parsed.ref, 'en')}
@@ -350,7 +419,15 @@ export function SongPicker({ onClose, onPick }: { onClose: () => void; onPick: (
   const list = useMemo(() => filterSongs(songs, q), [songs, q])
   return (
     <Modal title={`🎵 ${t('types.song')}`} onClose={onClose}>
-      <input className="input big" style={{ width: '100%', marginBottom: 10 }} autoFocus placeholder={t('songs.search')} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && list[0] && onPick(list[0])} />
+      <input
+        className="input big"
+        style={{ width: '100%', marginBottom: 10 }}
+        autoFocus
+        placeholder={t('songs.search')}
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && list[0] && onPick(list[0])}
+      />
       <div className="list" style={{ maxHeight: 420, overflow: 'auto' }}>
         {list.map((s) => (
           <div key={s.id} className="list-item" onClick={() => onPick(s)}>
@@ -369,7 +446,13 @@ export function SongPicker({ onClose, onPick }: { onClose: () => void; onPick: (
   )
 }
 
-export function ScripturePicker({ onClose, onPick }: { onClose: () => void; onPick: (sc: { ref: string; primary: string; secondary?: string }, title: string) => void }) {
+export function ScripturePicker({
+  onClose,
+  onPick
+}: {
+  onClose: () => void
+  onPick: (sc: { ref: string; primary: string; secondary?: string }, title: string) => void
+}) {
   const { t } = useTranslation()
   const settings = useApp((s) => s.settings)
   const [v, setV] = useState({ ref: '', primary: settings.bibleEs, secondary: settings.bibleEn as string | undefined })

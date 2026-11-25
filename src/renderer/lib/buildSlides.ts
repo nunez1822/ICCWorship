@@ -110,7 +110,12 @@ export async function buildItem(item: PlanItem, ctx: BuildContext): Promise<Buil
   }
 }
 
-export async function scriptureSlides(ref: string, primaryId: string, secondaryId: string | undefined, ctx: Pick<BuildContext, 'bibles'>): Promise<{ slides: Slide[]; warning?: string; reference?: string }> {
+export async function scriptureSlides(
+  ref: string,
+  primaryId: string,
+  secondaryId: string | undefined,
+  ctx: Pick<BuildContext, 'bibles'>
+): Promise<{ slides: Slide[]; warning?: string; reference?: string }> {
   const pInfo = ctx.bibles.find((b) => b.id === primaryId)
   const sInfo = secondaryId ? ctx.bibles.find((b) => b.id === secondaryId) : undefined
   if (!pInfo) return { slides: [], warning: 'warn.bibleMissing' }

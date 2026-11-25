@@ -1,4 +1,16 @@
-import type { DisplayLang, LiveState, PlanItem, PlanItemType, RemoteCommand, ServicePlan, Slide, SongUsage, Theme, Background, VideoEndedCommand } from '@shared/types'
+import type {
+  DisplayLang,
+  LiveState,
+  PlanItem,
+  PlanItemType,
+  RemoteCommand,
+  ServicePlan,
+  Slide,
+  SongUsage,
+  Theme,
+  Background,
+  VideoEndedCommand
+} from '@shared/types'
 import { songName, songToSlides, uid } from '@shared/slides'
 import { localDate } from '@shared/dates'
 import { buildItem, themeBackground } from '../lib/buildSlides'
@@ -51,7 +63,15 @@ let messageTimer: ReturnType<typeof setTimeout> | null = null
 
 function ctx() {
   const s = st()
-  return { songs: s.songs, media: s.media, presentations: s.presentations, themes: s.themes, settings: s.settings, bibles: s.bibles, planDate: activePlan()?.date }
+  return {
+    songs: s.songs,
+    media: s.media,
+    presentations: s.presentations,
+    themes: s.themes,
+    settings: s.settings,
+    bibles: s.bibles,
+    planDate: activePlan()?.date
+  }
 }
 
 export function activePlan(): ServicePlan | undefined {
@@ -108,13 +128,18 @@ async function logSongUsage(item: PlanItem, plan?: ServicePlan) {
 /** Warn right away if an image / background file that just went live is gone (USB stick
  *  removed, file moved). Videos report their own load errors from the projector. */
 function checkMediaFiles(slides: Slide[], background?: Background | null): void {
-  const urls = [...slides.filter((x) => x.kind === 'image').map((x) => x.media), background?.type === 'image' || background?.type === 'video' ? background.value : undefined]
+  const urls = [
+    ...slides.filter((x) => x.kind === 'image').map((x) => x.media),
+    background?.type === 'image' || background?.type === 'video' ? background.value : undefined
+  ]
   const paths = urls.map((u) => mediaUrlToPath(u)).filter((p): p is string => !!p)
   if (!paths.length) return
-  void api().files.exists(paths).then((ex) => {
-    const missing = paths.filter((_, i) => !ex[i])
-    if (missing.length) st().toast(t('errors.mediaMissing', { file: missing.join(', ') }), 'err', 10_000)
-  })
+  void api()
+    .files.exists(paths)
+    .then((ex) => {
+      const missing = paths.filter((_, i) => !ex[i])
+      if (missing.length) st().toast(t('errors.mediaMissing', { file: missing.join(', ') }), 'err', 10_000)
+    })
 }
 
 /** Put a plan item on screen */
@@ -174,7 +199,15 @@ export function updateLive(patch: Partial<LiveState>): Promise<void> {
   return enqueue(() => push(patch))
 }
 
-async function showAdhocNow(args: { title: string; type: PlanItemType; slides: Slide[]; theme?: Theme; background?: Background | null; video?: boolean; songId?: string }): Promise<void> {
+async function showAdhocNow(args: {
+  title: string
+  type: PlanItemType
+  slides: Slide[]
+  theme?: Theme
+  background?: Background | null
+  video?: boolean
+  songId?: string
+}): Promise<void> {
   const s = st()
   // nothing to show (e.g. a song with no lyrics yet): say so instead of blanking the screen
   if (!args.slides.length) {

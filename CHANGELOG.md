@@ -9,8 +9,11 @@ All notable changes to ICCWorship are documented here. The format is based on
 ### Added
 - Security policy, privacy statement, code of conduct, support guide, issue and pull-request templates.
 - Continuous integration on Windows (type check, unit tests, build, smoke test) for every pull request.
+- ESLint and Prettier, checked in CI, so every contributor's code looks the same.
 
 ### Fixed
+- The "next item" preview on the Live page and the item preview in the plan editor now update when settings,
+  songs, themes or media change, instead of showing the old version until another item is picked.
 - The README now says Node.js 22.12 or newer is needed to build (Electron 45 requires it).
 - The README now explains that the portable version keeps its data in the PC's `Documents\ICCWorship` folder.
 

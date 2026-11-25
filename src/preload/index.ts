@@ -43,8 +43,12 @@ const api = {
     listPasted: (id: string): Promise<Verse[]> => invoke('bible:listPasted', id),
     deletePastedVerse: (id: string, b: number, c: number, v: number): Promise<void> => invoke('bible:deletePastedVerse', id, b, c, v),
     deleteVersion: (id: string): Promise<void> => invoke('bible:deleteVersion', id),
-    importFile: (meta: { name: string; abbrev: string; lang: Lang; copyright?: string }): Promise<{ ok: boolean; info?: BibleVersionInfo; error?: string; canceled?: boolean }> =>
-      invoke('bible:importFile', meta)
+    importFile: (meta: {
+      name: string
+      abbrev: string
+      lang: Lang
+      copyright?: string
+    }): Promise<{ ok: boolean; info?: BibleVersionInfo; error?: string; canceled?: boolean }> => invoke('bible:importFile', meta)
   },
   live: {
     get: (): Promise<LiveState> => invoke('live:get'),
@@ -69,16 +73,19 @@ const api = {
   },
   stage: { open: () => invoke('stage:open') },
   files: {
-    open: (opts: { filters?: { name: string; extensions: string[] }[]; multi?: boolean; directory?: boolean }): Promise<string[]> => invoke('dialog:openFiles', opts),
+    open: (opts: { filters?: { name: string; extensions: string[] }[]; multi?: boolean; directory?: boolean }): Promise<string[]> =>
+      invoke('dialog:openFiles', opts),
     exists: (paths: string[]): Promise<boolean[]> => invoke('file:exists', paths),
     readText: (p: string): Promise<string> => invoke('file:readText', p),
-    saveText: (name: string, content: string, filters?: { name: string; extensions: string[] }[]): Promise<string | null> => invoke('file:saveText', name, content, filters),
+    saveText: (name: string, content: string, filters?: { name: string; extensions: string[] }[]): Promise<string | null> =>
+      invoke('file:saveText', name, content, filters),
     /** absolute path of a file dropped from Windows Explorer */
     pathOf: (f: File): string => webUtils.getPathForFile(f)
   },
   pres: {
     detect: (): Promise<{ powerpoint: boolean; libreoffice: string | null }> => invoke('pres:detect'),
-    import: (path: string, prefer?: 'powerpoint' | 'libreoffice' | 'text', reuseId?: string): Promise<ImportOutcome> => invoke('pres:import', path, prefer, reuseId),
+    import: (path: string, prefer?: 'powerpoint' | 'libreoffice' | 'text', reuseId?: string): Promise<ImportOutcome> =>
+      invoke('pres:import', path, prefer, reuseId),
     savePdfPages: (args: { id: string; name: string; sourcePath: string; method: 'libreoffice' | 'pdf'; pages: Uint8Array[] }): Promise<Presentation> =>
       invoke('pres:savePdfPages', args),
     importImages: (paths: string[], name: string): Promise<Presentation> => invoke('pres:importImages', paths, name)

@@ -42,7 +42,11 @@ describe('translations', () => {
   })
 
   it('interpolation variables match between languages', () => {
-    const vars = (s: string) => [...s.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]).sort().join(',')
+    const vars = (s: string) =>
+      [...s.matchAll(/\{\{(\w+)\}\}/g)]
+        .map((m) => m[1])
+        .sort()
+        .join(',')
     const bad = [...EN.keys()].filter((k) => vars(EN.get(k)!) !== vars(ES.get(k) || ''))
     expect(bad).toEqual([])
   })

@@ -4,7 +4,7 @@ import { uid } from './slides'
 /* --------------------------- section headers --------------------------- */
 
 const HEADER_RE =
-  /^\s*[\[(]?\s*(verse|verso|estrofa|v|chorus|coro|estribillo|c|ch|pre[- ]?chorus|pre[- ]?coro|pre|bridge|puente|b|tag|intro|outro|ending|final|interlude|interludio|refrain)\s*(\d*)\s*[\])]?\s*:?\s*$/i
+  /^\s*[[(]?\s*(verse|verso|estrofa|v|chorus|coro|estribillo|c|ch|pre[- ]?chorus|pre[- ]?coro|pre|bridge|puente|b|tag|intro|outro|ending|final|interlude|interludio|refrain)\s*(\d*)\s*[\])]?\s*:?\s*$/i
 
 const TYPE_MAP: Record<string, SectionType> = {
   verse: 'verse',
@@ -295,7 +295,8 @@ export function songFromOpenLyrics(xml: string): Song {
     if (!sec) {
       const letter = name.replace(/\d.*$/, '').toLowerCase()
       const num = name.replace(/^\D+/, '').replace(/[a-z]$/i, '')
-      const type: SectionType = ({ v: 'verse', c: 'chorus', p: 'pre', b: 'bridge', i: 'intro', e: 'ending', o: 'other' } as Record<string, SectionType>)[letter] || 'other'
+      const type: SectionType =
+        ({ v: 'verse', c: 'chorus', p: 'pre', b: 'bridge', i: 'intro', e: 'ending', o: 'other' } as Record<string, SectionType>)[letter] || 'other'
       sec = { id: name, type, label: sectionLabel(type, num || undefined), en: '', es: '' }
       byName.set(name, sec)
     }
@@ -337,14 +338,14 @@ export function songToOpenLyrics(song: Song): string {
         .map((l) => `    <verse name="${names.get(s.id)}" lang="${l}">\n      <lines>${s[l].split('\n').map(esc).join('<br/>')}</lines>\n    </verse>`)
     )
     .join('\n')
-  const order = (song.arrangement.length ? song.arrangement : song.sections.map((s) => s.id)).map((id) => names.get(id)).filter(Boolean).join(' ')
+  const order = (song.arrangement.length ? song.arrangement : song.sections.map((s) => s.id))
+    .map((id) => names.get(id))
+    .filter(Boolean)
+    .join(' ')
   // a one-language Spanish song has no English title: write only the titles it has (an empty
   // <title> makes other OpenLyrics apps show it as untitled)
   const titlesXml =
-    [
-      song.title?.trim() ? `<title lang="en">${esc(song.title)}</title>` : '',
-      song.titleEs?.trim() ? `<title lang="es">${esc(song.titleEs)}</title>` : ''
-    ]
+    [song.title?.trim() ? `<title lang="en">${esc(song.title)}</title>` : '', song.titleEs?.trim() ? `<title lang="es">${esc(song.titleEs)}</title>` : '']
       .filter(Boolean)
       .join('\n      ') ||
     // no title at all: OpenLyrics requires one — name it by its first lyric line, as hymnals do
@@ -414,10 +415,11 @@ const normKey = (x?: string) =>
     .trim()
 
 const firstLine = (s: Song) => {
-  for (const sec of s.sections) for (const t of [sec.en, sec.es]) {
-    const l = (t || '').split('\n').find((x) => x.trim())
-    if (l) return normKey(l)
-  }
+  for (const sec of s.sections)
+    for (const t of [sec.en, sec.es]) {
+      const l = (t || '').split('\n').find((x) => x.trim())
+      if (l) return normKey(l)
+    }
   return ''
 }
 

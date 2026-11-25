@@ -84,8 +84,18 @@ export const DEFAULT_THEMES: Theme[] = [
 ]
 
 export const DEFAULT_TEAMS: Team[] = [
-  { id: 'team-worship', name: 'Worship', nameEs: 'Alabanza', positions: ['Leader / Líder', 'Vocals / Voces', 'Keys / Teclado', 'Guitar / Guitarra', 'Bass / Bajo', 'Drums / Batería'] },
-  { id: 'team-tech', name: 'Sound & Projection', nameEs: 'Sonido y Proyección', positions: ['Sound / Sonido', 'Projection / Proyección', 'Livestream / Transmisión'] },
+  {
+    id: 'team-worship',
+    name: 'Worship',
+    nameEs: 'Alabanza',
+    positions: ['Leader / Líder', 'Vocals / Voces', 'Keys / Teclado', 'Guitar / Guitarra', 'Bass / Bajo', 'Drums / Batería']
+  },
+  {
+    id: 'team-tech',
+    name: 'Sound & Projection',
+    nameEs: 'Sonido y Proyección',
+    positions: ['Sound / Sonido', 'Projection / Proyección', 'Livestream / Transmisión']
+  },
   { id: 'team-ushers', name: 'Ushers & Greeters', nameEs: 'Ujieres y Bienvenida', positions: ['Usher / Ujier', 'Greeter / Bienvenida'] },
   { id: 'team-kids', name: 'Kids & Nursery', nameEs: 'Niños y Guardería', positions: ['Teacher / Maestro(a)', 'Helper / Ayudante'] },
   { id: 'team-word', name: 'Pulpit', nameEs: 'Púlpito', positions: ['Preacher / Predicador', 'Reader / Lector', 'Prayer / Oración', 'Host / Anfitrión'] }
@@ -161,7 +171,7 @@ export const SAMPLE_SONGS: Song[] = [
         id: 'v2',
         type: 'verse',
         label: 'Verse 2',
-        en: 'Did we in our own strength confide,\nOur striving would be losing;\nWere not the right Man on our side,\nThe Man of God\'s own choosing:\nDost ask who that may be?\nChrist Jesus, it is He;\nLord Sabaoth His name,\nFrom age to age the same,\nAnd He must win the battle.',
+        en: "Did we in our own strength confide,\nOur striving would be losing;\nWere not the right Man on our side,\nThe Man of God's own choosing:\nDost ask who that may be?\nChrist Jesus, it is He;\nLord Sabaoth His name,\nFrom age to age the same,\nAnd He must win the battle.",
         es: 'Nuestro valor es nada aquí,\ncon él todo es perdido;\nmas por nosotros pugnará\nde Dios el escogido.\n¿Sabéis quién es? Jesús,\nel que venció en la cruz,\nSeñor de Sabaoth,\ny pues él solo es Dios,\nél triunfa en la batalla.'
       }
     ]
@@ -211,21 +221,21 @@ export const SAMPLE_SONGS: Song[] = [
         id: 'v2',
         type: 'verse',
         label: 'Verse 2',
-        en: '\'Twas grace that taught my heart to fear,\nAnd grace my fears relieved;\nHow precious did that grace appear\nThe hour I first believed.',
+        en: "'Twas grace that taught my heart to fear,\nAnd grace my fears relieved;\nHow precious did that grace appear\nThe hour I first believed.",
         es: ''
       },
       {
         id: 'v3',
         type: 'verse',
         label: 'Verse 3',
-        en: 'Through many dangers, toils and snares,\nI have already come;\n\'Tis grace hath brought me safe thus far,\nAnd grace will lead me home.',
+        en: "Through many dangers, toils and snares,\nI have already come;\n'Tis grace hath brought me safe thus far,\nAnd grace will lead me home.",
         es: ''
       },
       {
         id: 'v4',
         type: 'verse',
         label: 'Verse 4',
-        en: 'When we\'ve been there ten thousand years,\nBright shining as the sun,\nWe\'ve no less days to sing God\'s praise\nThan when we\'d first begun.',
+        en: "When we've been there ten thousand years,\nBright shining as the sun,\nWe've no less days to sing God's praise\nThan when we'd first begun.",
         es: ''
       }
     ]
@@ -245,14 +255,50 @@ export function sampleTemplate(): ServicePlan {
     createdAt: t,
     updatedAt: t,
     items: [
-      { id: 'i1', type: 'countdown', title: 'Countdown / Cuenta regresiva', durationMin: 5, countdown: { mode: 'time', time: '11:00', label: { en: 'Service begins in', es: 'El servicio comienza en' } } },
-      { id: 'i2', type: 'header', title: 'Welcome / Bienvenida', durationMin: 3, slides: [{ title: { en: 'Welcome!', es: '¡Bienvenidos!' }, text: { en: 'We are glad you are here', es: 'Nos alegra que estés aquí' } }] },
+      {
+        id: 'i1',
+        type: 'countdown',
+        title: 'Countdown / Cuenta regresiva',
+        durationMin: 5,
+        countdown: { mode: 'time', time: '11:00', label: { en: 'Service begins in', es: 'El servicio comienza en' } }
+      },
+      {
+        id: 'i2',
+        type: 'header',
+        title: 'Welcome / Bienvenida',
+        durationMin: 3,
+        slides: [{ title: { en: 'Welcome!', es: '¡Bienvenidos!' }, text: { en: 'We are glad you are here', es: 'Nos alegra que estés aquí' } }]
+      },
       { id: 'i3', type: 'song', title: 'Holy, Holy, Holy', refId: 'song-holy-holy-holy', durationMin: 5 },
       { id: 'i4', type: 'song', title: 'A Mighty Fortress Is Our God', refId: 'song-mighty-fortress', durationMin: 5 },
-      { id: 'i5', type: 'announcement', title: 'Announcements / Anuncios', durationMin: 5, loopSeconds: 0, slides: [{ title: { en: 'Prayer Meeting', es: 'Reunión de Oración' }, text: { en: 'Wednesdays at 7:00 PM', es: 'Miércoles a las 7:00 PM' } }, { title: { en: 'Food Pantry', es: 'Despensa de Alimentos' }, text: { en: 'Saturdays 9–11 AM — volunteers welcome', es: 'Sábados 9–11 AM — se necesitan voluntarios' } }] },
+      {
+        id: 'i5',
+        type: 'announcement',
+        title: 'Announcements / Anuncios',
+        durationMin: 5,
+        loopSeconds: 0,
+        slides: [
+          { title: { en: 'Prayer Meeting', es: 'Reunión de Oración' }, text: { en: 'Wednesdays at 7:00 PM', es: 'Miércoles a las 7:00 PM' } },
+          {
+            title: { en: 'Food Pantry', es: 'Despensa de Alimentos' },
+            text: { en: 'Saturdays 9–11 AM — volunteers welcome', es: 'Sábados 9–11 AM — se necesitan voluntarios' }
+          }
+        ]
+      },
       { id: 'i6', type: 'song', title: 'Doxology', refId: 'song-doxology', durationMin: 2, notes: 'Offering / Ofrenda' },
       { id: 'i7', type: 'scripture', title: 'John 3:16-17', durationMin: 2, scripture: { ref: 'John 3:16-17', primary: 'rv1909', secondary: 'kjv' } },
-      { id: 'i8', type: 'notes', title: 'Sermon / Prédica', durationMin: 35, slides: [{ title: { en: 'God so loved', es: 'De tal manera amó Dios' }, text: { en: 'God\'s love is [[personal]] and [[sacrificial]]', es: 'El amor de Dios es [[personal]] y [[sacrificial]]' } }] },
+      {
+        id: 'i8',
+        type: 'notes',
+        title: 'Sermon / Prédica',
+        durationMin: 35,
+        slides: [
+          {
+            title: { en: 'God so loved', es: 'De tal manera amó Dios' },
+            text: { en: "God's love is [[personal]] and [[sacrificial]]", es: 'El amor de Dios es [[personal]] y [[sacrificial]]' }
+          }
+        ]
+      },
       { id: 'i9', type: 'blank', title: 'Closing prayer / Oración final', durationMin: 3 }
     ]
   }

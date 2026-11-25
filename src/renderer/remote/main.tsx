@@ -7,7 +7,18 @@ import type { DisplayLang } from '@shared/types'
 import { useLiveFeed } from '../lib/liveFeed'
 import './remote.css'
 
-const ICON: Record<string, string> = { song: '🎵', scripture: '📖', announcement: '📣', media: '🎬', presentation: '🖼️', countdown: '⏱️', notes: '📝', header: '🔖', blank: '⬛', prayer: '🙏' }
+const ICON: Record<string, string> = {
+  song: '🎵',
+  scripture: '📖',
+  announcement: '📣',
+  media: '🎬',
+  presentation: '🖼️',
+  countdown: '⏱️',
+  notes: '📝',
+  header: '🔖',
+  blank: '⬛',
+  prayer: '🙏'
+}
 
 function readPin(): string {
   const fromHash = /pin=(\d+)/.exec(location.hash)?.[1]
@@ -166,7 +177,11 @@ function Remote() {
       <div className="r-list">
         {tab === 'slides' &&
           state.slides.map((s, i) => {
-            const p = pickLangs(s.text, state.displayLang, state.bilingualOrder).primary || pickLangs(s.title, state.displayLang, state.bilingualOrder).primary || s.group || `#${i + 1}`
+            const p =
+              pickLangs(s.text, state.displayLang, state.bilingualOrder).primary ||
+              pickLangs(s.title, state.displayLang, state.bilingualOrder).primary ||
+              s.group ||
+              `#${i + 1}`
             return (
               <button key={s.id} className={`r-row ${i === state.slideIndex ? 'on' : ''}`} onClick={() => send({ type: 'gotoSlide', index: i })}>
                 <span className="n">{i + 1}</span>

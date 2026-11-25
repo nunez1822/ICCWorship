@@ -140,7 +140,13 @@ export function parsePastedPassage(refText: string, pasted: string, vers: Versif
     .filter((l) => {
       const ll = l.trim()
       if (!ll) return false
-      if (ll.length < 60 && /^(la biblia de las am[eé]ricas|lbla|nueva biblia de las am[eé]ricas|nbla|reina[- ]valera|nueva versi[oó]n internacional|nvi|new international version|king james)/i.test(ll)) return false
+      if (
+        ll.length < 60 &&
+        /^(la biblia de las am[eé]ricas|lbla|nueva biblia de las am[eé]ricas|nbla|reina[- ]valera|nueva versi[oó]n internacional|nvi|new international version|king james)/i.test(
+          ll
+        )
+      )
+        return false
       return true
     })
     .join(' ')

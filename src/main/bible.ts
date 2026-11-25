@@ -24,7 +24,7 @@ const partial = new Map<string, PartialBible>()
 let loaded = false
 
 function loadJson<T>(p: string): T {
-  return JSON.parse(readFileSync(p, 'utf8').replace(/^﻿/, '')) as T
+  return JSON.parse(readFileSync(p, 'utf8').replace(/^\uFEFF/, '')) as T
 }
 
 function loadAll(): void {
@@ -97,7 +97,15 @@ export function createPasted(meta: { id?: string; name: string; abbrev: string; 
   loadAll()
   const id = meta.id || meta.abbrev.toLowerCase().replace(/[^a-z0-9]+/g, '-')
   const existing = partial.get(id)
-  const b: PartialBible = { id, name: meta.name, abbrev: meta.abbrev, lang: meta.lang, copyright: meta.copyright, verseLimit: meta.verseLimit, verses: existing?.verses || {} }
+  const b: PartialBible = {
+    id,
+    name: meta.name,
+    abbrev: meta.abbrev,
+    lang: meta.lang,
+    copyright: meta.copyright,
+    verseLimit: meta.verseLimit,
+    verses: existing?.verses || {}
+  }
   partial.set(id, b)
   savePartial(b)
   return infoPartial(b)
@@ -142,7 +150,7 @@ export function importFile(path: string, meta: { name: string; abbrev: string; l
   loadAll()
   const id = meta.abbrev.toLowerCase().replace(/[^a-z0-9]+/g, '-')
   if (BUILTIN.includes(id)) throw new Error('id-taken')
-  const bible = importBibleText(readFileSync(path, 'utf8').replace(/^﻿/, ''), { id, ...meta })
+  const bible = importBibleText(readFileSync(path, 'utf8').replace(/^\uFEFF/, ''), { id, ...meta })
   const verses = bible.books.reduce((a, b) => a + b.reduce((x, c) => x + c.filter(Boolean).length, 0), 0)
   if (verses < 10) throw new Error('empty')
   writeFileSync(join(bibleDataDir(), `${id}.json`), JSON.stringify(bible), 'utf8')

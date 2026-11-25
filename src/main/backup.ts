@@ -83,10 +83,14 @@ function freeName(dir: string, base: string): string {
 export async function autoBackup(): Promise<void> {
   const dir = backupDir()
   const today = localDate()
-  const existing = readdirSync(dir).filter((f) => f.startsWith('auto-')).sort()
+  const existing = readdirSync(dir)
+    .filter((f) => f.startsWith('auto-'))
+    .sort()
   if (existing.some((f) => f.includes(today))) return
   await createBackup(join(dir, `auto-${today}.zip`))
-  const all = readdirSync(dir).filter((f) => f.startsWith('auto-')).sort()
+  const all = readdirSync(dir)
+    .filter((f) => f.startsWith('auto-'))
+    .sort()
   for (const old of all.slice(0, Math.max(0, all.length - 14))) unlinkSync(join(dir, old))
 }
 
