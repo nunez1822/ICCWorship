@@ -1,0 +1,141 @@
+# 16 · Resilience: crashes, bad files, missing things
+
+Sunday morning failures: the laptop crashes, a data file is damaged, a USB stick with media is
+gone, the port is busy, Wi-Fi drops. The app must keep data safe and let the team recover fast.
+
+Stop the app: `taskkill /F /IM electron.exe`. Relaunch keeping data: `npm run e2e:launch -- --keep`.
+
+### TC-RES-01 · Hard crash mid-service, relaunch  `P0`
+**Steps**
+1. Sample plan live on the Sermon item. Songs → change a song title to `Crash Test`; ~1 s later kill the app (`taskkill /F`).
+2. Relaunch with `--keep`.
+**Expected**
+- No welcome dialog; `Crash Test` title was saved; plans, themes and settings intact.
+- Live page opens with the same plan selected; the operator can be back on the Sermon item in ≤ 2 actions.
+- Projector window opens (off air), phone remote reconnects with the same PIN.
+
+### TC-RES-02 · Kill right after an edit  `P2`
+**Steps**
+1. Type a new verse line and kill the app **immediately** (< 0.2 s).
+**Expected**
+- Record whether the last keystrokes survive (writes are debounced 250 ms). Older data must never be lost or corrupted; the file must parse on relaunch.
+
+### TC-RES-03 · Damaged data file is recovered from its backup copy  `P0`
+**Steps**
+1. Close the app. Overwrite `.e2e-data/data/songs.json` with `{"broken` (keep `songs.json.bak`).
+2. Relaunch `--keep`.
+**Expected**
+- App starts normally with the songs from `songs.json.bak` (only the very last change may be missing).
+- Other collections (plans, themes) unaffected. Next save writes a valid `songs.json` again.
+
+### TC-RES-04 · Damaged file **and** damaged backup  `P1`
+**Steps**
+1. Close the app. Overwrite both `songs.json` and `songs.json.bak` with garbage. Relaunch `--keep`. Make one edit.
+**Expected**
+- App starts (no crash, no white screen) and tells the user the song library could not be read (and how to restore a backup).
+- The damaged file is **kept** somewhere (e.g. renamed `songs.json.corrupt-…`) — the first edit must not silently overwrite the only copy of the user's data.
+
+### TC-RES-05 · Remote port already in use  `P1`
+**Setup:** before launching, occupy the port:
+`node -e "require('http').createServer((q,s)=>s.end('busy')).listen(7272)"` (run in background)
+**Steps**
+1. Launch the app. Settings → phone/stage section.
+2. Change the port to `7373`; phone → `http://localhost:7373/remote#pin=<PIN>`.
+**Expected**
+- App works normally otherwise; Settings shows a clear "port in use" message (not a silent failure).
+- After changing the port the phone connects; the QR/URL shows the new port.
+
+### TC-RES-06 · Starting the app twice  `P1`
+**Steps**
+1. App running. In a second terminal: `E2E_CDP_PORT=9223 npm run e2e:launch -- --keep`.
+**Expected**
+- No second set of windows; the existing operator window comes to the front; data untouched.
+
+### TC-RES-07 · Media missing when it goes live  `P0`
+**Steps**
+1. Copy sample.mp4 to `.e2e-data/tmp/gone.mp4`, add it to the library and to the plan.
+2. Delete `gone.mp4` from disk (simulates a USB stick that was removed). Go live on the item.
+**Expected**
+- Operator shows a clear "file missing" message on the item; the projector shows the theme background or black — not a frozen frame or an error page.
+- `Space` moves on normally.
+
+### TC-RES-08 · Restore a backup made on another computer  `P1`
+**Steps**
+1. Add `.e2e-data/tmp/other.jpg` to the library and a plan; **Back up now**.
+2. Delete `other.jpg` from disk; restore the backup.
+**Expected**
+- Restore succeeds; the image item is marked missing (not a crash); everything else is back.
+
+### TC-RES-09 · Restoring something that isn't a backup  `P0`
+**Setup (Bash):** `echo hello > .e2e-data/tmp/fake.zip`; `cp tests/fixtures/sample.pptx .e2e-data/tmp/realzip.zip` (a zip, but not a backup).
+**Steps**
+1. Restore… → queue `fake.zip`. 2. Restore… → queue `realzip.zip`.
+**Expected**
+- Each shows a clear error ("not an ICCWorship backup" or similar); current data unchanged; the app does not reload.
+
+### TC-RES-10 · PowerPoint already open with the user's work  `P1` (needs PowerPoint)
+**Steps**
+1. Open PowerPoint yourself with a **new blank presentation** and type a word on slide 1 (don't save).
+2. In ICCWorship import `sample.pptx`.
+**Expected**
+- Import succeeds. The user's PowerPoint window stays open and the unsaved presentation is untouched (the converter must not quit PowerPoint when other presentations are open).
+
+### TC-RES-11 · Presentation that can't be converted  `P2`
+**Setup (Bash):** `echo notapptx > .e2e-data/tmp/broken.pptx`; `echo notapdf > .e2e-data/tmp/broken.pdf`
+**Steps**
+1. Import each.
+**Expected**
+- A clear error within ~60 s (no endless "Converting…" pill); no PowerPoint process left running (`tasklist | findstr POWERPNT`).
+
+### TC-RES-12 · Corrupt video file  `P1`
+**Setup (Bash):** `head -c 20000 tests/fixtures/sample.mp4 > .e2e-data/tmp/truncated.mp4`; `echo notavideo > .e2e-data/tmp/fake.mp4`
+**Steps**
+1. Add both; Show now on each.
+**Expected**
+- Operator shows an error/can't-play message; projector doesn't stay on a black frame indefinitely; `Space` moves on.
+
+### TC-RES-13 · Phone loses Wi-Fi and comes back  `P0`
+**Steps**
+1. Phone remote connected. `browser_run_code_unsafe` on the phone: `await page.context().setOffline(true)`; wait 5 s.
+2. `setOffline(false)`; wait 10 s. Tap ▶.
+**Expected**
+- While offline the phone clearly shows "offline / reconnecting" (buttons disabled or greyed), not a frozen UI that silently ignores taps.
+- It reconnects by itself **without asking for the PIN again**; ▶ works.
+
+### TC-RES-14 · App restarts while phones are connected  `P1`
+**Steps**
+1. Phone remote and phone stage (`/stage` in a second tab) connected. Kill and relaunch the app `--keep`.
+**Expected**
+- Both pages reconnect on their own within ~10 s; remote doesn't need the PIN re-typed.
+
+### TC-RES-15 · Server turned off  `P2`
+**Steps**
+1. Settings → turn off phone/stage server. `curl http://localhost:7272/`. Turn it on again.
+**Expected**
+- Port closed while off (curl fails); connected phones show offline; after turning on, phones reconnect.
+
+### TC-RES-16 · Read-only data file  `P2`
+**Steps**
+1. Close the app; `attrib +R .e2e-data\data\songs.json`; relaunch; edit a song.
+2. Afterwards: `attrib -R .e2e-data\data\songs.json`.
+**Expected**
+- A visible error that changes can't be saved (not silent data loss on next launch).
+
+### TC-RES-17 · Projector monitor unplugged mid-service  `P1` (manual — needs 2 screens)
+**Steps**
+1. Launch with `--fullscreen` on a second monitor, go live. Unplug the second monitor; plug it back.
+**Expected**
+- Unplugged: projector window moves/closes without crashing; the operator keeps working.
+- Plugged back: projector returns full-screen on that monitor showing the current slide.
+
+### TC-RES-18 · Laptop sleep and resume  `P2` (manual)
+**Steps**
+1. Live with phone connected; close the laptop lid 1 minute; open.
+**Expected**
+- Clock and timers correct after resume; phone reconnects; video background resumes.
+
+### TC-RES-19 · Two-hour soak  `P2` (long)
+**Steps**
+1. Theme with Motion video default; a song live; phone + stage connected; leave 2 hours. Note operator memory in Task Manager at start/end.
+**Expected**
+- Still responsive; memory doesn't grow without bound (e.g. < 2× start); video still smooth.

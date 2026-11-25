@@ -46,20 +46,20 @@ function scheduleAdvance(slide?: Slide) {
 }
 
 /**
- * Log one CCLI use per song per day. The date is the local day the song was actually
- * on screen — not the plan's date, which may be a future Sunday and would then fall
- * outside the Reports range (which ends today).
+ * Log CCLI usage: one entry per song per service. Songs shown from a plan are logged
+ * under the plan's (service) date, so a Saturday rehearsal and the Sunday service count
+ * once. Songs shown ad hoc (Songs page → Show now) are logged under today's local date.
  */
-async function recordSongUsage(songId: string, planId?: string) {
+async function recordSongUsage(songId: string, plan?: ServicePlan) {
   const song = st().songs.find((s) => s.id === songId)
   if (!song) return
-  const date = localDate()
-  await api().db.upsert<SongUsage>('usage', { id: `${song.id}@${date}`, songId: song.id, title: song.title, ccli: song.ccli, date, planId })
+  const date = plan?.date || localDate()
+  await api().db.upsert<SongUsage>('usage', { id: `${song.id}@${date}`, songId: song.id, title: song.title, ccli: song.ccli, date, planId: plan?.id })
 }
 
 async function logSongUsage(item: PlanItem, plan?: ServicePlan) {
   if (item.type !== 'song' || !item.refId) return
-  await recordSongUsage(item.refId, plan?.id)
+  await recordSongUsage(item.refId, plan)
 }
 
 /** Put a plan item on screen */
