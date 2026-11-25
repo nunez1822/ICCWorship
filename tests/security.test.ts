@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { isAllowedHost, isSafeId, isSameOrigin, parseRange, pickPublicState, sanitizeSettingsPatch, validateCommand } from '@shared/security'
 import { DEFAULT_THEMES } from '@shared/defaults'
 import type { LiveState } from '@shared/types'
+import { stripTags } from '@shared/textDecode'
 
 describe('isSafeId', () => {
   it('accepts generated ids', () => {
@@ -178,5 +179,19 @@ describe('sanitizeSettingsPatch', () => {
   it('never lets the renderer set the PIN or unknown keys', () => {
     expect(sanitizeSettingsPatch({ remotePin: '' })).toEqual({})
     expect(sanitizeSettingsPatch({ __proto__: { x: 1 }, nope: 1 })).toEqual({})
+  })
+})
+
+describe('stripTags', () => {
+  it('removes markup, including nested leftovers that would reassemble into a tag', () => {
+    expect(stripTags('<b>Amazing</b> grace')).toBe('Amazing grace')
+    expect(stripTags('<scr<b>ipt>alert(1)</scr</b>ipt>')).not.toMatch(/<\s*script/i)
+    expect(stripTags('<<img src=x onerror=1>img src=x>')).not.toMatch(/<img/i)
+  })
+  it('keeps ordinary text: a "<" that opens no tag, and escaped entities (decoded later)', () => {
+    expect(stripTags('2 < 3')).toBe('2 < 3')
+    expect(stripTags('I <3 this song')).toBe('I <3 this song')
+    expect(stripTags('a &lt;b&gt; c')).toBe('a &lt;b&gt; c')
+    expect(stripTags('Juan 3:16')).toBe('Juan 3:16')
   })
 })

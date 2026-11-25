@@ -158,6 +158,8 @@ Stop the app: `taskkill /F /IM electron.exe`. Relaunch keeping data: `npm run e2
 
 ### TC-RES-21 · Projector keeps crashing → black, then Restart projector  `P1`
 **Steps**
+**Pre:** wait 60 s after any earlier projector crash (e.g. TC-RES-20), or press Settings → Screens → 🔄 Restart
+projector first — earlier crashes in the last minute count toward the limit.
 1. A song live. Crash the projector page (as in TC-RES-20) **4 times within a minute**, waiting for it to come back each time.
 2. Settings → Screens → 🔄 Restart projector.
 **Expected**

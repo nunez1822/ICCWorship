@@ -144,7 +144,10 @@ function serveFile(req: IncomingMessage, res: ServerResponse, file: string, extr
 }
 
 function proxyToDev(req: IncomingMessage, res: ServerResponse, path: string, extra: Record<string, string> = {}): void {
-  const target = new URL(path, devUrl)
+  // Build the URL by concatenation: new URL('//evil.example/x', devUrl) would point at another host (request forgery)
+  const base = new URL(devUrl!)
+  const target = new URL(base.origin + (path.startsWith('/') ? path : `/${path}`))
+  if (target.origin !== base.origin) return send(res, 400, 'Bad request')
   const p = request(target, { method: req.method, headers: { ...req.headers, host: target.host } }, (r) => {
     res.writeHead(r.statusCode || 500, { ...r.headers, ...extra })
     r.pipe(res)
@@ -271,7 +274,8 @@ live.on('change', (state: LiveState) => {
   refreshAllowList(state)
   broadcast({ type: 'state', state: publicState(state) })
 })
-live.on('progress', (p) => broadcast({ type: 'progress', progress: p }))
+// only the numbers the stage page shows: progress.src is a local file path (it names the Windows user)
+live.on('progress', (p) => broadcast({ type: 'progress', progress: p ? { current: p.current, duration: p.duration, error: p.error } : p }))
 
 /**
  * Is something else already answering on this port (IPv4 or IPv6)? Windows lets two
