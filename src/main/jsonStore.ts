@@ -10,7 +10,10 @@ import { join } from 'node:path'
  * Damage handling: a file that can't be parsed is first copied aside as
  * <name>.json.corrupt-<time> (so nothing is ever lost), the backup is used if it parses,
  * and the problem is recorded in `problems` for the UI to show. A damaged file is never
- * copied over a good .bak. Write errors (read-only file, disk full, a file briefly locked
+ * copied over a good .bak. A file that can't be opened at all (EBUSY/EPERM while antivirus or
+ * backup software holds it) is retried briefly before falling back to the .bak; if it still
+ * could not be read or copied aside, it is copied aside before the first save overwrites it —
+ * and that save waits (retried like any failed save) until the copy succeeds. Write errors (read-only file, disk full, a file briefly locked
  * by antivirus…) are caught and reported through `onWriteError` instead of crashing the
  * main process, and the save is retried (every few seconds, and again by `flush()` at quit)
  * until it succeeds — the operator is told their changes are kept, so they must reach disk.
@@ -20,11 +23,39 @@ export type StoreProblem = { name: string; kind: 'recovered' | 'unreadable'; sav
 /** how long to wait before trying a failed save again */
 export const RETRY_MS = 3000
 
+/** read errors worth retrying: the file is there but briefly held by another program */
+const TRANSIENT = new Set(['EBUSY', 'EPERM', 'EACCES', 'EAGAIN', 'EMFILE', 'ENFILE'])
+const READ_TRIES = 5
+const READ_RETRY_MS = 100
+
+function sleepSync(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+}
+
+function corruptName(file: string): string {
+  return `${file}.corrupt-${new Date().toISOString().replace(/[:.]/g, '-')}`
+}
+
+/** read a file, retrying a few times while another program holds it */
+function readWithRetry(file: string): string {
+  for (let i = 1; ; i++) {
+    try {
+      return readFileSync(file, 'utf8')
+    } catch (e) {
+      if (i >= READ_TRIES || !TRANSIENT.has((e as NodeJS.ErrnoException).code ?? '')) throw e
+      sleepSync(READ_RETRY_MS)
+    }
+  }
+}
+
 export class JsonStore {
   private cache = new Map<string, unknown>()
   private timers = new Map<string, ReturnType<typeof setTimeout>>()
   /** collections whose main file on disk is known to be valid (safe to copy to .bak) */
   private healthy = new Set<string>()
+  /** collections whose main file could be neither read nor copied aside: it must be copied
+   *  aside before a save may overwrite it (it may hold newer data than what was loaded) */
+  private unpreserved = new Set<string>()
   readonly problems: StoreProblem[] = []
   onWriteError?: (name: string, error: Error) => void
 
@@ -43,22 +74,24 @@ export class JsonStore {
     let loaded = false
     // healthy only once the main file on disk has been read back fine
     this.healthy.delete(name)
+    this.unpreserved.delete(name)
     for (const candidate of [f, f + '.bak']) {
       if (!existsSync(candidate)) continue
       try {
-        value = JSON.parse(readFileSync(candidate, 'utf8')) as T
+        value = JSON.parse(readWithRetry(candidate)) as T
         loaded = true
         if (candidate === f) this.healthy.add(name)
         break
       } catch {
         damaged = true
         // keep a copy of anything we can't read before it could ever be overwritten
-        const copy = `${candidate}.corrupt-${new Date().toISOString().replace(/[:.]/g, '-')}`
+        const copy = corruptName(candidate)
         try {
           copyFileSync(candidate, copy)
           savedAs ??= copy
         } catch {
-          /* ignore */
+          // still locked (or unreadable): never overwrite the main file until it is kept
+          if (candidate === f) this.unpreserved.add(name)
         }
       }
     }
@@ -89,6 +122,11 @@ export class JsonStore {
     const f = this.file(name)
     const tmp = f + '.tmp'
     try {
+      // the main file was never read or kept: copy it aside first (throws → retried later)
+      if (this.unpreserved.has(name)) {
+        if (existsSync(f)) copyFileSync(f, corruptName(f))
+        this.unpreserved.delete(name)
+      }
       writeFileSync(tmp, JSON.stringify(value, null, 1), 'utf8')
       // only a known-good file may become the backup (never copy a damaged one over it)
       if (existsSync(f) && this.healthy.has(name)) {
@@ -136,6 +174,7 @@ export class JsonStore {
     this.cache.clear()
     // the files on disk were replaced: nothing is known to be good until read again
     this.healthy.clear()
+    this.unpreserved.clear()
   }
 
   /* ---- collection helpers (arrays of {id}) ---- */

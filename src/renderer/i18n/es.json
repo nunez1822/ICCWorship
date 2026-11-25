@@ -339,6 +339,7 @@
     "dupUpdate": "Actualizar",
     "dupUpdateHelp": "Volver a importar en la presentación existente — los elementos del servicio la siguen usando",
     "dupKeepHelp": "Importar otra vez como una presentación aparte",
+    "dupSkippedAway": "“{{name}}” no se volvió a importar — ya está en sus presentaciones y se salió de la página antes de elegir",
     "converting": "Convirtiendo {{name}}…",
     "renderingPages": "Procesando página {{done}} de {{total}}…",
     "textOnlyNote": "PowerPoint no está instalado, así que solo se importó el texto. Puede agregar traducciones a cada diapositiva.",

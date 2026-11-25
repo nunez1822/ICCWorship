@@ -153,8 +153,11 @@ function Lookup({ refText, setRefText, onPasteMissing }: { refText: string; setR
             onChange={(v) => {
               if (v && v === primary) {
                 // swap; with no second version yet, the main one moves to another version
-                // (the usual other language first), so the same text never shows twice
-                const other = secondary || [s.settings.bibleEs, s.settings.bibleEn, ...s.bibles.map((b) => b.id)].find((id) => id && id !== v)
+                // (the usual other language first), so the same text never shows twice —
+                // only an installed one (a default in Settings may have been deleted since)
+                const other =
+                  secondary ||
+                  [s.settings.bibleEs, s.settings.bibleEn, ...s.bibles.map((b) => b.id)].find((id) => id && id !== v && s.bibles.some((b) => b.id === id))
                 if (!other) return
                 setPrimary(other)
               }

@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, protocol, screen, shell, type Disp
 import { createReadStream, existsSync, statSync, writeFileSync, readFileSync } from 'node:fs'
 import { extname, join } from 'node:path'
 import { Readable } from 'node:stream'
-import type { LiveState, RemoteCommand, Settings } from '@shared/types'
+import type { LiveState, RemoteCommand, Settings, VideoEndedCommand } from '@shared/types'
 import { COLLECTIONS, db, getSettings, isCollection, seedIfEmpty, setSettings } from './db'
 import * as bible from './bible'
 import { live } from './live'
@@ -205,7 +205,7 @@ live.on('progress', (p) => {
   stageWin?.webContents.send('live:progress', p)
 })
 
-function forwardCommand(cmd: RemoteCommand | { type: 'videoEnded' }): void {
+function forwardCommand(cmd: RemoteCommand | VideoEndedCommand): void {
   operator?.webContents.send('remote:command', cmd)
 }
 
@@ -299,7 +299,10 @@ function registerIpc(): void {
   h('live:get', () => live.state)
   h('live:update', (_e, patch: Partial<LiveState>) => live.update(patch))
   ipcMain.on('output:progress', (_e, p) => live.progress(p))
-  ipcMain.on('output:ended', () => forwardCommand({ type: 'videoEnded' }))
+  ipcMain.on('output:ended', (_e, info: { itemId?: unknown; src?: unknown }) => {
+    if (typeof info?.src !== 'string') return
+    forwardCommand({ type: 'videoEnded', src: info.src, itemId: typeof info.itemId === 'string' ? info.itemId : undefined })
+  })
   ipcMain.on('stage:command', (_e, cmd: RemoteCommand) => forwardCommand(cmd))
 
   // displays / windows

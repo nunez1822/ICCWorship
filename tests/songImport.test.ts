@@ -134,6 +134,9 @@ describe('decodeText', () => {
   it('falls back to Windows-1252 for ANSI files', () => {
     expect(decodeText(new Uint8Array([0x53, 0x65, 0xf1, 0x6f, 0x72, 0x20, 0xa1]))).toBe('Señor ¡')
   })
+  it('drops a UTF-8 BOM even when the rest falls back to Windows-1252', () => {
+    expect(decodeText(new Uint8Array([0xef, 0xbb, 0xbf, 0x53, 0x65, 0xf1, 0x6f, 0x72]))).toBe('Señor')
+  })
   it('reads UTF-16 LE by BOM', () => {
     const s = '¡Señor!'
     const b = new Uint8Array(2 + s.length * 2)
@@ -222,5 +225,12 @@ describe('OpenLyrics: one-language Spanish songs', () => {
     expect(out).toContain('<title lang="es">Cuán Grande Es Él</title>')
     const again = songFromOpenLyrics(out)
     expect([again.title, again.titleEs]).toEqual(['', 'Cuán Grande Es Él'])
+  })
+  it('a song with no title at all is exported under its first lyric line', () => {
+    const song = songFromOpenLyrics(xml)
+    song.titleEs = undefined
+    const out = songToOpenLyrics(song)
+    expect(out).toContain('<title>Señor mi Dios</title>')
+    expect(songFromOpenLyrics(out).title).toBe('Señor mi Dios')
   })
 })

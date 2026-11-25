@@ -356,6 +356,14 @@ export interface LiveState {
 }
 
 /** Commands the stage/remote pages can send */
+/** Projector -> operator: a non-looping video reached its end. Names the item and file that
+ *  ended so a late event (queued behind Next item or Esc) cannot act on a different video. */
+export interface VideoEndedCommand {
+  type: 'videoEnded'
+  itemId?: string
+  src: string
+}
+
 export type RemoteCommand =
   | { type: 'next' }
   | { type: 'prev' }

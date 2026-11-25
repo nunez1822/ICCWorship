@@ -115,6 +115,43 @@ describe('live control', () => {
     expect(L().video).toMatchObject({ src: 'media://b.mp4', volume: 0.4 })
   })
 
+  describe("the projector's 'video ended'", () => {
+    const items = () => [
+      { id: 'a', type: 'video', title: 'A', slides: [video('va', 'media://a.mp4')], video: { loop: false, autoNext: true, volume: 1 } },
+      { id: 'b', type: 'video', title: 'B', slides: [video('vb', 'media://b.mp4')], video: { loop: false, autoNext: true, volume: 1 } },
+      { id: 'c', type: 'announcement', title: 'C', slides: [text('c')] }
+    ] as unknown as PlanItem[]
+    const settle = () => live.enqueue(async () => {})
+
+    it('moves on when the live video ends and its item has Auto-next', async () => {
+      setup(items())
+      await live.goItem(0)
+      live.handleCommand({ type: 'videoEnded', itemId: 'a', src: 'media://a.mp4' })
+      await settle()
+      expect(L().itemId).toBe('b')
+    })
+
+    it('is dropped when Next item ran first (the new video is not skipped)', async () => {
+      setup(items())
+      await live.goItem(0)
+      void live.enqueue(() => live.goItem(1)) // Ctrl+→ just before A ends
+      live.handleCommand({ type: 'videoEnded', itemId: 'a', src: 'media://a.mp4' })
+      await settle()
+      expect(L().itemId).toBe('b')
+      expect(L().video).toMatchObject({ src: 'media://b.mp4', playing: true })
+    })
+
+    it('is dropped after Esc (nothing comes back on screen)', async () => {
+      setup(items())
+      await live.goItem(0)
+      live.handleCommand({ type: 'clearAll' })
+      live.handleCommand({ type: 'videoEnded', itemId: 'a', src: 'media://a.mp4' })
+      await settle()
+      expect(L()).toMatchObject({ itemId: 'a', slideIndex: -1 })
+      expect(L().video).toBeUndefined()
+    })
+  })
+
   it('a renamed live song shows its new title on the stage and top bar', async () => {
     vi.useFakeTimers()
     setup([])

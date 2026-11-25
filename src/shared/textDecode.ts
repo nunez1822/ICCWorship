@@ -11,6 +11,6 @@ export function decodeText(bytes: Uint8Array): string {
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(start))
   } catch {
-    return new TextDecoder('windows-1252').decode(bytes)
+    return new TextDecoder('windows-1252').decode(bytes.subarray(start))
   }
 }

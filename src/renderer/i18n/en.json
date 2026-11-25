@@ -339,6 +339,7 @@
     "dupUpdate": "Update",
     "dupUpdateHelp": "Re-import into the existing presentation — plan items keep pointing at it",
     "dupKeepHelp": "Import again as a separate presentation",
+    "dupSkippedAway": "“{{name}}” was not imported again — it is already in your presentations and the page was left before choosing",
     "converting": "Converting {{name}}…",
     "renderingPages": "Rendering page {{done}} of {{total}}…",
     "textOnlyNote": "PowerPoint isn't installed, so only the text was imported. You can add translations to each slide.",

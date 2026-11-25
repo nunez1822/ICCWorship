@@ -1,4 +1,4 @@
-import type { DisplayLang, LiveState, PlanItem, PlanItemType, RemoteCommand, ServicePlan, Slide, SongUsage, Theme, Background } from '@shared/types'
+import type { DisplayLang, LiveState, PlanItem, PlanItemType, RemoteCommand, ServicePlan, Slide, SongUsage, Theme, Background, VideoEndedCommand } from '@shared/types'
 import { songName, songToSlides, uid } from '@shared/slides'
 import { localDate } from '@shared/dates'
 import { buildItem, themeBackground } from '../lib/buildSlides'
@@ -436,7 +436,7 @@ export async function syncPlanSummary(): Promise<void> {
 }
 
 /** Commands arriving from the phone remote / stage window / projector */
-async function runCommand(cmd: RemoteCommand | { type: 'videoEnded' }): Promise<void> {
+async function runCommand(cmd: RemoteCommand | VideoEndedCommand): Promise<void> {
   switch (cmd.type) {
     case 'next':
       await next()
@@ -484,8 +484,11 @@ async function runCommand(cmd: RemoteCommand | { type: 'videoEnded' }): Promise<
       await videoToggle()
       break
     case 'videoEnded': {
-      const plan = activePlan()
       const l = live()
+      // Queued behind other actions: only act if the video that ended is still the live one
+      // (Next item or Esc may have run first — skipping/pausing the new item would be wrong).
+      if (!l?.video || l.video.src !== cmd.src || l.itemId !== cmd.itemId) break
+      const plan = activePlan()
       const item = plan?.items.find((i) => i.id === l?.itemId)
       if (item?.video?.autoNext) await nextItem()
       else if (l?.video) await push({ video: { ...l.video, playing: false } })
@@ -495,6 +498,6 @@ async function runCommand(cmd: RemoteCommand | { type: 'videoEnded' }): Promise<
 }
 
 /** Phone remote / stage / projector commands — queued so simultaneous ones all apply. */
-export function handleCommand(cmd: RemoteCommand | { type: 'videoEnded' }): void {
+export function handleCommand(cmd: RemoteCommand | VideoEndedCommand): void {
   void enqueue(() => runCommand(cmd))
 }

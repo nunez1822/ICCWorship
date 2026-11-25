@@ -53,7 +53,8 @@ function Output() {
     // tell the operator instead of sitting on a black frame that claims to be "playing"
     el.onerror = () => window.api.live.videoProgress({ current: 0, duration: 0, error: true })
     el.onended = () => {
-      if (!el.loop) window.api.live.videoEnded()
+      const s = stateRef.current
+      if (!el.loop && s?.video) window.api.live.videoEnded({ itemId: s.itemId, src: s.video.src })
     }
     const vs = stateRef.current?.video
     if (vs) {

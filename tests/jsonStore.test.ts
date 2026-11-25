@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonStore, RETRY_MS } from '../src/main/jsonStore'
@@ -29,6 +29,31 @@ describe('JsonStore backups', () => {
 
     expect(readFileSync(join(dir, 'songs.json.bak'), 'utf8')).toBe(good)
     expect(store.problems[0]).toMatchObject({ name: 'songs', kind: 'recovered' })
+  })
+
+  it('keeps a main file it could neither read nor copy aside before the first save overwrites it', () => {
+    writeFileSync(join(dir, 'songs.json.bak'), '[{"id":"a"}]')
+    // a directory can be neither read nor copied — like a file held by antivirus at startup
+    mkdirSync(join(dir, 'songs.json'))
+    const store = new JsonStore(dir)
+    const errors: string[] = []
+    store.onWriteError = (name) => errors.push(name)
+    expect(store.list('songs').map((x) => x.id)).toEqual(['a']) // fell back to .bak
+    expect(store.problems[0]).toMatchObject({ name: 'songs', kind: 'recovered', savedAs: undefined })
+
+    store.upsert('songs', { id: 'b' })
+    store.flush()
+    expect(errors).toEqual(['songs']) // still held: the save waits rather than overwrite it
+
+    // the lock is gone; the main file turns out to hold newer data than the .bak
+    rmSync(join(dir, 'songs.json'), { recursive: true })
+    writeFileSync(join(dir, 'songs.json'), '[{"id":"newer"}]')
+    store.flush()
+    const kept = readdirSync(dir).filter((n) => n.startsWith('songs.json.corrupt-'))
+    expect(kept).toHaveLength(1)
+    expect(readFileSync(join(dir, kept[0]), 'utf8')).toBe('[{"id":"newer"}]')
+    expect(readFileSync(join(dir, 'songs.json.bak'), 'utf8')).toBe('[{"id":"a"}]')
+    expect(JSON.parse(readFileSync(join(dir, 'songs.json'), 'utf8')).map((x: { id: string }) => x.id)).toEqual(['a', 'b'])
   })
 
   describe('a save that fails', () => {

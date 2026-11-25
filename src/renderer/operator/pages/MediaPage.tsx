@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { MediaItem, MediaKind, Presentation, Slide } from '@shared/types'
 import { uid } from '@shared/slides'
@@ -22,7 +22,35 @@ export function MediaPage() {
 
   /** the same file imported again: Update / Keep both / Cancel (ProPresenter-style) */
   const [ask, setAsk] = useState<{ name: string; resolve: (c: 'update' | 'keep' | 'cancel') => void } | null>(null)
-  const askDuplicate = (name: string) => new Promise<'update' | 'keep' | 'cancel'>((resolve) => setAsk({ name, resolve }))
+  // The import loop awaits the dialog: leaving the page must not strand it (the rest of the
+  // batch would never import). On unmount the open question — and any later duplicate,
+  // which has no page to ask on — is answered "cancel" (that file is skipped, with a toast).
+  const pendingAsk = useRef<((c: 'update' | 'keep' | 'cancel') => void) | null>(null)
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      pendingAsk.current?.('cancel')
+      pendingAsk.current = null
+    }
+  }, [])
+  const askDuplicate = (name: string) =>
+    new Promise<'update' | 'keep' | 'cancel'>((resolve) => {
+      if (!mounted.current) {
+        useApp.getState().toast(t('media.dupSkippedAway', { name }), 'info', 8000)
+        return resolve('cancel')
+      }
+      const done = (c: 'update' | 'keep' | 'cancel') => {
+        pendingAsk.current = null
+        resolve(c)
+      }
+      pendingAsk.current = (c) => {
+        useApp.getState().toast(t('media.dupSkippedAway', { name }), 'info', 8000)
+        done(c)
+      }
+      setAsk({ name, resolve: done })
+    })
 
   const addMediaPaths = async (paths: string[]) => {
     const known = new Set(s.media.map((m) => m.path.toLowerCase()))

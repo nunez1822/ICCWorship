@@ -312,6 +312,16 @@ export function songFromOpenLyrics(xml: string): Song {
 }
 
 /** OpenLyrics export (bilingual) so songs can be shared with other ICCWorship / OpenLP users */
+/** a name for a song with no title: its first lyric line, else "Untitled" */
+function untitledName(song: Song): string {
+  for (const sec of song.sections)
+    for (const l of ['en', 'es'] as const) {
+      const line = sec[l].split('\n').find((x) => x.trim())
+      if (line) return line.trim()
+    }
+  return 'Untitled'
+}
+
 export function songToOpenLyrics(song: Song): string {
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   const name = (s: SongSection, i: number) => {
@@ -330,12 +340,15 @@ export function songToOpenLyrics(song: Song): string {
   const order = (song.arrangement.length ? song.arrangement : song.sections.map((s) => s.id)).map((id) => names.get(id)).filter(Boolean).join(' ')
   // a one-language Spanish song has no English title: write only the titles it has (an empty
   // <title> makes other OpenLyrics apps show it as untitled)
-  const titlesXml = [
-    song.title?.trim() ? `<title lang="en">${esc(song.title)}</title>` : '',
-    song.titleEs?.trim() ? `<title lang="es">${esc(song.titleEs)}</title>` : ''
-  ]
-    .filter(Boolean)
-    .join('\n      ')
+  const titlesXml =
+    [
+      song.title?.trim() ? `<title lang="en">${esc(song.title)}</title>` : '',
+      song.titleEs?.trim() ? `<title lang="es">${esc(song.titleEs)}</title>` : ''
+    ]
+      .filter(Boolean)
+      .join('\n      ') ||
+    // no title at all: OpenLyrics requires one — name it by its first lyric line, as hymnals do
+    `<title>${esc(untitledName(song))}</title>`
   return `<?xml version="1.0" encoding="UTF-8"?>
 <song xmlns="http://openlyrics.info/namespace/2009/song" version="0.9" createdIn="ICCWorship">
   <properties>

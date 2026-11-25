@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { BibleVersionInfo, Lang, LiveState, PassageResult, Presentation, RemoteCommand, Settings, Verse } from '@shared/types'
+import type { BibleVersionInfo, Lang, LiveState, PassageResult, Presentation, RemoteCommand, Settings, Verse, VideoEndedCommand } from '@shared/types'
 import type { PasteParseResult } from '@shared/bibleCore'
 
 const invoke = ipcRenderer.invoke.bind(ipcRenderer)
@@ -51,9 +51,9 @@ const api = {
     update: (patch: Partial<LiveState>): Promise<LiveState> => invoke('live:update', patch),
     onState: (cb: (s: LiveState) => void) => on('live:state', cb),
     onProgress: (cb: (p: LiveState['videoProgress']) => void) => on('live:progress', cb),
-    onCommand: (cb: (c: RemoteCommand | { type: 'videoEnded' }) => void) => on('remote:command', cb),
+    onCommand: (cb: (c: RemoteCommand | VideoEndedCommand) => void) => on('remote:command', cb),
     videoProgress: (p: { current: number; duration: number; error?: boolean }) => ipcRenderer.send('output:progress', p),
-    videoEnded: () => ipcRenderer.send('output:ended'),
+    videoEnded: (info: { itemId?: string; src: string }) => ipcRenderer.send('output:ended', info),
     stageCommand: (cmd: RemoteCommand) => ipcRenderer.send('stage:command', cmd)
   },
   displays: {
