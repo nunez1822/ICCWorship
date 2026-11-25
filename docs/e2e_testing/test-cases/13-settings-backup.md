@@ -52,7 +52,7 @@
 - Backups list shows "auto-YYYY-MM-DD-HHmm.zip" for today after launch (older "auto-YYYY-MM-DD.zip" files from
   1.0 are still listed and restorable).
 - With the app left open, a new one appears about every hour **only if something was saved** since the last one,
-  and never while something is live. Old ones are pruned: the newest per day for 14 days plus the last 6.
+  and never while something is live. Old ones are pruned: the newest per day for the last 14 days that have a backup (not calendar days) plus the last 6.
 
 ### TC-SET-06 · Export diagnostics  `P1`
 **Steps**

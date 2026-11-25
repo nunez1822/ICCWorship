@@ -33,7 +33,7 @@ All notable changes to ICCWorship are documented here. The format is based on
   **read-only**: an older copy (say, a portable one on a USB stick) can still run the service, but changes are not
   saved — a red bar says so.
 - Automatic backups also run **every hour** while the app is open (only if something changed, never while
-  something is on screen, never when the disk is nearly full). Kept: the newest of each of the last 14 days plus the last 6.
+  something is on screen, never when the disk is nearly full). Kept: the newest of each of the last 14 days the app was used, plus the last 6.
 - **The projector and stage windows recover by themselves.** If their page crashes or freezes, it restarts in a
   second or two and shows what is live again — a playing video continues where it was. If it keeps failing, the
   projector shows black instead of looping, and **Settings → Screens → 🔄 Restart projector** brings it back.

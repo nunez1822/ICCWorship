@@ -54,8 +54,8 @@ body:
     attributes:
       label: Diagnostics / Diagnóstico (optional / opcional)
       description: |
-        If your version has **Help → Export diagnostics**, attach the .zip here. It contains no lyrics, people or PIN, but attachments are public.
-        Si su versión tiene **Ayuda → Exportar diagnóstico**, adjunte el .zip aquí. No contiene letras, personas ni el PIN, pero los adjuntos son públicos.
+        **Help → Export diagnostics…** (press Alt to show the menu) or **Settings → About → 📦 Export diagnostics…**, then attach the .zip here. It contains no lyrics, people or PIN, but attachments are public.
+        **Ayuda → Exportar diagnóstico…** (pulse Alt para ver el menú) o **Ajustes → Acerca de → 📦 Exportar diagnóstico…**, y adjunte el .zip aquí. No contiene letras, personas ni el PIN, pero los adjuntos son públicos.
   - type: textarea
     id: screenshots
     attributes:
