@@ -47,7 +47,7 @@ Playwright MCP servers in `.mcp.json`.
 1. Fork, then create a branch from `main` (`fix/…`, `feat/…`, `docs/…`, `chore/…`).
 2. One topic per PR, with a short description and, for UI changes, a screenshot.
 3. Add a line to `CHANGELOG.md` under **[Unreleased]** for anything a user would notice.
-4. CI (type check, tests, build, smoke test on Windows) must be green. `main` is protected: every change lands
+4. CI (type check, tests, build) must be green. The smoke test on Windows also runs but isn't required yet. `main` is protected: every change lands
    through a pull request and is **squash-merged**, so the PR title becomes the commit message. Write it as a
    clear sentence.
 
