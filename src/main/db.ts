@@ -1,5 +1,6 @@
 import { JsonStore } from './jsonStore'
 import { dataDir } from './paths'
+import { newPin } from './pathGuard'
 import { DEFAULT_SETTINGS, DEFAULT_TEAMS, DEFAULT_THEMES, SAMPLE_SONGS, sampleTemplate } from '@shared/defaults'
 import type { Settings, Theme } from '@shared/types'
 
@@ -32,6 +33,9 @@ export function setSettings(patch: Partial<Settings>): Settings {
 export function seedIfEmpty(): void {
   const s = db()
   const meta = s.read<{ seeded?: number }>('meta', {})
+  // An empty PIN would let anyone on the Wi-Fi use the remote. Settings from before PINs existed, a damaged
+  // settings file or an old backup can lack one: always make sure there is one.
+  if (!getSettings().remotePin) setSettings({ remotePin: newPin() })
   if (meta.seeded) {
     // make sure built-in themes are always present (they may be updated between versions)
     const themes = s.list<Theme>('themes')
@@ -43,8 +47,6 @@ export function seedIfEmpty(): void {
   s.write('themes', DEFAULT_THEMES)
   if (!s.list('teams').length) s.write('teams', DEFAULT_TEAMS)
   if (!s.list('plans').length) s.write('plans', [sampleTemplate()])
-  const settings = getSettings()
-  if (!settings.remotePin) setSettings({ remotePin: String(Math.floor(1000 + Math.random() * 9000)) })
   s.write('meta', { seeded: Date.now() }, true)
   s.flush()
 }

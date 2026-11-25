@@ -6,7 +6,29 @@ All notable changes to ICCWorship are documented here. The format is based on
 
 ## [Unreleased]
 
+### Security
+- **The phone/stage server can no longer be crashed from the Wi-Fi.** Before, a malformed video range request
+  or WebSocket message from any device could stop ICCWorship mid-service.
+- **An empty remote PIN no longer lets anyone in.** ICCWorship now always makes sure a PIN exists.
+- **The stage display in a browser now needs the PIN**, like the phone remote. It shows notes and the service plan.
+  *Upgrading:* open the new 🎤 QR code in Settings once on each stage screen (or type the PIN); it is remembered.
+- New PINs have 6 digits and come from a secure random generator. Existing PINs keep working until you press ↻.
+- Other websites can no longer reach the phone/stage server through a visitor's phone (DNS rebinding and
+  cross-site connections are refused). The remote pages can't be framed by other sites.
+- Phones and stage screens no longer receive file paths from the PC (which included the Windows user name).
+  Slide images are served through opaque links, and only while they are on screen.
+- The app's internal `media://` file access now serves only media files, and the app's windows now:
+  - run sandboxed;
+  - can't navigate away;
+  - accept main-process calls only from the app's own pages.
+- Ids and paths coming from the app's pages are checked before any file is written or deleted.
+- The installed app has hardened Electron fuses and checks its own files for tampering.
+- Developer and test switches (environment variables) are ignored by the installed app.
+
 ### Added
+- Logs for troubleshooting in `%APPDATA%\ICCWorship\logs` (no lyrics, people, prayer requests or PIN).
+- A menu bar (press Alt): reload, zoom, full screen, website, report a problem.
+- A QR code for the stage display in Settings, next to the phone remote's.
 - Security policy, privacy statement, code of conduct, support guide, issue and pull-request templates.
 - Continuous integration on Windows (type check, unit tests, build, smoke test) for every pull request.
 - ESLint and Prettier, checked in CI, so every contributor's code looks the same.
@@ -19,6 +41,10 @@ All notable changes to ICCWorship are documented here. The format is based on
 - The untested macOS and Linux build targets. ICCWorship is a Windows app.
 
 ### Fixed
+- PDFs with JPEG 2000 or JBIG2 images (most scanned PDFs) imported with blank pages; they now show the images.
+- `npm run dev` showed blank windows ("Invalid hook call"): Vite loaded two copies of React in development.
+- Typing a new port in Settings → Remote no longer restarts the server on every keystroke; it applies on Enter.
+- Creating a pasted Bible version whose abbreviation has no letters or digits no longer writes a file named ".json".
 - The "next item" preview on the Live page and the item preview in the plan editor now update when settings,
   songs, themes or media change, instead of showing the old version until another item is picked.
 - The README now says Node.js 22.12 or newer is needed to build (Electron 45 requires it).

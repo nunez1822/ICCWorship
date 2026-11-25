@@ -539,7 +539,11 @@
     "dataAt": "Carpeta de datos:",
     "showWelcome": "Mostrar la bienvenida otra vez",
     "autoBackups_one": "{{count}} copia en esta computadora",
-    "autoBackups_other": "{{count}} copias en esta computadora"
+    "autoBackups_other": "{{count}} copias en esta computadora",
+    "qrRemote": "Control remoto",
+    "qrStage": "Pantalla de escenario",
+    "newPin": "PIN nuevo (desconecta teléfonos y pantallas de escenario)",
+    "portHelp": "Presione Enter para aplicar. Use un número de 1024 a 65535."
   },
   "help": {
     "title": "Atajos de teclado",
@@ -595,5 +599,21 @@
     "logo": "Se muestra el logo",
     "next": "Siguiente",
     "end": "Fin del servicio"
+  },
+  "menu": {
+    "file": "Archivo",
+    "quit": "Salir de ICCWorship",
+    "view": "Ver",
+    "reload": "Recargar ventana",
+    "zoomIn": "Acercar",
+    "zoomOut": "Alejar",
+    "zoomReset": "Tamaño real",
+    "fullscreen": "Pantalla completa",
+    "devtools": "Herramientas de desarrollo",
+    "help": "Ayuda",
+    "shortcuts": "Atajos de teclado",
+    "website": "Sitio web de ICCWorship",
+    "reportProblem": "Reportar un problema",
+    "about": "Acerca de ICCWorship"
   }
 }

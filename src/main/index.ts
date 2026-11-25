@@ -1,29 +1,41 @@
-import { app, BrowserWindow, dialog, ipcMain, protocol, screen, shell, type Display } from 'electron'
-import { createReadStream, existsSync, statSync, writeFileSync, readFileSync } from 'node:fs'
-import { extname, join } from 'node:path'
+import './bootstrap' // must stay the first import: it adjusts app paths before other modules use them
+import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, screen, session, shell, type Display, type MenuItemConstructorOptions } from 'electron'
+import { createReadStream, existsSync, statSync, writeFileSync, readFileSync, type Stats } from 'node:fs'
+import { dirname, extname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { Readable } from 'node:stream'
-import type { LiveState, RemoteCommand, Settings, VideoEndedCommand } from '@shared/types'
+import type { LiveState, RemoteCommand, VideoEndedCommand } from '@shared/types'
+import { parseRange, sanitizeSettingsPatch, validateCommand } from '@shared/security'
 import { COLLECTIONS, db, getSettings, isCollection, seedIfEmpty, setSettings } from './db'
 import * as bible from './bible'
 import { live } from './live'
 import { mediaUrlToPath, serverInfo, setCommandHandler, startServer, stopServer } from './server'
 import { deletePresentation, detectConverters, importImages, importPresentation, savePdfPages } from './presentations'
 import { autoBackup, createBackup, defaultBackupName, listBackups, restoreBackup } from './backup'
-import { dataRoot, resourcesDir } from './paths'
+import { backupDir, dataRoot, resourcesDir } from './paths'
 import { decodeText } from '@shared/textDecode'
+import { log, setLogDataRoot } from './log'
+import { newPin, within } from './pathGuard'
+import { setMainLang, t } from './i18n'
 
+// media:// serves local media files to the app's own pages. corsEnabled + "Access-Control-Allow-Origin: *" are
+// needed: PDF import fetch()es media:// from a file:// page, and thumbnails load with crossOrigin="anonymous".
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'media', privileges: { secure: true, standard: true, supportFetchAPI: true, stream: true, bypassCSP: true, corsEnabled: true } }
+  { scheme: 'media', privileges: { secure: true, standard: true, supportFetchAPI: true, stream: true, corsEnabled: true } }
 ])
 
 let operator: BrowserWindow | null = null
 let output: BrowserWindow | null = null
 let stageWin: BrowserWindow | null = null
 
-const devUrl = process.env['ELECTRON_RENDERER_URL']
+// Development and test switches. A packaged app ignores them, so nobody can point an installed ICCWorship at
+// other pages (ELECTRON_RENDERER_URL) or turn on the test hooks (ICCWORSHIP_E2E) with an environment variable.
+const devUrl = app.isPackaged ? undefined : process.env['ELECTRON_RENDERER_URL'] || undefined
+const E2E = !app.isPackaged && !!process.env.ICCWORSHIP_E2E
 const rendererDir = join(__dirname, '../renderer')
 const preload = join(__dirname, '../preload/index.js')
 const iconPath = join(resourcesDir(), 'icon.png')
+const REPO_URL = 'https://github.com/nunez1822/ICCWorship'
 
 function loadPage(win: BrowserWindow, page: 'index' | 'output' | 'stage' | 'remote', hash = ''): void {
   if (devUrl) void win.loadURL(`${devUrl}/${page}.html${hash}`)
@@ -31,6 +43,7 @@ function loadPage(win: BrowserWindow, page: 'index' | 'output' | 'stage' | 'remo
 }
 
 /* ------------------------------ media:// protocol ------------------------------ */
+// Only these file types are ever served; anything else (settings.json, documents, keys…) is "not found".
 const MIME: Record<string, string> = {
   '.mp4': 'video/mp4',
   '.m4v': 'video/mp4',
@@ -54,33 +67,93 @@ const MIME: Record<string, string> = {
 function registerMediaProtocol(): void {
   // Range-aware file streaming so videos can seek smoothly
   protocol.handle('media', async (req) => {
+    const notFound = () => new Response('Not found', { status: 404 })
     const p = mediaUrlToPath(req.url)
-    if (!p || !existsSync(p)) return new Response('Not found', { status: 404 })
-    const size = statSync(p).size
-    const type = MIME[extname(p).toLowerCase()] || 'application/octet-stream'
-    const range = req.headers.get('range')
-    if (range) {
-      const m = /bytes=(\d*)-(\d*)/.exec(range)
-      const start = m && m[1] ? parseInt(m[1], 10) : 0
-      const end = m && m[2] ? Math.min(parseInt(m[2], 10), size - 1) : size - 1
+    const type = p ? MIME[extname(p).toLowerCase()] : undefined
+    if (!p || !type) return notFound()
+    let st: Stats | undefined
+    try {
+      st = statSync(p, { throwIfNoEntry: false })
+    } catch {
+      return notFound()
+    }
+    if (!st?.isFile()) return notFound()
+    const size = st.size
+    const base = { 'Access-Control-Allow-Origin': '*', 'Content-Type': type, 'Accept-Ranges': 'bytes' }
+    const range = parseRange(req.headers.get('range'), size)
+    if (range.kind === 'unsatisfiable') return new Response(null, { status: 416, headers: { ...base, 'Content-Range': `bytes */${size}` } })
+    if (range.kind === 'partial') {
+      const { start, end } = range
       const stream = Readable.toWeb(createReadStream(p, { start, end })) as ReadableStream
       return new Response(stream, {
         status: 206,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Content-Type': type,
-          'Content-Range': `bytes ${start}-${end}/${size}`,
-          'Accept-Ranges': 'bytes',
-          'Content-Length': String(end - start + 1)
-        }
+        headers: { ...base, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': String(end - start + 1) }
       })
     }
     const stream = Readable.toWeb(createReadStream(p)) as ReadableStream
-    return new Response(stream, {
-      status: 200,
-      headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': type, 'Content-Length': String(size), 'Accept-Ranges': 'bytes' }
+    return new Response(stream, { status: 200, headers: { ...base, 'Content-Length': String(size) } })
+  })
+}
+
+/* ------------------------------ web contents hardening ------------------------------ */
+const ALLOWED_PERMISSIONS = new Set(['fullscreen', 'clipboard-sanitized-write'])
+
+function hardenWebContents(): void {
+  app.on('web-contents-created', (_e, wc) => {
+    // The app's pages never navigate. Without this, a file dropped outside a drop zone would replace the
+    // operator or projector page with that file.
+    wc.on('will-navigate', (ev) => ev.preventDefault())
+    wc.on('will-attach-webview', (ev) => ev.preventDefault())
+    // Links open in the user's browser, and only web links.
+    wc.setWindowOpenHandler(({ url }) => {
+      if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
+      return { action: 'deny' }
     })
   })
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, done) => done(ALLOWED_PERMISSIONS.has(permission)))
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => ALLOWED_PERMISSIONS.has(permission))
+}
+
+/** Only our own three pages (operator, projector, stage) may call into main. */
+const TRUSTED_PAGES = new Set(['index.html', 'output.html', 'stage.html'])
+function isTrustedSender(frame: Electron.WebFrameMain | null | undefined): boolean {
+  if (!frame) return false
+  let u: URL
+  try {
+    u = new URL(frame.url)
+  } catch {
+    return false
+  }
+  if (!TRUSTED_PAGES.has(u.pathname.split('/').pop() || '')) return false
+  if (devUrl) return u.origin === new URL(devUrl).origin
+  if (u.protocol !== 'file:') return false
+  return dirname(fileURLToPath(u)).toLowerCase() === resolve(rendererDir).toLowerCase()
+}
+
+/* ------------------------------ menu ------------------------------ */
+function buildMenu(): void {
+  const view: MenuItemConstructorOptions[] = [
+    { role: 'reload', label: t('menu.reload') },
+    { type: 'separator' },
+    { role: 'zoomIn', label: t('menu.zoomIn') },
+    { role: 'zoomOut', label: t('menu.zoomOut') },
+    { role: 'resetZoom', label: t('menu.zoomReset') },
+    { type: 'separator' },
+    { role: 'togglefullscreen', label: t('menu.fullscreen') }
+  ]
+  if (!app.isPackaged) view.push({ type: 'separator' }, { role: 'toggleDevTools', label: t('menu.devtools') })
+  const template: MenuItemConstructorOptions[] = [
+    { label: t('menu.file'), submenu: [{ role: 'quit', label: t('menu.quit') }] },
+    { label: t('menu.view'), submenu: view },
+    {
+      label: t('menu.help'),
+      submenu: [
+        { label: t('menu.website'), click: () => void shell.openExternal(REPO_URL) },
+        { label: t('menu.reportProblem'), click: () => void shell.openExternal(`${REPO_URL}/issues/new/choose`) }
+      ]
+    }
+  ]
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
 
 /* ------------------------------ windows ------------------------------ */
@@ -95,7 +168,7 @@ function createOperator(): void {
     title: 'ICCWorship',
     icon: existsSync(iconPath) ? iconPath : undefined,
     autoHideMenuBar: true,
-    webPreferences: { preload, sandbox: false, contextIsolation: true }
+    webPreferences: { preload, sandbox: true, contextIsolation: true }
   })
   operator.once('ready-to-show', () => {
     operator?.maximize()
@@ -107,14 +180,10 @@ function createOperator(): void {
     stageWin?.destroy()
     app.quit()
   })
-  operator.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url)
-    return { action: 'deny' }
-  })
   loadPage(operator, 'index')
 }
 
-function pickOutputDisplay(s: Settings): Display | null {
+function pickOutputDisplay(s: ReturnType<typeof getSettings>): Display | null {
   const displays = screen.getAllDisplays()
   const primary = screen.getPrimaryDisplay()
   if (s.outputDisplayId !== undefined) {
@@ -162,7 +231,7 @@ function createOutput(): void {
     backgroundColor: '#000000',
     title: 'ICCWorship — Output',
     skipTaskbar: false,
-    webPreferences: { preload, sandbox: false, contextIsolation: true, backgroundThrottling: false }
+    webPreferences: { preload, sandbox: true, contextIsolation: true, backgroundThrottling: false }
   })
   output.setMenuBarVisibility(false)
   output.on('closed', () => {
@@ -193,7 +262,7 @@ function createStageWindow(): void {
     backgroundColor: '#000000',
     title: 'ICCWorship — Stage',
     autoHideMenuBar: true,
-    webPreferences: { preload, sandbox: false, contextIsolation: true, backgroundThrottling: false }
+    webPreferences: { preload, sandbox: true, contextIsolation: true, backgroundThrottling: false }
   })
   if (third) {
     stageWin.setBounds(third.bounds)
@@ -218,26 +287,47 @@ function forwardCommand(cmd: RemoteCommand | VideoEndedCommand): void {
   operator?.webContents.send('remote:command', cmd)
 }
 
-/* ------------------------------ E2E test hook ------------------------------ */
-// Only when started by `npm run e2e:launch` (ICCWORSHIP_E2E=1): native file dialogs cannot be
-// driven by Playwright, so a tester can queue the path the next dialog should "pick".
-const E2E = !!process.env.ICCWORSHIP_E2E
+/* ------------------------------ dialogs ------------------------------ */
+// Paths the user picked in a file dialog during this session. IPC calls that read a file the renderer names
+// (file:readText, backup:restore) only accept these, so the renderer can't ask for arbitrary files.
+const granted = new Set<string>()
+const grant = (p: string) => granted.add(resolve(p).toLowerCase())
+const isGranted = (p: unknown): p is string => typeof p === 'string' && granted.has(resolve(p).toLowerCase())
+
+// E2E test hook — only when started by `npm run e2e:launch` (ICCWORSHIP_E2E=1, never in a packaged app):
+// native file dialogs cannot be driven by Playwright, so a tester can queue the path the next dialog should "pick".
 const openQueue: string[][] = []
 const saveQueue: string[] = []
 
-function openDialog(opts: Electron.OpenDialogOptions): Promise<Electron.OpenDialogReturnValue> {
-  if (E2E && openQueue.length) return Promise.resolve({ canceled: false, filePaths: openQueue.shift()! })
-  return dialog.showOpenDialog(operator!, opts)
+async function openDialog(opts: Electron.OpenDialogOptions): Promise<Electron.OpenDialogReturnValue> {
+  const r = E2E && openQueue.length ? { canceled: false, filePaths: openQueue.shift()! } : await dialog.showOpenDialog(operator!, opts)
+  if (!r.canceled) r.filePaths.forEach(grant)
+  return r
 }
 
-function saveDialog(opts: Electron.SaveDialogOptions): Promise<Electron.SaveDialogReturnValue> {
-  if (E2E && saveQueue.length) return Promise.resolve({ canceled: false, filePath: saveQueue.shift()! })
-  return dialog.showSaveDialog(operator!, opts)
+async function saveDialog(opts: Electron.SaveDialogOptions): Promise<Electron.SaveDialogReturnValue> {
+  const r = E2E && saveQueue.length ? { canceled: false, filePath: saveQueue.shift()! } : await dialog.showSaveDialog(operator!, opts)
+  if (!r.canceled && r.filePath) grant(r.filePath)
+  return r
 }
 
 /* ------------------------------ IPC ------------------------------ */
 function registerIpc(): void {
-  const h = ipcMain.handle.bind(ipcMain)
+  // Every channel checks that the call comes from one of our own pages.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- each handler declares its own argument types
+  const h = (channel: string, fn: (e: Electron.IpcMainInvokeEvent, ...args: any[]) => unknown) =>
+    ipcMain.handle(channel, (e, ...args) => {
+      if (!isTrustedSender(e.senderFrame)) {
+        log.warn('ipc call from an untrusted page rejected:', channel)
+        throw new Error('forbidden')
+      }
+      return fn(e, ...args)
+    })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- each listener declares its own argument types
+  const on = (channel: string, fn: (e: Electron.IpcMainEvent, ...args: any[]) => void) =>
+    ipcMain.on(channel, (e, ...args) => {
+      if (isTrustedSender(e.senderFrame)) fn(e, ...args)
+    })
 
   // database
   // hand the startup problems over once (the operator may initialise more than once)
@@ -251,7 +341,7 @@ function registerIpc(): void {
     // a failed save (read-only file, disk full…) must reach the operator, not crash main
     const lastWarn = new Map<string, number>()
     db().onWriteError = (name, error) => {
-      console.error('could not save', name, error)
+      log.error('could not save', name, error)
       const now = Date.now()
       if (now - (lastWarn.get(name) || 0) < 10_000) return
       lastWarn.set(name, now)
@@ -269,16 +359,19 @@ function registerIpc(): void {
     else if (isCollection(c)) db().remove(c, id)
   })
 
-  // settings
+  // settings — only known settings with valid values are saved (see sanitizeSettingsPatch)
   h('settings:get', () => getSettings())
-  h('settings:set', async (_e, patch: Partial<Settings>) => {
+  h('settings:set', async (_e, raw: unknown) => {
+    const patch = sanitizeSettingsPatch(raw)
     const before = getSettings()
     const s = setSettings(patch)
-    if (patch.uiLang) BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('settings:changed', s))
-    if (patch.outputDisplayId !== undefined && output) placeOutput()
-    if (patch.serverPort !== undefined || patch.serverEnabled !== undefined || patch.remotePin !== undefined) {
-      if (before.serverPort !== s.serverPort || before.serverEnabled !== s.serverEnabled || before.remotePin !== s.remotePin) await restartServer()
+    if (patch.uiLang) {
+      setMainLang(s.uiLang)
+      buildMenu()
+      BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('settings:changed', s))
     }
+    if (patch.outputDisplayId !== undefined && output) placeOutput()
+    if (before.serverPort !== s.serverPort || before.serverEnabled !== s.serverEnabled) await restartServer()
     if (patch.logoPath !== undefined || patch.churchName !== undefined) live.update({ logoPath: s.logoPath, churchName: s.churchName })
     return s
   })
@@ -300,6 +393,7 @@ function registerIpc(): void {
     try {
       return { ok: true, info: bible.importFile(r.filePaths[0], meta) }
     } catch (e) {
+      log.warn('bible import failed', e)
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
   })
@@ -307,12 +401,18 @@ function registerIpc(): void {
   // live
   h('live:get', () => live.state)
   h('live:update', (_e, patch: Partial<LiveState>) => live.update(patch))
-  ipcMain.on('output:progress', (_e, p) => live.progress(p))
-  ipcMain.on('output:ended', (_e, info: { itemId?: unknown; src?: unknown }) => {
+  on('output:progress', (_e, p: { current?: unknown; duration?: unknown; error?: unknown }) => {
+    const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
+    live.progress({ current: num(p?.current), duration: num(p?.duration), error: p?.error === true ? true : undefined })
+  })
+  on('output:ended', (_e, info: { itemId?: unknown; src?: unknown }) => {
     if (typeof info?.src !== 'string') return
     forwardCommand({ type: 'videoEnded', src: info.src, itemId: typeof info.itemId === 'string' ? info.itemId : undefined })
   })
-  ipcMain.on('stage:command', (_e, cmd: RemoteCommand) => forwardCommand(cmd))
+  on('stage:command', (_e, raw: unknown) => {
+    const cmd = validateCommand(raw)
+    if (cmd) forwardCommand(cmd)
+  })
 
   // displays / windows
   h('displays:list', () => {
@@ -330,13 +430,17 @@ function registerIpc(): void {
   // dialogs & files
   h('dialog:openFiles', async (_e, opts: { filters?: Electron.FileFilter[]; multi?: boolean; directory?: boolean }) => {
     const r = await openDialog({
-      properties: opts.directory ? ['openDirectory'] : opts.multi ? ['openFile', 'multiSelections'] : ['openFile'],
-      filters: opts.filters
+      properties: opts?.directory ? ['openDirectory'] : opts?.multi ? ['openFile', 'multiSelections'] : ['openFile'],
+      filters: opts?.filters
     })
     return r.canceled ? [] : r.filePaths
   })
-  h('file:exists', (_e, paths: string[]) => paths.map((p) => existsSync(p)))
-  h('file:readText', (_e, p: string) => decodeText(readFileSync(p)))
+  h('file:exists', (_e, paths: string[]) => (Array.isArray(paths) ? paths.map((p) => typeof p === 'string' && existsSync(p)) : []))
+  h('file:readText', (_e, p: unknown) => {
+    // only a file the user picked in a dialog (song import)
+    if (!isGranted(p)) throw new Error('forbidden')
+    return decodeText(readFileSync(p))
+  })
   h('file:saveText', async (_e, name: string, content: string, filters?: Electron.FileFilter[]) => {
     const r = await saveDialog({ defaultPath: name, filters })
     if (r.canceled || !r.filePath) return null
@@ -353,6 +457,13 @@ function registerIpc(): void {
   // server
   h('server:info', () => serverInfo())
   h('server:restart', () => restartServer())
+  h('server:newPin', async () => {
+    // a new PIN restarts the server, which disconnects every phone and stage screen using the old one
+    setSettings({ remotePin: newPin() })
+    await restartServer()
+    log.info('remote PIN changed')
+    return getSettings()
+  })
 
   // backup
   h('backup:create', async () => {
@@ -360,22 +471,27 @@ function registerIpc(): void {
     if (r.canceled || !r.filePath) return null
     return createBackup(r.filePath)
   })
-  h('backup:restore', async (_e, path?: string) => {
-    let p = path
-    if (!p) {
+  h('backup:restore', async (_e, path?: unknown) => {
+    let p: string
+    if (path === undefined || path === null) {
       const r = await openDialog({ properties: ['openFile'], filters: [{ name: 'ICCWorship backup', extensions: ['zip'] }] })
       if (r.canceled || !r.filePaths[0]) return null
       p = r.filePaths[0]
-    }
+    } else if (isGranted(path) || (typeof path === 'string' && within(backupDir(), path))) {
+      // a file picked in a dialog this session, or one of the backups in Documents\ICCWorship\backups
+      p = path as string
+    } else return { ok: false, error: 'forbidden' }
     const res = await restoreBackup(p)
+    log.info('backup restore', res.ok ? 'ok' : `failed: ${res.error}`)
     if (res.ok) operator?.webContents.reload()
     return res
   })
   h('backup:list', () => listBackups())
 
-  // printing
+  // printing: the HTML comes from the operator page; render it with JavaScript off, in a throw-away session
+  const printPrefs = { sandbox: true, javascript: false, partition: 'iccworship-print' }
   h('print:pdf', async (_e, html: string, name: string) => {
-    const win = new BrowserWindow({ show: false, webPreferences: { sandbox: true } })
+    const win = new BrowserWindow({ show: false, webPreferences: printPrefs })
     await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
     const pdf = await win.webContents.printToPDF({ printBackground: true, pageSize: 'Letter' })
     win.destroy()
@@ -386,7 +502,7 @@ function registerIpc(): void {
     return r.filePath
   })
   h('print:print', async (_e, html: string) => {
-    const win = new BrowserWindow({ show: false, webPreferences: { sandbox: true } })
+    const win = new BrowserWindow({ show: false, webPreferences: printPrefs })
     await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
     win.webContents.print({ printBackground: true }, () => win.destroy())
   })
@@ -400,14 +516,15 @@ function registerIpc(): void {
   // app
   h('app:info', () => ({ version: app.getVersion(), dataPath: dataRoot(), electron: process.versions.electron }))
   h('app:openDataFolder', () => shell.openPath(dataRoot()))
-  h('app:openExternal', (_e, url: string) => {
-    if (/^https?:\/\//.test(url)) void shell.openExternal(url)
+  h('app:openExternal', (_e, url: unknown) => {
+    if (typeof url === 'string' && /^https?:\/\//i.test(url)) void shell.openExternal(url)
   })
 }
 
 async function restartServer(): Promise<{ ok: boolean; error?: string }> {
   // startServer stops the old server itself, in turn with any other restart
   const r = await startServer({ rendererDir, devUrl })
+  if (r.error !== 'superseded') log.info('LAN server', r.ok ? `listening on port ${getSettings().serverPort}` : `not running: ${r.error}`)
   operator?.webContents.send('server:status', r)
   return r
 }
@@ -428,21 +545,28 @@ app.on('second-instance', () => {
 
 app.whenReady().then(async () => {
   if (!single) return
+  setLogDataRoot(dataRoot())
+  log.info(`ICCWorship ${app.getVersion()} starting (Electron ${process.versions.electron}, ${process.platform} ${process.getSystemVersion()})`)
+  hardenWebContents()
   registerMediaProtocol()
   seedIfEmpty()
+  setMainLang(getSettings().uiLang)
+  buildMenu()
   live.init()
   registerIpc()
   setCommandHandler((cmd) => forwardCommand(cmd))
   createOperator()
   if (getSettings().outputEnabled) createOutput()
   void restartServer()
-  autoBackup().catch((e) => console.error('auto backup failed', e))
+  autoBackup().catch((e) => log.error('auto backup failed', e))
 
   screen.on('display-added', () => {
+    log.info('display added')
     operator?.webContents.send('displays:changed')
     placeOutput()
   })
   screen.on('display-removed', () => {
+    log.info('display removed')
     operator?.webContents.send('displays:changed')
     placeOutput()
   })

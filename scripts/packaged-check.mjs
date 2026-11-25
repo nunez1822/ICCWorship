@@ -57,6 +57,15 @@ try {
     await op.waitForSelector('.modal', { timeout: 15000 }).catch(() => {})
     check((await op.locator('.modal').count()) > 0, 'operator UI rendered (welcome dialog)')
     check(await op.evaluate(() => typeof window.api === 'object'), 'preload bridge available')
+    // pdf.js loads its JPEG 2000 / JBIG2 decoders from inside app.asar at run time
+    const wasm = await op.evaluate(async () => {
+      try {
+        return (await (await fetch(new URL('pdfjs-wasm/openjpeg.wasm', location.href))).arrayBuffer()).byteLength
+      } catch (e) {
+        return String(e)
+      }
+    })
+    check(typeof wasm === 'number' && wasm > 1000, `pdf.js wasm decoders load (${wasm})`)
   }
   const out = await page('output.html')
   check(!!out && (await out.locator('#root *').count()) > 0, 'projector window rendered')

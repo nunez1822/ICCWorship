@@ -31,7 +31,8 @@ export function useLiveFeed(role: 'stage' | 'remote', pin?: string) {
         b()
       }
     }
-    if (role === 'remote' && !pin) {
+    // both the remote and the stage display need the PIN over the network
+    if (!pin) {
       setStatus('badpin')
       return
     }

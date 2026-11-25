@@ -1,6 +1,8 @@
 # 11 · Phone remote (use the `iccworship-phone` MCP server)
 
 Get the PIN: operator tab → `browser_evaluate` → `(await window.api.settings.get()).remotePin`.
+New installs get a 6-digit PIN; an older 4-digit PIN keeps working until ↻ makes a new one. The stage display in a
+browser (`/stage`) uses the same PIN.
 
 ### TC-REM-01 · Wrong PIN is rejected  `P0`
 **Steps**
@@ -39,11 +41,12 @@ Get the PIN: operator tab → `browser_evaluate` → `(await window.api.settings
 **Expected**
 - Projector banner "Test"; stage shows "Slow down".
 
-### TC-REM-07 · New PIN disconnects old phones  `P2`
+### TC-REM-07 · New PIN disconnects old phones and stage screens  `P2`
 **Steps**
 1. Settings → ↻ next to PIN. 2. Reload phone page.
 **Expected**
-- Phone asks for the PIN again (old one is rejected).
+- Phone asks for the PIN again (old one is rejected); a phone `/stage` page asks too.
+- The new PIN has 6 digits.
 
 ### TC-REM-08 · Operator page is not exposed  `P0`
 **Steps**

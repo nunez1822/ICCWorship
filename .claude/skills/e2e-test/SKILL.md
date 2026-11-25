@@ -43,7 +43,8 @@ Do **not** fix bugs during the run — record them. Read `docs/e2e_testing/READM
   also add a `page.on('dialog')` handler — two handlers race ("dialog already handled").
 - Never click **🖨️ Print**: it opens the native Windows print dialog, which blocks the page and hangs the MCP
   connection (~30 min timeout). Print and **📄 PDF** use the same `runSheetHtml`, so check the PDF instead.
-- Remote PIN: `browser_evaluate` → `(await window.api.settings.get()).remotePin`.
+- Remote PIN: `browser_evaluate` → `(await window.api.settings.get()).remotePin`. The phone `/stage` page needs it
+  too: open `/stage#pin=<PIN>`. TC-SEC-04 locks out the whole device for minutes — run it last.
 - Screenshot every failure and every case marked 📸; save into `docs/e2e_testing/results/`
   with names like `<runstamp>-TC-LIVE-01.png`.
 - **Setup** blocks create helper files in `<repo>/.e2e-data/tmp/` — run them *after* launching (a fresh launch wipes `.e2e-data/`).

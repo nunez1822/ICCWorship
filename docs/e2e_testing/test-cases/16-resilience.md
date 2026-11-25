@@ -40,7 +40,7 @@ Stop the app: `taskkill /F /IM electron.exe`. Relaunch keeping data: `npm run e2
 `node -e "require('http').createServer((q,s)=>s.end('busy')).listen(7272)"` (run in background)
 **Steps**
 1. Launch the app. Settings → phone/stage section.
-2. Change the port to `7373`; phone → `http://localhost:7373/remote#pin=<PIN>`.
+2. Change the port to `7373` and press **Enter** (the port applies on Enter or when leaving the field); phone → `http://localhost:7373/remote#pin=<PIN>`.
 **Expected**
 - App works normally otherwise; Settings shows a clear "port in use" message (not a silent failure).
 - After changing the port the phone connects; the QR/URL shows the new port.
@@ -106,9 +106,9 @@ Stop the app: `taskkill /F /IM electron.exe`. Relaunch keeping data: `npm run e2
 
 ### TC-RES-14 · App restarts while phones are connected  `P1`
 **Steps**
-1. Phone remote and phone stage (`/stage` in a second tab) connected. Kill and relaunch the app `--keep`.
+1. Phone remote and phone stage (`/stage#pin=<PIN>` in a second tab) connected. Kill and relaunch the app `--keep`.
 **Expected**
-- Both pages reconnect on their own within ~10 s; remote doesn't need the PIN re-typed.
+- Both pages reconnect on their own within ~10 s; neither needs the PIN re-typed.
 
 ### TC-RES-15 · Server turned off  `P2`
 **Steps**

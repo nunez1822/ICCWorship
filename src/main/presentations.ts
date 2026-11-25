@@ -6,6 +6,9 @@ import type { Presentation, PresentationSlide } from '@shared/types'
 import { readPptxText } from '@shared/pptxText'
 import { uid } from '@shared/slides'
 import { cacheDir } from './paths'
+import { isSafeId } from '@shared/security'
+import { within } from './pathGuard'
+import { log } from './log'
 import { db } from './db'
 import { toMediaUrl } from './server'
 
@@ -113,6 +116,8 @@ async function viaLibreOffice(soffice: string, src: string, out: string): Promis
 
 export async function importPresentation(src: string, prefer?: 'powerpoint' | 'libreoffice' | 'text', reuseId?: string): Promise<ImportOutcome> {
   const ext = extname(src).toLowerCase()
+  // reuseId comes from the renderer and becomes a folder name that gets deleted: it must be a plain id
+  if (reuseId !== undefined && !isSafeId(reuseId)) throw new Error('bad-id')
   const id = reuseId || uid()
   const out = join(cacheDir('presentations'), id)
   if (existsSync(out)) rmSync(out, { recursive: true, force: true })
@@ -148,7 +153,7 @@ export async function importPresentation(src: string, prefer?: 'powerpoint' | 'l
       }
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e)
-      console.error('presentation import via', method, 'failed:', lastError)
+      log.warn('presentation import via', method, 'failed:', lastError)
     }
   }
   return { error: ext === '.ppt' ? 'ppt-needs-office' : lastError || 'failed' }
@@ -156,6 +161,7 @@ export async function importPresentation(src: string, prefer?: 'powerpoint' | 'l
 
 /** Renderer finished drawing PDF pages to PNG; store them. */
 export function savePdfPages(args: { id: string; name: string; sourcePath: string; method: 'libreoffice' | 'pdf'; pages: Uint8Array[] }): Presentation {
+  if (!isSafeId(args?.id)) throw new Error('bad-id') // checked before cacheDir() creates the folder
   const out = cacheDir('presentations', args.id)
   const slides: PresentationSlide[] = args.pages.map((buf, i) => {
     const f = join(out, `page${String(i + 1).padStart(3, '0')}.png`)
@@ -186,6 +192,8 @@ function save(p: Presentation): Presentation {
 
 export function deletePresentation(id: string): void {
   db().remove('presentations', id)
-  const out = join(cacheDir('presentations'), id)
-  if (existsSync(out)) rmSync(out, { recursive: true, force: true })
+  // never delete outside (or all of) the presentations cache, whatever id the renderer sends
+  const root = cacheDir('presentations')
+  const out = join(root, String(id))
+  if (within(root, out) && existsSync(out)) rmSync(out, { recursive: true, force: true })
 }

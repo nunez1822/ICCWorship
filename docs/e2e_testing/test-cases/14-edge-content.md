@@ -51,11 +51,11 @@ file names with symbols, unusual Bible references. Helper files are created at t
 `mkdir -p .e2e-data/tmp && cp tests/fixtures/sample.mp4 ".e2e-data/tmp/Canción #1 100% [final] & ñ.mp4" && cp tests/fixtures/sample.jpg ".e2e-data/tmp/Imagen é ü (copia).jpg"`
 **Steps**
 1. Media → `queueOpenFiles` both files → Add files. 2. Show now on each.
-3. Phone → `http://localhost:7272/stage` while each is live.
+3. Phone → `http://localhost:7272/stage#pin=<PIN>` while each is live.
 **Expected**
 - Thumbnails generated; names shown correctly.
 - Video plays on the projector; image displays — no "missing" badge, no black screen.
-- Stage page on the phone loads the image (its `/file?p=` URL returns 200).
+- Stage page on the phone loads the image (its `/file/<token>` URL returns 200; the URL never contains the file's path).
 
 ### TC-EDGE-07 · Media in a non-Latin folder  `P2`
 **Setup (Bash):** `mkdir -p ".e2e-data/tmp/презентация 视频" && cp tests/fixtures/sample.mp4 ".e2e-data/tmp/презентация 视频/видео.mp4"`

@@ -7,7 +7,8 @@ pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
 /** Render every page of a PDF to a 1080p PNG (used for PDF import and the LibreOffice route) */
 export async function renderPdfPages(path: string, onProgress?: (done: number, total: number) => void): Promise<Uint8Array[]> {
   const data = new Uint8Array(await (await fetch(toMediaUrl(path))).arrayBuffer())
-  const task = pdfjs.getDocument({ data })
+  // wasm decoders for JPEG 2000 / JBIG2 images (scanned PDFs) — shipped next to the page (see electron.vite.config.mts)
+  const task = pdfjs.getDocument({ data, wasmUrl: new URL('pdfjs-wasm/', location.href).href })
   const doc = await task.promise
   const out: Uint8Array[] = []
   for (let i = 1; i <= doc.numPages; i++) {

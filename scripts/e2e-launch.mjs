@@ -42,7 +42,7 @@ console.log(`ICCWorship E2E
   app         : ${packaged ? packagedExe + ' (packaged)' : 'out/ (dev build)'}
   data folder : ${data}${args.includes('--keep') ? ' (kept)' : ' (fresh)'}
   CDP endpoint: http://localhost:${port}
-  stage/remote: http://localhost:7272/stage  ·  /remote (PIN in Settings)
+  stage/remote: http://localhost:7272/stage#pin=<PIN>  ·  /remote#pin=<PIN>  (PIN in Settings)
 Press Ctrl+C to stop.`)
 
 const cmd = packaged ? packagedExe : electron

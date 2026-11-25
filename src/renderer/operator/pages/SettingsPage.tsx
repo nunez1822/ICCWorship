@@ -15,6 +15,14 @@ export function SettingsPage() {
   const [server, setServer] = useState<Awaited<ReturnType<typeof window.api.server.info>> | null>(null)
   const [backups, setBackups] = useState<{ name: string; path: string; size: number; date: number }[]>([])
   const [info, setInfo] = useState<{ version: string; dataPath: string; electron: string } | null>(null)
+  // the port is applied on Enter / leaving the field, not on every keystroke ("8080" would pass through 8, 80, 808)
+  const [portDraft, setPortDraft] = useState<string | null>(null)
+  const applyPort = () => {
+    if (portDraft === null) return
+    const n = Number(portDraft)
+    setPortDraft(null)
+    if (Number.isInteger(n) && n >= 1024 && n <= 65535 && n !== st.serverPort) void s.setSettings({ serverPort: n }).then(refresh)
+  }
 
   const refresh = () => {
     void window.api.displays.list().then(setDisplays)
@@ -210,8 +218,19 @@ export function SettingsPage() {
             {server && st.serverEnabled && (
               <div className="row" style={{ alignItems: 'flex-start', gap: 18 }}>
                 {server.qr && (
-                  <div className="qr">
-                    <img src={server.qr} alt="QR" />
+                  <div className="col" style={{ gap: 4, alignItems: 'center' }}>
+                    <div className="qr">
+                      <img src={server.qr} alt={`QR — ${t('settings.qrRemote')}`} />
+                    </div>
+                    <span className="small">📱 {t('settings.qrRemote')}</span>
+                  </div>
+                )}
+                {server.stageQr && (
+                  <div className="col" style={{ gap: 4, alignItems: 'center' }}>
+                    <div className="qr">
+                      <img src={server.stageQr} alt={`QR — ${t('settings.qrStage')}`} />
+                    </div>
+                    <span className="small">🎤 {t('settings.qrStage')}</span>
                   </div>
                 )}
                 <div className="col" style={{ gap: 6, minWidth: 0 }}>
@@ -234,7 +253,17 @@ export function SettingsPage() {
                   <div className="row">
                     <span className="small">PIN:</span>
                     <b style={{ fontSize: 22, letterSpacing: 4 }}>{st.remotePin}</b>
-                    <button className="btn sm" onClick={() => void s.setSettings({ remotePin: String(Math.floor(1000 + Math.random() * 9000)) }).then(refresh)}>
+                    <button
+                      className="btn sm"
+                      title={t('settings.newPin')}
+                      aria-label={t('settings.newPin')}
+                      onClick={() =>
+                        void window.api.server
+                          .newPin()
+                          .then((ns) => useApp.setState({ settings: ns }))
+                          .then(refresh)
+                      }
+                    >
                       ↻
                     </button>
                   </div>
@@ -248,11 +277,16 @@ export function SettingsPage() {
               <input
                 className="input"
                 type="number"
+                min={1024}
+                max={65535}
                 style={{ width: 120 }}
-                value={st.serverPort}
-                onChange={(e) => void s.setSettings({ serverPort: +e.target.value || 7272 }).then(refresh)}
+                value={portDraft ?? st.serverPort}
+                onChange={(e) => setPortDraft(e.target.value)}
+                onBlur={applyPort}
+                onKeyDown={(e) => e.key === 'Enter' && applyPort()}
               />
             </Field>
+            {portDraft !== null && <div className="small muted">{t('settings.portHelp')}</div>}
             <div className="small muted">🛡️ {t('settings.firewall')}</div>
           </div>
 

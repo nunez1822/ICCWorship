@@ -539,7 +539,11 @@
     "dataAt": "Data folder:",
     "showWelcome": "Show welcome again",
     "autoBackups_one": "{{count}} backup on this computer",
-    "autoBackups_other": "{{count}} backups on this computer"
+    "autoBackups_other": "{{count}} backups on this computer",
+    "qrRemote": "Phone remote",
+    "qrStage": "Stage display",
+    "newPin": "New PIN (disconnects phones and stage screens)",
+    "portHelp": "Press Enter to apply. Use a number from 1024 to 65535."
   },
   "help": {
     "title": "Keyboard shortcuts",
@@ -595,5 +599,21 @@
     "logo": "Logo is showing",
     "next": "Next",
     "end": "End of plan"
+  },
+  "menu": {
+    "file": "File",
+    "quit": "Quit ICCWorship",
+    "view": "View",
+    "reload": "Reload window",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "zoomReset": "Actual size",
+    "fullscreen": "Full screen",
+    "devtools": "Developer tools",
+    "help": "Help",
+    "shortcuts": "Keyboard shortcuts",
+    "website": "ICCWorship website",
+    "reportProblem": "Report a problem",
+    "about": "About ICCWorship"
   }
 }

@@ -47,6 +47,16 @@
 
 ### TC-STG-04 · Stage in a browser on the network  `P1`
 **Steps**
-1. Phone browser (`iccworship-phone`) → `http://localhost:7272/stage`.
+1. Phone browser (`iccworship-phone`) → `http://localhost:7272/stage#pin=<PIN>` (the 🎤 QR code in Settings opens this link).
 **Expected**
-- Same content as the stage window, updating live as slides change (no PIN needed).
+- Same content as the stage window, updating live as slides change.
+- The PIN disappears from the address bar and is remembered: reloading `/stage` connects without asking again.
+
+### TC-STG-05 · Stage in a browser asks for the PIN  `P0`
+**Steps**
+1. In a fresh browser tab (no remembered PIN): phone → `http://localhost:7272/stage`.
+2. Type a wrong PIN → Connect. 3. Type the right PIN → Connect.
+**Expected**
+- Step 1 shows the "Enter the PIN shown in ICCWorship → Settings" screen — **no slides, notes or plan are shown before the PIN**.
+- Step 2: "Wrong PIN". Step 3: the stage display appears and updates live.
+- The app's own stage window (Settings → open stage) never asks for a PIN.

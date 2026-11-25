@@ -1,10 +1,11 @@
 import { createRoot } from 'react-dom/client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import '../i18n'
 import { pickLangs } from '@shared/slides'
 import type { DisplayLang } from '@shared/types'
 import { useLiveFeed } from '../lib/liveFeed'
+import { rememberPin, usePin } from '../lib/pin'
 import './remote.css'
 
 const ICON: Record<string, string> = {
@@ -20,43 +21,15 @@ const ICON: Record<string, string> = {
   prayer: '🙏'
 }
 
-function readPin(): string {
-  const fromHash = /pin=(\d+)/.exec(location.hash)?.[1]
-  if (fromHash) {
-    try {
-      localStorage.setItem('icc-pin', fromHash)
-    } catch {
-      /* ignore */
-    }
-    history.replaceState(null, '', location.pathname)
-    return fromHash
-  }
-  try {
-    return localStorage.getItem('icc-pin') || ''
-  } catch {
-    return ''
-  }
-}
-
 /** Phone remote — big thumb-friendly buttons, works on any phone browser on the church Wi-Fi */
 function Remote() {
   const { t } = useTranslation()
-  const [pin, setPin] = useState(readPin)
+  const [pin, setPin] = usePin()
   const [entry, setEntry] = useState('')
   const { state, status, send, lockedSec } = useLiveFeed('remote', pin)
   const [tab, setTab] = useState<'slides' | 'plan' | 'msg'>('slides')
   const [msg, setMsg] = useState('')
   const [stageMsg, setStageMsg] = useState('')
-
-  // Opening a new #pin=… link in an already-open tab (e.g. scanning the QR code again)
-  // only changes the hash — no page load — so pick the new PIN up here.
-  useEffect(() => {
-    const onHash = () => {
-      if (/pin=\d+/.test(location.hash)) setPin(readPin())
-    }
-    window.addEventListener('hashchange', onHash)
-    return () => window.removeEventListener('hashchange', onHash)
-  }, [])
 
   if (status === 'badpin' || !pin) {
     return (
@@ -81,11 +54,7 @@ function Remote() {
   }
 
   function submit() {
-    try {
-      localStorage.setItem('icc-pin', entry)
-    } catch {
-      /* ignore */
-    }
+    rememberPin(entry)
     // Re-submitting the same PIN (e.g. after a lockout) must still reconnect.
     if (entry === pin) {
       setPin('')

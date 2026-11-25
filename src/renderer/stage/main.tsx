@@ -5,12 +5,17 @@ import '../i18n'
 import { formatClock, pickLangs, stripChords, upcomingSlideIndex } from '@shared/slides'
 import type { Slide } from '@shared/types'
 import { useLiveFeed } from '../lib/liveFeed'
+import { rememberPin, usePin } from '../lib/pin'
+import { PinScreen } from '../components/PinScreen'
 import './stage.css'
 
 /** Stage display for musicians and the preacher: current + next slide, clock, timers, chords, messages */
 function Stage() {
   const { t } = useTranslation()
-  const { state, progress, status } = useLiveFeed('stage')
+  // In the app's own stage window (window.api) no PIN is needed; in a browser it is (like the remote).
+  const inApp = !!window.api
+  const [pin, setPin] = usePin()
+  const { state, progress, status, lockedSec } = useLiveFeed('stage', pin)
   const [now, setNow] = useState(Date.now())
   const [chords, setChords] = useState(() => localStorage.getItem('stage-chords') === '1')
   const [flash, setFlash] = useState(false)
@@ -27,6 +32,22 @@ function Stage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- flash once per new message (seq), not on every state push
   }, [state?.stageMessage?.seq])
 
+  if (!inApp && (status === 'badpin' || !pin)) {
+    return (
+      <PinScreen
+        pin={pin}
+        lockedSec={lockedSec}
+        onSubmit={(p) => {
+          rememberPin(p)
+          // re-submitting the same PIN (e.g. after a lockout) must still reconnect
+          if (p === pin) {
+            setPin('')
+            setTimeout(() => setPin(p), 0)
+          } else setPin(p)
+        }}
+      />
+    )
+  }
   if (!state) return <div className="stage-wait">{status === 'offline' ? t('stage.offline') : '…'}</div>
 
   const cur = state.slideIndex >= 0 ? state.slides[state.slideIndex] : undefined

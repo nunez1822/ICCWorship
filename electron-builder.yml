@@ -20,6 +20,19 @@ extraResources:
   - from: out/THIRD_PARTY_NOTICES.md
     to: THIRD_PARTY_NOTICES.md
 asar: true
+# Electron fuses: switch off ways to run the packaged app as something else (a plain Node.js, an inspector
+# target) and make it refuse a tampered app.asar. scripts/packaged-check.mjs (CI + release) verifies the
+# packaged app still starts with these.
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  enableCookieEncryption: true
+  # Stays on for now: the app's pages are loaded from file:// (loadFile) and need it to load their scripts.
+  # Serving the pages from a custom app:// protocol instead would let this be turned off too.
+  grantFileProtocolExtraPrivileges: true
 win:
   icon: resources/icon.ico
   target:
