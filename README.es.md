@@ -84,10 +84,13 @@ mostrar en un idioma o **en ambos a la vez**, cambiando en vivo con una sola tec
 ## Sus datos y copias de seguridad
 
 - Todo lo que crea ICCWorship está en **`Documentos\ICCWorship`** (Ajustes → Copia de seguridad → 📂 Abrir carpeta de datos).
-- Cada día se hace una copia automática (se guardan las últimas 14 en `Documentos\ICCWorship\backups`).
+- Se hace una copia automática cada día que se abre ICCWorship (se guardan las últimas 14 de esas copias en
+  `Documentos\ICCWorship\backups`).
 - **Cambiar de computadora:** en la PC anterior, Ajustes → Copia de seguridad → **Hacer copia ahora** a una memoria USB.
-  Instale ICCWorship en la nueva PC y elija **Restaurar** con ese archivo. Los videos e imágenes que agregó se
-  *referencian*, no se copian: copie también esos archivos.
+  Instale ICCWorship en la nueva PC y elija **Restaurar** con ese archivo. Los videos e imágenes que agregó (incluidos
+  el logo y los fondos de los temas) se *referencian por su ruta completa*, no se copian: cópielos a la **misma
+  carpeta** en la nueva PC (por ejemplo `C:\Users\Pastor\Videos`), o agréguelos de nuevo desde la página de Medios y
+  vuelva a elegir el logo y los fondos.
 - No se sube nada a ningún lugar — vea [PRIVACY.md](PRIVACY.md).
 
 ## Su primer domingo (5 minutos)

@@ -233,7 +233,7 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
 // PIN guessing protection (lockout after repeated wrong PINs) — see pinGuard.ts
 const pins = new PinGuard()
 
-/** sockets that passed the PIN check (stage needs none) — only they receive live data */
+/** sockets that passed the PIN check (remote and stage alike) — only they receive live data */
 const authedSockets = new WeakSet<WebSocket>()
 /** sockets that answered the last protocol ping */
 const aliveSockets = new WeakSet<WebSocket>()
