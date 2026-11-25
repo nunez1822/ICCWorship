@@ -84,7 +84,7 @@ same time**, switchable live with one key.
 ## Your data and backups
 
 - Everything ICCWorship creates lives in **`Documents\ICCWorship`** (Settings → Backup → 📂 Open data folder).
-- A backup is made automatically every day (the last 14 are kept in `Documents\ICCWorshipackups`).
+- A backup is made automatically every day (the last 14 are kept in `Documents\ICCWorship\backups`).
 - **Moving to a new computer:** on the old PC, Settings → Backup → **Back up now** to a USB stick. Install ICCWorship
   on the new PC and choose **Restore** with that file. Videos and images you added are *referenced*, not copied:
   copy those files across too.
