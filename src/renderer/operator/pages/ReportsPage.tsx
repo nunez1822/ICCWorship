@@ -18,7 +18,13 @@ export function ReportsPage() {
     void window.api.db.list<SongUsage>('usage').then(setUsage)
   }, [])
 
-  const plans = useMemo(() => s.plans.filter((p) => !p.isTemplate && p.date >= from && p.date <= to).sort((a, b) => a.date.localeCompare(b.date)), [s.plans, from, to])
+  // a service counts once it has happened (date not in the future) or has numbers entered
+  const plans = useMemo(() => {
+    const today = localDate()
+    return s.plans
+      .filter((p) => !p.isTemplate && p.date >= from && p.date <= to && (p.date <= today || !!p.attendance || !!p.offering))
+      .sort((a, b) => a.date.localeCompare(b.date))
+  }, [s.plans, from, to])
   const months = useMemo(() => {
     const m = new Map<string, { attendance: number; offering: number; services: number }>()
     for (const p of plans) {
@@ -118,7 +124,7 @@ export function ReportsPage() {
             <button
               className="btn sm"
               disabled={!inRange.length}
-              onClick={() => void window.api.files.saveText(`CCLI-song-usage-${from}-${to}.csv`, usageCsv(inRange), [{ name: 'CSV', extensions: ['csv'] }])}
+              onClick={() => void window.api.files.saveText(`CCLI-song-usage-${from}-${to}.csv`, usageCsv(inRange), [{ name: 'CSV', extensions: ['csv'] }]).then((f) => f && s.toast(t('common.savedTo', { file: f })))}
             >
               ⬇ CSV
             </button>

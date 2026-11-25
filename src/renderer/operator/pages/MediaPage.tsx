@@ -7,6 +7,7 @@ import { activePlan, showAdhoc, syncPlanSummary } from '../liveControl'
 import { Modal, Seg, confirmDel } from '../../components/ui'
 import { SlideView } from '../../components/SlideView'
 import { usedInPlansNote } from '../../lib/planRefs'
+import { themeBackground } from '../../lib/buildSlides'
 import { AUDIO_EXT, IMAGE_EXT, VIDEO_EXT, backgroundFromMedia, fileName, kindOf, makeThumb, toMediaUrl } from '../../lib/media'
 import { renderPdfPages } from '../../lib/pdf'
 
@@ -113,6 +114,7 @@ export function MediaPage() {
             if (!paths.length) return
             const name = fileName(paths[0]).replace(/\.[^.]+$/, '')
             await window.api.pres.importImages(paths, name)
+            s.toast(t('media.presImported', { name, count: paths.length }))
             await s.reload('presentations')
             setTab('presentations')
           }}
@@ -165,7 +167,7 @@ function Library() {
     if (!plan) return s.toast(t('songs.noActivePlan'), 'err')
     await s.save('plans', { ...plan, items: [...plan.items, { id: uid(), type: 'media', title: m.name, refId: m.id, durationMin: 3, video: { loop: false, autoNext: false, volume: 1 } }], updatedAt: Date.now() })
     void syncPlanSummary()
-    s.toast(t('songs.addedToPlan', { plan: plan.title }))
+    s.toast(t('songs.addedToPlan', { plan: plan.date ? `${plan.date} · ${plan.title}` : plan.title }))
   }
   const useAsBackground = async (m: MediaItem) => {
     const bg = backgroundFromMedia(m.path)
@@ -234,6 +236,11 @@ function Library() {
               if (!confirmDel(t('media.confirmRemove') + usedInPlansNote(s.plans, item.id, t))) return
               await s.remove('media', item.id)
               setSel(undefined)
+              // it was the background on screen right now: fall back immediately
+              const l = useApp.getState().live
+              if (l?.background?.value === toMediaUrl(item.path)) {
+                void window.api.live.update({ background: themeBackground(l.theme, useApp.getState().media) })
+              }
             }}
           >
             🗑️ {t('media.remove')}
@@ -308,7 +315,7 @@ function PresentationModal({ pres, onClose, onReimport }: { pres: Presentation; 
     if (!plan) return s.toast(t('songs.noActivePlan'), 'err')
     await s.save('plans', { ...plan, items: [...plan.items, { id: uid(), type: 'presentation', title: pres.name, refId: pres.id, durationMin: 10 }], updatedAt: Date.now() })
     void syncPlanSummary()
-    s.toast(t('songs.addedToPlan', { plan: plan.title }))
+    s.toast(t('songs.addedToPlan', { plan: plan.date ? `${plan.date} · ${plan.title}` : plan.title }))
   }
   return (
     <Modal

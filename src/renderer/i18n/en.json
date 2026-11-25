@@ -9,6 +9,7 @@
   },
   "common": {
     "add": "Add",
+    "savedTo": "Saved: {{file}}",
     "cancel": "Cancel",
     "create": "Create",
     "delete": "Delete",
@@ -17,7 +18,8 @@
     "search": "Search",
     "showNow": "Show now",
     "working": "Working…",
-    "usedInPlans": "⚠ It is used in {{count}} plan(s) — those items will show as missing:\n{{list}}"
+    "usedInPlans_one": "⚠ It is used in 1 plan — that item will show as missing:\n{{list}}",
+    "usedInPlans_other": "⚠ It is used in {{count}} plans — those items will show as missing:\n{{list}}"
   },
   "nav": {
     "live": "Live",
@@ -74,7 +76,10 @@
     "editPlan": "Edit this plan",
     "noPlanHelp": "Create a service plan to start. You can also show songs, scripture and media directly from their pages.",
     "createPlan": "Create a plan",
-    "items": "items",
+    "planEmpty": "This plan has no items yet. Add songs, scripture and more on the Plans page — or show things directly from the Songs, Bible and Media pages.",
+    "addItems": "Add items",
+    "items_one": "item",
+    "items_other": "items",
     "nextItem": "Next item",
     "selectItem": "Select an item",
     "thumbSize": "Thumbnail size",
@@ -175,7 +180,8 @@
     "notes": "Notes (operator & stage)",
     "notesHelp": "Shown to the operator and on the stage display",
     "preview": "Preview",
-    "slides": "slides"
+    "slides_one": "slide",
+    "slides_other": "slides"
   },
   "warn": {
     "songMissing": "That song was deleted from the library.",
@@ -192,7 +198,8 @@
     "untitled": "(untitled)",
     "newTitle": "New song",
     "import": "Import",
-    "count": "songs",
+    "count_one": "song",
+    "count_other": "songs",
     "langs": "Languages available",
     "none": "Select or create a song",
     "noActivePlan": "Choose a plan on the Live page first.",
@@ -251,7 +258,8 @@
       "missing": "Not saved yet in this version.",
       "version": "Version not installed."
     },
-    "missingPasted": "{{count}} verse(s) are not saved in {{version}} yet.",
+    "missingPasted_one": "1 verse is not saved in {{version}} yet.",
+    "missingPasted_other": "{{count}} verses are not saved in {{version}} yet.",
     "pasteThem": "Paste them now",
     "searchPlaceholder": "Words to find, e.g. “love one another”",
     "searchHelp": "Search works in any language and ignores accents.",
@@ -291,6 +299,11 @@
     "importHelp": "For Bibles the church has the right to use: OSIS or USFX XML (for example from github.com/seven1m/open-bibles or the publisher) or ICCWorship JSON.",
     "chooseFile": "Choose file",
     "importFailed": "Import failed: {{error}}",
+    "importErr": {
+      "empty": "No Bible text was found in that file. Use a complete OSIS or USFX XML Bible, or an ICCWorship JSON Bible.",
+      "unsupported": "That file isn't a Bible format ICCWorship can read (OSIS, USFX or ICCWorship JSON).",
+      "id-taken": "That abbreviation belongs to a built-in Bible. Choose another abbreviation."
+    },
     "imported": "“{{name}}” imported",
     "results_one": "{{count}} result",
     "results_other": "{{count}} results",
@@ -407,9 +420,12 @@
     "firstName": "First name",
     "lastName": "Last name",
     "confirmDelete": "Delete this person?",
+    "assignedIn_one": "They are on the team of 1 plan — that slot will become free.",
+    "assignedIn_other": "They are on the team of {{count}} plans — those slots will become free.",
     "positions": "Positions (click to remove)",
     "addPosition": "add position + Enter",
-    "members": "members",
+    "members_one": "member",
+    "members_other": "members",
     "confirmDeleteTeam": "Delete this team?",
     "addTeam": "Add team",
     "noTeams": "No teams yet — add them on the People page.",

@@ -309,8 +309,9 @@ export function targetTimeToday(hhmm: string, now = Date.now()): number {
 }
 
 export function formatClock(ms: number): string {
-  const neg = ms < 0
   let s = Math.floor(Math.abs(ms) / 1000)
+  // a few ms "in the past" (clock skew between windows) must not show as -0:00
+  const neg = ms < 0 && s > 0
   const h = Math.floor(s / 3600)
   s -= h * 3600
   const m = Math.floor(s / 60)

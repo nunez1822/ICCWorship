@@ -9,6 +9,9 @@ import { Field, Seg, confirmDel } from '../../components/ui'
 
 type Tab = 'people' | 'teams' | 'prayer'
 
+/** "Name: request" — without a dangling colon or "undefined" when a part is empty */
+const prayerLine = (p: { name?: string; request?: string }) => [p.name?.trim(), p.request?.trim()].filter(Boolean).join(': ')
+
 export function PeoplePage() {
   const { t } = useTranslation()
   const [tab, setTab] = useState<Tab>('people')
@@ -137,8 +140,12 @@ function People() {
           <button
             className="btn ghost"
             onClick={async () => {
-              if (!confirmDel(t('people.confirmDelete'))) return
+              const inPlans = s.plans.filter((p) => p.team?.some((a) => a.personId === person.id))
+              const note = inPlans.length ? '\n\n' + t('people.assignedIn', { count: inPlans.length }) : ''
+              if (!confirmDel(t('people.confirmDelete') + note)) return
               await s.remove('people', person.id)
+              // free their team slots so plans don't keep an assignment to nobody
+              for (const p of inPlans) await s.save('plans', { ...p, team: p.team.filter((a) => a.personId !== person.id) })
               setSel(undefined)
             }}
           >
@@ -189,7 +196,7 @@ function Teams() {
           </Field>
           <div className="row">
             <span className="small muted" style={{ flex: 1 }}>
-              {s.people.filter((p) => p.teamIds.includes(tm.id)).length} {t('people.members')}
+              {s.people.filter((p) => p.teamIds.includes(tm.id)).length} {t('people.members', { count: s.people.filter((p) => p.teamIds.includes(tm.id)).length })}
             </span>
             <button
               className="btn sm ghost"
@@ -224,10 +231,10 @@ function Prayer() {
   const addPrayerItem = async () => {
     const plan = activePlan()
     if (!plan) return s.toast(t('songs.noActivePlan'), 'err')
-    const slides = publicOpen.map((p) => ({ title: { en: 'Prayer', es: 'Oración' }, text: { en: `${p.name}: ${p.request}`, es: `${p.name}: ${p.request}` } }))
+    const slides = publicOpen.map((p) => ({ title: { en: 'Prayer', es: 'Oración' }, text: { en: prayerLine(p), es: prayerLine(p) } }))
     await s.save('plans', { ...plan, items: [...plan.items, { id: uid(), type: 'prayer', title: t('people.prayerSlides'), slides, durationMin: 5 }], updatedAt: Date.now() })
     void syncPlanSummary()
-    s.toast(t('songs.addedToPlan', { plan: plan.title }))
+    s.toast(t('songs.addedToPlan', { plan: plan.date ? `${plan.date} · ${plan.title}` : plan.title }))
   }
 
   return (
@@ -268,7 +275,7 @@ function Prayer() {
               void showAdhoc({
                 title: t('people.prayerSlides'),
                 type: 'prayer',
-                slides: publicOpen.map((p) => ({ id: uid(), kind: 'text', title: { en: 'Prayer', es: 'Oración' }, text: { en: `${p.name}: ${p.request}`, es: `${p.name}: ${p.request}` } }))
+                slides: publicOpen.map((p) => ({ id: uid(), kind: 'text', title: { en: 'Prayer', es: 'Oración' }, text: { en: prayerLine(p), es: prayerLine(p) } }))
               })
             }
           >

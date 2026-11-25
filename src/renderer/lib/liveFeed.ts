@@ -38,13 +38,17 @@ export function useLiveFeed(role: 'stage' | 'remote', pin?: string) {
     let closed = false
     let retry: ReturnType<typeof setTimeout>
     let attempt = 0
+    let lastHeard = Date.now()
     const connect = () => {
       const proto = location.protocol === 'https:' ? 'wss' : 'ws'
       const sock = new WebSocket(`${proto}://${location.host}/ws?role=${role}&pin=${encodeURIComponent(pin || '')}`)
       ws.current = sock
+      lastHeard = Date.now()
       let rejected = false
       sock.onmessage = (ev) => {
+        lastHeard = Date.now()
         const msg = JSON.parse(String(ev.data))
+        if (msg.type === 'ping') return
         if (msg.type === 'hello') {
           rejected = !msg.authed
           if (msg.uiLang) void i18n.changeLanguage(msg.uiLang)
@@ -55,7 +59,7 @@ export function useLiveFeed(role: 'stage' | 'remote', pin?: string) {
         else if (msg.type === 'progress') setProgress(msg.progress)
       }
       sock.onclose = () => {
-        if (closed) return
+        if (closed || ws.current !== sock) return
         // Only an explicit "wrong PIN" from the server stops us. Any other close — Wi-Fi
         // drop, app restarted, server briefly off, or a retry that failed before the
         // server could say hello — keeps retrying (it used to give up after one failure,
@@ -66,11 +70,36 @@ export function useLiveFeed(role: 'stage' | 'remote', pin?: string) {
         retry = setTimeout(connect, Math.min(1000 * attempt, 5000))
       }
     }
+    /** the connection is dead even though the socket never closed (Wi-Fi dropped): start over */
+    const reconnectNow = () => {
+      const old = ws.current
+      if (!old || old.readyState === WebSocket.CLOSED) return
+      ws.current = null // its late onclose must not schedule a second retry
+      old.onclose = null
+      old.onmessage = null
+      try {
+        old.close()
+      } catch {
+        /* ignore */
+      }
+      setStatus('offline')
+      clearTimeout(retry)
+      attempt++
+      retry = setTimeout(connect, Math.min(1000 * attempt, 5000))
+    }
+    // the server pings every 5 s; 12 s of silence means the link is gone
+    const watchdog = setInterval(() => {
+      if (ws.current?.readyState === WebSocket.OPEN && Date.now() - lastHeard > 12_000) reconnectNow()
+    }, 2000)
+    const goneOffline = () => reconnectNow()
+    window.addEventListener('offline', goneOffline)
     setStatus('connecting')
     connect()
     return () => {
       closed = true
       clearTimeout(retry)
+      clearInterval(watchdog)
+      window.removeEventListener('offline', goneOffline)
       ws.current?.close()
     }
   }, [role, pin, local])

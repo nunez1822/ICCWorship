@@ -53,7 +53,7 @@ export function PlansPage() {
             <div style={{ minWidth: 0, flex: 1 }}>
               <div className="title">{p.title}</div>
               <div className="sub">
-                {p.isTemplate ? t('plans.template') : `${p.date} · ${p.time}`} · {p.items.length} {t('live.items')}
+                {p.isTemplate ? t('plans.template') : `${p.date} · ${p.time}`} · {p.items.length} {t('live.items', { count: p.items.length })}
               </div>
             </div>
             {p.id === s.activePlanId && <span className="pill gold">{t('plans.active')}</span>}
@@ -174,7 +174,10 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
 
   const printSheet = async (mode: 'pdf' | 'print') => {
     const html = runSheetHtml(plan, { people: s.people, teams: s.teams, lang: s.settings.uiLang, churchName: s.settings.churchName })
-    if (mode === 'pdf') await window.api.print.pdf(html, `${plan.date || 'plan'} ${plan.title}.pdf`.replace(/[\\/:*?"<>|]/g, '-'))
+    if (mode === 'pdf') {
+      const f = await window.api.print.pdf(html, `${plan.date || 'plan'} ${plan.title}.pdf`.replace(/[\\/:*?"<>|]/g, '-'))
+      if (f) s.toast(t('common.savedTo', { file: f }))
+    }
     else await window.api.print.print(html)
   }
 
@@ -429,10 +432,14 @@ function TeamTab({ plan, update }: { plan: ServicePlan; update: (p: Partial<Serv
     const m = new Map<string, string>()
     for (const p of s.plans) {
       if (p.id === plan.id || p.isTemplate || p.date !== plan.date) continue
-      for (const a of p.team) m.set(a.personId, p.title)
+      for (const a of p.team) {
+        // skip empty slots and people who were deleted (no "Busy" for nobody)
+        if (!a.personId || !s.people.some((x) => x.id === a.personId)) continue
+        m.set(a.personId, `${p.time ? p.time + ' · ' : ''}${p.title}`)
+      }
     }
     return m
-  }, [s.plans, plan.id, plan.date])
+  }, [s.plans, s.people, plan.id, plan.date])
 
   if (!s.teams.length) return <div className="empty">{t('people.noTeams')}</div>
   return (

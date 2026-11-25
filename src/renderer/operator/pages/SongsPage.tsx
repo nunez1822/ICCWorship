@@ -68,7 +68,7 @@ export function SongsPage() {
         </div>
         <div className="side-body">
           <div className="small muted" style={{ padding: '4px 10px' }}>
-            {list.length} {t('songs.count')}
+            {list.length} {t('songs.count', { count: list.length })}
           </div>
           {list.map((x) => (
             <div key={x.id} className={`list-item ${x.id === selId ? 'on' : ''}`} onClick={() => setSelId(x.id)}>
@@ -117,7 +117,7 @@ function SongEditor({ song, onDeleted }: { song: Song; onDeleted: () => void }) 
     if (!plan) return s.toast(t('songs.noActivePlan'), 'err')
     await s.save('plans', { ...plan, items: [...plan.items, { id: uid(), type: 'song', title: songName(song), refId: song.id, durationMin: 5 }], updatedAt: Date.now() })
     void syncPlanSummary()
-    s.toast(t('songs.addedToPlan', { plan: plan.title }))
+    s.toast(t('songs.addedToPlan', { plan: plan.date ? `${plan.date} · ${plan.title}` : plan.title }))
   }
 
   return (
@@ -141,7 +141,7 @@ function SongEditor({ song, onDeleted }: { song: Song; onDeleted: () => void }) 
         </button>
         <button
           className="btn"
-          onClick={() => void window.api.files.saveText(`${songName(song) || 'song'}.xml`, songToOpenLyrics(song), [{ name: 'OpenLyrics', extensions: ['xml'] }])}
+          onClick={() => void window.api.files.saveText(`${songName(song) || 'song'}.xml`, songToOpenLyrics(song), [{ name: 'OpenLyrics', extensions: ['xml'] }]).then((f) => f && s.toast(t('common.savedTo', { file: f })))}
         >
           ⬆ {t('songs.export')}
         </button>
@@ -274,7 +274,7 @@ function SongEditor({ song, onDeleted }: { song: Song; onDeleted: () => void }) 
         </div>
         <div className="col" style={{ position: 'sticky', top: 0, alignSelf: 'start' }}>
           <div className="section-title">
-            {t('item.preview')} · {slides.length} {t('item.slides')}
+            {t('item.preview')} · {slides.length} {t('item.slides', { count: slides.length })}
           </div>
           <div className="col" style={{ maxHeight: 'calc(100vh - 220px)', overflow: 'auto', gap: 8 }}>
             {theme &&
@@ -356,7 +356,9 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: (id?: s
                   const only = songFromPlainText(title || t('songs.newTitle'), es)
                   song.sections = only.sections.map((x) => ({ ...x, es: x.en, en: '' }))
                   song.arrangement = only.arrangement
+                  // the title they typed is Spanish too (not shown twice as EN + ES)
                   song.titleEs = song.title
+                  song.title = ''
                 }
                 await s.save('songs', song)
                 onDone(song.id)

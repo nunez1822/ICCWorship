@@ -14,3 +14,12 @@ describe('CCLI CSV', () => {
     expect(csv.split('\r\n')).toEqual(['Date,Title,CCLI Song #', '2026-11-29,"A ""quoted"" song","123"'])
   })
 })
+
+describe('plan clock', () => {
+  it('pads hours and wraps past midnight', async () => {
+    const { addMinutes } = await import('@renderer/lib/print')
+    expect(addMinutes('23:57', 35)).toBe('00:32')
+    expect(addMinutes('09:00', 5)).toBe('09:05')
+    expect(addMinutes('10:30', 10)).toBe('10:40')
+  })
+})

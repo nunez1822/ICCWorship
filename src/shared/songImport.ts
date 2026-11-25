@@ -348,9 +348,24 @@ export class SongImportError extends Error {
   }
 }
 
+/** NUL bytes, or more than 2% control characters (other than tab / line breaks), in the first 8 KB */
+export function looksBinary(content: string): boolean {
+  const head = content.slice(0, 8192)
+  if (head.includes('\u0000')) return true
+  let ctl = 0
+  for (let i = 0; i < head.length; i++) {
+    const c = head.charCodeAt(i)
+    if ((c < 32 && c !== 9 && c !== 10 && c !== 13) || (c >= 0x7f && c < 0xa0) || c === 0xfffd) ctl++
+  }
+  return head.length > 0 && ctl / head.length > 0.02
+}
+
 export function detectAndParseSongFile(name: string, content: string): Song {
   const lower = name.toLowerCase()
   if (!content.trim()) throw new SongImportError('empty')
+  // A picture, video, PDF… picked by mistake decodes to text full of control characters;
+  // without this check the plain-text fallback would turn it into a "song" of garbage.
+  if (looksBinary(content)) throw new SongImportError('notSong')
   let song: Song
   if (lower.endsWith('.xml') || /<song[\s>]/.test(content.slice(0, 500))) {
     if (!/<song[\s>]/.test(content)) throw new SongImportError('notSong') // some other XML file

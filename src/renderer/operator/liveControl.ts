@@ -1,7 +1,7 @@
 import type { DisplayLang, LiveState, PlanItem, PlanItemType, RemoteCommand, ServicePlan, Slide, SongUsage, Theme, Background } from '@shared/types'
 import { songName, songToSlides, uid } from '@shared/slides'
 import { localDate } from '@shared/dates'
-import { buildItem } from '../lib/buildSlides'
+import { buildItem, themeBackground } from '../lib/buildSlides'
 import { mediaUrlToPath } from '../lib/media'
 import { useApp, t } from './store'
 
@@ -150,7 +150,13 @@ export async function goItem(index: number, slideIndex = 0): Promise<void> {
 /** Show something that is not part of the plan (from Bible / Media / Songs pages) */
 export async function showAdhoc(args: { title: string; type: PlanItemType; slides: Slide[]; theme?: Theme; background?: Background | null; video?: boolean; songId?: string }): Promise<void> {
   const s = st()
+  // nothing to show (e.g. a song with no lyrics yet): say so instead of blanking the screen
+  if (!args.slides.length) {
+    s.toast(t('live.noSlides'), 'err')
+    return
+  }
   const theme = args.theme || s.themes.find((x) => x.id === s.settings.defaultThemeId) || s.themes[0]
+  const background = args.background === undefined ? themeBackground(theme, s.media) : args.background
   await push({
     itemIndex: -1,
     itemId: 'adhoc-' + uid(),
@@ -162,13 +168,16 @@ export async function showAdhoc(args: { title: string; type: PlanItemType; slide
     clearedFrom: undefined,
     songId: args.songId,
     theme,
-    background: args.background === undefined ? theme.background : args.background,
+    background,
     itemStartedAt: Date.now(),
     video: args.video ? { src: args.slides[0]?.media || '', playing: true, loop: false, volume: 1, seekSeq: 0, seekTo: 0 } : undefined,
     videoProgress: undefined,
     layers: { black: false, clearText: false, clearBackground: false, logo: false }
   })
-  checkMediaFiles(args.slides, args.background === undefined ? theme.background : args.background)
+  // the Live page grid shows the selected item; clear it so the ad-hoc slides that are on
+  // screen are what the operator sees (and a thumbnail click doesn't replace them)
+  s.selectItem(undefined)
+  checkMediaFiles(args.slides, background)
   if (args.songId) void recordSongUsage(args.songId)
 }
 
@@ -205,7 +214,12 @@ export async function goSlide(index: number): Promise<void> {
 export async function next(): Promise<void> {
   const l = live()
   if (!l) return
-  if (l.slideIndex < 0 && l.clearedFrom !== undefined && l.clearedFrom < l.slides.length) return goSlide(l.clearedFrom)
+  // Resume after an accidental Esc — but only while the operator is still on the plan that
+  // item came from (an ad-hoc item has no plan). After switching plans, Space starts the
+  // selected plan instead of bringing back something from another service.
+  const samePlan = l.itemIndex < 0 || l.planId === activePlan()?.id
+  if (l.slideIndex < 0 && samePlan && l.clearedFrom !== undefined && l.clearedFrom < l.slides.length) return goSlide(l.clearedFrom)
+  if (l.slideIndex < 0 && !samePlan) return nextItem()
   if (l.slideIndex + 1 < l.slides.length) return goSlide(l.slideIndex + 1)
   return nextItem()
 }
@@ -282,15 +296,28 @@ export async function videoToggle(): Promise<void> {
   await push({ video: { ...l.video, playing: !l.video.playing } })
 }
 
+/** the video played to the end and stopped by itself (not paused by the operator) */
+function videoEnded(l: LiveState): boolean {
+  const p = l.videoProgress
+  return !!l.video && !l.video.playing && !!p && !p.error && p.duration > 0 && p.current >= p.duration - 0.3
+}
+
 export async function videoSeek(seconds: number): Promise<void> {
   const l = live()
   if (!l?.video) return
-  await push({ video: { ...l.video, seekSeq: l.video.seekSeq + 1, seekTo: Math.max(0, seconds) } })
+  // seeking a finished video means "play it again from there"
+  const playing = l.video.playing || videoEnded(l)
+  await push({ video: { ...l.video, playing, seekSeq: l.video.seekSeq + 1, seekTo: Math.max(0, seconds) } })
 }
 
 export async function videoSet(patch: Partial<NonNullable<LiveState['video']>>): Promise<void> {
   const l = live()
   if (!l?.video) return
+  // turning Loop on after the video already ended restarts it
+  if (patch.loop && videoEnded(l)) {
+    await push({ video: { ...l.video, ...patch, playing: true, seekSeq: l.video.seekSeq + 1, seekTo: 0 } })
+    return
+  }
   await push({ video: { ...l.video, ...patch } })
 }
 

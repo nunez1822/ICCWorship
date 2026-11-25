@@ -47,6 +47,8 @@ export async function restoreBackup(zipPath: string): Promise<{ ok: boolean; err
     return { ok: false, error: 'not-a-backup' }
   }
   if (!zip.file('iccworship-backup.json')) return { ok: false, error: 'not-a-backup' }
+  // a manifest with no data files would "restore" nothing and still reload the app
+  if (!Object.keys(zip.files).some((n) => /^data\/[^/]+\.json$/.test(n) && !zip.files[n].dir)) return { ok: false, error: 'not-a-backup' }
   // safety: back up current data before overwriting
   const safety = join(backupDir(), `before-restore-${stamp()}.zip`)
   await createBackup(safety)

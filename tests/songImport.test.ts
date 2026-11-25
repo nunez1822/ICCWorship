@@ -146,3 +146,18 @@ describe('decodeText', () => {
     expect(decodeText(b)).toBe('¡Señor!')
   })
 })
+
+describe('binary files are not songs', () => {
+  it('rejects a JPEG / MP4 decoded as text', () => {
+    const jpg = decodeText(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x02, 0x00, 0x00, 0x01]))
+    expect(() => detectAndParseSongFile('photo.txt', jpg)).toThrow()
+    try {
+      detectAndParseSongFile('video.txt', '\u0000\u0000\u0000 ftypisom\u0000\u0000\u0002\u0000isomiso2avc1mp41')
+    } catch (e) {
+      expect((e as SongImportError).code).toBe('notSong')
+    }
+  })
+  it('still accepts normal lyrics with accents and tabs', () => {
+    expect(detectAndParseSongFile('canto.txt', 'Señor, ¡te alabo!\n\tCon todo mi corazón').sections.length).toBe(1)
+  })
+})

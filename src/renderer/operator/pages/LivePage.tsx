@@ -62,6 +62,15 @@ export function LivePage() {
               </button>
             </div>
           )}
+          {plan && !plan.items.length && (
+            <div className="empty">
+              <div className="big">📝</div>
+              <p>{t('live.planEmpty')}</p>
+              <button className="btn primary" onClick={() => s.setPage('plans', plan.id)}>
+                {t('live.addItems')}
+              </button>
+            </div>
+          )}
           {plan?.items.map((item, idx) => (
             <PlanRow
               key={item.id}
@@ -126,7 +135,7 @@ function PlanFooter() {
   return (
     <div className="col-head" style={{ borderTop: '1px solid var(--border)', borderBottom: 0 }}>
       <span className="small muted" style={{ flex: 1 }}>
-        {plan?.items.length} {t('live.items')} · {fmtMin(total)}
+        {plan?.items.length} {t('live.items', { count: plan?.items.length ?? 0 })} · {fmtMin(total)}
       </span>
       <button className="btn sm" onClick={() => void live.enqueue(() => live.nextItem())} title="Ctrl + →">
         {t('live.nextItem')} ⏭

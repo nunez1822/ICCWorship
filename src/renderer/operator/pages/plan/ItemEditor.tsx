@@ -268,7 +268,7 @@ export function ItemPreview({ item }: { item: PlanItem }) {
   return (
     <div className="col" style={{ position: 'sticky', top: 0, alignSelf: 'start' }}>
       <div className="section-title">
-        {t('item.preview')} · {built?.slides.length || 0} {t('item.slides')}
+        {t('item.preview')} · {built?.slides.length || 0} {t('item.slides', { count: built?.slides.length || 0 })}
       </div>
       {built?.slides.slice(0, 4).map((sl) => (
         <div key={sl.id} className="monitor-frame">
@@ -375,8 +375,12 @@ export function filterSongs(songs: Song[], q: string): Song[] {
     if (title.startsWith(n)) return 3
     if (title.includes(n)) return 2
     const body = norm(s.sections.map((x) => `${x.en} ${x.es}`).join(' ') + ' ' + (s.author || '') + ' ' + s.tags.join(' ') + ' ' + (s.ccli || ''))
-    return body.includes(n) ? 1 : 0
+    if (body.includes(n)) return 1
+    // every typed word somewhere, in any order ("amazing sound", "bulk 1")
+    const all = `${title} ${body}`
+    return words.length > 1 && words.every((w) => all.includes(w)) ? 0.5 : 0
   }
+  const words = n.split(/\s+/).filter(Boolean)
   return sorted
     .map((s) => ({ s, sc: score(s) }))
     .filter((x) => x.sc > 0)
@@ -443,7 +447,7 @@ export function PresentationPicker({ onClose, onPick }: { onClose: () => void; o
             <div>
               <div className="title">{p.name}</div>
               <div className="sub">
-                {p.slides.length} {t('item.slides')} · {t(`media.method.${p.method}`)}
+                {p.slides.length} {t('item.slides', { count: p.slides.length })} · {t(`media.method.${p.method}`)}
               </div>
             </div>
           </div>

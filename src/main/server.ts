@@ -58,7 +58,9 @@ function refreshAllowList(state: LiveState): void {
     const p = mediaUrlToPath(u)
     if (p) allowedFiles.add(normalize(p).toLowerCase())
   }
-  state.slides.forEach((s) => add(s.media))
+  // Cleared screen (Esc): the slides stay in the state so the operator can resume, but they
+  // are not on screen, so phones must not be able to fetch them.
+  if (state.slideIndex >= 0) state.slides.forEach((s) => add(s.media))
   add(state.background?.value)
   add(state.logoPath ? toMediaUrl(state.logoPath) : undefined)
 }
@@ -167,10 +169,39 @@ function notePinFailure(ip: string): void {
   pinFailures.set(ip, f)
 }
 
+/** sockets that passed the PIN check (stage needs none) — only they receive live data */
+const authedSockets = new WeakSet<WebSocket>()
+/** sockets that answered the last protocol ping */
+const aliveSockets = new WeakSet<WebSocket>()
+const HEARTBEAT_MS = 5000
+
 function broadcast(msg: unknown): void {
   if (!wss) return
   const data = JSON.stringify(msg)
-  for (const c of wss.clients) if (c.readyState === WebSocket.OPEN) c.send(data)
+  for (const c of wss.clients) if (c.readyState === WebSocket.OPEN && authedSockets.has(c)) c.send(data)
+}
+
+/**
+ * Heartbeat both ways. Browsers can't see protocol pings, so phones also get a small
+ * app-level "ping" message: if they hear nothing for a while they know the Wi-Fi dropped
+ * (a dead network doesn't close the socket by itself) and reconnect. Here, sockets that
+ * stop answering protocol pings are dropped so the 📱 count stays honest.
+ */
+function heartbeat(): void {
+  if (!wss) return
+  for (const c of wss.clients) {
+    if (!aliveSockets.has(c)) {
+      c.terminate()
+      continue
+    }
+    aliveSockets.delete(c)
+    try {
+      c.ping()
+    } catch {
+      /* closing */
+    }
+  }
+  broadcast({ type: 'ping', t: Date.now() })
 }
 
 function publicState(state: LiveState): LiveState {
@@ -225,7 +256,11 @@ export async function startServer(opts: { rendererDir: string; devUrl?: string }
     if (!s.serverEnabled) return done({ ok: false, error: 'disabled' })
     server = createServer(handle)
     wss = new WebSocketServer({ server, path: '/ws' })
+    const hb = setInterval(heartbeat, HEARTBEAT_MS)
+    wss.on('close', () => clearInterval(hb))
     wss.on('connection', (ws, req) => {
+      aliveSockets.add(ws)
+      ws.on('pong', () => aliveSockets.add(ws))
       const u = new URL(req.url || '/', 'http://x')
       const role = u.searchParams.get('role') === 'remote' ? 'remote' : 'stage'
       const pin = u.searchParams.get('pin') || ''
@@ -241,6 +276,7 @@ export async function startServer(opts: { rendererDir: string; devUrl?: string }
         setTimeout(() => ws.close(), 200)
         return
       }
+      authedSockets.add(ws)
       ws.send(JSON.stringify({ type: 'state', state: publicState(live.state) }))
       ws.on('message', (raw) => {
         if (role !== 'remote') return

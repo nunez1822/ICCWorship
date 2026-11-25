@@ -995,6 +995,9 @@ table.table {
 .meter.warn > div {
   background: linear-gradient(90deg, var(--warn), var(--live));
 }
+.meter.over > div {
+  background: var(--live);
+}
 .bar-chart {
   display: flex;
   align-items: flex-end;

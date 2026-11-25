@@ -9,6 +9,7 @@
   },
   "common": {
     "add": "Agregar",
+    "savedTo": "Guardado: {{file}}",
     "cancel": "Cancelar",
     "create": "Crear",
     "delete": "Eliminar",
@@ -17,7 +18,8 @@
     "search": "Buscar",
     "showNow": "Mostrar ahora",
     "working": "Procesando…",
-    "usedInPlans": "⚠ Se usa en {{count}} servicio(s) — esos elementos aparecerán como faltantes:\n{{list}}"
+    "usedInPlans_one": "⚠ Se usa en 1 servicio — ese elemento aparecerá como faltante:\n{{list}}",
+    "usedInPlans_other": "⚠ Se usa en {{count}} servicios — esos elementos aparecerán como faltantes:\n{{list}}"
   },
   "nav": {
     "live": "En vivo",
@@ -74,7 +76,10 @@
     "editPlan": "Editar este servicio",
     "noPlanHelp": "Cree un plan de servicio para comenzar. También puede mostrar cantos, escrituras y medios directamente desde sus páginas.",
     "createPlan": "Crear un servicio",
-    "items": "elementos",
+    "planEmpty": "Este servicio todavía no tiene elementos. Agregue cantos, escrituras y más en la página Servicios — o muestre cosas directamente desde Cantos, Biblia y Medios.",
+    "addItems": "Agregar elementos",
+    "items_one": "elemento",
+    "items_other": "elementos",
     "nextItem": "Siguiente elemento",
     "selectItem": "Seleccione un elemento",
     "thumbSize": "Tamaño de miniaturas",
@@ -175,7 +180,8 @@
     "notes": "Notas (operador y escenario)",
     "notesHelp": "Se muestran al operador y en la pantalla del escenario",
     "preview": "Vista previa",
-    "slides": "diapositivas"
+    "slides_one": "diapositiva",
+    "slides_other": "diapositivas"
   },
   "warn": {
     "songMissing": "Ese canto fue eliminado de la biblioteca.",
@@ -192,7 +198,8 @@
     "untitled": "(sin título)",
     "newTitle": "Nuevo canto",
     "import": "Importar",
-    "count": "cantos",
+    "count_one": "canto",
+    "count_other": "cantos",
     "langs": "Idiomas disponibles",
     "none": "Seleccione o cree un canto",
     "noActivePlan": "Primero elija un servicio en la página En vivo.",
@@ -251,7 +258,8 @@
       "missing": "Aún no está guardado en esta versión.",
       "version": "Versión no instalada."
     },
-    "missingPasted": "{{count}} versículo(s) aún no están guardados en {{version}}.",
+    "missingPasted_one": "1 versículo aún no está guardado en {{version}}.",
+    "missingPasted_other": "{{count}} versículos aún no están guardados en {{version}}.",
     "pasteThem": "Pegarlos ahora",
     "searchPlaceholder": "Palabras a buscar, p. ej. “amaos unos a otros”",
     "searchHelp": "La búsqueda funciona en cualquier idioma e ignora los acentos.",
@@ -291,6 +299,11 @@
     "importHelp": "Para Biblias que la iglesia tiene derecho a usar: XML OSIS o USFX (por ejemplo de github.com/seven1m/open-bibles o de la editorial) o JSON de ICCWorship.",
     "chooseFile": "Elegir archivo",
     "importFailed": "No se pudo importar: {{error}}",
+    "importErr": {
+      "empty": "No se encontró texto bíblico en ese archivo. Use una Biblia completa en XML OSIS o USFX, o una Biblia JSON de ICCWorship.",
+      "unsupported": "Ese archivo no tiene un formato de Biblia que ICCWorship pueda leer (OSIS, USFX o JSON de ICCWorship).",
+      "id-taken": "Esa abreviatura pertenece a una Biblia incluida. Elija otra abreviatura."
+    },
     "imported": "“{{name}}” importada",
     "results_one": "{{count}} resultado",
     "results_other": "{{count}} resultados",
@@ -407,9 +420,12 @@
     "firstName": "Nombre",
     "lastName": "Apellido",
     "confirmDelete": "¿Eliminar a esta persona?",
+    "assignedIn_one": "Está en el equipo de 1 servicio — ese puesto quedará libre.",
+    "assignedIn_other": "Está en el equipo de {{count}} servicios — esos puestos quedarán libres.",
     "positions": "Puestos (clic para quitar)",
     "addPosition": "agregar puesto + Enter",
-    "members": "miembros",
+    "members_one": "miembro",
+    "members_other": "miembros",
     "confirmDeleteTeam": "¿Eliminar este equipo?",
     "addTeam": "Agregar equipo",
     "noTeams": "Aún no hay equipos — agréguelos en la página Personas.",

@@ -113,7 +113,7 @@ function Lookup({ refText, setRefText, onPasteMissing }: { refText: string; setR
       updatedAt: Date.now()
     })
     void syncPlanSummary()
-    s.toast(t('songs.addedToPlan', { plan: plan.title }))
+    s.toast(t('songs.addedToPlan', { plan: plan.date ? `${plan.date} · ${plan.title}` : plan.title }))
   }
 
   const pInfo = s.bibles.find((b) => b.id === primary)
@@ -137,10 +137,26 @@ function Lookup({ refText, setRefText, onPasteMissing }: { refText: string; setR
           )}
         </Field>
         <Field label={t('bible.primary')}>
-          <VersionSelect value={primary} onChange={setPrimary} bibles={s.bibles} />
+          <VersionSelect
+            value={primary}
+            onChange={(v) => {
+              // picking the second language's version as main swaps them (never the same text twice)
+              if (v && v === secondary) setSecondary(primary)
+              setPrimary(v)
+            }}
+            bibles={s.bibles}
+          />
         </Field>
         <Field label={t('bible.secondary')}>
-          <VersionSelect value={secondary} onChange={setSecondary} allowNone bibles={s.bibles} />
+          <VersionSelect
+            value={secondary}
+            onChange={(v) => {
+              if (v && v === primary && secondary) setPrimary(secondary)
+              setSecondary(v)
+            }}
+            allowNone
+            bibles={s.bibles}
+          />
         </Field>
       </div>
       {parsed && !parsed.ok && <div style={{ color: 'var(--live)' }}>⚠ {t(`bible.err.${parsed.error}`)}</div>}
@@ -353,13 +369,17 @@ function PasteVerses({ initialRef }: { initialRef: string }) {
           </h3>
           {limit > 0 ? (
             <>
-              <div className={`meter ${count > limit * 0.85 ? 'warn' : ''}`}>
+              <div className={`meter ${count > limit ? 'over' : count > limit * 0.85 ? 'warn' : ''}`}>
                 <div style={{ width: `${Math.min(100, (count / limit) * 100)}%` }} />
               </div>
               <div className="small" style={{ marginTop: 6 }}>
                 {t('bible.usage', { count, limit })}
               </div>
-              {count > limit * 0.85 && <div className="small" style={{ color: 'var(--warn)', marginTop: 4 }}>{t('bible.nearLimit')}</div>}
+              {count > limit ? (
+                <div className="small" style={{ color: 'var(--live)', marginTop: 4 }}>{t('bible.overLimit', { limit })}</div>
+              ) : (
+                count > limit * 0.85 && <div className="small" style={{ color: 'var(--warn)', marginTop: 4 }}>{t('bible.nearLimit')}</div>
+              )}
             </>
           ) : (
             <div className="small">{t('bible.storedCount', { count })}</div>
@@ -547,7 +567,10 @@ function Versions() {
             onClick={async () => {
               const r = await window.api.bible.importFile(meta)
               if (r.canceled) return
-              if (!r.ok) return s.toast(t('bible.importFailed', { error: r.error }), 'err')
+              if (!r.ok) {
+                const known = ['empty', 'unsupported', 'id-taken'].includes(r.error || '')
+                return s.toast(known ? t(`bible.importErr.${r.error}`) : t('bible.importFailed', { error: r.error }), 'err', 10_000)
+              }
               await s.refreshBibles()
               s.toast(t('bible.imported', { name: r.info?.name }))
             }}

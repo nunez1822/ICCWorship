@@ -150,3 +150,12 @@ describe('formatClock', () => {
     expect(formatClock(-5_000)).toBe('-0:05')
   })
 })
+
+describe('formatClock', () => {
+  it('never shows -0:00 for a moment in the past', async () => {
+    const { formatClock } = await import('@shared/slides')
+    expect(formatClock(-400)).toBe('0:00')
+    expect(formatClock(-1500)).toBe('-0:01')
+    expect(formatClock(65_000)).toBe('1:05')
+  })
+})

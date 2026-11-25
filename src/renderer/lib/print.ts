@@ -16,7 +16,7 @@ export function addMinutes(hhmm: string, minutes: number): string {
   const total = h * 60 + m + Math.round(minutes)
   const hh = Math.floor(((total % 1440) + 1440) % 1440 / 60)
   const mm = ((total % 60) + 60) % 60
-  return `${hh}:${String(mm).padStart(2, '0')}`
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
 }
 
 const STYLE = `
@@ -44,6 +44,8 @@ export function runSheetHtml(plan: ServicePlan, opts: { people: Person[]; teams:
     .join('')
   const total = plan.items.reduce((a, i) => a + (i.durationMin || 0), 0)
   const team = plan.team
+    // only slots filled by someone who still exists
+    .filter((a) => opts.people.some((x) => x.id === a.personId))
     .map((a) => {
       const p = opts.people.find((x) => x.id === a.personId)
       const tm = opts.teams.find((x) => x.id === a.teamId)
