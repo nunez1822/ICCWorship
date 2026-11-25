@@ -14,7 +14,7 @@
 **Fixture:** contents of `tests/fixtures/lbla-juan-3-16-18.txt`
 **Steps**
 1. Reference `Juan 3:16-18`, paste the fixture text, **Detect verses**.
-2. Check the 3 boxes, then **Save verses**.
+2. Check the 3 detected verse text boxes (3:16, 3:17, 3:18 — fix any text if needed), then **Save verses**.
 **Expected**
 - Detect shows boxes 3:16, 3:17, 3:18; the heading lines ("Juan 3:16-18", "La Biblia de las Américas") and markers `[a]`, `(A)` are removed.
 - After save: toast "3 verses saved", meter "3 of 500", list shows "Juan 3 (16, 17, 18)".

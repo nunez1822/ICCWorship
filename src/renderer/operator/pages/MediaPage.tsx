@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { MediaItem, MediaKind, Presentation, Slide } from '@shared/types'
 import { uid } from '@shared/slides'
 import { useApp } from '../store'
-import { activePlan, showAdhoc, syncPlanSummary } from '../liveControl'
+import { activePlan, showAdhoc, syncPlanSummary, updateLive } from '../liveControl'
 import { Modal, Seg, confirmDel } from '../../components/ui'
 import { SlideView } from '../../components/SlideView'
+import { usedInPlansNote } from '../../lib/planRefs'
+import { themeBackground } from '../../lib/buildSlides'
 import { AUDIO_EXT, IMAGE_EXT, VIDEO_EXT, backgroundFromMedia, fileName, kindOf, makeThumb, toMediaUrl } from '../../lib/media'
 import { renderPdfPages } from '../../lib/pdf'
 
@@ -18,11 +20,45 @@ export function MediaPage() {
   const [over, setOver] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
 
+  /** the same file imported again: Update / Keep both / Cancel (ProPresenter-style) */
+  const [ask, setAsk] = useState<{ name: string; resolve: (c: 'update' | 'keep' | 'cancel') => void } | null>(null)
+  // The import loop awaits the dialog: leaving the page must not strand it (the rest of the
+  // batch would never import). On unmount the open question — and any later duplicate,
+  // which has no page to ask on — is answered "cancel" (that file is skipped, with a toast).
+  const pendingAsk = useRef<((c: 'update' | 'keep' | 'cancel') => void) | null>(null)
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      pendingAsk.current?.('cancel')
+      pendingAsk.current = null
+    }
+  }, [])
+  const askDuplicate = (name: string) =>
+    new Promise<'update' | 'keep' | 'cancel'>((resolve) => {
+      if (!mounted.current) {
+        useApp.getState().toast(t('media.dupSkippedAway', { name }), 'info', 8000)
+        return resolve('cancel')
+      }
+      const done = (c: 'update' | 'keep' | 'cancel') => {
+        pendingAsk.current = null
+        resolve(c)
+      }
+      pendingAsk.current = (c) => {
+        useApp.getState().toast(t('media.dupSkippedAway', { name }), 'info', 8000)
+        done(c)
+      }
+      setAsk({ name, resolve: done })
+    })
+
   const addMediaPaths = async (paths: string[]) => {
     const known = new Set(s.media.map((m) => m.path.toLowerCase()))
     let n = 0
+    let already = 0
     for (const p of paths) {
       const kind = kindOf(p)
+      if (kind && known.has(p.toLowerCase())) already++
       if (!kind || known.has(p.toLowerCase())) continue
       setBusy(`${t('common.working')} ${fileName(p)}`)
       const thumb = await makeThumb(p, kind)
@@ -31,6 +67,18 @@ export function MediaPage() {
     }
     setBusy(null)
     if (n) s.toast(t('media.added', { count: n }))
+    if (already) s.toast(t('media.alreadyIn', { count: already }), 'info')
+  }
+
+  /** import, but ask first when that file is already in the presentations list */
+  const importOrAsk = async (path: string) => {
+    // fresh list, not this render's copy: a file picked twice in one batch is already in it
+    const existing = useApp.getState().presentations.find((x) => x.sourcePath.toLowerCase() === path.toLowerCase())
+    if (!existing) return importPresentation(path)
+    const choice = await askDuplicate(existing.name)
+    setAsk(null)
+    if (choice === 'update') return importPresentation(path, undefined, existing.id)
+    if (choice === 'keep') return importPresentation(path)
   }
 
   const importPresentation = async (path: string, prefer?: 'powerpoint' | 'libreoffice' | 'text', reuseId?: string) => {
@@ -38,7 +86,9 @@ export function MediaPage() {
     try {
       const r = await window.api.pres.import(path, prefer, reuseId)
       if (r.error) {
-        s.toast(t(`media.err.${r.error}`, { defaultValue: t('media.err.failed') + ' ' + r.error }), 'err')
+        // known codes get their own message; anything else (JSZip / pdf.js internals) gets a
+        // plain-language one instead of developer text
+        s.toast(t(`media.err.${r.error}`, { defaultValue: t('media.err.damaged', { name: fileName(path) }) }), 'err', 8000)
         return
       }
       if (r.pdfToRender) {
@@ -53,7 +103,8 @@ export function MediaPage() {
       }
       setTab('presentations')
     } catch (e) {
-      s.toast(String(e), 'err')
+      console.error('presentation import failed', e)
+      s.toast(t('media.err.damaged', { name: fileName(path) }), 'err', 8000)
     } finally {
       setBusy(null)
     }
@@ -63,7 +114,7 @@ export function MediaPage() {
     const pres = paths.filter((p) => PRES_EXT.includes(p.split('.').pop()!.toLowerCase()))
     const media = paths.filter((p) => !pres.includes(p))
     if (media.length) await addMediaPaths(media)
-    for (const p of pres) await importPresentation(p)
+    for (const p of pres) await importOrAsk(p)
   }
 
   return (
@@ -97,7 +148,7 @@ export function MediaPage() {
           className="btn primary"
           onClick={async () => {
             const paths = await window.api.files.open({ multi: true, filters: [{ name: 'PowerPoint / PDF', extensions: PRES_EXT }] })
-            for (const p of paths) await importPresentation(p)
+            for (const p of paths) await importOrAsk(p)
           }}
         >
           📊 {t('media.importPres')}
@@ -109,6 +160,7 @@ export function MediaPage() {
             if (!paths.length) return
             const name = fileName(paths[0]).replace(/\.[^.]+$/, '')
             await window.api.pres.importImages(paths, name)
+            s.toast(t('media.presImported', { name, count: paths.length }))
             await s.reload('presentations')
             setTab('presentations')
           }}
@@ -125,6 +177,27 @@ export function MediaPage() {
         </button>
       </div>
       {tab === 'library' ? <Library /> : <Presentations onReimport={(p) => void importPresentation(p.sourcePath, undefined, p.id)} />}
+      {ask && (
+        <Modal
+          title={`⚠ ${t('media.dupTitle')}`}
+          onClose={() => ask.resolve('cancel')}
+          footer={
+            <>
+              <button className="btn" onClick={() => ask.resolve('cancel')}>
+                {t('common.cancel')}
+              </button>
+              <button className="btn" onClick={() => ask.resolve('keep')} title={t('media.dupKeepHelp')}>
+                {t('songs.dupKeep')}
+              </button>
+              <button className="btn primary" onClick={() => ask.resolve('update')} title={t('media.dupUpdateHelp')}>
+                ↻ {t('media.dupUpdate')}
+              </button>
+            </>
+          }
+        >
+          <p>{t('media.dupText', { name: ask.name })}</p>
+        </Modal>
+      )}
     </div>
   )
 }
@@ -161,11 +234,11 @@ function Library() {
     if (!plan) return s.toast(t('songs.noActivePlan'), 'err')
     await s.save('plans', { ...plan, items: [...plan.items, { id: uid(), type: 'media', title: m.name, refId: m.id, durationMin: 3, video: { loop: false, autoNext: false, volume: 1 } }], updatedAt: Date.now() })
     void syncPlanSummary()
-    s.toast(t('songs.addedToPlan', { plan: plan.title }))
+    s.toast(t('songs.addedToPlan', { plan: plan.date ? `${plan.date} · ${plan.title}` : plan.title }))
   }
   const useAsBackground = async (m: MediaItem) => {
     const bg = backgroundFromMedia(m.path)
-    if (bg) await window.api.live.update({ background: bg })
+    if (bg) await updateLive({ background: bg })
     s.toast(t('media.bgApplied'))
   }
 
@@ -227,9 +300,14 @@ function Library() {
           <button
             className="btn ghost"
             onClick={async () => {
-              if (!confirmDel(t('media.confirmRemove'))) return
+              if (!confirmDel(t('media.confirmRemove') + usedInPlansNote(s.plans, item.id, t))) return
               await s.remove('media', item.id)
               setSel(undefined)
+              // it was the background on screen right now: fall back immediately
+              const l = useApp.getState().live
+              if (l?.background?.value === toMediaUrl(item.path)) {
+                void updateLive({ background: themeBackground(l.theme, useApp.getState().media) })
+              }
             }}
           >
             🗑️ {t('media.remove')}
@@ -304,7 +382,7 @@ function PresentationModal({ pres, onClose, onReimport }: { pres: Presentation; 
     if (!plan) return s.toast(t('songs.noActivePlan'), 'err')
     await s.save('plans', { ...plan, items: [...plan.items, { id: uid(), type: 'presentation', title: pres.name, refId: pres.id, durationMin: 10 }], updatedAt: Date.now() })
     void syncPlanSummary()
-    s.toast(t('songs.addedToPlan', { plan: plan.title }))
+    s.toast(t('songs.addedToPlan', { plan: plan.date ? `${plan.date} · ${plan.title}` : plan.title }))
   }
   return (
     <Modal
@@ -316,7 +394,7 @@ function PresentationModal({ pres, onClose, onReimport }: { pres: Presentation; 
           <button
             className="btn ghost"
             onClick={async () => {
-              if (!confirmDel(t('media.confirmRemove'))) return
+              if (!confirmDel(t('media.confirmRemove') + usedInPlansNote(s.plans, pres.id, t))) return
               await s.remove('presentations', pres.id)
               onClose()
             }}

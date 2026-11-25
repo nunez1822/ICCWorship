@@ -7,8 +7,10 @@ import { Field, Modal, TYPE_ICON } from '../../../components/ui'
 import { SlideView } from '../../../components/SlideView'
 import { buildItem } from '../../../lib/buildSlides'
 import { toMediaUrl } from '../../../lib/media'
+import { filterSongs, songSecondTitle } from '../../../lib/songSearch'
+import { songName } from '@shared/slides'
 
-export function ItemEditor({ item, onClose, onSave }: { item: PlanItem; onClose: () => void; onSave: (i: PlanItem) => void }) {
+export function ItemEditor({ item, planDate, onClose, onSave }: { item: PlanItem; planDate?: string; onClose: () => void; onSave: (i: PlanItem) => void }) {
   const { t } = useTranslation()
   const s = useApp()
   const [it, setIt] = useState<PlanItem>(item)
@@ -56,8 +58,8 @@ export function ItemEditor({ item, onClose, onSave }: { item: PlanItem; onClose:
               <select className="select" value={it.refId} onChange={(e) => set({ refId: e.target.value })}>
                 {s.songs.map((x) => (
                   <option key={x.id} value={x.id}>
-                    {x.title}
-                    {x.titleEs ? ` / ${x.titleEs}` : ''}
+                    {songName(x)}
+                    {songSecondTitle(x) ? ` / ${songSecondTitle(x)}` : ''}
                   </option>
                 ))}
               </select>
@@ -67,7 +69,9 @@ export function ItemEditor({ item, onClose, onSave }: { item: PlanItem; onClose:
           {it.type === 'scripture' && (
             <ScriptureFields
               value={it.scripture || { ref: '', primary: s.settings.bibleEs, secondary: s.settings.bibleEn }}
-              onChange={(sc) => set({ scripture: sc })}
+              // only a new reference renames the item: changing just a Bible version must not
+              // re-format an auto title made in the other UI language ("John 3:16" → "Juan 3:16")
+              onChange={(sc) => set(sc.ref === it.scripture?.ref ? { scripture: sc } : { scripture: sc, title: followRefTitle(it, sc.ref, s.settings.uiLang) })}
             />
           )}
 
@@ -237,7 +241,7 @@ export function ItemEditor({ item, onClose, onSave }: { item: PlanItem; onClose:
             <textarea className="textarea" rows={2} value={it.notes || ''} onChange={(e) => set({ notes: e.target.value })} placeholder={t('item.notesHelp')} />
           </Field>
         </div>
-        <ItemPreview item={it} />
+        <ItemPreview item={it} planDate={planDate} />
       </div>
     </Modal>
   )
@@ -251,24 +255,24 @@ function swap<T>(arr: T[], a: number, b: number): T[] {
   return c
 }
 
-export function ItemPreview({ item }: { item: PlanItem }) {
+export function ItemPreview({ item, planDate }: { item: PlanItem; planDate?: string }) {
   const { t } = useTranslation()
   const s = useApp()
   const [built, setBuilt] = useState<{ slides: Slide[]; theme: Theme; background: Background | null } | null>(null)
   useEffect(() => {
     let cancel = false
     const h = setTimeout(() => {
-      void buildItem(item, { songs: s.songs, media: s.media, presentations: s.presentations, themes: s.themes, settings: s.settings, bibles: s.bibles }).then((b) => !cancel && setBuilt(b))
+      void buildItem(item, { songs: s.songs, media: s.media, presentations: s.presentations, themes: s.themes, settings: s.settings, bibles: s.bibles, planDate }).then((b) => !cancel && setBuilt(b))
     }, 250)
     return () => {
       cancel = true
       clearTimeout(h)
     }
-  }, [item])
+  }, [item, planDate])
   return (
     <div className="col" style={{ position: 'sticky', top: 0, alignSelf: 'start' }}>
       <div className="section-title">
-        {t('item.preview')} · {built?.slides.length || 0} {t('item.slides')}
+        {t('item.preview')} · {built?.slides.length || 0} {t('item.slides', { count: built?.slides.length || 0 })}
       </div>
       {built?.slides.slice(0, 4).map((sl) => (
         <div key={sl.id} className="monitor-frame">
@@ -278,6 +282,23 @@ export function ItemPreview({ item }: { item: PlanItem }) {
       {built && built.slides.length > 4 && <div className="small muted">+ {built.slides.length - 4}</div>}
     </div>
   )
+}
+
+/** Names a reference could have been shown as (any UI language, or as typed). */
+function refTitles(ref: string | undefined): string[] {
+  if (!ref) return ['']
+  const p = parseReference(ref)
+  return [ref, ...(p.ok ? [formatReference(p.ref, 'en'), formatReference(p.ref, 'es')] : [])]
+}
+
+/** When the reference changes, an auto-named item ("John 3:16-17") follows it — otherwise
+ *  the stage and top bar kept the old reference while the projector showed the new one.
+ *  A title the user typed themselves is left alone. */
+function followRefTitle(item: PlanItem, newRef: string, lang: 'en' | 'es'): string {
+  const auto = refTitles(item.scripture?.ref).includes(item.title.trim())
+  if (!auto) return item.title
+  const p = parseReference(newRef)
+  return p.ok ? formatReference(p.ref, lang) : newRef
 }
 
 export function ScriptureFields({ value, onChange }: { value: { ref: string; primary: string; secondary?: string }; onChange: (v: { ref: string; primary: string; secondary?: string }) => void }) {
@@ -335,8 +356,8 @@ export function SongPicker({ onClose, onPick }: { onClose: () => void; onPick: (
           <div key={s.id} className="list-item" onClick={() => onPick(s)}>
             <div style={{ minWidth: 0 }}>
               <div className="title">
-                {s.title}
-                {s.titleEs ? <span className="muted"> / {s.titleEs}</span> : null}
+                {songName(s)}
+                {songSecondTitle(s) ? <span className="muted"> / {songSecondTitle(s)}</span> : null}
               </div>
               <div className="sub">{s.author}</div>
             </div>
@@ -346,25 +367,6 @@ export function SongPicker({ onClose, onPick }: { onClose: () => void; onPick: (
       </div>
     </Modal>
   )
-}
-
-export function filterSongs(songs: Song[], q: string): Song[] {
-  const norm = (x: string) => x.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-  const n = norm(q.trim())
-  const sorted = [...songs].sort((a, b) => a.title.localeCompare(b.title))
-  if (!n) return sorted
-  const score = (s: Song) => {
-    const title = norm(`${s.title} ${s.titleEs || ''}`)
-    if (title.startsWith(n)) return 3
-    if (title.includes(n)) return 2
-    const body = norm(s.sections.map((x) => `${x.en} ${x.es}`).join(' ') + ' ' + (s.author || '') + ' ' + s.tags.join(' ') + ' ' + (s.ccli || ''))
-    return body.includes(n) ? 1 : 0
-  }
-  return sorted
-    .map((s) => ({ s, sc: score(s) }))
-    .filter((x) => x.sc > 0)
-    .sort((a, b) => b.sc - a.sc)
-    .map((x) => x.s)
 }
 
 export function ScripturePicker({ onClose, onPick }: { onClose: () => void; onPick: (sc: { ref: string; primary: string; secondary?: string }, title: string) => void }) {
@@ -395,7 +397,8 @@ export function ScripturePicker({ onClose, onPick }: { onClose: () => void; onPi
 
 export function MediaPicker({ onClose, onPick, kinds }: { onClose: () => void; onPick: (m: MediaItem) => void; kinds?: MediaItem['kind'][] }) {
   const { t } = useTranslation()
-  const media = useApp((s) => s.media.filter((m) => !kinds || kinds.includes(m.kind)))
+  const allMedia = useApp((s) => s.media)
+  const media = useMemo(() => allMedia.filter((m) => !kinds || kinds.includes(m.kind)), [allMedia, kinds])
   return (
     <Modal wide title={`🎬 ${t('types.media')}`} onClose={onClose}>
       {!media.length && <div className="empty">{t('media.empty')}</div>}
@@ -425,7 +428,7 @@ export function PresentationPicker({ onClose, onPick }: { onClose: () => void; o
             <div>
               <div className="title">{p.name}</div>
               <div className="sub">
-                {p.slides.length} {t('item.slides')} · {t(`media.method.${p.method}`)}
+                {p.slides.length} {t('item.slides', { count: p.slides.length })} · {t(`media.method.${p.method}`)}
               </div>
             </div>
           </div>

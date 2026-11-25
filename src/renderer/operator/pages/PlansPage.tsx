@@ -1,20 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Assignment, PlanItem, PlanItemType, ServicePlan } from '@shared/types'
-import { uid } from '@shared/slides'
+import { songName, uid } from '@shared/slides'
+import { localDate, nextSunday } from '@shared/dates'
 import { useApp } from '../store'
 import { syncPlanSummary } from '../liveControl'
 import { Field, TYPE_ICON, fmtMin, confirmDel } from '../../components/ui'
 import { addMinutes, runSheetHtml } from '../../lib/print'
+import { itemSourceMissing } from '../../lib/planRefs'
 import { ItemEditor, SongPicker, ScripturePicker, MediaPicker, PresentationPicker } from './plan/ItemEditor'
 
-const today = () => new Date().toISOString().slice(0, 10)
-
-function nextSunday(): string {
-  const d = new Date()
-  d.setDate(d.getDate() + ((7 - d.getDay()) % 7 || 7))
-  return d.toISOString().slice(0, 10)
-}
+const today = () => localDate()
 
 export function newPlanFrom(template: ServicePlan | undefined, title: string): ServicePlan {
   const t = Date.now()
@@ -57,7 +53,7 @@ export function PlansPage() {
             <div style={{ minWidth: 0, flex: 1 }}>
               <div className="title">{p.title}</div>
               <div className="sub">
-                {p.isTemplate ? t('plans.template') : `${p.date} · ${p.time}`} · {p.items.length} {t('live.items')}
+                {p.isTemplate ? t('plans.template') : `${p.date} · ${p.time}`} · {p.items.length} {t('live.items', { count: p.items.length })}
               </div>
             </div>
             {p.id === s.activePlanId && <span className="pill gold">{t('plans.active')}</span>}
@@ -99,7 +95,10 @@ export function PlansPage() {
 
 function NewPlanModal({ onClose, onCreate }: { onClose: () => void; onCreate: (p: ServicePlan) => void }) {
   const { t } = useTranslation()
-  const templates = useApp((s) => s.plans.filter((p) => p.isTemplate))
+  // Select the stable array and derive in useMemo: a selector returning a fresh
+  // array every call makes useSyncExternalStore loop forever (React error #185).
+  const plans = useApp((s) => s.plans)
+  const templates = useMemo(() => plans.filter((p) => p.isTemplate), [plans])
   const [tpl, setTpl] = useState(templates[0]?.id || '')
   const [date, setDate] = useState(nextSunday())
   return (
@@ -175,7 +174,10 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
 
   const printSheet = async (mode: 'pdf' | 'print') => {
     const html = runSheetHtml(plan, { people: s.people, teams: s.teams, lang: s.settings.uiLang, churchName: s.settings.churchName })
-    if (mode === 'pdf') await window.api.print.pdf(html, `${plan.date || 'plan'} ${plan.title}.pdf`.replace(/[\\/:*?"<>|]/g, '-'))
+    if (mode === 'pdf') {
+      const f = await window.api.print.pdf(html, `${plan.date || 'plan'} ${plan.title}.pdf`.replace(/[\\/:*?"<>|]/g, '-'))
+      if (f) s.toast(t('common.savedTo', { file: f }))
+    }
     else await window.api.print.print(html)
   }
 
@@ -249,7 +251,12 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
           onClick={async () => {
             if (!confirmDel(t('plans.confirmDelete'))) return
             await s.remove('plans', plan.id)
-            if (s.activePlanId === plan.id) s.setActivePlan(undefined)
+            if (useApp.getState().activePlanId === plan.id) {
+              // pick the next upcoming plan instead of leaving the Live page pointing at nothing
+              const today = localDate()
+              const rest = useApp.getState().plans.filter((p) => !p.isTemplate).sort((a, b) => a.date.localeCompare(b.date))
+              s.setActivePlan((rest.find((p) => p.date >= today) || rest[rest.length - 1])?.id)
+            }
             onDeleted()
           }}
         >
@@ -298,7 +305,9 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
                     ⋮⋮
                   </span>
                   <span className="small muted">{start}</span>
-                  <span className="type-ico">{TYPE_ICON[it.type]}</span>
+                  <span className="type-ico" title={itemSourceMissing(it, s) ? t('plans.sourceMissing') : undefined}>
+                    {itemSourceMissing(it, s) ? '⚠' : TYPE_ICON[it.type]}
+                  </span>
                   <input
                     className="input"
                     value={it.title}
@@ -366,6 +375,7 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
       {editing && (
         <ItemEditor
           item={plan.items.find((x) => x.id === editing.id) || editing}
+          planDate={plan.date}
           onClose={() => setEditing(null)}
           onSave={(item) => {
             void setItems(plan.items.map((x) => (x.id === item.id ? item : x)))
@@ -377,7 +387,7 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
         <SongPicker
           onClose={() => setPicker(null)}
           onPick={(song) => {
-            addItem({ id: uid(), type: 'song', title: song.titleEs && s.settings.uiLang === 'es' ? song.titleEs : song.title, refId: song.id, durationMin: 5 })
+            addItem({ id: uid(), type: 'song', title: (s.settings.uiLang === 'es' && song.titleEs) || songName(song), refId: song.id, durationMin: 5 })
             setPicker(null)
           }}
         />
@@ -423,10 +433,14 @@ function TeamTab({ plan, update }: { plan: ServicePlan; update: (p: Partial<Serv
     const m = new Map<string, string>()
     for (const p of s.plans) {
       if (p.id === plan.id || p.isTemplate || p.date !== plan.date) continue
-      for (const a of p.team) m.set(a.personId, p.title)
+      for (const a of p.team) {
+        // skip empty slots and people who were deleted (no "Busy" for nobody)
+        if (!a.personId || !s.people.some((x) => x.id === a.personId)) continue
+        m.set(a.personId, `${p.time ? p.time + ' · ' : ''}${p.title}`)
+      }
     }
     return m
-  }, [s.plans, plan.id, plan.date])
+  }, [s.plans, s.people, plan.id, plan.date])
 
   if (!s.teams.length) return <div className="empty">{t('people.noTeams')}</div>
   return (

@@ -74,8 +74,8 @@ export function App() {
     const onKey = (e: KeyboardEvent) => {
       if (isTyping(e) || e.altKey) return
       const k = e.key
-      if (e.ctrlKey && (k === 'ArrowRight' || k === 'ArrowDown')) return void (e.preventDefault(), live.nextItem())
-      if (e.ctrlKey && (k === 'ArrowLeft' || k === 'ArrowUp')) return void (e.preventDefault(), live.prevItem())
+      if (e.ctrlKey && (k === 'ArrowRight' || k === 'ArrowDown')) return void (e.preventDefault(), live.enqueue(() => live.nextItem()))
+      if (e.ctrlKey && (k === 'ArrowLeft' || k === 'ArrowUp')) return void (e.preventDefault(), live.enqueue(() => live.prevItem()))
       if (e.ctrlKey || e.metaKey) return
       switch (k) {
         case ' ':
@@ -83,42 +83,42 @@ export function App() {
         case 'ArrowDown':
         case 'PageDown':
           e.preventDefault()
-          void live.next()
+          void live.enqueue(() => live.next())
           break
         case 'ArrowLeft':
         case 'ArrowUp':
         case 'PageUp':
           e.preventDefault()
-          void live.prev()
+          void live.enqueue(() => live.prev())
           break
         case 'b':
         case 'B':
         case '.':
-          void live.toggleLayer('black')
+          void live.enqueue(() => live.toggleLayer('black'))
           break
         case 'c':
         case 'C':
-          void live.toggleLayer('clearText')
+          void live.enqueue(() => live.toggleLayer('clearText'))
           break
         case 'l':
         case 'L':
-          void live.toggleLayer('logo')
+          void live.enqueue(() => live.toggleLayer('logo'))
           break
         case 'p':
         case 'P':
-          void live.videoToggle()
+          void live.enqueue(() => live.videoToggle())
           break
         case 'Escape':
-          void live.clearAll()
+          void live.enqueue(() => live.clearAll())
           break
         case '1':
-          void live.setDisplayLang('en')
+          void live.enqueue(() => live.setDisplayLang('en'))
           break
         case '2':
-          void live.setDisplayLang('es')
+          void live.enqueue(() => live.setDisplayLang('es'))
           break
         case '3':
-          void live.setDisplayLang('both')
+          void live.enqueue(() => live.setDisplayLang('both'))
           break
         case '?':
         case 'F1':
@@ -141,7 +141,10 @@ export function App() {
     )
   }
 
-  const isLive = !!liveState && liveState.slideIndex >= 0 && !liveState.layers.black
+  // a cover (black / logo) is what the audience sees: its pill replaces ON AIR / Off air,
+  // so the bar never says "Off air" over a black screen or "ON AIR" under the logo
+  const cover = liveState?.layers.black ? 'black' : liveState?.layers.logo ? 'logo' : null
+  const isLive = !!liveState && liveState.slideIndex >= 0 && !cover
 
   return (
     <div className="shell">
@@ -155,16 +158,29 @@ export function App() {
           </div>
         </div>
         <div className="status-strip">
-          <span className={`pill ${isLive ? 'live' : ''}`}>
-            <span className={`dot ${isLive ? 'live' : ''}`} style={isLive ? { background: '#fff' } : undefined} /> {isLive ? t('top.onAir') : t('top.offAir')}
-          </span>
-          {liveState?.itemTitle && <span className="pill">{liveState.itemTitle}</span>}
+          {!cover && (
+            <span className={`pill ${isLive ? 'live' : ''}`}>
+              <span className={`dot ${isLive ? 'live' : ''}`} style={isLive ? { background: '#fff' } : undefined} /> {isLive ? t('top.onAir') : t('top.offAir')}
+            </span>
+          )}
+          {liveState?.itemTitle && liveState.slideIndex >= 0 && <span className="pill">{liveState.itemTitle}</span>}
+          {/* a cover is up: the audience does not see the slide the operator is moving through */}
+          {cover === 'black' && (
+            <span className="pill live" title={t('top.coverHelp')}>
+              ⬛ {t('top.blackUp')}
+            </span>
+          )}
+          {cover === 'logo' && (
+            <span className="pill gold" title={t('top.coverHelp')}>
+              ✝ {t('top.logoUp')}
+            </span>
+          )}
         </div>
         <div className="spacer" />
         <span className="small muted">{t('top.screen')}</span>
         <Seg<DisplayLang>
           value={liveState?.displayLang || settings.displayLang}
-          onChange={(v) => void live.setDisplayLang(v)}
+          onChange={(v) => void live.enqueue(() => live.setDisplayLang(v))}
           options={[
             { value: 'es', label: 'ES', title: '2' },
             { value: 'en', label: 'EN', title: '1' },

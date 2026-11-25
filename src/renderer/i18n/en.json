@@ -1,6 +1,15 @@
 {
+  "errors": {
+    "generic": "Something went wrong.",
+    "saveFailed": "⚠ Could not save {{what}} ({{reason}}). Your changes are kept while the app is open — check that the data folder isn't read-only or full.",
+    "dataRecovered": "⚠ The {{what}} file was damaged and was restored from its backup. The damaged copy was kept: {{file}}",
+    "dataUnreadable": "⚠ The {{what}} file is damaged and could not be read. It was kept as {{file}} — restore a backup in Settings → Backup.",
+    "mediaMissing": "⚠ File not found: {{file}}",
+    "mediaUnplayable": "⚠ This video can't be played (damaged or unsupported format)."
+  },
   "common": {
     "add": "Add",
+    "savedTo": "Saved: {{file}}",
     "cancel": "Cancel",
     "create": "Create",
     "delete": "Delete",
@@ -8,7 +17,9 @@
     "save": "Save",
     "search": "Search",
     "showNow": "Show now",
-    "working": "Working…"
+    "working": "Working…",
+    "usedInPlans_one": "⚠ It is used in 1 plan — that item will show as missing:\n{{list}}",
+    "usedInPlans_other": "⚠ It is used in {{count}} plans — those items will show as missing:\n{{list}}"
   },
   "nav": {
     "live": "Live",
@@ -24,6 +35,9 @@
   "top": {
     "onAir": "ON AIR",
     "offAir": "Off air",
+    "blackUp": "Screen is black",
+    "logoUp": "Logo is showing",
+    "coverHelp": "The audience sees this cover. You can keep moving through slides underneath; press the button (or B / L) again to reveal the current slide.",
     "screen": "Screen",
     "app": "App",
     "outputOn": "Projector on",
@@ -65,7 +79,10 @@
     "editPlan": "Edit this plan",
     "noPlanHelp": "Create a service plan to start. You can also show songs, scripture and media directly from their pages.",
     "createPlan": "Create a plan",
-    "items": "items",
+    "planEmpty": "This plan has no items yet. Add songs, scripture and more on the Plans page — or show things directly from the Songs, Bible and Media pages.",
+    "addItems": "Add items",
+    "items_one": "item",
+    "items_other": "items",
     "nextItem": "Next item",
     "selectItem": "Select an item",
     "thumbSize": "Thumbnail size",
@@ -86,6 +103,7 @@
     "pause": "Pause",
     "play": "Play",
     "loop": "Loop",
+    "videoError": "⚠ The projector can't play this video — the file is missing or damaged. Press Space to move on.",
     "clock": "Clock",
     "item": "Item",
     "itemTimerTip": "Time on this item vs. planned minutes",
@@ -135,7 +153,8 @@
     "add": "Add to the service",
     "attendance": "Attendance",
     "offering": "Offering total",
-    "notes": "Notes"
+    "notes": "Notes",
+    "sourceMissing": "The song, media or presentation for this item was deleted"
   },
   "team": {
     "pending": "Pending",
@@ -165,7 +184,8 @@
     "notes": "Notes (operator & stage)",
     "notesHelp": "Shown to the operator and on the stage display",
     "preview": "Preview",
-    "slides": "slides"
+    "slides_one": "slide",
+    "slides_other": "slides"
   },
   "warn": {
     "songMissing": "That song was deleted from the library.",
@@ -179,9 +199,11 @@
   "songs": {
     "search": "Search title, lyrics, author…",
     "new": "New song",
+    "untitled": "(untitled)",
     "newTitle": "New song",
     "import": "Import",
-    "count": "songs",
+    "count_one": "song",
+    "count_other": "songs",
     "langs": "Languages available",
     "none": "Select or create a song",
     "noActivePlan": "Choose a plan on the Live page first.",
@@ -205,7 +227,27 @@
     "clickToAdd": "Click to add:",
     "resetArrangement": "Reset",
     "noResults": "No songs found",
-    "imported": "{{count}} songs imported",
+    "imported_one": "{{count}} song imported",
+    "imported_other": "{{count}} songs imported",
+    "dupTitle_one": "1 song is already in your library",
+    "dupTitle_other": "{{count}} songs are already in your library",
+    "dupHelp": "Same CCLI number, or the same title and first line. What should happen with them?",
+    "dupSkip": "Skip them",
+    "dupReplace": "Replace",
+    "dupKeep": "Keep both",
+    "dupSkipHelp": "Keep the songs you already have, unchanged",
+    "dupReplaceHelp": "Overwrite your copies with the imported words (plans keep using them)",
+    "dupKeepHelp": "Add the imported songs as new copies named “(2)”",
+    "dupSkipped_one": "1 song skipped — already in the library",
+    "dupSkipped_other": "{{count}} songs skipped — already in the library",
+    "dupReplaced_one": "1 song replaced",
+    "dupReplaced_other": "{{count}} songs replaced",
+    "importErr": {
+      "empty": "{{file}}: the file is empty.",
+      "notSong": "{{file}}: not a song file (OpenLyrics, ChordPro or text).",
+      "damaged": "{{file}}: the file is damaged or incomplete.",
+      "noLyrics": "{{file}}: no lyrics found in the file."
+    },
     "pasteTab": "Paste lyrics",
     "filesTab": "From files",
     "pasteHelp": "Paste English in one box and Spanish in the other. Headers like “Verse 1 / Verso 1, Chorus / Coro, Bridge / Puente” are detected; without headers each paragraph becomes a section and repeated paragraphs become the chorus.",
@@ -228,15 +270,16 @@
       "empty": "Type a reference such as John 3:16.",
       "book": "Book not recognized. Try “Juan”, “John”, “1 Cor”, “Salmos”…",
       "numbers": "Chapter/verse numbers not recognized. Try 3:16 or 3:16-18.",
+      "notFound": "No verses found for that chapter/verse — check the numbers (e.g. Juan 3 has 36 verses).",
       "notfound": "That passage does not exist.",
       "missing": "Not saved yet in this version.",
       "version": "Version not installed."
     },
-    "missingPasted": "{{count}} verse(s) are not saved in {{version}} yet.",
+    "missingPasted_one": "1 verse is not saved in {{version}} yet.",
+    "missingPasted_other": "{{count}} verses are not saved in {{version}} yet.",
     "pasteThem": "Paste them now",
     "searchPlaceholder": "Words to find, e.g. “love one another”",
     "searchHelp": "Search works in any language and ignores accents.",
-    "results": "{{count}} results",
     "pasteIntro": "Copyrighted Bibles such as La Biblia de las Américas can't be shipped inside a free app, but the publisher allows quoting up to 500 verses. Copy the week's passage from the site where you read it, paste it here, and ICCWorship saves it for every future service. The required credit line is added automatically.",
     "version": "Version",
     "newPasted": "Add version",
@@ -244,12 +287,10 @@
     "detect": "Detect verses",
     "notFound": "Could not find verse number(s): {{list}}. Type them in below.",
     "saveVerses": "Save verses",
-    "savedVerses": "{{count}} verses saved",
     "overLimit": "Careful: more than {{limit}} verses are stored. Ask the publisher for permission or delete old ones.",
     "stored": "saved verses",
     "usage": "{{count}} of {{limit}} verses allowed without written permission",
     "nearLimit": "Getting close to the limit — consider deleting verses you no longer need.",
-    "storedCount": "{{count}} verses stored",
     "noneStored": "No verses saved yet.",
     "pastedTitle": "Use a copyrighted Bible (LBLA, NVI, RVR1960…)",
     "pastedExplain": "Create a “paste-in” version. Each week, paste the verses you need; they are saved on this computer only and reused automatically. If the church later gets a licensed digital file, import it on the Versions tab and the limit goes away.",
@@ -275,14 +316,33 @@
     "importHelp": "For Bibles the church has the right to use: OSIS or USFX XML (for example from github.com/seven1m/open-bibles or the publisher) or ICCWorship JSON.",
     "chooseFile": "Choose file",
     "importFailed": "Import failed: {{error}}",
-    "imported": "“{{name}}” imported"
+    "importErr": {
+      "empty": "No Bible text was found in that file. Use a complete OSIS or USFX XML Bible, or an ICCWorship JSON Bible.",
+      "unsupported": "That file isn't a Bible format ICCWorship can read (OSIS, USFX or ICCWorship JSON).",
+      "id-taken": "That abbreviation belongs to a built-in Bible. Choose another abbreviation."
+    },
+    "imported": "“{{name}}” imported",
+    "results_one": "{{count}} result",
+    "results_other": "{{count}} results",
+    "savedVerses_one": "{{count}} verse saved",
+    "savedVerses_other": "{{count}} verses saved",
+    "storedCount_one": "{{count}} verse stored",
+    "storedCount_other": "{{count}} verses stored"
   },
   "media": {
     "title": "Media",
-    "added": "{{count}} files added",
+    "added_one": "{{count}} file added",
+    "added_other": "{{count}} files added",
+    "alreadyIn_one": "1 file was already in the library",
+    "alreadyIn_other": "{{count}} files were already in the library",
+    "dupTitle": "Already imported",
+    "dupText": "“{{name}}” is already in your presentations. Update it from the file (plans keep using it), or keep both?",
+    "dupUpdate": "Update",
+    "dupUpdateHelp": "Re-import into the existing presentation — plan items keep pointing at it",
+    "dupKeepHelp": "Import again as a separate presentation",
+    "dupSkippedAway": "“{{name}}” was not imported again — it is already in your presentations and the page was left before choosing",
     "converting": "Converting {{name}}…",
     "renderingPages": "Rendering page {{done}} of {{total}}…",
-    "presImported": "“{{name}}” imported — {{count}} slides",
     "textOnlyNote": "PowerPoint isn't installed, so only the text was imported. You can add translations to each slide.",
     "mediaFiles": "Videos, images and audio",
     "addFiles": "Add files",
@@ -326,8 +386,11 @@
       "ppt-needs-office": "Old .ppt files need PowerPoint or LibreOffice. Save it as .pptx or PDF and try again.",
       "failed": "Import failed.",
       "no-slides": "No slides were found in that file.",
-      "libreoffice-failed": "LibreOffice could not convert that file."
-    }
+      "libreoffice-failed": "LibreOffice could not convert that file.",
+      "damaged": "Could not import “{{name}}”: the file is damaged or is not a valid PowerPoint / PDF."
+    },
+    "presImported_one": "“{{name}}” imported — {{count}} slide",
+    "presImported_other": "“{{name}}” imported — {{count}} slides"
   },
   "themes": {
     "title": "Themes",
@@ -382,9 +445,12 @@
     "firstName": "First name",
     "lastName": "Last name",
     "confirmDelete": "Delete this person?",
+    "assignedIn_one": "They are on the team of 1 plan — that slot will become free.",
+    "assignedIn_other": "They are on the team of {{count}} plans — those slots will become free.",
     "positions": "Positions (click to remove)",
     "addPosition": "add position + Enter",
-    "members": "members",
+    "members_one": "member",
+    "members_other": "members",
     "confirmDeleteTeam": "Delete this team?",
     "addTeam": "Add team",
     "noTeams": "No teams yet — add them on the People page.",
@@ -393,13 +459,14 @@
     "private": "Private (never shown on screen)",
     "anonymous": "Anonymous",
     "prayerSlides": "Prayer requests",
-    "prayerSlidesHelp": "{{count}} open, non-private requests can be shown on screen.",
     "open": "Open",
     "answered": "Answered",
     "noRequests": "Nothing here.",
     "markAnswered": "Answered",
     "reopen": "Reopen",
-    "confirmDeleteRequest": "Delete this request?"
+    "confirmDeleteRequest": "Delete this request?",
+    "prayerSlidesHelp_one": "{{count}} open, non-private request can be shown on screen.",
+    "prayerSlidesHelp_other": "{{count}} open, non-private requests can be shown on screen."
   },
   "reports": {
     "title": "Reports",
@@ -466,12 +533,13 @@
     "restoreConfirm": "Restoring replaces current data (a safety copy is made first). Continue?",
     "restoreFailed": "That file is not an ICCWorship backup.",
     "openData": "Open data folder",
-    "autoBackups": "{{count}} backups on this computer",
     "about": "About",
     "aboutText": "Free and open-source church presentation software (MIT license). Made with love for churches that need it.",
     "credits": "Bibles included: King James Version and Reina-Valera 1909 (public domain, via the open-bibles project).",
     "dataAt": "Data folder:",
-    "showWelcome": "Show welcome again"
+    "showWelcome": "Show welcome again",
+    "autoBackups_one": "{{count}} backup on this computer",
+    "autoBackups_other": "{{count}} backups on this computer"
   },
   "help": {
     "title": "Keyboard shortcuts",
@@ -506,6 +574,7 @@
   "remote": {
     "enterPin": "Enter the PIN shown in ICCWorship → Settings",
     "wrongPin": "Wrong PIN",
+    "locked": "Too many wrong PINs — wait {{seconds}} s and try again",
     "connect": "Connect",
     "offline": "Reconnecting…",
     "black": "Black",
@@ -523,6 +592,7 @@
     "item": "Item",
     "service": "Service",
     "black": "Screen is black",
+    "logo": "Logo is showing",
     "next": "Next",
     "end": "End of plan"
   }

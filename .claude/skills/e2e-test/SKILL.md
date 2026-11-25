@@ -1,6 +1,6 @@
 ---
 name: e2e-test
-description: Run ICCWorship's end-to-end test cases (docs/e2e_testing/test-cases) against the real Electron app using the Playwright MCP servers, and write a pass/fail report. Use when the user asks to run e2e / end-to-end / QA / release tests, or to verify a feature end to end. Arguments - none (P0 only), "all", area names (live, songs, bible, lbla, plans, media, presentations, themes, messages, remote, people, settings) or test IDs like TC-LIVE-03.
+description: Run ICCWorship's end-to-end test cases (docs/e2e_testing/test-cases) against the real Electron app using the Playwright MCP servers, and write a pass/fail report. Use when the user asks to run e2e / end-to-end / QA / release tests, or to verify a feature end to end. Arguments - none (P0 only), "all", area names (live, songs, bible, lbla, plans, media, presentations, themes, messages, remote, people, settings, edge, conflicts, resilience, security, day) or test IDs like TC-LIVE-03.
 ---
 
 # ICCWorship end-to-end test run
@@ -15,7 +15,8 @@ Do **not** fix bugs during the run — record them. Read `docs/e2e_testing/READM
 
 ## 2. Pick the cases
 - Argument empty → every case tagged `P0` in `docs/e2e_testing/test-cases/*.md`.
-- `all` → every case. Area words → matching files (`live` → 02-live.md, `lbla` → 05-lbla.md, …). IDs → those cases.
+- `all` → every case. Area words → matching files (`live` → 02-live.md, `lbla` → 05-lbla.md, `edge` → 14-edge-content.md,
+  `conflicts` → 15, `resilience` → 16, `security` → 17, `day` → 18-service-day.md, …). IDs → those cases.
 - List the selected IDs to the user in one line before starting.
 
 ## 3. Start the app (fresh data)
@@ -36,10 +37,18 @@ Do **not** fix bugs during the run — record them. Read `docs/e2e_testing/READM
 - Native file dialogs: first `browser_evaluate` on the operator tab
   `await window.api.e2e.queueOpenFiles(['<absolute path>'])` or `await window.api.e2e.queueSaveFile('<absolute path>')`,
   then click the button. Fixtures: `<repo>/tests/fixtures/`. Write outputs to `<repo>/.e2e-data/`.
-- `window.confirm` prompts → `browser_handle_dialog` (accept unless the case says otherwise).
+- `window.confirm` prompts: the Playwright MCP dismisses (= cancels) a dialog when the tool call that opened it
+  ends, so `browser_handle_dialog` usually comes too late. To accept, stub it in the **same** `browser_run_code_unsafe`
+  call before clicking: `await page.evaluate(() => { window.confirm = () => true })` (restore it afterwards). Don't
+  also add a `page.on('dialog')` handler — two handlers race ("dialog already handled").
+- Never click **🖨️ Print**: it opens the native Windows print dialog, which blocks the page and hangs the MCP
+  connection (~30 min timeout). Print and **📄 PDF** use the same `runSheetHtml`, so check the PDF instead.
 - Remote PIN: `browser_evaluate` → `(await window.api.settings.get()).remotePin`.
 - Screenshot every failure and every case marked 📸; save into `docs/e2e_testing/results/`
   with names like `<runstamp>-TC-LIVE-01.png`.
+- **Setup** blocks create helper files in `<repo>/.e2e-data/tmp/` — run them *after* launching (a fresh launch wipes `.e2e-data/`).
+- Cases marked *(manual)* need hardware or a human (second monitor, laptop lid): mark them ⚠️ Blocked — manual.
+- Cases that say "Record …" have no single right answer: write what happened in Notes; fail only on a crash or data loss.
 - A case passes only if **every** expected bullet holds. If a step can't be done (missing feature, tool limit),
   mark it ⚠️ Blocked with the reason — never silently skip.
 - Keep the user posted in one short line per area (e.g. "02-live: 9/10 pass, TC-LIVE-06 fails").

@@ -1,13 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { PlanItem, Slide, Theme, Background } from '@shared/types'
-import { formatClock } from '@shared/slides'
+import { formatClock, upcomingSlideIndex } from '@shared/slides'
 import { useApp } from '../store'
 import * as live from '../liveControl'
 import { buildItem } from '../../lib/buildSlides'
 import { SlideView } from '../../components/SlideView'
 import { TYPE_ICON, fmtMin } from '../../components/ui'
 import { toMediaUrl } from '../../lib/media'
+import { itemSourceMissing } from '../../lib/planRefs'
+
+/** Replace every `{n}` placeholder in a message template. */
+function fillTemplate(text: string, n: string): string {
+  return text.replace(/\{n\}/g, n)
+}
 
 function useNow(ms = 1000) {
   const [now, setNow] = useState(Date.now())
@@ -37,6 +43,7 @@ export function LivePage() {
             {plans.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.date ? `${p.date} · ` : ''}
+                {p.time && plans.filter((x) => x.date === p.date).length > 1 ? `${p.time} · ` : ''}
                 {p.title}
               </option>
             ))}
@@ -55,6 +62,15 @@ export function LivePage() {
               </button>
             </div>
           )}
+          {plan && !plan.items.length && (
+            <div className="empty">
+              <div className="big">📝</div>
+              <p>{t('live.planEmpty')}</p>
+              <button className="btn primary" onClick={() => s.setPage('plans', plan.id)}>
+                {t('live.addItems')}
+              </button>
+            </div>
+          )}
           {plan?.items.map((item, idx) => (
             <PlanRow
               key={item.id}
@@ -63,7 +79,7 @@ export function LivePage() {
               selected={item.id === s.selectedItemId}
               isLive={item.id === liveItemInPlan}
               onSelect={() => s.selectItem(item.id)}
-              onGo={() => void live.goItem(idx)}
+              onGo={() => void live.enqueue(() => live.goItem(idx))}
             />
           ))}
         </div>
@@ -86,6 +102,8 @@ export function LivePage() {
 
 function PlanRow(p: { item: PlanItem; index: number; selected: boolean; isLive: boolean; onSelect: () => void; onGo: () => void }) {
   const { item } = p
+  const { t } = useTranslation()
+  const missing = useApp((s) => itemSourceMissing(item, s))
   const isHeader = item.type === 'header' && !item.slides?.length
   return (
     <div
@@ -96,7 +114,11 @@ function PlanRow(p: { item: PlanItem; index: number; selected: boolean; isLive: 
     >
       <span className="type-ico">{TYPE_ICON[item.type]}</span>
       <div style={{ minWidth: 0 }}>
-        <div className="ti">{item.title}</div>
+        <div className="ti">
+          {missing && <span title={t('plans.sourceMissing')} style={{ color: 'var(--warn)' }}>⚠ </span>}
+          {item.title}
+        </div>
+        {missing && <div className="meta" style={{ color: 'var(--warn)' }}>{t('plans.sourceMissing')}</div>}
         {(item.person || item.notes) && <div className="meta">{[item.person, item.notes].filter(Boolean).join(' · ')}</div>}
       </div>
       <div className="meta" style={{ textAlign: 'right' }}>
@@ -113,9 +135,9 @@ function PlanFooter() {
   return (
     <div className="col-head" style={{ borderTop: '1px solid var(--border)', borderBottom: 0 }}>
       <span className="small muted" style={{ flex: 1 }}>
-        {plan?.items.length} {t('live.items')} · {fmtMin(total)}
+        {plan?.items.length} {t('live.items', { count: plan?.items.length ?? 0 })} · {fmtMin(total)}
       </span>
-      <button className="btn sm" onClick={() => void live.nextItem()} title="Ctrl + →">
+      <button className="btn sm" onClick={() => void live.enqueue(() => live.nextItem())} title="Ctrl + →">
         {t('live.nextItem')} ⏭
       </button>
     </div>
@@ -139,13 +161,13 @@ function SlidesColumn({ item }: { item?: PlanItem }) {
       setBuilt(null)
       return
     }
-    void buildItem(item, { songs: s.songs, media: s.media, presentations: s.presentations, themes: s.themes, settings: s.settings, bibles: s.bibles }).then((b) => {
+    void buildItem(item, { songs: s.songs, media: s.media, presentations: s.presentations, themes: s.themes, settings: s.settings, bibles: s.bibles, planDate: plan?.date }).then((b) => {
       if (!cancel) setBuilt({ ...b, itemId: item.id })
     })
     return () => {
       cancel = true
     }
-  }, [item, isLiveItem, s.songs, s.media, s.presentations, s.themes, s.bibles])
+  }, [item, isLiveItem, s.songs, s.media, s.presentations, s.themes, s.bibles, plan?.date])
 
   // what to show: live slides if the selected item (or nothing selected) is live
   const showLive = isLiveItem || (!item && !!liveSt && liveSt.slides.length > 0)
@@ -168,7 +190,7 @@ function SlidesColumn({ item }: { item?: PlanItem }) {
           </button>
         )}
         {item && !isLiveItem && index >= 0 && (
-          <button className="btn sm live" onClick={() => void live.goItem(index)}>
+          <button className="btn sm live" onClick={() => void live.enqueue(() => live.goItem(index))}>
             ● {t('live.goLive')}
           </button>
         )}
@@ -188,7 +210,7 @@ function SlidesColumn({ item }: { item?: PlanItem }) {
                 <div
                   key={sl.id}
                   className={`thumb ${on ? 'live' : ''}`}
-                  onClick={() => (showLive ? void live.goSlide(i) : index >= 0 ? void live.goItem(index, i) : undefined)}
+                  onClick={() => (showLive ? void live.enqueue(() => live.goSlide(i)) : index >= 0 ? void live.enqueue(() => live.goItem(index, i)) : undefined)}
                 >
                   <div className="ratio">
                     <SlideView slide={sl} theme={theme} background={bg} displayLang={liveSt?.displayLang || 'both'} order={liveSt?.bilingualOrder || 'es-first'} thumb />
@@ -213,7 +235,8 @@ function Monitors() {
   const settings = useApp((s) => s.settings)
   if (!l?.theme) return null
   const cur = l.slideIndex >= 0 ? l.slides[l.slideIndex] : null
-  const nextSlide = l.slideIndex + 1 < l.slides.length ? l.slides[l.slideIndex + 1] : null
+  const nextIdx = upcomingSlideIndex(l)
+  const nextSlide = nextIdx >= 0 ? l.slides[nextIdx] : null
   const nextItem = !nextSlide && l.itemIndex >= 0 ? l.planItems[l.itemIndex + 1] : undefined
   const msg = l.message && (!l.message.until || l.message.until > Date.now()) ? l.message.text : undefined
   return (
@@ -253,7 +276,7 @@ function Monitors() {
             {t('live.next')}
           </div>
           <div className="small" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {nextSlide ? nextSlide.group || `#${l.slideIndex + 2}` : nextItem ? `${TYPE_ICON[nextItem.type]} ${nextItem.title}` : t('live.endOfPlan')}
+            {nextSlide ? nextSlide.group || `#${nextIdx + 1}` : nextItem ? `${TYPE_ICON[nextItem.type]} ${nextItem.title}` : t('live.endOfPlan')}
           </div>
           {cur?.notes && <div className="small muted" style={{ marginTop: 4, maxHeight: 54, overflow: 'auto' }}>📝 {cur.notes}</div>}
         </div>
@@ -278,50 +301,64 @@ function Controls() {
   const serviceElapsed = l.serviceStartedAt ? now - l.serviceStartedAt : 0
   const over = planned > 0 && itemElapsed > planned * 60_000
   const lang = settings.uiLang
+  // the video these controls act on (see live.videoSeek / videoSet)
+  const videoSrc = l.video?.src
 
   const sendTemplate = (tpl: { en: string; es: string }) => {
-    const fill = (s: string) => s.replace('{n}', num || '?')
-    const text = l.displayLang === 'en' ? fill(tpl.en) : l.displayLang === 'es' ? fill(tpl.es) : `${fill(tpl.es)}
-${fill(tpl.en)}`
-    void live.showMessage(text)
+    const fill = (s: string) => fillTemplate(s, num || '?')
+    // both languages: follow the bilingual order setting (English on top for EN-first services)
+    const both = l.bilingualOrder === 'en-first' ? [fill(tpl.en), fill(tpl.es)] : [fill(tpl.es), fill(tpl.en)]
+    const text = l.displayLang === 'en' ? fill(tpl.en) : l.displayLang === 'es' ? fill(tpl.es) : both.join('\n')
+    void live.enqueue(() => live.showMessage(text))
   }
 
   return (
     <div className="controls">
       <div className="nav-big">
-        <button className="btn lg" onClick={() => void live.prev()} title="←">
+        <button className="btn lg" onClick={() => void live.enqueue(() => live.prev())} title="←">
           ◀ {t('live.prev')}
         </button>
-        <button className="btn lg primary" onClick={() => void live.next()} title={t('live.nextTip')}>
+        <button className="btn lg primary" onClick={() => void live.enqueue(() => live.next())} title={t('live.nextTip')}>
           {t('live.nextBtn')} ▶
         </button>
       </div>
       <div className="ctl-grid">
-        <button className={`btn ${l.layers.black ? 'on live-on' : ''}`} onClick={() => void live.toggleLayer('black')}>
+        <button className={`btn ${l.layers.black ? 'on live-on' : ''}`} onClick={() => void live.enqueue(() => live.toggleLayer('black'))}>
           ⬛ {t('live.black')} <span className="kbd">B</span>
         </button>
-        <button className={`btn ${l.layers.clearText ? 'on' : ''}`} onClick={() => void live.toggleLayer('clearText')}>
+        <button className={`btn ${l.layers.clearText ? 'on' : ''}`} onClick={() => void live.enqueue(() => live.toggleLayer('clearText'))}>
           🔤 {t('live.clearText')} <span className="kbd">C</span>
         </button>
-        <button className={`btn ${l.layers.logo ? 'on' : ''}`} onClick={() => void live.toggleLayer('logo')}>
+        <button className={`btn ${l.layers.logo ? 'on' : ''}`} onClick={() => void live.enqueue(() => live.toggleLayer('logo'))}>
           ✝ {t('live.logo')} <span className="kbd">L</span>
         </button>
-        <button className="btn" onClick={() => void live.clearAll()}>
+        <button className="btn" onClick={() => void live.enqueue(() => live.clearAll())}>
           🧹 {t('live.clearAll')} <span className="kbd">Esc</span>
         </button>
       </div>
 
       {l.video && (
         <div className="card" style={{ padding: 12 }}>
+          {/* stays up (unlike the toast) while the broken video is live */}
+          {progress?.error && (
+            <div className="small" role="alert" style={{ color: 'var(--live)', marginBottom: 8 }}>
+              {t('live.videoError')}
+            </div>
+          )}
           <div className="row" style={{ marginBottom: 8 }}>
-            <button className="btn sm primary" onClick={() => void live.videoToggle()}>
+            <button className="btn sm primary" onClick={() => void live.enqueue(() => live.videoToggle())}>
               {l.video.playing ? '⏸ ' + t('live.pause') : '▶ ' + t('live.play')}
             </button>
-            <button className="btn sm" onClick={() => void live.videoSeek(0)}>
+            <button className="btn sm" onClick={() => void live.enqueue(() => live.videoSeek(0, videoSrc))}>
               ⏮
             </button>
             <label className="check small">
-              <input type="checkbox" checked={l.video.loop} onChange={(e) => void live.videoSet({ loop: e.target.checked })} /> {t('live.loop')}
+              <input type="checkbox" checked={l.video.loop} onChange={(e) => {
+                  // read now: React resets the controlled box before the queued action runs
+                  const loop = e.target.checked
+                  void live.enqueue(() => live.videoSet({ loop }, videoSrc))
+                }}
+              /> {t('live.loop')}
             </label>
             <span style={{ flex: 1 }} />
             <span className="small" style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -332,14 +369,19 @@ ${fill(tpl.en)}`
             className="progress"
             onClick={(e) => {
               const r = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
-              if (progress?.duration) void live.videoSeek(((e.clientX - r.left) / r.width) * progress.duration)
+              if (!progress?.duration) return
+              const to = ((e.clientX - r.left) / r.width) * progress.duration
+              void live.enqueue(() => live.videoSeek(to, videoSrc))
             }}
           >
             <div style={{ width: `${progress?.duration ? (progress.current / progress.duration) * 100 : 0}%` }} />
           </div>
           <div className="row" style={{ marginTop: 8 }}>
             <span className="small muted">🔊</span>
-            <input type="range" min={0} max={1} step={0.05} value={l.video.volume} onChange={(e) => void live.videoSet({ volume: +e.target.value })} style={{ flex: 1 }} />
+            <input type="range" min={0} max={1} step={0.05} value={l.video.volume} onChange={(e) => {
+                const volume = +e.target.value
+                void live.enqueue(() => live.videoSet({ volume }, videoSrc))
+              }} style={{ flex: 1 }} />
           </div>
         </div>
       )}
@@ -355,7 +397,7 @@ ${fill(tpl.en)}`
           </div>
           <div className={`val ${over ? 'over' : ''}`}>{l.itemStartedAt ? formatClock(itemElapsed) : '—'}</div>
         </div>
-        <div className="timer" onDoubleClick={() => void live.resetServiceTimer()} title={t('live.serviceTimerTip')}>
+        <div className="timer" onDoubleClick={() => void live.enqueue(() => live.resetServiceTimer())} title={t('live.serviceTimerTip')}>
           <div className="lbl">{t('live.service')}</div>
           <div className="val">{l.serviceStartedAt ? formatClock(serviceElapsed) : '—'}</div>
         </div>
@@ -366,7 +408,7 @@ ${fill(tpl.en)}`
         <input className="input" style={{ width: 70 }} placeholder="#" value={num} onChange={(e) => setNum(e.target.value)} />
         <div className="row wrap" style={{ gap: 6 }}>
           {settings.messageTemplates.map((tpl) => (
-            <button key={tpl.id} className="btn sm" onClick={() => sendTemplate(tpl)} title={lang === 'es' ? tpl.es : tpl.en}>
+            <button key={tpl.id} className="btn sm" onClick={() => sendTemplate(tpl)} title={fillTemplate(lang === 'es' ? tpl.es : tpl.en, num || '…')}>
               {(lang === 'es' ? tpl.es : tpl.en).replace(/[,:].*$/, '').replace(/#?\{n\}/g, '').trim().slice(0, 24)}
             </button>
           ))}
@@ -381,16 +423,21 @@ ${fill(tpl.en)}`
           onChange={(e) => setMsgText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && msgText.trim()) {
-              void live.showMessage(msgText.trim())
+              const text = msgText.trim()
+              void live.enqueue(() => live.showMessage(text))
               setMsgText('')
             }
           }}
         />
-        <button className="btn sm" disabled={!msgText.trim()} onClick={() => (void live.showMessage(msgText.trim()), setMsgText(''))}>
+        <button className="btn sm" disabled={!msgText.trim()} onClick={() => {
+            const text = msgText.trim()
+            void live.enqueue(() => live.showMessage(text))
+            setMsgText('')
+          }}>
           {t('live.show')}
         </button>
         {l.message && (
-          <button className="btn sm danger" onClick={() => void live.clearMessage()}>
+          <button className="btn sm danger" onClick={() => void live.enqueue(() => live.clearMessage())}>
             ✕
           </button>
         )}
@@ -404,20 +451,30 @@ ${fill(tpl.en)}`
           placeholder={t('live.stagePlaceholder')}
           value={stageText}
           onChange={(e) => setStageText(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && void live.stageMessage(stageText.trim())}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return
+            const text = stageText.trim()
+            void live.enqueue(() => live.stageMessage(text))
+          }}
         />
-        <button className="btn sm" onClick={() => void live.stageMessage(stageText.trim())}>
+        <button className="btn sm" onClick={() => {
+            const text = stageText.trim()
+            void live.enqueue(() => live.stageMessage(text))
+          }}>
           {t('live.send')}
         </button>
         {l.stageMessage && (
-          <button className="btn sm danger" onClick={() => (void live.stageMessage(''), setStageText(''))}>
+          <button className="btn sm danger" onClick={() => (void live.enqueue(() => live.stageMessage('')), setStageText(''))}>
             ✕
           </button>
         )}
       </div>
       <div className="row wrap" style={{ gap: 6 }}>
         {['wrap', 'slow', 'repeat', 'louder'].map((k) => (
-          <button key={k} className="btn sm ghost" onClick={() => void live.stageMessage(t(`stageQuick.${k}`))}>
+          <button key={k} className="btn sm ghost" onClick={() => {
+              const text = t(`stageQuick.${k}`)
+              void live.enqueue(() => live.stageMessage(text))
+            }}>
             {t(`stageQuick.${k}`)}
           </button>
         ))}

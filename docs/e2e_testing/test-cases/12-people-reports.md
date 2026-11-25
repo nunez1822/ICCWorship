@@ -17,7 +17,7 @@
 1. Prayer → add "Maria" / "Por su salud" (public) and "Juan" / "Private matter" with 🔒 Private.
 2. **Show now**.
 **Expected**
-- Text says "1 open, non-private requests…"; projector shows only Maria's request.
+- Text says "1 open, non-private request can be shown on screen."; projector shows only Maria's request.
 
 ### TC-PRY-02 · Mark answered  `P2`
 **Steps**
@@ -34,7 +34,9 @@
 
 ### TC-REP-02 · CCLI song usage  `P0`
 **Steps**
-1. Go live on two songs (one with a CCLI #, e.g. imported "E2E Test Hymn"). 2. Reports.
+1. Live page → double-click **Holy, Holy, Holy** (from the plan). 2. Songs → imported "E2E Test Hymn" (CCLI 1234567) → **Show now**.
+3. Reports → set **To** = the plan's date (plan songs are logged under the service date; Show now under today).
 **Expected**
-- Both songs listed with their CCLI # and "Times" = 1.
+- Both songs listed with their CCLI # (— when none) and "Times" = 1.
+- With **To** = today (on a weekday before the service) only E2E Test Hymn is listed.
 - `queueSaveFile('<repo>/.e2e-data/ccli.csv')` → **CSV** creates a file with header `Date,Title,CCLI Song #`.

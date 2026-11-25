@@ -2,11 +2,15 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Lang, Person, PrayerRequest, Team } from '@shared/types'
 import { uid } from '@shared/slides'
+import { localDate } from '@shared/dates'
 import { useApp } from '../store'
 import { activePlan, showAdhoc, syncPlanSummary } from '../liveControl'
 import { Field, Seg, confirmDel } from '../../components/ui'
 
 type Tab = 'people' | 'teams' | 'prayer'
+
+/** "Name: request" — without a dangling colon or "undefined" when a part is empty */
+const prayerLine = (p: { name?: string; request?: string }) => [p.name?.trim(), p.request?.trim()].filter(Boolean).join(': ')
 
 export function PeoplePage() {
   const { t } = useTranslation()
@@ -136,8 +140,14 @@ function People() {
           <button
             className="btn ghost"
             onClick={async () => {
-              if (!confirmDel(t('people.confirmDelete'))) return
+              const inPlans = s.plans.filter((p) => p.team?.some((a) => a.personId === person.id))
+              const note = inPlans.length ? '\n\n' + t('people.assignedIn', { count: inPlans.length }) : ''
+              if (!confirmDel(t('people.confirmDelete') + note)) return
               await s.remove('people', person.id)
+              // their positions stay as open slots (the run sheet shows them unfilled), so the
+              // team leader can see someone still has to be found
+              for (const p of inPlans)
+                await s.save('plans', { ...p, team: p.team.map((a) => (a.personId === person.id ? { ...a, personId: '', status: 'pending' as const } : a)), updatedAt: Date.now() })
               setSel(undefined)
             }}
           >
@@ -168,9 +178,9 @@ function Teams() {
           <Field label={t('people.positions')}>
             <div className="row wrap" style={{ gap: 6 }}>
               {tm.positions.map((p, i) => (
-                <span key={i} className="chip x" onClick={() => save({ ...tm, positions: tm.positions.filter((_, j) => j !== i) })}>
+                <button type="button" key={i} className="chip x" aria-label={`${p} ✕`} onClick={() => save({ ...tm, positions: tm.positions.filter((_, j) => j !== i) })}>
                   {p}
-                </span>
+                </button>
               ))}
               <input
                 className="input"
@@ -188,7 +198,7 @@ function Teams() {
           </Field>
           <div className="row">
             <span className="small muted" style={{ flex: 1 }}>
-              {s.people.filter((p) => p.teamIds.includes(tm.id)).length} {t('people.members')}
+              {s.people.filter((p) => p.teamIds.includes(tm.id)).length} {t('people.members', { count: s.people.filter((p) => p.teamIds.includes(tm.id)).length })}
             </span>
             <button
               className="btn sm ghost"
@@ -223,10 +233,10 @@ function Prayer() {
   const addPrayerItem = async () => {
     const plan = activePlan()
     if (!plan) return s.toast(t('songs.noActivePlan'), 'err')
-    const slides = publicOpen.map((p) => ({ title: { en: 'Prayer', es: 'Oración' }, text: { en: `${p.name}: ${p.request}`, es: `${p.name}: ${p.request}` } }))
+    const slides = publicOpen.map((p) => ({ title: { en: 'Prayer', es: 'Oración' }, text: { en: prayerLine(p), es: prayerLine(p) } }))
     await s.save('plans', { ...plan, items: [...plan.items, { id: uid(), type: 'prayer', title: t('people.prayerSlides'), slides, durationMin: 5 }], updatedAt: Date.now() })
     void syncPlanSummary()
-    s.toast(t('songs.addedToPlan', { plan: plan.title }))
+    s.toast(t('songs.addedToPlan', { plan: plan.date ? `${plan.date} · ${plan.title}` : plan.title }))
   }
 
   return (
@@ -246,7 +256,7 @@ function Prayer() {
           className="btn primary"
           disabled={!req.trim()}
           onClick={async () => {
-            await s.save('prayer', { id: uid(), name: name.trim() || t('people.anonymous'), request: req.trim(), date: new Date().toISOString().slice(0, 10), status: 'open', private: priv } satisfies PrayerRequest)
+            await s.save('prayer', { id: uid(), name: name.trim() || t('people.anonymous'), request: req.trim(), date: localDate(), status: 'open', private: priv } satisfies PrayerRequest)
             setName('')
             setReq('')
             setPriv(false)
@@ -267,7 +277,7 @@ function Prayer() {
               void showAdhoc({
                 title: t('people.prayerSlides'),
                 type: 'prayer',
-                slides: publicOpen.map((p) => ({ id: uid(), kind: 'text', title: { en: 'Prayer', es: 'Oración' }, text: { en: `${p.name}: ${p.request}`, es: `${p.name}: ${p.request}` } }))
+                slides: publicOpen.map((p) => ({ id: uid(), kind: 'text', title: { en: 'Prayer', es: 'Oración' }, text: { en: prayerLine(p), es: prayerLine(p) } }))
               })
             }
           >

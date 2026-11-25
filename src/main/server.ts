@@ -1,3 +1,4 @@
+import { connect } from 'node:net'
 import { createServer, request, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { extname, join, normalize, resolve } from 'node:path'
@@ -7,6 +8,7 @@ import QRCode from 'qrcode'
 import type { LiveState, RemoteCommand } from '@shared/types'
 import { live } from './live'
 import { getSettings } from './db'
+import { PinGuard } from './pinGuard'
 
 /**
  * Local network server for the stage display and phone remote.
@@ -57,7 +59,11 @@ function refreshAllowList(state: LiveState): void {
     const p = mediaUrlToPath(u)
     if (p) allowedFiles.add(normalize(p).toLowerCase())
   }
-  state.slides.forEach((s) => add(s.media))
+  // Cleared screen (Esc): the slides stay in the state so the operator can resume, but they
+  // are not on screen, so phones must not be able to fetch them — except the one slide the
+  // stage display previews as "Next" (the one Space puts back).
+  if (state.slideIndex >= 0) state.slides.forEach((s) => add(s.media))
+  else if (state.clearedFrom !== undefined) add(state.slides[state.clearedFrom]?.media)
   add(state.background?.value)
   add(state.logoPath ? toMediaUrl(state.logoPath) : undefined)
 }
@@ -117,6 +123,14 @@ function proxyToDev(req: IncomingMessage, res: ServerResponse, path: string): vo
   req.pipe(p)
 }
 
+/** the stage/remote pages' icon (same as in remote.html / stage.html) */
+const FAVICON = '<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%23f6b93b%22/%3E%3Cpath d=%22M44 14h12v24h22v12H56v38H44V50H22V38h22z%22 fill=%22%230b1324%22/%3E%3C/svg%3E" />'
+
+/** The church name is user text — never put it into HTML unescaped (phones load this page). */
+function escapeHtml(v: string): string {
+  return v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
+}
+
 function handle(req: IncomingMessage, res: ServerResponse): void {
   const url = new URL(req.url || '/', 'http://x')
   let path = url.pathname
@@ -125,14 +139,19 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
     if (!allowedFiles.has(normalize(p).toLowerCase())) return send(res, 403, 'Forbidden')
     return serveFile(req, res, p)
   }
+  // phones ask for /favicon.ico on every page: answer "nothing here" instead of a 404 error
+  if (path === '/favicon.ico') {
+    res.writeHead(204).end()
+    return
+  }
   if (path === '/' || path === '') {
     const s = getSettings()
     return send(
       res,
       200,
-      `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>ICCWorship</title>
+      `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>ICCWorship</title>${FAVICON}
 <style>body{font-family:system-ui;background:#0b1324;color:#fff;display:grid;place-items:center;min-height:100vh;margin:0}a{display:block;margin:12px;padding:18px 28px;border-radius:14px;background:#1d3557;color:#fff;text-decoration:none;font-size:20px;text-align:center}</style>
-<div><h1 style="text-align:center">${s.churchName || 'ICCWorship'}</h1><a href="/remote">📱 Remote / Control remoto</a><a href="/stage">🎤 Stage / Escenario</a></div>`,
+<div><h1 style="text-align:center">${escapeHtml(s.churchName || 'ICCWorship')}</h1><a href="/remote">📱 Remote / Control remoto</a><a href="/stage">🎤 Stage / Escenario</a></div>`,
       'text/html; charset=utf-8'
     )
   }
@@ -145,10 +164,42 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
   serveFile(req, res, file)
 }
 
+// PIN guessing protection (lockout after repeated wrong PINs) — see pinGuard.ts
+const pins = new PinGuard()
+
+/** sockets that passed the PIN check (stage needs none) — only they receive live data */
+const authedSockets = new WeakSet<WebSocket>()
+/** sockets that answered the last protocol ping */
+const aliveSockets = new WeakSet<WebSocket>()
+const HEARTBEAT_MS = 5000
+
 function broadcast(msg: unknown): void {
   if (!wss) return
   const data = JSON.stringify(msg)
-  for (const c of wss.clients) if (c.readyState === WebSocket.OPEN) c.send(data)
+  for (const c of wss.clients) if (c.readyState === WebSocket.OPEN && authedSockets.has(c)) c.send(data)
+}
+
+/**
+ * Heartbeat both ways. Browsers can't see protocol pings, so phones also get a small
+ * app-level "ping" message: if they hear nothing for a while they know the Wi-Fi dropped
+ * (a dead network doesn't close the socket by itself) and reconnect. Here, sockets that
+ * stop answering protocol pings are dropped so the 📱 count stays honest.
+ */
+function heartbeat(): void {
+  if (!wss) return
+  for (const c of wss.clients) {
+    if (!aliveSockets.has(c)) {
+      c.terminate()
+      continue
+    }
+    aliveSockets.delete(c)
+    try {
+      c.ping()
+    } catch {
+      /* closing */
+    }
+  }
+  broadcast({ type: 'ping', t: Date.now() })
 }
 
 function publicState(state: LiveState): LiveState {
@@ -171,25 +222,79 @@ live.on('change', (state: LiveState) => {
 })
 live.on('progress', (p) => broadcast({ type: 'progress', progress: p }))
 
-export function startServer(opts: { rendererDir: string; devUrl?: string }): Promise<{ ok: boolean; error?: string }> {
+/**
+ * Is something else already answering on this port (IPv4 or IPv6)? Windows lets two
+ * programs listen on the same port when one uses IPv6 ([::]) and the other IPv4
+ * (0.0.0.0), so listen() succeeds and phones silently reach the wrong program.
+ */
+function portAnswers(port: number): Promise<boolean> {
+  const probe = (host: string) =>
+    new Promise<boolean>((res) => {
+      const sock = connect({ host, port })
+      const finish = (v: boolean) => {
+        sock.destroy()
+        res(v)
+      }
+      sock.setTimeout(400, () => finish(false))
+      sock.once('connect', () => finish(true))
+      sock.once('error', () => finish(false))
+    })
+  return Promise.all([probe('127.0.0.1'), probe('::1')]).then((r) => r.some(Boolean))
+}
+
+/**
+ * Starts run one at a time (the settings port field restarts on every keystroke). Each
+ * start gets a generation number; a start that a newer start or a stop has replaced gives
+ * up instead of creating a second server that nothing would ever close.
+ */
+let gen = 0
+let serverOp: Promise<unknown> = Promise.resolve()
+type StartResult = { ok: boolean; error?: string }
+
+export function startServer(opts: { rendererDir: string; devUrl?: string }): Promise<StartResult> {
+  const my = ++gen
+  const run = serverOp.then(() => doStart(opts, my))
+  serverOp = run.catch(() => undefined)
+  return run
+}
+
+async function doStart(opts: { rendererDir: string; devUrl?: string }, my: number): Promise<StartResult> {
+  const superseded: StartResult = { ok: false, error: 'superseded' }
+  if (my !== gen) return superseded
   rendererDir = opts.rendererDir
   devUrl = opts.devUrl
+  teardown()
+  await closing // our own previous server must be fully closed before probing the port
+  if (my !== gen) return superseded
+  const settings = getSettings()
+  if (settings.serverEnabled && (await portAnswers(settings.serverPort))) return { ok: false, error: 'EADDRINUSE' }
+  if (my !== gen) return superseded
   return new Promise((done) => {
-    stopServer()
     const s = getSettings()
     if (!s.serverEnabled) return done({ ok: false, error: 'disabled' })
     server = createServer(handle)
     wss = new WebSocketServer({ server, path: '/ws' })
+    const hb = setInterval(heartbeat, HEARTBEAT_MS)
+    wss.on('close', () => clearInterval(hb))
     wss.on('connection', (ws, req) => {
+      aliveSockets.add(ws)
+      ws.on('pong', () => aliveSockets.add(ws))
       const u = new URL(req.url || '/', 'http://x')
       const role = u.searchParams.get('role') === 'remote' ? 'remote' : 'stage'
       const pin = u.searchParams.get('pin') || ''
-      const authed = role === 'stage' || pin === getSettings().remotePin
-      ws.send(JSON.stringify({ type: 'hello', role, authed, uiLang: getSettings().uiLang }))
+      const ip = req.socket.remoteAddress || '?'
+      const lock = role === 'remote' ? pins.lockedFor(ip) : 0
+      const authed = role === 'stage' || (lock === 0 && pin === getSettings().remotePin)
+      if (role === 'remote') {
+        if (authed) pins.succeed(ip)
+        else if (lock === 0) pins.fail(ip)
+      }
+      ws.send(JSON.stringify({ type: 'hello', role, authed, locked: role === 'remote' && !authed ? Math.ceil(pins.lockedFor(ip) / 1000) : 0, uiLang: getSettings().uiLang }))
       if (!authed) {
         setTimeout(() => ws.close(), 200)
         return
       }
+      authedSockets.add(ws)
       ws.send(JSON.stringify({ type: 'state', state: publicState(live.state) }))
       ws.on('message', (raw) => {
         if (role !== 'remote') return
@@ -202,6 +307,8 @@ export function startServer(opts: { rendererDir: string; devUrl?: string }): Pro
       })
     })
     server.once('error', (e: NodeJS.ErrnoException) => {
+      wss?.close() // its 'close' handler stops the heartbeat
+      wss = null
       server = null
       done({ ok: false, error: e.code || String(e) })
     })
@@ -209,10 +316,21 @@ export function startServer(opts: { rendererDir: string; devUrl?: string }): Pro
   })
 }
 
+let closing: Promise<void> = Promise.resolve()
+/** stop the server and cancel any start still in progress */
 export function stopServer(): void {
+  gen++
+  teardown()
+}
+
+function teardown(): void {
   wss?.clients.forEach((c) => c.terminate())
   wss?.close()
-  server?.close()
+  const srv = server
+  if (srv) {
+    closing = new Promise((r) => srv.close(() => r()))
+    srv.closeAllConnections?.() // keep-alive sockets would otherwise hold close() open
+  }
   wss = null
   server = null
 }

@@ -113,7 +113,7 @@ function Lookup({ refText, setRefText, onPasteMissing }: { refText: string; setR
       updatedAt: Date.now()
     })
     void syncPlanSummary()
-    s.toast(t('songs.addedToPlan', { plan: plan.title }))
+    s.toast(t('songs.addedToPlan', { plan: plan.date ? `${plan.date} · ${plan.title}` : plan.title }))
   }
 
   const pInfo = s.bibles.find((b) => b.id === primary)
@@ -129,18 +129,43 @@ function Lookup({ refText, setRefText, onPasteMissing }: { refText: string; setR
           {suggestions.length > 0 && (
             <div className="row wrap" style={{ gap: 6, marginTop: 6 }}>
               {suggestions.map((b) => (
-                <span key={b} className="chip" onClick={() => setRefText(b + ' ')}>
+                <button type="button" key={b} className="chip" onClick={() => setRefText(b + ' ')}>
                   {b}
-                </span>
+                </button>
               ))}
             </div>
           )}
         </Field>
         <Field label={t('bible.primary')}>
-          <VersionSelect value={primary} onChange={setPrimary} bibles={s.bibles} />
+          <VersionSelect
+            value={primary}
+            onChange={(v) => {
+              // picking the second language's version as main swaps them (never the same text twice)
+              if (v && v === secondary) setSecondary(primary)
+              setPrimary(v)
+            }}
+            bibles={s.bibles}
+          />
         </Field>
         <Field label={t('bible.secondary')}>
-          <VersionSelect value={secondary} onChange={setSecondary} allowNone bibles={s.bibles} />
+          <VersionSelect
+            value={secondary}
+            onChange={(v) => {
+              if (v && v === primary) {
+                // swap; with no second version yet, the main one moves to another version
+                // (the usual other language first), so the same text never shows twice —
+                // only an installed one (a default in Settings may have been deleted since)
+                const other =
+                  secondary ||
+                  [s.settings.bibleEs, s.settings.bibleEn, ...s.bibles.map((b) => b.id)].find((id) => id && id !== v && s.bibles.some((b) => b.id === id))
+                if (!other) return
+                setPrimary(other)
+              }
+              setSecondary(v)
+            }}
+            allowNone
+            bibles={s.bibles}
+          />
         </Field>
       </div>
       {parsed && !parsed.ok && <div style={{ color: 'var(--live)' }}>⚠ {t(`bible.err.${parsed.error}`)}</div>}
@@ -154,10 +179,12 @@ function Lookup({ refText, setRefText, onPasteMissing }: { refText: string; setR
             <button className="btn live" onClick={() => void show()} disabled={!res.p.ok && !res.s?.ok}>
               ● {t('common.showNow')}
             </button>
-            <button className="btn" onClick={() => void add()}>
+            <button className="btn" onClick={() => void add()} disabled={!res.p.verses.length && !res.s?.verses.length && pInfo?.source !== 'pasted'}>
               ＋ {t('songs.addToPlan')}
             </button>
           </div>
+          {/* e.g. "Juan 3:99": a valid-looking reference that matches no verse */}
+          {!res.p.verses.length && !res.s?.verses.length && pInfo?.source !== 'pasted' && <div style={{ color: 'var(--live)' }}>⚠ {t('bible.err.notFound')}</div>}
           {missing.length > 0 && pInfo?.source === 'pasted' && (
             <div className="card row" style={{ borderColor: 'var(--warn)' }}>
               <span style={{ flex: 1 }}>
@@ -351,13 +378,17 @@ function PasteVerses({ initialRef }: { initialRef: string }) {
           </h3>
           {limit > 0 ? (
             <>
-              <div className={`meter ${count > limit * 0.85 ? 'warn' : ''}`}>
+              <div className={`meter ${count > limit ? 'over' : count > limit * 0.85 ? 'warn' : ''}`}>
                 <div style={{ width: `${Math.min(100, (count / limit) * 100)}%` }} />
               </div>
               <div className="small" style={{ marginTop: 6 }}>
                 {t('bible.usage', { count, limit })}
               </div>
-              {count > limit * 0.85 && <div className="small" style={{ color: 'var(--warn)', marginTop: 4 }}>{t('bible.nearLimit')}</div>}
+              {count > limit ? (
+                <div className="small" style={{ color: 'var(--live)', marginTop: 4 }}>{t('bible.overLimit', { limit })}</div>
+              ) : (
+                count > limit * 0.85 && <div className="small" style={{ color: 'var(--warn)', marginTop: 4 }}>{t('bible.nearLimit')}</div>
+              )}
             </>
           ) : (
             <div className="small">{t('bible.storedCount', { count })}</div>
@@ -545,7 +576,10 @@ function Versions() {
             onClick={async () => {
               const r = await window.api.bible.importFile(meta)
               if (r.canceled) return
-              if (!r.ok) return s.toast(t('bible.importFailed', { error: r.error }), 'err')
+              if (!r.ok) {
+                const known = ['empty', 'unsupported', 'id-taken'].includes(r.error || '')
+                return s.toast(known ? t(`bible.importErr.${r.error}`) : t('bible.importFailed', { error: r.error }), 'err', 10_000)
+              }
               await s.refreshBibles()
               s.toast(t('bible.imported', { name: r.info?.name }))
             }}

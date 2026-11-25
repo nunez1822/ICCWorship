@@ -3,21 +3,28 @@ import { useTranslation } from 'react-i18next'
 import type { SongUsage } from '@shared/types'
 import { useApp } from '../store'
 import { Field } from '../../components/ui'
-import { usageCsv } from '../../lib/print'
+import { dedupeUsage, usageCsv } from '../../lib/print'
+import { localDate } from '@shared/dates'
 
 export function ReportsPage() {
   const { t } = useTranslation()
   const s = useApp()
   const year = new Date().getFullYear()
   const [from, setFrom] = useState(`${year}-01-01`)
-  const [to, setTo] = useState(new Date().toISOString().slice(0, 10))
+  const [to, setTo] = useState(localDate())
   const [usage, setUsage] = useState<SongUsage[]>([])
 
   useEffect(() => {
     void window.api.db.list<SongUsage>('usage').then(setUsage)
   }, [])
 
-  const plans = useMemo(() => s.plans.filter((p) => !p.isTemplate && p.date >= from && p.date <= to).sort((a, b) => a.date.localeCompare(b.date)), [s.plans, from, to])
+  // a service counts once it has happened (date not in the future) or has numbers entered
+  const plans = useMemo(() => {
+    const today = localDate()
+    return s.plans
+      .filter((p) => !p.isTemplate && p.date >= from && p.date <= to && (p.date <= today || !!p.attendance || !!p.offering))
+      .sort((a, b) => a.date.localeCompare(b.date))
+  }, [s.plans, from, to])
   const months = useMemo(() => {
     const m = new Map<string, { attendance: number; offering: number; services: number }>()
     for (const p of plans) {
@@ -31,7 +38,7 @@ export function ReportsPage() {
     return [...m.entries()]
   }, [plans])
   const maxAtt = Math.max(1, ...plans.map((p) => p.attendance || 0))
-  const inRange = usage.filter((u) => u.date >= from && u.date <= to).sort((a, b) => a.date.localeCompare(b.date))
+  const inRange = dedupeUsage(usage).filter((u) => u.date >= from && u.date <= to).sort((a, b) => a.date.localeCompare(b.date))
   const songCounts = useMemo(() => {
     const m = new Map<string, { title: string; ccli?: string; count: number }>()
     for (const u of inRange) {
@@ -117,7 +124,7 @@ export function ReportsPage() {
             <button
               className="btn sm"
               disabled={!inRange.length}
-              onClick={() => void window.api.files.saveText(`CCLI-song-usage-${from}-${to}.csv`, usageCsv(inRange), [{ name: 'CSV', extensions: ['csv'] }])}
+              onClick={() => void window.api.files.saveText(`CCLI-song-usage-${from}-${to}.csv`, usageCsv(inRange), [{ name: 'CSV', extensions: ['csv'] }]).then((f) => f && s.toast(t('common.savedTo', { file: f })))}
             >
               ⬇ CSV
             </button>

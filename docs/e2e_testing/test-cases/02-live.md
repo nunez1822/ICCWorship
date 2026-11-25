@@ -33,7 +33,7 @@ Default start: welcome finished (English), Live page, sample plan selected.
 **Steps**
 1. `B` → check projector → `B`.  2. `C` → check → `C`.  3. `L` → check → `L`.  4. `Esc`.
 **Expected**
-- B: projector fully black; Live monitor shows "Black" pill. Pressing again restores the slide.
+- B: projector fully black; Live monitor shows "Black" pill and the top bar "⬛ Screen is black". Pressing again restores the slide.
 - C: background stays, lyrics disappear. L: black screen with church name "E2E Test Church" in gold.
 - Esc: no slide live (background only), top bar shows "Off air".
 

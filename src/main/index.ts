@@ -2,14 +2,15 @@ import { app, BrowserWindow, dialog, ipcMain, protocol, screen, shell, type Disp
 import { createReadStream, existsSync, statSync, writeFileSync, readFileSync } from 'node:fs'
 import { extname, join } from 'node:path'
 import { Readable } from 'node:stream'
-import type { LiveState, RemoteCommand, Settings } from '@shared/types'
-import { db, getSettings, isCollection, seedIfEmpty, setSettings } from './db'
+import type { LiveState, RemoteCommand, Settings, VideoEndedCommand } from '@shared/types'
+import { COLLECTIONS, db, getSettings, isCollection, seedIfEmpty, setSettings } from './db'
 import * as bible from './bible'
 import { live } from './live'
 import { mediaUrlToPath, serverInfo, setCommandHandler, startServer, stopServer } from './server'
 import { deletePresentation, detectConverters, importImages, importPresentation, savePdfPages } from './presentations'
 import { autoBackup, createBackup, defaultBackupName, listBackups, restoreBackup } from './backup'
 import { dataRoot, resourcesDir } from './paths'
+import { decodeText } from '@shared/textDecode'
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'media', privileges: { secure: true, standard: true, supportFetchAPI: true, stream: true, bypassCSP: true, corsEnabled: true } }
@@ -204,7 +205,7 @@ live.on('progress', (p) => {
   stageWin?.webContents.send('live:progress', p)
 })
 
-function forwardCommand(cmd: RemoteCommand | { type: 'videoEnded' }): void {
+function forwardCommand(cmd: RemoteCommand | VideoEndedCommand): void {
   operator?.webContents.send('remote:command', cmd)
 }
 
@@ -230,6 +231,24 @@ function registerIpc(): void {
   const h = ipcMain.handle.bind(ipcMain)
 
   // database
+  // hand the startup problems over once (the operator may initialise more than once)
+  // read every collection first: one the operator doesn't load at startup (the CCLI usage
+  // log) would otherwise be found damaged later, after this report — and never shown
+  h('db:problems', () => {
+    for (const c of COLLECTIONS) db().list(c)
+    return db().problems.splice(0)
+  })
+  {
+    // a failed save (read-only file, disk full…) must reach the operator, not crash main
+    const lastWarn = new Map<string, number>()
+    db().onWriteError = (name, error) => {
+      console.error('could not save', name, error)
+      const now = Date.now()
+      if (now - (lastWarn.get(name) || 0) < 10_000) return
+      lastWarn.set(name, now)
+      operator?.webContents.send('db:writeError', { name, message: (error as NodeJS.ErrnoException).code || error.message })
+    }
+  }
   h('db:list', (_e, c: string) => (isCollection(c) ? db().list(c) : []))
   h('db:get', (_e, c: string, id: string) => (isCollection(c) ? db().get(c, id) : undefined))
   h('db:upsert', (_e, c: string, item: { id: string }) => (isCollection(c) ? db().upsert(c, item) : item))
@@ -278,11 +297,12 @@ function registerIpc(): void {
 
   // live
   h('live:get', () => live.state)
-  h('live:update', (_e, patch: Partial<LiveState>) => {
-    live.update(patch)
-  })
+  h('live:update', (_e, patch: Partial<LiveState>) => live.update(patch))
   ipcMain.on('output:progress', (_e, p) => live.progress(p))
-  ipcMain.on('output:ended', () => forwardCommand({ type: 'videoEnded' }))
+  ipcMain.on('output:ended', (_e, info: { itemId?: unknown; src?: unknown }) => {
+    if (typeof info?.src !== 'string') return
+    forwardCommand({ type: 'videoEnded', src: info.src, itemId: typeof info.itemId === 'string' ? info.itemId : undefined })
+  })
   ipcMain.on('stage:command', (_e, cmd: RemoteCommand) => forwardCommand(cmd))
 
   // displays / windows
@@ -305,7 +325,7 @@ function registerIpc(): void {
     return r.canceled ? [] : r.filePaths
   })
   h('file:exists', (_e, paths: string[]) => paths.map((p) => existsSync(p)))
-  h('file:readText', (_e, p: string) => readFileSync(p, 'utf8').replace(/^﻿/, ''))
+  h('file:readText', (_e, p: string) => decodeText(readFileSync(p)))
   h('file:saveText', async (_e, name: string, content: string, filters?: Electron.FileFilter[]) => {
     const r = await saveDialog( { defaultPath: name, filters })
     if (r.canceled || !r.filePath) return null
@@ -375,7 +395,7 @@ function registerIpc(): void {
 }
 
 async function restartServer(): Promise<{ ok: boolean; error?: string }> {
-  stopServer()
+  // startServer stops the old server itself, in turn with any other restart
   const r = await startServer({ rendererDir, devUrl })
   operator?.webContents.send('server:status', r)
   return r
@@ -385,7 +405,9 @@ async function restartServer(): Promise<{ ok: boolean; error?: string }> {
 app.setAppUserModelId('org.iccworship.app')
 
 const single = app.requestSingleInstanceLock()
-if (!single) app.quit()
+// Second launch (double-clicked icon while running): hand over to the first instance
+// and exit immediately. app.quit() before 'ready' left helper processes running.
+if (!single) app.exit(0)
 app.on('second-instance', () => {
   if (operator) {
     if (operator.isMinimized()) operator.restore()
@@ -394,6 +416,7 @@ app.on('second-instance', () => {
 })
 
 app.whenReady().then(async () => {
+  if (!single) return
   registerMediaProtocol()
   seedIfEmpty()
   live.init()

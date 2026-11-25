@@ -1,5 +1,5 @@
 import type { Background, MediaItem, PlanItem, Presentation, Settings, Slide, Song, Theme, BibleVersionInfo } from '@shared/types'
-import { notesToSlides, scriptureToSlides, songToSlides, targetTimeToday, uid } from '@shared/slides'
+import { countdownTarget, notesToSlides, scriptureToSlides, songToSlides, uid } from '@shared/slides'
 import { backgroundFromMedia, isVideoUrl, toMediaUrl } from './media'
 
 export interface BuildContext {
@@ -9,6 +9,8 @@ export interface BuildContext {
   themes: Theme[]
   settings: Settings
   bibles: BibleVersionInfo[]
+  /** the plan's date (YYYY-MM-DD): a "count down to HH:MM" aims at that day */
+  planDate?: string
 }
 
 export interface BuiltItem {
@@ -24,9 +26,25 @@ export function themeFor(item: Pick<PlanItem, 'themeId'> | undefined, ctx: Build
   return ctx.themes.find((t) => t.id === item?.themeId) || ctx.themes.find((t) => t.id === ctx.settings.defaultThemeId) || ctx.themes[0]
 }
 
+const FALLBACK_BACKGROUND: Background = {
+  type: 'gradient',
+  value: 'radial-gradient(ellipse at 50% 30%, #1d3557 0%, #0b1324 70%, #05080f 100%)'
+}
+
+/**
+ * The theme's background, unless it is an image/video that was removed from the media
+ * library — then the built-in gradient, so the screen matches what the Themes page shows
+ * ("—") instead of quietly playing a file the church took out of the app.
+ */
+export function themeBackground(theme: Theme, media: MediaItem[]): Background {
+  const bg = theme.background
+  if (bg.type !== 'image' && bg.type !== 'video') return bg
+  return media.some((m) => toMediaUrl(m.path) === bg.value) ? bg : { ...FALLBACK_BACKGROUND, dim: bg.dim }
+}
+
 export async function buildItem(item: PlanItem, ctx: BuildContext): Promise<BuiltItem> {
   const theme = themeFor(item, ctx)
-  let background: Background | null = theme.background
+  let background: Background | null = themeBackground(theme, ctx.media)
   if (item.backgroundMediaId) {
     const m = ctx.media.find((x) => x.id === item.backgroundMediaId)
     if (m) background = backgroundFromMedia(m.path, theme.background.dim ?? 0.35) || background
@@ -83,7 +101,7 @@ export async function buildItem(item: PlanItem, ctx: BuildContext): Promise<Buil
     }
     case 'countdown': {
       const c = item.countdown || { mode: 'duration', minutes: 5 }
-      const to = c.mode === 'time' && c.time ? targetTimeToday(c.time) : Date.now() + (c.minutes || 5) * 60_000
+      const to = c.mode === 'time' && c.time ? countdownTarget(c.time, ctx.planDate) : Date.now() + (c.minutes || 5) * 60_000
       return { ...base, slides: [{ id: uid(), kind: 'countdown', countdownTo: to, countdownLabel: c.label }] }
     }
     case 'blank':

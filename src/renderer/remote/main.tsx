@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import '../i18n'
 import { pickLangs } from '@shared/slides'
@@ -32,10 +32,20 @@ function Remote() {
   const { t } = useTranslation()
   const [pin, setPin] = useState(readPin)
   const [entry, setEntry] = useState('')
-  const { state, status, send } = useLiveFeed('remote', pin)
+  const { state, status, send, lockedSec } = useLiveFeed('remote', pin)
   const [tab, setTab] = useState<'slides' | 'plan' | 'msg'>('slides')
   const [msg, setMsg] = useState('')
   const [stageMsg, setStageMsg] = useState('')
+
+  // Opening a new #pin=… link in an already-open tab (e.g. scanning the QR code again)
+  // only changes the hash — no page load — so pick the new PIN up here.
+  useEffect(() => {
+    const onHash = () => {
+      if (/pin=\d+/.test(location.hash)) setPin(readPin())
+    }
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
 
   if (status === 'badpin' || !pin) {
     return (
@@ -51,7 +61,7 @@ function Remote() {
           onKeyDown={(e) => e.key === 'Enter' && submit()}
           autoFocus
         />
-        {pin && status === 'badpin' && <div className="r-err">{t('remote.wrongPin')}</div>}
+        {pin && status === 'badpin' && <div className="r-err">{lockedSec ? t('remote.locked', { seconds: lockedSec }) : t('remote.wrongPin')}</div>}
         <button className="r-btn primary" onClick={submit}>
           {t('remote.connect')}
         </button>
@@ -65,7 +75,11 @@ function Remote() {
     } catch {
       /* ignore */
     }
-    setPin(entry)
+    // Re-submitting the same PIN (e.g. after a lockout) must still reconnect.
+    if (entry === pin) {
+      setPin('')
+      setTimeout(() => setPin(entry), 0)
+    } else setPin(entry)
   }
 
   if (!state) return <div className="r-pin">{status === 'offline' ? t('remote.offline') : '…'}</div>
@@ -74,8 +88,10 @@ function Remote() {
   const txt = pickLangs(cur?.text, state.displayLang, state.bilingualOrder)
   const title = pickLangs(cur?.title, state.displayLang, state.bilingualOrder)
 
+  const online = status === 'online'
   return (
-    <div className="r">
+    <div className={`r ${online ? '' : 'is-offline'}`}>
+      {!online && <div className="r-offline">⚠ {t('remote.offline')}</div>}
       <header className="r-head">
         <span className={`r-dot ${status === 'online' ? 'on' : ''}`} />
         <div className="r-title">
@@ -103,7 +119,7 @@ function Remote() {
             {txt.secondary && <div className="sec">{txt.secondary}</div>}
           </>
         )}
-        <span className="r-count">{state.slides.length ? `${state.slideIndex + 1}/${state.slides.length}` : ''}</span>
+        <span className="r-count">{state.slides.length && state.slideIndex >= 0 ? `${state.slideIndex + 1}/${state.slides.length}` : ''}</span>
       </div>
 
       <div className="r-nav">

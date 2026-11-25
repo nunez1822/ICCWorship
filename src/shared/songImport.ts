@@ -259,8 +259,10 @@ export function songFromOpenLyrics(xml: string): Song {
     if (lang.startsWith('es')) song.titleEs = val
     else if (song.title === 'Untitled') song.title = val
   }
-  if (song.title === 'Untitled' && song.titleEs) song.title = song.titleEs
-  const authors = [...xml.matchAll(/<author[^>]*>([\s\S]*?)<\/author>/g)].map((m) => xmlDecode(m[1].trim()))
+  // only a Spanish title: a one-language Spanish song (same as a Spanish-only paste), not
+  // the same name twice as "Cuán Grande / Cuán Grande"
+  if (song.title === 'Untitled' && song.titleEs) song.title = ''
+  const authors = [...xml.matchAll(/<author(?=[\s>])[^>]*>([\s\S]*?)<\/author>/g)].map((m) => xmlDecode(m[1].trim()))
   if (authors.length) song.author = authors.join(', ')
   const cr = /<copyright>([\s\S]*?)<\/copyright>/.exec(xml)
   if (cr) song.copyright = xmlDecode(cr[1].trim())
@@ -310,6 +312,16 @@ export function songFromOpenLyrics(xml: string): Song {
 }
 
 /** OpenLyrics export (bilingual) so songs can be shared with other ICCWorship / OpenLP users */
+/** a name for a song with no title: its first lyric line, else "Untitled" */
+function untitledName(song: Song): string {
+  for (const sec of song.sections)
+    for (const l of ['en', 'es'] as const) {
+      const line = sec[l].split('\n').find((x) => x.trim())
+      if (line) return line.trim()
+    }
+  return 'Untitled'
+}
+
 export function songToOpenLyrics(song: Song): string {
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   const name = (s: SongSection, i: number) => {
@@ -326,11 +338,22 @@ export function songToOpenLyrics(song: Song): string {
     )
     .join('\n')
   const order = (song.arrangement.length ? song.arrangement : song.sections.map((s) => s.id)).map((id) => names.get(id)).filter(Boolean).join(' ')
+  // a one-language Spanish song has no English title: write only the titles it has (an empty
+  // <title> makes other OpenLyrics apps show it as untitled)
+  const titlesXml =
+    [
+      song.title?.trim() ? `<title lang="en">${esc(song.title)}</title>` : '',
+      song.titleEs?.trim() ? `<title lang="es">${esc(song.titleEs)}</title>` : ''
+    ]
+      .filter(Boolean)
+      .join('\n      ') ||
+    // no title at all: OpenLyrics requires one — name it by its first lyric line, as hymnals do
+    `<title>${esc(untitledName(song))}</title>`
   return `<?xml version="1.0" encoding="UTF-8"?>
 <song xmlns="http://openlyrics.info/namespace/2009/song" version="0.9" createdIn="ICCWorship">
   <properties>
     <titles>
-      <title lang="en">${esc(song.title)}</title>${song.titleEs ? `\n      <title lang="es">${esc(song.titleEs)}</title>` : ''}
+      ${titlesXml}
     </titles>${song.author ? `\n    <authors><author>${esc(song.author)}</author></authors>` : ''}${song.copyright ? `\n    <copyright>${esc(song.copyright)}</copyright>` : ''}${song.ccli ? `\n    <ccliNo>${esc(song.ccli)}</ccliNo>` : ''}
     <verseOrder>${order}</verseOrder>
   </properties>
@@ -341,10 +364,100 @@ ${verses}
 `
 }
 
+/** Why a song file could not be imported — mapped to a translated message by the UI. */
+export class SongImportError extends Error {
+  constructor(public code: 'empty' | 'notSong' | 'damaged' | 'noLyrics') {
+    super(code)
+  }
+}
+
+/** NUL bytes, or more than 2% control characters (other than tab / line breaks), in the first 8 KB */
+export function looksBinary(content: string): boolean {
+  const head = content.slice(0, 8192)
+  if (head.includes('\u0000')) return true
+  let ctl = 0
+  for (let i = 0; i < head.length; i++) {
+    const c = head.charCodeAt(i)
+    if ((c < 32 && c !== 9 && c !== 10 && c !== 13) || (c >= 0x7f && c < 0xa0) || c === 0xfffd) ctl++
+  }
+  return head.length > 0 && ctl / head.length > 0.02
+}
+
 export function detectAndParseSongFile(name: string, content: string): Song {
   const lower = name.toLowerCase()
-  if (lower.endsWith('.xml') || /<song[\s>]/.test(content.slice(0, 500))) return songFromOpenLyrics(content)
-  if (/\.(cho|chopro|chordpro|crd|pro)$/.test(lower) || /\{\s*(title|t)\s*:/.test(content)) return songFromChordPro(content)
-  const title = name.replace(/\.[^.]+$/, '')
-  return songFromPlainText(title, content)
+  if (!content.trim()) throw new SongImportError('empty')
+  // A picture, video, PDF… picked by mistake decodes to text full of control characters;
+  // without this check the plain-text fallback would turn it into a "song" of garbage.
+  if (looksBinary(content)) throw new SongImportError('notSong')
+  let song: Song
+  if (lower.endsWith('.xml') || /<song[\s>]/.test(content.slice(0, 500))) {
+    if (!/<song[\s>]/.test(content)) throw new SongImportError('notSong') // some other XML file
+    if (!/<\/song>\s*$/.test(content.trim())) throw new SongImportError('damaged') // cut off / broken
+    song = songFromOpenLyrics(content)
+  } else if (/\.(cho|chopro|chordpro|crd|pro)$/.test(lower) || /\{\s*(title|t)\s*:/.test(content)) song = songFromChordPro(content)
+  else song = songFromPlainText(name.replace(/\.[^.]+$/, ''), content)
+  // never create an empty "Untitled" song from a file that had no lyrics in it
+  if (!song.sections.some((s) => s.en.trim() || s.es.trim())) throw new SongImportError('noLyrics')
+  return song
+}
+
+// ------------------------------------------------------------------------------------------
+// Duplicates on import (Skip / Replace / Keep both, like EasyWorship and ProPresenter)
+// ------------------------------------------------------------------------------------------
+
+const normKey = (x?: string) =>
+  (x || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+
+const firstLine = (s: Song) => {
+  for (const sec of s.sections) for (const t of [sec.en, sec.es]) {
+    const l = (t || '').split('\n').find((x) => x.trim())
+    if (l) return normKey(l)
+  }
+  return ''
+}
+
+/**
+ * The library song an imported song duplicates: same CCLI number, or the same title (either
+ * language) and the same first lyric line. Different songs that share a title don't match.
+ */
+export function findDuplicateSong(song: Song, library: Song[]): Song | undefined {
+  const ccli = (song.ccli || '').trim()
+  if (ccli) {
+    const byCcli = library.find((x) => (x.ccli || '').trim() === ccli)
+    if (byCcli) return byCcli
+  }
+  const titles = [song.title, song.titleEs].map(normKey).filter(Boolean)
+  const line = firstLine(song)
+  return library.find((x) => {
+    const xt = [x.title, x.titleEs].map(normKey).filter(Boolean)
+    return xt.some((t) => titles.includes(t)) && firstLine(x) === line
+  })
+}
+
+/**
+ * Name a "Keep both" copy so it clashes neither with the library nor with copies made
+ * earlier in the same import (one-language Spanish songs are named by their Spanish
+ * title). The new name is added to `taken`.
+ */
+export function nameCopy(song: Song, taken: { titles: string[]; titlesEs: string[] }): Song {
+  const copy = { ...song }
+  if (copy.title) copy.title = copyTitle(copy.title, taken.titles)
+  else if (copy.titleEs) copy.titleEs = copyTitle(copy.titleEs, taken.titlesEs)
+  taken.titles.push(copy.title)
+  taken.titlesEs.push(copy.titleEs || '')
+  return copy
+}
+
+/** "Title (2)", "Title (3)"… — first free name for a kept copy */
+export function copyTitle(title: string, taken: string[]): string {
+  const set = new Set(taken.map((x) => x.toLowerCase()))
+  for (let n = 2; ; n++) {
+    const name = `${title} (${n})`
+    if (!set.has(name.toLowerCase())) return name
+  }
 }

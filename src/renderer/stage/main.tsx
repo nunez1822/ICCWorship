@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import '../i18n'
-import { formatClock, pickLangs, stripChords } from '@shared/slides'
+import { formatClock, pickLangs, stripChords, upcomingSlideIndex } from '@shared/slides'
 import type { Slide } from '@shared/types'
 import { useLiveFeed } from '../lib/liveFeed'
 import './stage.css'
@@ -29,7 +29,8 @@ function Stage() {
   if (!state) return <div className="stage-wait">{status === 'offline' ? t('stage.offline') : '…'}</div>
 
   const cur = state.slideIndex >= 0 ? state.slides[state.slideIndex] : undefined
-  const next = state.slideIndex + 1 < state.slides.length ? state.slides[state.slideIndex + 1] : undefined
+  const nextIdx = upcomingSlideIndex(state)
+  const next = nextIdx >= 0 ? state.slides[nextIdx] : undefined
   const nextItem = !next && state.itemIndex >= 0 ? state.planItems[state.itemIndex + 1] : undefined
   const planned = state.planItems.find((i) => i.id === state.itemId)?.durationMin || 0
   const itemMs = state.itemStartedAt ? now - state.itemStartedAt : 0
@@ -39,6 +40,7 @@ function Stage() {
 
   return (
     <div className="stage">
+      {status === 'offline' && <div className="stage-offline">⚠ {t('stage.offline')}</div>}
       <header className="stage-top">
         <div className="stage-clock">{new Date(now).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</div>
         <div className="stage-item">
@@ -77,6 +79,7 @@ function Stage() {
       <main className="stage-main">
         <section className="stage-current">
           {state.layers.black && <div className="stage-flag">⬛ {t('stage.black')}</div>}
+          {state.layers.logo && !state.layers.black && <div className="stage-flag">✝ {t('stage.logo')}</div>}
           <StageSlide slide={cur} state={state} chords={chords && hasChords} big />
         </section>
         <aside className="stage-next">

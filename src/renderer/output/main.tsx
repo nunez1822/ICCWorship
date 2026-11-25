@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { LiveState } from '@shared/types'
 import { SlideView } from '../components/SlideView'
 import { toMediaUrl } from '../lib/media'
@@ -10,6 +10,8 @@ function Output() {
   const [state, setState] = useState<LiveState | null>(null)
   const video = useRef<HTMLVideoElement | null>(null)
   const lastSeek = useRef(0)
+  const stateRef = useRef<LiveState | null>(null)
+  stateRef.current = state
   const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
@@ -36,25 +38,36 @@ function Output() {
     }
     if (vs.playing && v.paused) void v.play().catch(() => {})
     if (!vs.playing && !v.paused) v.pause()
+    // The same broken video put live again keeps this <video> (same src: no new load, no new
+    // error event) while the operator reset its progress — report the error again, so the
+    // operator is told every time instead of only the first.
+    if (v.error && !state?.videoProgress?.error) window.api.live.videoProgress({ current: 0, duration: 0, error: true })
   }, [state?.video, state?.seq])
 
-  const attachVideo = (el: HTMLVideoElement | null) => {
+  // Stable on purpose: a new callback each render made React detach and re-attach the
+  // <video> on every state change, which reset lastSeek and jumped the video back to
+  // the last seek point (and paused it there when it ended).
+  const attachVideo = useCallback((el: HTMLVideoElement | null) => {
     if (video.current === el) return
     video.current = el
     if (!el) return
     lastSeek.current = 0
-    el.ontimeupdate = () => window.api.live.videoProgress({ current: el.currentTime, duration: el.duration || 0 })
-    el.onloadedmetadata = () => window.api.live.videoProgress({ current: 0, duration: el.duration || 0 })
+    // a failed load still fires timeupdate (position reset to 0): don't let it wipe the error
+    el.ontimeupdate = () => !el.error && window.api.live.videoProgress({ current: el.currentTime, duration: el.duration || 0 })
+    el.onloadedmetadata = () => !el.error && window.api.live.videoProgress({ current: 0, duration: el.duration || 0 })
+    // tell the operator instead of sitting on a black frame that claims to be "playing"
+    el.onerror = () => window.api.live.videoProgress({ current: 0, duration: 0, error: true })
     el.onended = () => {
-      if (!el.loop) window.api.live.videoEnded()
+      const s = stateRef.current
+      if (!el.loop && s?.video) window.api.live.videoEnded({ itemId: s.itemId, src: s.video.src })
     }
-    const vs = state?.video
+    const vs = stateRef.current?.video
     if (vs) {
       el.loop = vs.loop
       el.volume = vs.volume
       if (vs.playing) void el.play().catch(() => {})
     }
-  }
+  }, [])
 
   if (!state?.theme) return <div className="output-root" />
   const slide = state.slideIndex >= 0 ? state.slides[state.slideIndex] : null

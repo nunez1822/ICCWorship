@@ -1,4 +1,4 @@
-import type { BiText, Lang, PassageResult, Slide, Song, SongSection } from './types'
+import type { BiText, Lang, LiveState, PassageResult, Slide, Song, SongSection } from './types'
 
 export const uid = (): string =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -106,23 +106,42 @@ export function songToSlides(song: Song, opts: { ccliLicense?: string } = {}): S
   }
   if (slides.length) {
     slides[0].footer = songFooter(song, opts.ccliLicense)
+    slides[0].footerCombined = true
   }
   return slides
 }
 
+/**
+ * The slide the next "advance" puts on screen: after Esc (nothing showing) that is the
+ * slide that was cleared, otherwise the one after the current slide. -1 = none.
+ */
+export function upcomingSlideIndex(l: Pick<LiveState, 'slides' | 'slideIndex' | 'clearedFrom'>): number {
+  if (l.slideIndex < 0 && l.clearedFrom !== undefined && l.clearedFrom >= 0 && l.clearedFrom < l.slides.length) return l.clearedFrom
+  return l.slideIndex + 1 < l.slides.length ? l.slideIndex + 1 : -1
+}
+
+/** Display name for a song: English title, else Spanish title (one-language songs). */
+export function songName(song: Pick<Song, 'title' | 'titleEs'>): string {
+  return song.title?.trim() || song.titleEs?.trim() || ''
+}
+
 export function songFooter(song: Song, ccliLicense?: string): BiText {
   const parts: string[] = []
-  const titleEn = song.title
-  const titleEs = song.titleEs || song.title
+  // Either title may be empty (one-language songs) — never print a dangling " / ".
+  const titleEn = song.title?.trim() || ''
+  const titleEs = song.titleEs?.trim() || ''
   if (song.author) parts.push(song.author)
   if (song.copyright) parts.push(`© ${song.copyright.replace(/^©\s*/, '')}`)
   const ccli: string[] = []
   if (song.ccli) ccli.push(`CCLI # ${song.ccli}`)
   if (song.ccli && ccliLicense) ccli.push(`CCLI License / Licencia # ${ccliLicense}`)
   const tail = [...parts, ...ccli].join(' · ')
-  const titles = titleEs && titleEs !== titleEn ? `${titleEs} / ${titleEn}` : titleEn
-  const line = [titles, tail].filter(Boolean).join(' — ')
-  return { en: line, es: line }
+  const pair = (a: string, b: string) => (a && b && a !== b ? `${a} / ${b}` : a || b)
+  // One line per language with that language's title first; the slide is marked
+  // footerCombined so only the line for the current bilingual order is shown.
+  const es = [pair(titleEs, titleEn), tail].filter(Boolean).join(' — ')
+  const en = [pair(titleEn, titleEs), tail].filter(Boolean).join(' — ')
+  return { en, es }
 }
 
 /* ------------------------------ scripture ------------------------------ */
@@ -298,14 +317,34 @@ export function targetTimeToday(hhmm: string, now = Date.now()): number {
   return d.getTime()
 }
 
+/**
+ * epoch ms a "count down to HH:MM" item aims at. A plan dated in the future counts down to
+ * that day (a countdown previewed on Wednesday for Sunday's 11:00 must not say "21 h");
+ * otherwise — today's service, a template, an old plan reused — the next HH:MM as before.
+ */
+export function countdownTarget(hhmm: string, planDate?: string, now = Date.now()): number {
+  const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(planDate || '')
+  if (d) {
+    const [h, m] = hhmm.split(':').map((x) => parseInt(x, 10))
+    const t = new Date(+d[1], +d[2] - 1, +d[3], h || 0, m || 0, 0, 0).getTime()
+    if (t > now) return t
+  }
+  return targetTimeToday(hhmm, now)
+}
+
 export function formatClock(ms: number): string {
-  const neg = ms < 0
   let s = Math.floor(Math.abs(ms) / 1000)
+  // a few ms "in the past" (clock skew between windows) must not show as -0:00
+  const neg = ms < 0 && s > 0
+  const days = Math.floor(s / 86400)
+  s -= days * 86400
   const h = Math.floor(s / 3600)
   s -= h * 3600
   const m = Math.floor(s / 60)
   s -= m * 60
   const pad = (n: number) => String(n).padStart(2, '0')
+  // a countdown to a service days away: "3d 21:37:49" instead of "93:37:49"
+  if (days) return `${neg ? '-' : ''}${days}d ${pad(h)}:${pad(m)}:${pad(s)}`
   return (neg ? '-' : '') + (h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`)
 }
 

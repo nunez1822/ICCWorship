@@ -6,6 +6,8 @@ import { useApp } from '../store'
 import { Field, Seg, confirmDel } from '../../components/ui'
 import { SlideView } from '../../components/SlideView'
 import { toMediaUrl } from '../../lib/media'
+import { themeBackground } from '../../lib/buildSlides'
+import { updateLive } from '../liveControl'
 
 const FONTS = ['Segoe UI', 'Arial', 'Calibri', 'Cambria', 'Georgia', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Times New Roman', 'Garamond', 'Bahnschrift', 'Impact', 'Candara', 'Constantia', 'Corbel']
 
@@ -27,14 +29,26 @@ const SAMPLE: Slide = {
   footer: { es: 'Juan 3:16 (RV1909)', en: 'John 3:16 (KJV)' }
 }
 
+/** the theme being edited survives leaving the page (so "Apply to screen now" means that theme) */
+let lastThemeId: string | undefined
+
 export function ThemesPage() {
   const { t } = useTranslation()
   const s = useApp()
-  const [selId, setSelId] = useState(s.settings.defaultThemeId)
+  const [selId, setSelIdState] = useState(lastThemeId && s.themes.some((x) => x.id === lastThemeId) ? lastThemeId : s.settings.defaultThemeId)
+  const setSelId = (id: string) => {
+    lastThemeId = id
+    setSelIdState(id)
+  }
   const theme = s.themes.find((x) => x.id === selId) || s.themes[0]
 
   const duplicate = async (th: Theme) => {
-    const copy: Theme = { ...th, id: uid(), name: `${th.name} (${t('themes.copy')})`, builtIn: false }
+    // "Name (copy)", then "Name (copy 2)", "Name (copy 3)"… so duplicates stay distinguishable
+    const base = `${th.name} (${t('themes.copy')}`
+    const taken = new Set(s.themes.map((x) => x.name))
+    let name = `${base})`
+    for (let n = 2; taken.has(name); n++) name = `${base} ${n})`
+    const copy: Theme = { ...th, id: uid(), name, builtIn: false }
     await s.save('themes', copy)
     setSelId(copy.id)
   }
@@ -70,7 +84,19 @@ function ThemeEditor({ theme, onDuplicate, onDeleted }: { theme: Theme; onDuplic
   const { t } = useTranslation()
   const s = useApp()
   const ro = !!theme.builtIn
-  const save = (patch: Partial<Theme>) => !ro && void s.save('themes', { ...theme, ...patch })
+  const save = (patch: Partial<Theme>) => {
+    if (ro) return
+    const next = { ...theme, ...patch }
+    void s.save('themes', next)
+    // editing the theme that is on screen: show the change now, not at the next item
+    const l = s.live
+    if (l?.theme?.id === theme.id) {
+      // compare with what the theme actually put on screen: the fallback gradient when its
+      // image/video was removed from the library
+      const bgFromTheme = l.background?.value === themeBackground(theme, s.media).value
+      void updateLive(bgFromTheme ? { theme: next, background: themeBackground(next, s.media) } : { theme: next })
+    }
+  }
   const setBg = (patch: Partial<Background>) => save({ background: { ...theme.background, ...patch } })
   const [lang, setLang] = useState<'both' | 'es' | 'en'>('both')
   const visual = s.media.filter((m) => m.kind !== 'audio')
@@ -189,7 +215,7 @@ function ThemeEditor({ theme, onDuplicate, onDeleted }: { theme: Theme; onDuplic
               ⧉ {t('themes.duplicate')}
             </button>
           )}
-          <button className="btn" onClick={() => void window.api.live.update({ theme, background: theme.background })}>
+          <button className="btn" onClick={() => void updateLive({ theme, background: themeBackground(theme, s.media) })}>
             📺 {t('themes.applyLive')}
           </button>
           {!ro && (

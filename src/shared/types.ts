@@ -53,6 +53,8 @@ export interface Slide {
   text?: BiText
   /** reference / copyright line */
   footer?: BiText
+  /** footer.en / footer.es are the same line in two orders — show only one */
+  footerCombined?: boolean
   /** media:// url or file path for image/video slides */
   media?: string
   notes?: string
@@ -340,7 +342,12 @@ export interface LiveState {
   message?: { text: string; until?: number; seq: number }
   stageMessage?: { text: string; seq: number }
   video?: VideoState
-  videoProgress?: { current: number; duration: number }
+  /** error: the projector could not load/play the video (missing file, damaged, unsupported) */
+  videoProgress?: { current: number; duration: number; error?: boolean }
+  /** song shown by the live item (plan item or Show now) — lets edits refresh the screen */
+  songId?: string
+  /** slide that was live before Clear all (Esc) — Space resumes there */
+  clearedFrom?: number
   itemStartedAt?: number
   serviceStartedAt?: number
   logoPath?: string
@@ -349,6 +356,14 @@ export interface LiveState {
 }
 
 /** Commands the stage/remote pages can send */
+/** Projector -> operator: a non-looping video reached its end. Names the item and file that
+ *  ended so a late event (queued behind Next item or Esc) cannot act on a different video. */
+export interface VideoEndedCommand {
+  type: 'videoEnded'
+  itemId?: string
+  src: string
+}
+
 export type RemoteCommand =
   | { type: 'next' }
   | { type: 'prev' }

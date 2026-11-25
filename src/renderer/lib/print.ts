@@ -16,7 +16,7 @@ export function addMinutes(hhmm: string, minutes: number): string {
   const total = h * 60 + m + Math.round(minutes)
   const hh = Math.floor(((total % 1440) + 1440) % 1440 / 60)
   const mm = ((total % 60) + 60) % 60
-  return `${hh}:${String(mm).padStart(2, '0')}`
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
 }
 
 const STYLE = `
@@ -44,6 +44,8 @@ export function runSheetHtml(plan: ServicePlan, opts: { people: Person[]; teams:
     .join('')
   const total = plan.items.reduce((a, i) => a + (i.durationMin || 0), 0)
   const team = plan.team
+    // open slots stay (blank name: someone still has to fill them); drop deleted people
+    .filter((a) => !a.personId || opts.people.some((x) => x.id === a.personId))
     .map((a) => {
       const p = opts.people.find((x) => x.id === a.personId)
       const tm = opts.teams.find((x) => x.id === a.teamId)
@@ -60,8 +62,27 @@ ${plan.notes ? `<h2>${l.notes}</h2><p>${esc(plan.notes).replace(/\n/g, '<br>')}<
 </body></html>`
 }
 
+/** One CSV cell. Text starting with = + - @ (or tab/CR) would run as a formula in
+ *  Excel / Google Sheets ("CSV injection"), so it is prefixed with ' to stay plain text. */
+export function csvCell(v: string | undefined): string {
+  let t = v || ''
+  if (/^[=+\-@\t\r]/.test(t)) t = `'${t}`
+  return `"${t.replace(/"/g, '""')}"`
+}
+
+/**
+ * Older versions logged one record per song per day (id "<song>@<date>"); now it's one per
+ * song per service ("<song>@<date>@<plan|adhoc>"). On the day of an upgrade the same use can
+ * exist in both forms — drop the old-form record when a new-form one covers that song+date.
+ */
+export function dedupeUsage(rows: SongUsage[]): SongUsage[] {
+  const isLegacy = (u: SongUsage) => u.id === `${u.songId}@${u.date}`
+  const covered = new Set(rows.filter((u) => !isLegacy(u)).map((u) => `${u.songId}@${u.date}`))
+  return rows.filter((u) => !isLegacy(u) || !covered.has(u.id))
+}
+
 export function usageCsv(rows: SongUsage[]): string {
   const head = 'Date,Title,CCLI Song #'
-  const body = rows.map((r) => [r.date, `"${(r.title || '').replace(/"/g, '""')}"`, r.ccli || ''].join(',')).join('\r\n')
+  const body = rows.map((r) => [r.date, csvCell(r.title), r.ccli ? csvCell(r.ccli) : ''].join(',')).join('\r\n')
   return head + '\r\n' + body
 }
