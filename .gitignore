@@ -12,3 +12,4 @@ smoke-shots/
 docs/e2e_testing/results/*
 !docs/e2e_testing/results/README.md
 !docs/e2e_testing/results/TEMPLATE.md
+.claude/settings.local.json

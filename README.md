@@ -73,9 +73,22 @@ same time**, switchable live with one key.
 
 ## Install
 
-1. Download **`ICCWorship-Setup-x.y.z.exe`** (installer) or **`ICCWorship-Portable-x.y.z.exe`** (runs from a USB stick) from the Releases page.
+1. Download **`ICCWorship-Setup-x.y.z.exe`** (installer) or **`ICCWorship-Portable-x.y.z.exe`** (no installation needed) from the Releases page.
+   The portable version still keeps its data on the PC it runs on (`Documents\ICCWorship`), not on the USB stick.
 2. Windows SmartScreen may warn because the app is not code-signed (signing certificates cost money). Click **More info → Run anyway**.
 3. The first time you use the phone remote, Windows Firewall asks to allow ICCWorship — choose **Allow** on private networks.
+
+## Your data and backups
+
+- Everything ICCWorship creates lives in **`Documents\ICCWorship`** (Settings → Backup → 📂 Open data folder).
+- A backup is made automatically each day ICCWorship is opened (the last 14 of those are kept in
+  `Documents\ICCWorship\backups`).
+- **Moving to a new computer:** on the old PC, Settings → Backup → **Back up now** to a USB stick. Install ICCWorship
+  on the new PC and choose **Restore** with that file. Videos and images you added (including the logo and theme
+  backgrounds) are *referenced by their full folder path*, not copied: copy them to the **same folder path** on the
+  new PC (for example `C:\Users\Pastor\Videos`), or add them again from the Media page and re-pick the logo and
+  backgrounds.
+- Nothing is uploaded anywhere — see [PRIVACY.md](PRIVACY.md).
 
 ## Your first Sunday (5 minutes)
 
@@ -103,7 +116,7 @@ The same works for NVI, RVR1960, NIV or any other version.
 
 ## Develop
 
-Requirements: Windows 10/11, [Node.js](https://nodejs.org) 20+ and Git.
+Requirements: Windows 10/11, [Node.js](https://nodejs.org) 22.12+ and Git.
 
 ```bash
 npm install            # install dependencies (downloads Electron)
@@ -142,6 +155,10 @@ have different keys or if the code uses a key that doesn't exist — so nothing 
 
 Bug reports, translations, songs in the public domain and pull requests are very welcome — see
 [CONTRIBUTING.md](CONTRIBUTING.md). Please don't add copyrighted lyrics or Bible texts to the repository.
+
+- Questions: [Discussions](https://github.com/nunez1822/ICCWorship/discussions) · Help: [SUPPORT.md](SUPPORT.md)
+- Security problems: report privately, see [SECURITY.md](SECURITY.md)
+- Everyone is expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md). What's new: [CHANGELOG.md](CHANGELOG.md)
 
 ## License
 

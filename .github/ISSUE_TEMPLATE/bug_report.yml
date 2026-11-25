@@ -1,0 +1,55 @@
+name: 🐞 Bug report / Reportar un error
+description: Something doesn't work as expected · Algo no funciona como se espera
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you! **This report is public:** please leave out names, phone numbers and prayer requests.
+        ¡Gracias! **Este reporte es público:** no incluya nombres, teléfonos ni peticiones de oración.
+        You can write in English or Spanish · Puede escribir en inglés o en español.
+  - type: input
+    id: version
+    attributes:
+      label: ICCWorship version / versión
+      description: Settings → About · Ajustes → Acerca de
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: windows
+    attributes:
+      label: Windows version / versión de Windows
+      options: [Windows 11, Windows 10, Other / Otra]
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: Installer or portable? / ¿Instalador o portátil?
+      options: [Installer / Instalador, Portable / Portátil, Built from source / Compilado desde el código]
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened? / ¿Qué pasó?
+      description: What you expected, and what happened instead · Lo que esperaba y lo que pasó en su lugar
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / Pasos para reproducirlo
+      placeholder: |
+        1. Go to Plans / Vaya a Servicios
+        2. …
+    validations:
+      required: true
+  - type: dropdown
+    id: during-service
+    attributes:
+      label: Did this happen during a live service? / ¿Pasó durante un servicio en vivo?
+      options: ["No", "Yes / Sí"]
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots / Capturas (optional / opcional)
