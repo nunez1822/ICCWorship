@@ -24,6 +24,8 @@ All notable changes to ICCWorship are documented here. The format is based on
 - Ids and paths coming from the app's pages are checked before any file is written or deleted.
 - The installed app has hardened Electron fuses and checks its own files for tampering.
 - Developer and test switches (environment variables) are ignored by the installed app.
+- Phones and stage screens only load slide images from the app's own links, and imported song and Bible text
+  is cleaned of markup more thoroughly (findings of GitHub's CodeQL scan).
 
 ### Added
 - **Data versions.** ICCWorship now records which version wrote the data. Data from 1.0 is upgraded
