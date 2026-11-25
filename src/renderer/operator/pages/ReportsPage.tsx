@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { SongUsage } from '@shared/types'
 import { useApp } from '../store'
 import { Field } from '../../components/ui'
-import { usageCsv } from '../../lib/print'
+import { dedupeUsage, usageCsv } from '../../lib/print'
 import { localDate } from '@shared/dates'
 
 export function ReportsPage() {
@@ -38,7 +38,7 @@ export function ReportsPage() {
     return [...m.entries()]
   }, [plans])
   const maxAtt = Math.max(1, ...plans.map((p) => p.attendance || 0))
-  const inRange = usage.filter((u) => u.date >= from && u.date <= to).sort((a, b) => a.date.localeCompare(b.date))
+  const inRange = dedupeUsage(usage).filter((u) => u.date >= from && u.date <= to).sort((a, b) => a.date.localeCompare(b.date))
   const songCounts = useMemo(() => {
     const m = new Map<string, { title: string; ccli?: string; count: number }>()
     for (const u of inRange) {

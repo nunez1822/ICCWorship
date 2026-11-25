@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { PlanItem, Slide, Theme, Background } from '@shared/types'
-import { formatClock } from '@shared/slides'
+import { formatClock, upcomingSlideIndex } from '@shared/slides'
 import { useApp } from '../store'
 import * as live from '../liveControl'
 import { buildItem } from '../../lib/buildSlides'
@@ -235,7 +235,8 @@ function Monitors() {
   const settings = useApp((s) => s.settings)
   if (!l?.theme) return null
   const cur = l.slideIndex >= 0 ? l.slides[l.slideIndex] : null
-  const nextSlide = l.slideIndex + 1 < l.slides.length ? l.slides[l.slideIndex + 1] : null
+  const nextIdx = upcomingSlideIndex(l)
+  const nextSlide = nextIdx >= 0 ? l.slides[nextIdx] : null
   const nextItem = !nextSlide && l.itemIndex >= 0 ? l.planItems[l.itemIndex + 1] : undefined
   const msg = l.message && (!l.message.until || l.message.until > Date.now()) ? l.message.text : undefined
   return (
@@ -275,7 +276,7 @@ function Monitors() {
             {t('live.next')}
           </div>
           <div className="small" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {nextSlide ? nextSlide.group || `#${l.slideIndex + 2}` : nextItem ? `${TYPE_ICON[nextItem.type]} ${nextItem.title}` : t('live.endOfPlan')}
+            {nextSlide ? nextSlide.group || `#${nextIdx + 1}` : nextItem ? `${TYPE_ICON[nextItem.type]} ${nextItem.title}` : t('live.endOfPlan')}
           </div>
           {cur?.notes && <div className="small muted" style={{ marginTop: 4, maxHeight: 54, overflow: 'auto' }}>📝 {cur.notes}</div>}
         </div>

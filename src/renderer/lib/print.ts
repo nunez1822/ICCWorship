@@ -44,8 +44,8 @@ export function runSheetHtml(plan: ServicePlan, opts: { people: Person[]; teams:
     .join('')
   const total = plan.items.reduce((a, i) => a + (i.durationMin || 0), 0)
   const team = plan.team
-    // only slots filled by someone who still exists
-    .filter((a) => opts.people.some((x) => x.id === a.personId))
+    // open slots stay (blank name: someone still has to fill them); drop deleted people
+    .filter((a) => !a.personId || opts.people.some((x) => x.id === a.personId))
     .map((a) => {
       const p = opts.people.find((x) => x.id === a.personId)
       const tm = opts.teams.find((x) => x.id === a.teamId)
@@ -68,6 +68,17 @@ export function csvCell(v: string | undefined): string {
   let t = v || ''
   if (/^[=+\-@\t\r]/.test(t)) t = `'${t}`
   return `"${t.replace(/"/g, '""')}"`
+}
+
+/**
+ * Older versions logged one record per song per day (id "<song>@<date>"); now it's one per
+ * song per service ("<song>@<date>@<plan|adhoc>"). On the day of an upgrade the same use can
+ * exist in both forms — drop the old-form record when a new-form one covers that song+date.
+ */
+export function dedupeUsage(rows: SongUsage[]): SongUsage[] {
+  const isLegacy = (u: SongUsage) => u.id === `${u.songId}@${u.date}`
+  const covered = new Set(rows.filter((u) => !isLegacy(u)).map((u) => `${u.songId}@${u.date}`))
+  return rows.filter((u) => !isLegacy(u) || !covered.has(u.id))
 }
 
 export function usageCsv(rows: SongUsage[]): string {

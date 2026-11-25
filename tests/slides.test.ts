@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { SAMPLE_SONGS } from '@shared/defaults'
-import { notesToSlides, pickLangs, scriptureToSlides, songToSlides, splitLongText, stripChords, formatClock } from '@shared/slides'
-import type { PassageResult, Song } from '@shared/types'
+import { notesToSlides, pickLangs, scriptureToSlides, songToSlides, splitLongText, stripChords, formatClock, upcomingSlideIndex } from '@shared/slides'
+import type { PassageResult, Slide, Song } from '@shared/types'
 
 const song = (over: Partial<Song>): Song => ({
   id: 's',
@@ -157,5 +157,20 @@ describe('formatClock', () => {
     expect(formatClock(-400)).toBe('0:00')
     expect(formatClock(-1500)).toBe('-0:01')
     expect(formatClock(65_000)).toBe('1:05')
+  })
+})
+
+describe('upcomingSlideIndex', () => {
+  const slides = [1, 2, 3].map((n) => ({ id: String(n), kind: 'text' })) as unknown as Slide[]
+  it('is the next slide while something is showing', () => {
+    expect(upcomingSlideIndex({ slides, slideIndex: 0 })).toBe(1)
+    expect(upcomingSlideIndex({ slides, slideIndex: 2 })).toBe(-1)
+  })
+  it('after Esc it is the slide that was cleared (what Space puts back)', () => {
+    expect(upcomingSlideIndex({ slides, slideIndex: -1, clearedFrom: 2 })).toBe(2)
+  })
+  it('with nothing cleared it starts at the first slide', () => {
+    expect(upcomingSlideIndex({ slides, slideIndex: -1 })).toBe(0)
+    expect(upcomingSlideIndex({ slides, slideIndex: -1, clearedFrom: 9 })).toBe(0)
   })
 })

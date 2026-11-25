@@ -1,4 +1,4 @@
-import type { BiText, Lang, PassageResult, Slide, Song, SongSection } from './types'
+import type { BiText, Lang, LiveState, PassageResult, Slide, Song, SongSection } from './types'
 
 export const uid = (): string =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -109,6 +109,15 @@ export function songToSlides(song: Song, opts: { ccliLicense?: string } = {}): S
     slides[0].footerCombined = true
   }
   return slides
+}
+
+/**
+ * The slide the next "advance" puts on screen: after Esc (nothing showing) that is the
+ * slide that was cleared, otherwise the one after the current slide. -1 = none.
+ */
+export function upcomingSlideIndex(l: Pick<LiveState, 'slides' | 'slideIndex' | 'clearedFrom'>): number {
+  if (l.slideIndex < 0 && l.clearedFrom !== undefined && l.clearedFrom >= 0 && l.clearedFrom < l.slides.length) return l.clearedFrom
+  return l.slideIndex + 1 < l.slides.length ? l.slideIndex + 1 : -1
 }
 
 /** Display name for a song: English title, else Spanish title (one-language songs). */

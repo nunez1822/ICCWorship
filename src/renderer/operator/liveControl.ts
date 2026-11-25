@@ -22,6 +22,9 @@ const live = () => st().live
 async function push(patch: Partial<LiveState>): Promise<LiveState> {
   const s = await api().live.update(patch)
   if (s) useApp.setState({ live: s })
+  // a new video (or none) starts with fresh progress, so its own load error is reported
+  // even when the previous video failed too (progress only arrives from the projector)
+  if ('videoProgress' in patch) useApp.setState({ progress: patch.videoProgress })
   return s
 }
 
@@ -61,13 +64,18 @@ function planSummary(plan?: ServicePlan) {
 function scheduleAdvance(slide?: Slide) {
   if (advanceTimer) clearTimeout(advanceTimer)
   advanceTimer = null
-  if (slide?.advanceAfter && slide.advanceAfter > 0) {
+  const from = live()
+  if (slide?.advanceAfter && slide.advanceAfter > 0 && from) {
+    const { itemId, slideIndex } = from
     advanceTimer = setTimeout(() => {
-      const l = live()
-      if (!l) return
-      // announcement loops wrap around inside the item
-      const next = l.slideIndex + 1 < l.slides.length ? l.slideIndex + 1 : 0
-      void enqueue(() => goSlide(next))
+      void enqueue(() => {
+        // decide when it's our turn in the queue: an Esc or another item queued before
+        // us wins, and this stale advance does nothing
+        const l = live()
+        if (!l || l.itemId !== itemId || l.slideIndex < 0 || l.slideIndex !== slideIndex) return
+        // announcement loops wrap around inside the item
+        return goSlide(l.slideIndex + 1 < l.slides.length ? l.slideIndex + 1 : 0)
+      })
     }, slide.advanceAfter * 1000)
   }
 }

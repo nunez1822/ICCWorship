@@ -36,6 +36,8 @@ export class JsonStore {
     let damaged = false
     let savedAs: string | undefined
     let loaded = false
+    // healthy only once the main file on disk has been read back fine
+    this.healthy.delete(name)
     for (const candidate of [f, f + '.bak']) {
       if (!existsSync(candidate)) continue
       try {
@@ -115,6 +117,8 @@ export class JsonStore {
   reset(): void {
     this.flush()
     this.cache.clear()
+    // the files on disk were replaced: nothing is known to be good until read again
+    this.healthy.clear()
   }
 
   /* ---- collection helpers (arrays of {id}) ---- */

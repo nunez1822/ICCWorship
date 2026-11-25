@@ -387,7 +387,7 @@ function registerIpc(): void {
 }
 
 async function restartServer(): Promise<{ ok: boolean; error?: string }> {
-  stopServer()
+  // startServer stops the old server itself, in turn with any other restart
   const r = await startServer({ rendererDir, devUrl })
   operator?.webContents.send('server:status', r)
   return r

@@ -8,7 +8,7 @@ import { showAdhoc, activePlan, syncPlanSummary, songEdited } from '../liveContr
 import { usedInPlansNote } from '../../lib/planRefs'
 import { Field, Modal, confirmDel } from '../../components/ui'
 import { SlideView } from '../../components/SlideView'
-import { filterSongs } from './plan/ItemEditor'
+import { filterSongs } from '../../lib/songSearch'
 
 const TYPES: SectionType[] = ['verse', 'chorus', 'pre', 'bridge', 'tag', 'intro', 'ending', 'other']
 

@@ -7,6 +7,8 @@ import { Field, Modal, TYPE_ICON } from '../../../components/ui'
 import { SlideView } from '../../../components/SlideView'
 import { buildItem } from '../../../lib/buildSlides'
 import { toMediaUrl } from '../../../lib/media'
+import { filterSongs, songSecondTitle } from '../../../lib/songSearch'
+import { songName } from '@shared/slides'
 
 export function ItemEditor({ item, onClose, onSave }: { item: PlanItem; onClose: () => void; onSave: (i: PlanItem) => void }) {
   const { t } = useTranslation()
@@ -56,8 +58,8 @@ export function ItemEditor({ item, onClose, onSave }: { item: PlanItem; onClose:
               <select className="select" value={it.refId} onChange={(e) => set({ refId: e.target.value })}>
                 {s.songs.map((x) => (
                   <option key={x.id} value={x.id}>
-                    {x.title}
-                    {x.titleEs ? ` / ${x.titleEs}` : ''}
+                    {songName(x)}
+                    {songSecondTitle(x) ? ` / ${songSecondTitle(x)}` : ''}
                   </option>
                 ))}
               </select>
@@ -352,8 +354,8 @@ export function SongPicker({ onClose, onPick }: { onClose: () => void; onPick: (
           <div key={s.id} className="list-item" onClick={() => onPick(s)}>
             <div style={{ minWidth: 0 }}>
               <div className="title">
-                {s.title}
-                {s.titleEs ? <span className="muted"> / {s.titleEs}</span> : null}
+                {songName(s)}
+                {songSecondTitle(s) ? <span className="muted"> / {songSecondTitle(s)}</span> : null}
               </div>
               <div className="sub">{s.author}</div>
             </div>
@@ -363,29 +365,6 @@ export function SongPicker({ onClose, onPick }: { onClose: () => void; onPick: (
       </div>
     </Modal>
   )
-}
-
-export function filterSongs(songs: Song[], q: string): Song[] {
-  const norm = (x: string) => x.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-  const n = norm(q.trim())
-  const sorted = [...songs].sort((a, b) => a.title.localeCompare(b.title))
-  if (!n) return sorted
-  const score = (s: Song) => {
-    const title = norm(`${s.title} ${s.titleEs || ''}`)
-    if (title.startsWith(n)) return 3
-    if (title.includes(n)) return 2
-    const body = norm(s.sections.map((x) => `${x.en} ${x.es}`).join(' ') + ' ' + (s.author || '') + ' ' + s.tags.join(' ') + ' ' + (s.ccli || ''))
-    if (body.includes(n)) return 1
-    // every typed word somewhere, in any order ("amazing sound", "bulk 1")
-    const all = `${title} ${body}`
-    return words.length > 1 && words.every((w) => all.includes(w)) ? 0.5 : 0
-  }
-  const words = n.split(/\s+/).filter(Boolean)
-  return sorted
-    .map((s) => ({ s, sc: score(s) }))
-    .filter((x) => x.sc > 0)
-    .sort((a, b) => b.sc - a.sc)
-    .map((x) => x.s)
 }
 
 export function ScripturePicker({ onClose, onPick }: { onClose: () => void; onPick: (sc: { ref: string; primary: string; secondary?: string }, title: string) => void }) {

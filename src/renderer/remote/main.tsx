@@ -119,7 +119,7 @@ function Remote() {
             {txt.secondary && <div className="sec">{txt.secondary}</div>}
           </>
         )}
-        <span className="r-count">{state.slides.length ? `${state.slideIndex + 1}/${state.slides.length}` : ''}</span>
+        <span className="r-count">{state.slides.length && state.slideIndex >= 0 ? `${state.slideIndex + 1}/${state.slides.length}` : ''}</span>
       </div>
 
       <div className="r-nav">

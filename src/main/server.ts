@@ -244,13 +244,33 @@ function portAnswers(port: number): Promise<boolean> {
   return Promise.all([probe('127.0.0.1'), probe('::1')]).then((r) => r.some(Boolean))
 }
 
-export async function startServer(opts: { rendererDir: string; devUrl?: string }): Promise<{ ok: boolean; error?: string }> {
+/**
+ * Starts run one at a time (the settings port field restarts on every keystroke). Each
+ * start gets a generation number; a start that a newer start or a stop has replaced gives
+ * up instead of creating a second server that nothing would ever close.
+ */
+let gen = 0
+let serverOp: Promise<unknown> = Promise.resolve()
+type StartResult = { ok: boolean; error?: string }
+
+export function startServer(opts: { rendererDir: string; devUrl?: string }): Promise<StartResult> {
+  const my = ++gen
+  const run = serverOp.then(() => doStart(opts, my))
+  serverOp = run.catch(() => undefined)
+  return run
+}
+
+async function doStart(opts: { rendererDir: string; devUrl?: string }, my: number): Promise<StartResult> {
+  const superseded: StartResult = { ok: false, error: 'superseded' }
+  if (my !== gen) return superseded
   rendererDir = opts.rendererDir
   devUrl = opts.devUrl
-  stopServer()
+  teardown()
   await closing // our own previous server must be fully closed before probing the port
+  if (my !== gen) return superseded
   const settings = getSettings()
   if (settings.serverEnabled && (await portAnswers(settings.serverPort))) return { ok: false, error: 'EADDRINUSE' }
+  if (my !== gen) return superseded
   return new Promise((done) => {
     const s = getSettings()
     if (!s.serverEnabled) return done({ ok: false, error: 'disabled' })
@@ -289,6 +309,8 @@ export async function startServer(opts: { rendererDir: string; devUrl?: string }
       })
     })
     server.once('error', (e: NodeJS.ErrnoException) => {
+      wss?.close() // its 'close' handler stops the heartbeat
+      wss = null
       server = null
       done({ ok: false, error: e.code || String(e) })
     })
@@ -297,7 +319,13 @@ export async function startServer(opts: { rendererDir: string; devUrl?: string }
 }
 
 let closing: Promise<void> = Promise.resolve()
+/** stop the server and cancel any start still in progress */
 export function stopServer(): void {
+  gen++
+  teardown()
+}
+
+function teardown(): void {
   wss?.clients.forEach((c) => c.terminate())
   wss?.close()
   const srv = server
