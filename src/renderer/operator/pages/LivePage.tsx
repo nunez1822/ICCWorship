@@ -228,7 +228,7 @@ function SlidesColumn({ item }: { item?: PlanItem }) {
       <div className="col-body" style={{ padding: 0 }}>
         {!slides.length && (
           <div className="empty">
-            <div className="big">👈</div>
+            <div className="big">{building ? '⏳' : '👈'}</div>
             {building ? t('common.working') : item ? t('live.noSlides') : t('live.pickHelp')}
           </div>
         )}

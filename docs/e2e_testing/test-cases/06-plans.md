@@ -74,7 +74,8 @@
 - Plan disappears from the list.
 
 ### TC-PLAN-12 · Item editor preview ignores screen-language changes  `P2`
-**Pre:** the phone remote is connected (TC-REM-02); the Countdown item counts down for 5 minutes (default).
+**Pre:** the phone remote is connected (TC-REM-02); the Countdown item is set to "Count down for (minutes)" = 5
+(the sample plan counts down to a time of day, which would hide a rebuild).
 **Steps**
 1. Plans → ⚙ on **Countdown**. Wait ~10 s and note the clock in the editor's Preview (about 4:50).
 2. On the phone tap **EN**, then **ES+EN**.

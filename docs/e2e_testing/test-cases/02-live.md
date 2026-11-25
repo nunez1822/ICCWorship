@@ -102,12 +102,13 @@ Default start: welcome finished (English), Live page, sample plan selected.
 2. Single-click **John 3:16-17**, and take a snapshot straight away.
 3. Click John 3:16-17's first thumbnail.
 **Expected**
-- At every moment after step 2 the middle column shows either "Working…" or John 3:16-17's verse slides,
+- At every moment after step 2 the middle column shows either "⏳ Working…" or John 3:16-17's verse slides,
   never Holy, Holy, Holy's verses under the John 3:16-17 title.
 - Step 3 puts **John 3:16-17** live at slide 1.
 
 ### TC-LIVE-14 · Screen language keys don't rebuild a previewed item  `P2`
-**Pre:** the Countdown item counts down for 5 minutes (default); Welcome is live.
+**Pre:** Plans → ⚙ on the Countdown item → "Count down for (minutes)" = 5 → Save (the sample plan counts down
+to a time of day, which would hide a rebuild). Welcome is live.
 **Steps**
 1. Single-click **Countdown** (do not double-click). Wait ~10 s and note the preview clock (about 4:50).
 2. Press `2`, then `3`.
