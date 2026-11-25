@@ -13,7 +13,9 @@ All notable changes to ICCWorship are documented here. The format is based on
 - Releases are built by GitHub Actions, with SHA-256 checksums and signed build provenance; see "Verify your
   download" in the README.
 - The app now includes the licences of the open-source software it is built with (`THIRD_PARTY_NOTICES.md`
-  in the install folder).
+  in the install folder, next to `ICCWorship.exe`).
+- The installed app is hardened with Electron fuses: it only loads its own integrity-checked `app.asar` and ignores
+  `ELECTRON_RUN_AS_NODE`, `NODE_OPTIONS` and `--inspect`.
 
 ### Removed
 - The untested macOS and Linux build targets. ICCWorship is a Windows app.

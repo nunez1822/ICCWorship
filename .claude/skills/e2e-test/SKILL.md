@@ -32,8 +32,8 @@ Do **not** fix bugs during the run — record them. Read `docs/e2e_testing/READM
 6. Argument `packaged` (can be combined with the others, e.g. `packaged live`) tests the installed-style build
    instead: in step 1 run `npm run build:dir` (if `dist/win-unpacked/ICCWorship.exe` is missing or older than
    `src/`), in step 2 run `npm run e2e:launch -- --packaged`, and stop it with `taskkill /F /T /IM ICCWorship.exe`.
-   Packaged builds ignore the `window.api.e2e` hooks, so mark cases that need a native file dialog ⚠️ Blocked
-   — packaged instead of running them. Say in the report that the run used the packaged build.
+   The launcher sets `ICCWORSHIP_E2E` for the packaged build too, so the `window.api.e2e` dialog hooks work and
+   every case runs as usual. Say in the report that the run used the packaged build.
 
 ## 4. Run each case
 - Follow the steps literally. Prefer `browser_snapshot` + accessible names over guessing coordinates.
