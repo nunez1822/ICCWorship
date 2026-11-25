@@ -7,7 +7,9 @@ import type { Slide } from '@shared/types'
 import { useLiveFeed } from '../lib/liveFeed'
 import { rememberPin, usePin } from '../lib/pin'
 import { PinScreen } from '../components/PinScreen'
+import { ErrorBoundary, errorSummary } from '../components/ErrorBoundary'
 import './stage.css'
+import '../lib/noDropNavigation'
 
 /** Stage display for musicians and the preacher: current + next slide, clock, timers, chords, messages */
 function Stage() {
@@ -178,4 +180,23 @@ function renderChords(text?: string) {
   })
 }
 
-createRoot(document.getElementById('root')!).render(<Stage />)
+const inAppWindow = !!window.api
+if (inAppWindow) setInterval(() => window.api.win.alive(), 1000) // freeze detection (see main's guardWindow)
+
+createRoot(document.getElementById('root')!, {
+  onUncaughtError: (e) => {
+    // in the app's own stage window main reloads the page; a browser just reloads itself
+    if (inAppWindow) window.api.win.fatal(errorSummary(e))
+    else setTimeout(() => location.reload(), 3000)
+  }
+}).render(
+  <ErrorBoundary
+    fallback={(reset) => (
+      <div className="stage-wait" onClick={reset}>
+        …
+      </div>
+    )}
+  >
+    <Stage />
+  </ErrorBoundary>
+)

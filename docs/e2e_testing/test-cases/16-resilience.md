@@ -141,3 +141,45 @@ Stop the app: `taskkill /F /IM electron.exe`. Relaunch keeping data: `npm run e2
 1. Theme with Motion video default; a song live; phone + stage connected; leave 2 hours. Note operator memory in Task Manager at start/end.
 **Expected**
 - Still responsive; memory doesn't grow without bound (e.g. < 2× start); video still smooth.
+
+### TC-RES-20 · Projector crashes mid-video  `P0`
+**Steps**
+1. Media → show `tests/fixtures/sample.mp4`; wait ~2 s while it plays.
+2. Crash the projector page: `browser_run_code_unsafe` on the projector tab:
+   `const s = await page.context().newCDPSession(page); await s.send('Page.crash').catch(() => {})`
+**Expected**
+- Within ~3 s the projector shows the video again and it **continues from about the same second** (not from 0).
+- Operator shows "The projector window had a problem and was restarted". `.e2e-data/.userdata/logs/main.log` has
+  `output window crashed`.
+
+### TC-RES-21 · Projector keeps crashing → black, then Restart projector  `P1`
+**Steps**
+1. A song live. Crash the projector page (as in TC-RES-20) **4 times within a minute**, waiting for it to come back each time.
+2. Settings → Screens → 🔄 Restart projector.
+**Expected**
+- After the 4th crash the projector shows plain black (URL ends in `#safe`) and the operator gets a red message
+  pointing to Restart projector — it does not keep reloading.
+- Step 2: the projector shows the live song again.
+
+### TC-RES-22 · Frozen projector is restarted  `P1`
+**Steps**
+1. A song live. Projector tab `browser_evaluate` → `setTimeout(() => { for (;;) {} }, 100)` (freezes the page).
+**Expected**
+- Within ~10 s the projector is restarted (log: `output window stopped responding`) and shows the song again.
+
+### TC-RES-23 · Main window crash  `P1`
+**Steps**
+1. A song live. Crash the operator page (CDP `Page.crash` on the operator tab), then re-select the tab when it returns.
+2. Crash it again within a minute; before that, `browser_evaluate` → `window.api.e2e.queueMessageBox(0)` (Reload).
+**Expected**
+- Step 1: the window reloads by itself; the projector kept showing the song the whole time; a red message says the
+  window was restarted (an announcement loop would need Space).
+- Step 2: the "crashed again — reload?" box is answered Reload; the window comes back.
+
+### TC-RES-24 · A page error doesn't blank the window  `P2`
+**Steps**
+1. Operator tab: `browser_evaluate` → find a page that renders a list and make one record unrenderable, e.g.
+   `await window.api.db.upsert('songs', { id: 'broken-e2e', title: 5, sections: null })`, then open Songs.
+**Expected**
+- At worst the Songs page shows "This page had a problem — Try again / Reload window"; the top bar, the other
+  pages, the keyboard shortcuts and the phone remote keep working. Remove the record afterwards.

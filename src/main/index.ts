@@ -1,5 +1,19 @@
 import './bootstrap' // must stay the first import: it adjusts app paths before other modules use them
-import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, screen, session, shell, type Display, type MenuItemConstructorOptions } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  clipboard,
+  dialog,
+  ipcMain,
+  Menu,
+  powerMonitor,
+  protocol,
+  screen,
+  session,
+  shell,
+  type Display,
+  type MenuItemConstructorOptions
+} from 'electron'
 import { createReadStream, existsSync, statSync, writeFileSync, readFileSync, type Stats } from 'node:fs'
 import { dirname, extname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -14,9 +28,12 @@ import { deletePresentation, detectConverters, importImages, importPresentation,
 import { autoBackup, createBackup, defaultBackupName, listBackups, restoreBackup } from './backup'
 import { backupDir, dataRoot, resourcesDir } from './paths'
 import { decodeText } from '@shared/textDecode'
-import { log, setLogDataRoot } from './log'
+import { log, logDir, setLogDataRoot } from './log'
 import { newPin, within } from './pathGuard'
 import { setMainLang, t } from './i18n'
+import { Heartbeat, ReloadBudget } from './recovery'
+import { exportDiagnostics, systemInfoText } from './diagnostics'
+import { checkForUpdates, RELEASES_URL } from './updates'
 
 // media:// serves local media files to the app's own pages. corsEnabled + "Access-Control-Allow-Origin: *" are
 // needed: PDF import fetch()es media:// from a file:// page, and thumbnails load with crossOrigin="anonymous".
@@ -27,6 +44,44 @@ protocol.registerSchemesAsPrivileged([
 let operator: BrowserWindow | null = null
 let output: BrowserWindow | null = null
 let stageWin: BrowserWindow | null = null
+let quitting = false
+
+/** Events for the operator window (shown as toasts): crashes recovered, menu actions, updates… */
+type AppEvent =
+  | { type: 'mainError' }
+  | { type: 'windowRecovered'; window: 'output' | 'stage'; safe: boolean }
+  | { type: 'windowFailed'; window: 'output' | 'stage' }
+  | { type: 'renderError' }
+  | { type: 'gpuCrashed' }
+  | { type: 'update'; latest: string; url: string }
+  | { type: 'diagnostics'; ok: boolean }
+  | { type: 'menu'; action: 'shortcuts' | 'about' }
+function notify(evt: AppEvent): void {
+  if (operator && !operator.isDestroyed()) operator.webContents.send('app:event', evt)
+}
+/** told to the operator page when it (re)loads — e.g. that it was restarted after a crash */
+const pendingNotices: string[] = []
+
+/* ------------------------------ last-resort error handling ------------------------------ */
+// An error nothing else caught must never take the projector down silently mid-service: log it, save what can
+// be saved, and tell the operator. Only if the app hasn't even opened its window yet is it fatal.
+process.on('uncaughtException', (e) => {
+  log.error('uncaught exception in main:', e)
+  try {
+    db().flush()
+  } catch {
+    /* nothing more we can do */
+  }
+  if (operator && !operator.isDestroyed()) notify({ type: 'mainError' })
+  else {
+    dialog.showErrorBox('ICCWorship', `ICCWorship could not start / no se pudo iniciar.\n\n${e?.message || e}`)
+    app.exit(1)
+  }
+})
+process.on('unhandledRejection', (r) => {
+  log.error('unhandled rejection in main:', r instanceof Error ? r : String(r))
+  notify({ type: 'mainError' })
+})
 
 // Development and test switches. A packaged app ignores them, so nobody can point an installed ICCWorship at
 // other pages (ELECTRON_RENDERER_URL) or turn on the test hooks (ICCWORSHIP_E2E) with an environment variable.
@@ -102,7 +157,11 @@ function hardenWebContents(): void {
   app.on('web-contents-created', (_e, wc) => {
     // The app's pages never navigate. Without this, a file dropped outside a drop zone would replace the
     // operator or projector page with that file.
-    wc.on('will-navigate', (ev) => ev.preventDefault())
+    // Reloading the same page stays allowed (the "Reload window" button, location.reload()).
+    wc.on('will-navigate', (ev, url) => {
+      const page = (u: string) => u.split('#')[0]
+      if (page(url) !== page(wc.getURL())) ev.preventDefault()
+    })
     wc.on('will-attach-webview', (ev) => ev.preventDefault())
     // Links open in the user's browser, and only web links.
     wc.setWindowOpenHandler(({ url }) => {
@@ -148,12 +207,141 @@ function buildMenu(): void {
     {
       label: t('menu.help'),
       submenu: [
+        { label: t('menu.shortcuts'), click: () => notify({ type: 'menu', action: 'shortcuts' }) },
+        { type: 'separator' },
+        { label: t('menu.openLogs'), click: () => void shell.openPath(logDir()) },
+        {
+          label: t('menu.exportDiagnostics'),
+          click: () => void exportDiagnosticsInteractive(false).then((r) => r && notify({ type: 'diagnostics', ok: r.ok }))
+        },
+        { label: t('menu.reportProblem'), click: () => void shell.openExternal(newIssueUrl()) },
+        { type: 'separator' },
         { label: t('menu.website'), click: () => void shell.openExternal(REPO_URL) },
-        { label: t('menu.reportProblem'), click: () => void shell.openExternal(`${REPO_URL}/issues/new/choose`) }
+        { label: t('menu.notices'), click: () => void openNotices() },
+        { label: t('menu.about'), click: () => notify({ type: 'menu', action: 'about' }) }
       ]
     }
   ]
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+}
+
+/* ------------------------------ help ------------------------------ */
+/** the bug-report form with the version already filled in */
+const newIssueUrl = () => `${REPO_URL}/issues/new?template=bug_report.yml&version=${encodeURIComponent(app.getVersion())}`
+
+function noticesPath(): string {
+  return app.isPackaged ? join(process.resourcesPath, 'THIRD_PARTY_NOTICES.md') : join(app.getAppPath(), 'out', 'THIRD_PARTY_NOTICES.md')
+}
+async function openNotices(): Promise<void> {
+  const p = noticesPath()
+  if (!existsSync(p)) return
+  // .md may have no program associated with it on a church PC: then show the file in Explorer instead
+  if (await shell.openPath(p)) shell.showItemInFolder(p)
+}
+
+async function exportDiagnosticsInteractive(includeCrashDumps: boolean): Promise<{ ok: boolean; path: string } | null> {
+  const stamp = new Date().toISOString().slice(0, 10)
+  const r = await saveDialog({ defaultPath: `ICCWorship-diagnostics-${stamp}.zip`, filters: [{ name: 'Zip', extensions: ['zip'] }] })
+  if (r.canceled || !r.filePath) return null
+  try {
+    await exportDiagnostics(r.filePath, { includeCrashDumps })
+    log.info('diagnostics exported', includeCrashDumps ? '(with crash dumps)' : '')
+    if (!E2E) shell.showItemInFolder(r.filePath)
+    return { ok: true, path: r.filePath }
+  } catch (e) {
+    log.error('diagnostics export failed', e)
+    return { ok: false, path: r.filePath }
+  }
+}
+
+/* ------------------------------ crash & freeze recovery ------------------------------ */
+// The projector and stage windows reload themselves when their page crashes or freezes, resuming what is live
+// (main holds the live state). If one keeps crashing, the projector falls back to plain black ("safe" mode) and
+// finally stops retrying; the operator is told every time.
+type Guarded = 'output' | 'stage'
+const winOf = (kind: Guarded) => (kind === 'output' ? output : stageWin)
+const guards: Record<Guarded, { budget: ReloadBudget; beat: Heartbeat; unresponsive?: ReturnType<typeof setTimeout> }> = {
+  output: { budget: new ReloadBudget(), beat: new Heartbeat(() => killFrozen('output')) },
+  stage: { budget: new ReloadBudget(), beat: new Heartbeat(() => killFrozen('stage')) }
+}
+
+function killFrozen(kind: Guarded): void {
+  const win = winOf(kind)
+  if (quitting || !win || win.isDestroyed()) return
+  log.warn(`${kind} window stopped responding: restarting it`)
+  win.webContents.forcefullyCrashRenderer() // → render-process-gone → recover()
+}
+
+function recover(kind: Guarded, reason: string): void {
+  const win = winOf(kind)
+  if (quitting || !win || win.isDestroyed()) return
+  const g = guards[kind]
+  g.beat.stop()
+  const step = g.budget.next()
+  log.warn(`${kind} window ${reason}: ${step}`)
+  if (step === 'give-up' || (kind === 'stage' && step === 'safe')) return notify({ type: 'windowFailed', window: kind })
+  if (kind === 'output') loadPage(win, 'output', step === 'safe' ? '#safe' : '')
+  else loadPage(win, 'stage', '#local')
+  notify({ type: 'windowRecovered', window: kind, safe: step === 'safe' })
+}
+
+function guardWindow(win: BrowserWindow, kind: Guarded): void {
+  const g = guards[kind]
+  g.budget.reset()
+  g.beat.stop()
+  win.webContents.on('render-process-gone', (_e, d) => {
+    if (d.reason !== 'clean-exit') recover(kind, `crashed (${d.reason})`)
+  })
+  win.on('unresponsive', () => {
+    log.warn(`${kind} window unresponsive`)
+    clearTimeout(g.unresponsive)
+    g.unresponsive = setTimeout(() => killFrozen(kind), 5000)
+  })
+  win.on('responsive', () => clearTimeout(g.unresponsive))
+  win.on('closed', () => {
+    clearTimeout(g.unresponsive)
+    g.beat.stop()
+  })
+}
+
+/** which guarded window sent this IPC message */
+function kindOf(sender: Electron.WebContents): Guarded | null {
+  if (output && !output.isDestroyed() && sender === output.webContents) return 'output'
+  if (stageWin && !stageWin.isDestroyed() && sender === stageWin.webContents) return 'stage'
+  return null
+}
+
+// The operator window reloads once after a crash; a second crash within a minute asks the user.
+const operatorBudget = new ReloadBudget(1, 60_000)
+function guardOperator(win: BrowserWindow): void {
+  win.webContents.on('render-process-gone', async (_e, d) => {
+    if (d.reason === 'clean-exit' || quitting || win.isDestroyed()) return
+    log.error(`operator window crashed (${d.reason})`)
+    db().flush()
+    if (operatorBudget.next() === 'reload') {
+      pendingNotices.push('operatorRecovered')
+      loadPage(win, 'index')
+      return
+    }
+    // async: a synchronous dialog would block main, freezing the projector and phone remote too
+    const r = await messageBox({
+      type: 'error',
+      title: 'ICCWorship',
+      message: t('recovery.operatorCrashed'),
+      buttons: [t('recovery.reload'), t('menu.quit')],
+      defaultId: 0
+    })
+    if (r.response === 0 && !win.isDestroyed()) {
+      pendingNotices.push('operatorRecovered')
+      loadPage(win, 'index')
+    } else app.quit()
+  })
+  win.on('unresponsive', () => log.warn('operator window unresponsive'))
+  // Windows shutdown / log off skips before-quit: save now
+  win.on('session-end', () => {
+    log.info('Windows session ending: saving')
+    db().flush()
+  })
 }
 
 /* ------------------------------ windows ------------------------------ */
@@ -180,6 +368,7 @@ function createOperator(): void {
     stageWin?.destroy()
     app.quit()
   })
+  guardOperator(operator)
   loadPage(operator, 'index')
 }
 
@@ -244,6 +433,7 @@ function createOutput(): void {
     operator?.focus()
     operator?.webContents.send('output:status', { open: true })
   })
+  guardWindow(output, 'output')
   loadPage(output, 'output')
 }
 
@@ -269,6 +459,7 @@ function createStageWindow(): void {
     stageWin.setFullScreen(true)
   }
   stageWin.on('closed', () => (stageWin = null))
+  guardWindow(stageWin, 'stage')
   loadPage(stageWin, 'stage', '#local')
 }
 
@@ -298,6 +489,13 @@ const isGranted = (p: unknown): p is string => typeof p === 'string' && granted.
 // native file dialogs cannot be driven by Playwright, so a tester can queue the path the next dialog should "pick".
 const openQueue: string[][] = []
 const saveQueue: string[] = []
+const messageBoxQueue: number[] = []
+
+/** async message box (never the sync one: it would block main, and with it the projector) */
+function messageBox(opts: Electron.MessageBoxOptions): Promise<Electron.MessageBoxReturnValue> {
+  if (E2E && messageBoxQueue.length) return Promise.resolve({ response: messageBoxQueue.shift()!, checkboxChecked: false })
+  return operator && !operator.isDestroyed() ? dialog.showMessageBox(operator, opts) : dialog.showMessageBox(opts)
+}
 
 async function openDialog(opts: Electron.OpenDialogOptions): Promise<Electron.OpenDialogReturnValue> {
   const r = E2E && openQueue.length ? { canceled: false, filePaths: openQueue.shift()! } : await dialog.showOpenDialog(operator!, opts)
@@ -401,9 +599,14 @@ function registerIpc(): void {
   // live
   h('live:get', () => live.state)
   h('live:update', (_e, patch: Partial<LiveState>) => live.update(patch))
-  on('output:progress', (_e, p: { current?: unknown; duration?: unknown; error?: unknown }) => {
+  on('output:progress', (_e, p: { current?: unknown; duration?: unknown; error?: unknown; src?: unknown }) => {
     const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
-    live.progress({ current: num(p?.current), duration: num(p?.duration), error: p?.error === true ? true : undefined })
+    live.progress({
+      current: num(p?.current),
+      duration: num(p?.duration),
+      error: p?.error === true ? true : undefined,
+      src: typeof p?.src === 'string' && p.src.length < 4000 ? p.src : undefined
+    })
   })
   on('output:ended', (_e, info: { itemId?: unknown; src?: unknown }) => {
     if (typeof info?.src !== 'string') return
@@ -412,6 +615,50 @@ function registerIpc(): void {
   on('stage:command', (_e, raw: unknown) => {
     const cmd = validateCommand(raw)
     if (cmd) forwardCommand(cmd)
+  })
+
+  // crash & freeze recovery (see guardWindow)
+  on('win:alive', (e) => {
+    const kind = kindOf(e.sender)
+    if (kind) guards[kind].beat.beat()
+  })
+  on('win:fatal', (e, message: unknown) => {
+    const kind = kindOf(e.sender)
+    if (!kind) return
+    log.error(`${kind} page failed:`, String(message).slice(0, 200))
+    recover(kind, 'render error')
+  })
+  {
+    let last = ''
+    let lastAt = 0
+    on('output:renderError', (_e, message: unknown) => {
+      // a slide that can't be drawn throws again on every update: report it once, not every second
+      const m = String(message).slice(0, 200)
+      if (m === last && Date.now() - lastAt < 30_000) return
+      last = m
+      lastAt = Date.now()
+      log.error('projector could not draw a slide:', m)
+      notify({ type: 'renderError' })
+    })
+  }
+  h('output:restart', () => {
+    guards.output.budget.reset()
+    if (output && !output.isDestroyed()) loadPage(output, 'output')
+    else createOutput()
+  })
+  h('app:notices', () => pendingNotices.splice(0))
+  on('app:log', (e, level: unknown, message: unknown) => {
+    const page = (() => {
+      try {
+        return new URL(e.senderFrame?.url || '').pathname.split('/').pop()
+      } catch {
+        return '?'
+      }
+    })()
+    const msg = `[${page}] ${String(message).slice(0, 300)}`
+    if (level === 'error') log.error(msg)
+    else if (level === 'warn') log.warn(msg)
+    else log.info(msg)
   })
 
   // displays / windows
@@ -483,7 +730,8 @@ function registerIpc(): void {
     } else return { ok: false, error: 'forbidden' }
     const res = await restoreBackup(p)
     log.info('backup restore', res.ok ? 'ok' : `failed: ${res.error}`)
-    if (res.ok) operator?.webContents.reload()
+    // reply first, then reload: reloading before the answer arrives destroys the page that is waiting for it
+    if (res.ok) setTimeout(() => operator?.webContents.reload(), 150)
     return res
   })
   h('backup:list', () => listBackups())
@@ -511,7 +759,22 @@ function registerIpc(): void {
   if (E2E) {
     h('e2e:queueOpen', (_e, paths: string[]) => void openQueue.push(paths))
     h('e2e:queueSave', (_e, path: string) => void saveQueue.push(path))
+    h('e2e:queueMessageBox', (_e, response: number) => void messageBoxQueue.push(response))
   }
+
+  // help & diagnostics
+  h('app:openLogs', () => shell.openPath(logDir()))
+  h('app:exportDiagnostics', (_e, includeCrashDumps: unknown) => exportDiagnosticsInteractive(includeCrashDumps === true))
+  h('app:copySystemInfo', () => {
+    clipboard.writeText(systemInfoText())
+    return true
+  })
+  h('app:openNotices', () => openNotices())
+  h('app:reportProblem', () => void shell.openExternal(newIssueUrl()))
+  h('app:checkUpdates', () => checkForUpdates({ manual: true }))
+  h('app:openRelease', (_e, url: unknown) => {
+    if (typeof url === 'string' && url.startsWith(RELEASES_URL)) void shell.openExternal(url)
+  })
 
   // app
   h('app:info', () => ({ version: app.getVersion(), dataPath: dataRoot(), electron: process.versions.electron }))
@@ -560,6 +823,32 @@ app.whenReady().then(async () => {
   void restartServer()
   autoBackup().catch((e) => log.error('auto backup failed', e))
 
+  // a crashed GPU process can leave the projector black or frozen: tell the operator about the workaround
+  app.on('child-process-gone', (_e, d) => {
+    log.warn(`child process gone: ${d.type} (${d.reason}, exit ${d.exitCode})`)
+    if (d.type === 'GPU' && d.reason !== 'clean-exit') notify({ type: 'gpuCrashed' })
+  })
+  // sleep: save, and don't mistake the pause for a frozen projector when the PC wakes up
+  powerMonitor.on('suspend', () => {
+    log.info('system suspending: saving')
+    db().flush()
+    guards.output.beat.stop()
+    guards.stage.beat.stop()
+  })
+  powerMonitor.on('resume', () => {
+    log.info('system resumed')
+    guards.output.beat.stop()
+    guards.stage.beat.stop()
+  })
+
+  // optional update check (off by default; never during a service), a minute after start and then daily
+  const runUpdateCheck = () =>
+    void checkForUpdates({ manual: false }).then((r) => {
+      if (r.ok && r.newer) notify({ type: 'update', latest: r.latest, url: r.url })
+    })
+  setTimeout(runUpdateCheck, 60_000)
+  setInterval(runUpdateCheck, 6 * 60 * 60 * 1000)
+
   screen.on('display-added', () => {
     log.info('display added')
     operator?.webContents.send('displays:changed')
@@ -573,6 +862,8 @@ app.whenReady().then(async () => {
 })
 
 app.on('before-quit', () => {
+  quitting = true
+  log.info('quitting')
   db().flush()
   stopServer()
 })

@@ -10,6 +10,16 @@ function on<T>(channel: string, cb: (v: T) => void): () => void {
   return () => ipcRenderer.removeListener(channel, fn)
 }
 
+export type AppEvent =
+  | { type: 'mainError' }
+  | { type: 'windowRecovered'; window: 'output' | 'stage'; safe: boolean }
+  | { type: 'windowFailed'; window: 'output' | 'stage' }
+  | { type: 'renderError' }
+  | { type: 'gpuCrashed' }
+  | { type: 'update'; latest: string; url: string }
+  | { type: 'diagnostics'; ok: boolean }
+  | { type: 'menu'; action: 'shortcuts' | 'about' }
+
 export interface ImportOutcome {
   presentation?: Presentation
   pdfToRender?: { id: string; pdfPath: string; name: string; sourcePath: string; method: 'libreoffice' | 'pdf' }
@@ -56,7 +66,7 @@ const api = {
     onState: (cb: (s: LiveState) => void) => on('live:state', cb),
     onProgress: (cb: (p: LiveState['videoProgress']) => void) => on('live:progress', cb),
     onCommand: (cb: (c: RemoteCommand | VideoEndedCommand) => void) => on('remote:command', cb),
-    videoProgress: (p: { current: number; duration: number; error?: boolean }) => ipcRenderer.send('output:progress', p),
+    videoProgress: (p: { current: number; duration: number; error?: boolean; src?: string }) => ipcRenderer.send('output:progress', p),
     videoEnded: (info: { itemId?: string; src: string }) => ipcRenderer.send('output:ended', info),
     stageCommand: (cmd: RemoteCommand) => ipcRenderer.send('stage:command', cmd)
   },
@@ -69,7 +79,16 @@ const api = {
     close: () => invoke('output:close'),
     status: (): Promise<{ open: boolean }> => invoke('output:status'),
     replace: () => invoke('output:replace'),
-    onStatus: (cb: (s: { open: boolean }) => void) => on('output:status', cb)
+    onStatus: (cb: (s: { open: boolean }) => void) => on('output:status', cb),
+    /** reload the projector page (and leave "safe" mode after repeated crashes) */
+    restart: () => invoke('output:restart'),
+    /** the projector couldn't draw the current slide (its error boundary caught it) */
+    renderError: (message: string) => ipcRenderer.send('output:renderError', message)
+  },
+  /** projector / stage windows: "I'm alive" every second, and "my page broke, reload me" */
+  win: {
+    alive: () => ipcRenderer.send('win:alive'),
+    fatal: (message: string) => ipcRenderer.send('win:fatal', message)
   },
   stage: { open: () => invoke('stage:open') },
   files: {
@@ -109,12 +128,27 @@ const api = {
   /** test-only (npm run e2e:launch): pre-answer the next native file dialog */
   e2e: {
     queueOpenFiles: (paths: string[]): Promise<void> => invoke('e2e:queueOpen', paths),
-    queueSaveFile: (path: string): Promise<void> => invoke('e2e:queueSave', path)
+    queueSaveFile: (path: string): Promise<void> => invoke('e2e:queueSave', path),
+    /** answer the next message box with this button index */
+    queueMessageBox: (response: number): Promise<void> => invoke('e2e:queueMessageBox', response)
   },
   app: {
     info: (): Promise<{ version: string; dataPath: string; electron: string }> => invoke('app:info'),
     openDataFolder: () => invoke('app:openDataFolder'),
-    openExternal: (url: string) => invoke('app:openExternal', url)
+    openExternal: (url: string) => invoke('app:openExternal', url),
+    /** write a line to the app's log file (never put lyrics, people or PINs in it) */
+    log: (level: 'info' | 'warn' | 'error', message: string) => ipcRenderer.send('app:log', level, message),
+    openLogs: () => invoke('app:openLogs'),
+    exportDiagnostics: (includeCrashDumps: boolean): Promise<{ ok: boolean; path: string } | null> => invoke('app:exportDiagnostics', includeCrashDumps),
+    copySystemInfo: (): Promise<boolean> => invoke('app:copySystemInfo'),
+    openNotices: () => invoke('app:openNotices'),
+    reportProblem: () => invoke('app:reportProblem'),
+    checkUpdates: (): Promise<{ ok: true; latest: string; newer: boolean; url: string } | { ok: false; error?: string; skipped?: true }> =>
+      invoke('app:checkUpdates'),
+    openRelease: (url: string) => invoke('app:openRelease', url),
+    /** things to tell the operator after a (re)load, e.g. 'operatorRecovered' */
+    notices: (): Promise<string[]> => invoke('app:notices'),
+    onEvent: (cb: (e: AppEvent) => void) => on('app:event', cb)
   }
 }
 

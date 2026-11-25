@@ -6,6 +6,7 @@ import { pickLangs } from '@shared/slides'
 import type { DisplayLang } from '@shared/types'
 import { useLiveFeed } from '../lib/liveFeed'
 import { rememberPin, usePin } from '../lib/pin'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 import './remote.css'
 
 const ICON: Record<string, string> = {
@@ -204,4 +205,18 @@ function Remote() {
   )
 }
 
-createRoot(document.getElementById('root')!).render(<Remote />)
+createRoot(document.getElementById('root')!).render(
+  <ErrorBoundary
+    onError={(e) => console.error('remote page error', e)}
+    fallback={() => (
+      <div className="r-pin">
+        <div className="r-logo">✝</div>
+        <button className="r-btn primary" onClick={() => location.reload()}>
+          ↻
+        </button>
+      </div>
+    )}
+  >
+    <Remote />
+  </ErrorBoundary>
+)

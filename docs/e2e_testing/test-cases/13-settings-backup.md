@@ -45,3 +45,28 @@
 ### TC-BAK-03 · Automatic daily backup  `P2`
 **Expected**
 - Backups list shows "auto-YYYY-MM-DD.zip" for today after launch.
+
+### TC-SET-06 · Export diagnostics  `P1`
+**Steps**
+1. Settings → About → 📦 Export diagnostics… (queue a save path `.e2e-data/tmp/diag.zip` first). Leave "Include crash dumps" off.
+2. Unzip it (Bash: `unzip -l` / `unzip -p`).
+**Expected**
+- Contains `logs/main.log`, `system.json`, `settings.json`, `data-summary.json`, `README.txt` — no `crash-dumps/`.
+- `settings.json` has **no** `remotePin` and no church name; logo/CCLI show only `(set)`.
+- No file contains the Windows user name, a song lyric, a person's name or a prayer request (grep for a few you added).
+- Help menu (press Alt) has the same Export diagnostics, plus Open logs folder, Report a problem, Keyboard shortcuts.
+
+### TC-SET-07 · Update check is off until turned on  `P1`
+**Steps**
+1. Fresh install: Settings → About → Updates. 2. Click 🔎 Check now (with internet). 3. Disconnect the network, Check now.
+**Expected**
+- "Check for new versions once a day" is **unticked** by default; nothing contacts the internet until Check now or the box.
+- Step 2 shows "You have the latest version" or an "ICCWorship x.y.z is available" button that opens the GitHub releases page.
+- Step 3 shows "Could not check (no internet?)" — no error dialog.
+
+### TC-SET-08 · Graphics acceleration switch  `P2`
+**Steps**
+1. Settings → About → tick "Turn off graphics acceleration". Quit and relaunch (`--keep`). Show a video and a song.
+**Expected**
+- The setting is kept; the app starts and shows slides and video normally (the "graphics" line in
+  `system.json` of a diagnostics export says features are software/disabled). Untick it afterwards.

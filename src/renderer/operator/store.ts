@@ -141,11 +141,32 @@ export const useApp = create<AppState>((set, get) => ({
       api.db.onWriteError((e) => get().toast(i18n.t('errors.saveFailed', { what: e.name, reason: e.message }), 'err'))
       // safety net: an action that fails without its own error handling (e.g. saving a
       // file to a folder that no longer exists) must not fail silently
-      window.addEventListener('unhandledrejection', (ev) => toastError(ev.reason))
+      window.addEventListener('unhandledrejection', (ev) => {
+        toastError(ev.reason)
+        api.app.log('warn', `unhandled rejection: ${ev.reason instanceof Error ? `${ev.reason.name}: ${ev.reason.message}` : String(ev.reason)}`)
+      })
+      // what main reports: windows restarted after a crash, updates, diagnostics…
+      api.app.onEvent((e) => {
+        const toast = get().toast
+        if (e.type === 'mainError') toast(i18n.t('recovery.mainError'), 'err', 15_000)
+        else if (e.type === 'windowRecovered') {
+          if (e.window === 'stage') toast(i18n.t('recovery.stageRestarted'), 'info', 10_000)
+          else if (e.safe) toast(i18n.t('recovery.projectorSafe'), 'err', 120_000)
+          else toast(i18n.t('recovery.projectorRestarted'), 'info', 10_000)
+        } else if (e.type === 'windowFailed') toast(i18n.t(e.window === 'output' ? 'recovery.projectorFailed' : 'recovery.stageFailed'), 'err', 120_000)
+        else if (e.type === 'renderError') toast(i18n.t('recovery.renderError'), 'err', 10_000)
+        else if (e.type === 'gpuCrashed') toast(i18n.t('recovery.gpuCrashed'), 'err', 30_000)
+        else if (e.type === 'update') toast(i18n.t('updates.available', { version: e.latest }), 'info', 30_000)
+        else if (e.type === 'diagnostics') toast(i18n.t(e.ok ? 'about.diagSaved' : 'about.diagFailed'), e.ok ? 'ok' : 'err')
+      })
     }
     // damaged data files found at startup: say so (and where the damaged copy was kept)
     for (const p of await api.db.problems()) {
       get().toast(i18n.t(p.kind === 'recovered' ? 'errors.dataRecovered' : 'errors.dataUnreadable', { what: p.name, file: p.savedAs || '' }), 'err', 30_000)
+    }
+    // this window was restarted after a crash: what the operator has to know
+    for (const n of await api.app.notices()) {
+      if (n === 'operatorRecovered') get().toast(i18n.t('recovery.operatorRecovered'), 'err', 30_000)
     }
   },
 

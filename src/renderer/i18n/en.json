@@ -543,7 +543,9 @@
     "qrRemote": "Phone remote",
     "qrStage": "Stage display",
     "newPin": "New PIN (disconnects phones and stage screens)",
-    "portHelp": "Press Enter to apply. Use a number from 1024 to 65535."
+    "portHelp": "Press Enter to apply. Use a number from 1024 to 65535.",
+    "restartOutput": "Restart projector",
+    "restartOutputHelp": "Reloads the projector window (and leaves the black \"safe\" mode after repeated errors)"
   },
   "help": {
     "title": "Keyboard shortcuts",
@@ -614,6 +616,52 @@
     "shortcuts": "Keyboard shortcuts",
     "website": "ICCWorship website",
     "reportProblem": "Report a problem",
-    "about": "About ICCWorship"
+    "about": "About ICCWorship",
+    "openLogs": "Open logs folder",
+    "exportDiagnostics": "Export diagnostics…",
+    "notices": "Open-source licences"
+  },
+  "recovery": {
+    "mainError": "Something went wrong inside ICCWorship. What is on screen keeps running; it was written to the log (Help → Open logs folder).",
+    "projectorRestarted": "The projector window had a problem and was restarted. It shows what is live again.",
+    "projectorSafe": "The projector kept failing, so it now shows black. Go on with the next slide or item, then Settings → Screens → 🔄 Restart projector.",
+    "projectorFailed": "The projector window keeps failing. Settings → Screens → 🔄 Restart projector. If it happens again, turn on \"Turn off graphics acceleration\" in Settings → About.",
+    "stageRestarted": "The stage window had a problem and was restarted.",
+    "stageFailed": "The stage window keeps failing. Close it and open it again from Settings → Screens.",
+    "renderError": "The projector could not show this slide, so it shows black. Move to the next slide or item.",
+    "gpuCrashed": "The graphics driver stopped responding. If the projector goes black or freezes, turn on \"Turn off graphics acceleration\" in Settings → About and restart ICCWorship.",
+    "operatorRecovered": "ICCWorship restarted this window after a problem. The projector kept showing what was live; an announcement loop that was running has stopped — press Space to continue.",
+    "operatorCrashed": "The ICCWorship window crashed again. The projector keeps showing what is live. Reload the window?",
+    "reload": "Reload"
+  },
+  "boundary": {
+    "title": "This page had a problem",
+    "body": "The projector and the phone remote keep working. Try again, or reload the window. The problem was written to the log.",
+    "retry": "Try again",
+    "reload": "Reload window"
+  },
+  "about": {
+    "notices": "Open-source licences",
+    "troubleshooting": "Troubleshooting",
+    "troubleshootingHelp": "Reporting a problem? Attach the diagnostics file to the report. It contains no lyrics, people, prayer requests or PIN, but reports on GitHub are public.",
+    "reportProblem": "Report a problem",
+    "exportDiagnostics": "Export diagnostics…",
+    "diagSaved": "Diagnostics saved. Attach the .zip to your report.",
+    "diagFailed": "Could not save the diagnostics file.",
+    "copyInfo": "Copy system info",
+    "copied": "Copied — paste it into your report.",
+    "openLogs": "Open logs folder",
+    "includeDumps": "Include crash dumps (may contain text that was on screen)",
+    "hwAccel": "Turn off graphics acceleration",
+    "hwAccelHelp": "Only if the projector goes black, flickers or freezes on this computer. Takes effect after restarting ICCWorship."
+  },
+  "updates": {
+    "title": "Updates",
+    "toggle": "Check for new versions once a day",
+    "help": "Asks GitHub whether a newer ICCWorship exists — never during a service, nothing about you is sent, nothing is installed automatically.",
+    "checkNow": "Check now",
+    "upToDate": "You have the latest version.",
+    "available": "ICCWorship {{version}} is available",
+    "failed": "Could not check (no internet?)."
   }
 }

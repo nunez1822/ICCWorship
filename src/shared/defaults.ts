@@ -19,7 +19,9 @@ export const DEFAULT_SETTINGS: Settings = {
   ],
   messageSeconds: 30,
   operatorTheme: 'dark',
-  firstRunDone: false
+  firstRunDone: false,
+  checkForUpdates: false,
+  disableHwAccel: false
 }
 
 const base = {

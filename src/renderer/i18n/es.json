@@ -543,7 +543,9 @@
     "qrRemote": "Control remoto",
     "qrStage": "Pantalla de escenario",
     "newPin": "PIN nuevo (desconecta teléfonos y pantallas de escenario)",
-    "portHelp": "Presione Enter para aplicar. Use un número de 1024 a 65535."
+    "portHelp": "Presione Enter para aplicar. Use un número de 1024 a 65535.",
+    "restartOutput": "Reiniciar proyector",
+    "restartOutputHelp": "Recarga la ventana del proyector (y sale del modo negro \"seguro\" después de errores repetidos)"
   },
   "help": {
     "title": "Atajos de teclado",
@@ -614,6 +616,52 @@
     "shortcuts": "Atajos de teclado",
     "website": "Sitio web de ICCWorship",
     "reportProblem": "Reportar un problema",
-    "about": "Acerca de ICCWorship"
+    "about": "Acerca de ICCWorship",
+    "openLogs": "Abrir carpeta de registros",
+    "exportDiagnostics": "Exportar diagnóstico…",
+    "notices": "Licencias de código abierto"
+  },
+  "recovery": {
+    "mainError": "Algo falló dentro de ICCWorship. Lo que está en pantalla sigue funcionando; quedó anotado en el registro (Ayuda → Abrir carpeta de registros).",
+    "projectorRestarted": "La ventana del proyector tuvo un problema y se reinició. Ya muestra de nuevo lo que está en vivo.",
+    "projectorSafe": "El proyector siguió fallando, así que ahora muestra negro. Continúe con la siguiente diapositiva o elemento y luego Ajustes → Pantallas → 🔄 Reiniciar proyector.",
+    "projectorFailed": "La ventana del proyector sigue fallando. Ajustes → Pantallas → 🔄 Reiniciar proyector. Si vuelve a pasar, active \"Desactivar la aceleración gráfica\" en Ajustes → Acerca de.",
+    "stageRestarted": "La ventana de escenario tuvo un problema y se reinició.",
+    "stageFailed": "La ventana de escenario sigue fallando. Ciérrela y ábrala de nuevo en Ajustes → Pantallas.",
+    "renderError": "El proyector no pudo mostrar esta diapositiva, así que muestra negro. Pase a la siguiente diapositiva o elemento.",
+    "gpuCrashed": "El controlador de gráficos dejó de responder. Si el proyector se pone negro o se congela, active \"Desactivar la aceleración gráfica\" en Ajustes → Acerca de y reinicie ICCWorship.",
+    "operatorRecovered": "ICCWorship reinició esta ventana después de un problema. El proyector siguió mostrando lo que estaba en vivo; si había anuncios en bucle, se detuvieron — presione Espacio para continuar.",
+    "operatorCrashed": "La ventana de ICCWorship falló otra vez. El proyector sigue mostrando lo que está en vivo. ¿Recargar la ventana?",
+    "reload": "Recargar"
+  },
+  "boundary": {
+    "title": "Esta página tuvo un problema",
+    "body": "El proyector y el control remoto siguen funcionando. Intente de nuevo o recargue la ventana. El problema quedó anotado en el registro.",
+    "retry": "Intentar de nuevo",
+    "reload": "Recargar ventana"
+  },
+  "about": {
+    "notices": "Licencias de código abierto",
+    "troubleshooting": "Solución de problemas",
+    "troubleshootingHelp": "¿Va a reportar un problema? Adjunte el archivo de diagnóstico. No contiene letras, personas, peticiones de oración ni el PIN, pero los reportes en GitHub son públicos.",
+    "reportProblem": "Reportar un problema",
+    "exportDiagnostics": "Exportar diagnóstico…",
+    "diagSaved": "Diagnóstico guardado. Adjunte el .zip a su reporte.",
+    "diagFailed": "No se pudo guardar el archivo de diagnóstico.",
+    "copyInfo": "Copiar información del sistema",
+    "copied": "Copiado — péguelo en su reporte.",
+    "openLogs": "Abrir carpeta de registros",
+    "includeDumps": "Incluir volcados de fallos (pueden contener texto que estaba en pantalla)",
+    "hwAccel": "Desactivar la aceleración gráfica",
+    "hwAccelHelp": "Solo si el proyector se pone negro, parpadea o se congela en esta computadora. Se aplica al reiniciar ICCWorship."
+  },
+  "updates": {
+    "title": "Actualizaciones",
+    "toggle": "Buscar versiones nuevas una vez al día",
+    "help": "Pregunta a GitHub si hay una versión nueva de ICCWorship — nunca durante un servicio, no se envía nada sobre usted y no se instala nada automáticamente.",
+    "checkNow": "Buscar ahora",
+    "upToDate": "Tiene la versión más reciente.",
+    "available": "ICCWorship {{version}} está disponible",
+    "failed": "No se pudo comprobar (¿sin internet?)."
   }
 }

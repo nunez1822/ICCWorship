@@ -15,6 +15,8 @@ export function SettingsPage() {
   const [server, setServer] = useState<Awaited<ReturnType<typeof window.api.server.info>> | null>(null)
   const [backups, setBackups] = useState<{ name: string; path: string; size: number; date: number }[]>([])
   const [info, setInfo] = useState<{ version: string; dataPath: string; electron: string } | null>(null)
+  const [includeDumps, setIncludeDumps] = useState(false)
+  const [update, setUpdate] = useState<Awaited<ReturnType<typeof window.api.app.checkUpdates>> | 'checking' | null>(null)
   // the port is applied on Enter / leaving the field, not on every keystroke ("8080" would pass through 8, 80, 808)
   const [portDraft, setPortDraft] = useState<string | null>(null)
   const applyPort = () => {
@@ -114,6 +116,9 @@ export function SettingsPage() {
               </button>
               <button className="btn" onClick={() => window.api.stage.open()}>
                 🎤 {t('settings.openStage')}
+              </button>
+              <button className="btn" title={t('settings.restartOutputHelp')} onClick={() => void window.api.output.restart()}>
+                🔄 {t('settings.restartOutput')}
               </button>
             </div>
             <label className="check">
@@ -354,10 +359,75 @@ export function SettingsPage() {
             <div className="small muted" style={{ wordBreak: 'break-all' }}>
               {t('settings.dataAt')} {info?.dataPath}
             </div>
-            <div className="row">
+            <div className="row wrap">
               <button className="btn sm" onClick={() => void s.setSettings({ firstRunDone: false })}>
                 👋 {t('settings.showWelcome')}
               </button>
+              <button className="btn sm" onClick={() => void window.api.app.openNotices()}>
+                📜 {t('about.notices')}
+              </button>
+            </div>
+
+            <h3 style={{ margin: '10px 0 0' }}>🛟 {t('about.troubleshooting')}</h3>
+            <div className="small muted">{t('about.troubleshootingHelp')}</div>
+            <div className="row wrap">
+              <button className="btn sm" onClick={() => void window.api.app.reportProblem()}>
+                🐞 {t('about.reportProblem')}
+              </button>
+              <button
+                className="btn sm"
+                onClick={async () => {
+                  const r = await window.api.app.exportDiagnostics(includeDumps)
+                  if (r) s.toast(t(r.ok ? 'about.diagSaved' : 'about.diagFailed'), r.ok ? 'ok' : 'err')
+                }}
+              >
+                📦 {t('about.exportDiagnostics')}
+              </button>
+              <button className="btn sm" onClick={() => void window.api.app.copySystemInfo().then(() => s.toast(t('about.copied')))}>
+                📋 {t('about.copyInfo')}
+              </button>
+              <button className="btn sm" onClick={() => void window.api.app.openLogs()}>
+                📂 {t('about.openLogs')}
+              </button>
+            </div>
+            <label className="check small">
+              <input type="checkbox" checked={includeDumps} onChange={(e) => setIncludeDumps(e.target.checked)} /> {t('about.includeDumps')}
+            </label>
+            <label className="check">
+              <input type="checkbox" checked={!!st.disableHwAccel} onChange={(e) => void s.setSettings({ disableHwAccel: e.target.checked })} />{' '}
+              {t('about.hwAccel')}
+            </label>
+            <div className="small muted">{t('about.hwAccelHelp')}</div>
+
+            <h3 style={{ margin: '10px 0 0' }}>⬆️ {t('updates.title')}</h3>
+            <label className="check">
+              <input type="checkbox" checked={!!st.checkForUpdates} onChange={(e) => void s.setSettings({ checkForUpdates: e.target.checked })} />{' '}
+              {t('updates.toggle')}
+            </label>
+            <div className="small muted">{t('updates.help')}</div>
+            <div className="row wrap" style={{ alignItems: 'center' }}>
+              <button
+                className="btn sm"
+                disabled={update === 'checking'}
+                onClick={async () => {
+                  setUpdate('checking')
+                  setUpdate(await window.api.app.checkUpdates())
+                }}
+              >
+                🔎 {t('updates.checkNow')}
+              </button>
+              {update === 'checking' && <span className="small muted">…</span>}
+              {update && update !== 'checking' && update.ok && !update.newer && <span className="small">✓ {t('updates.upToDate')}</span>}
+              {update && update !== 'checking' && update.ok && update.newer && (
+                <button className="btn sm primary" onClick={() => void window.api.app.openRelease(update.url)}>
+                  ⬇️ {t('updates.available', { version: update.latest })}
+                </button>
+              )}
+              {update && update !== 'checking' && !update.ok && (
+                <span className="small" style={{ color: 'var(--warn)' }}>
+                  {t('updates.failed')}
+                </span>
+              )}
             </div>
           </div>
         </div>

@@ -22,7 +22,11 @@ usually operated by a volunteer during a live service, so reliability and simpli
   - New settings must be added to `SETTING_CHECKS` or they can't be saved; the renderer can never set `remotePin`.
   - LAN input goes through `validateCommand` / `parseRange`, and phones only receive `pickPublicState`.
   - Nothing a LAN request sends may throw in main: every socket and stream needs an `'error'` handler.
-- **Logging:** use `log` from `src/main/log.ts`. Log ids, counts, error codes and short messages, **never** lyrics,
+- **Crash recovery** (`src/main/recovery.ts`, wired in `index.ts` → `guardWindow` / `guardOperator`): projector
+  and stage pages send `win.alive()` every second and are restarted when they crash or stop beating; repeated
+  failures put the projector in `#safe` (black). Pages are wrapped in `ErrorBoundary`. Keep new windows/pages
+  inside this net.
+- **Logging:** use `log` from `src/main/log.ts` (`%APPDATA%\ICCWorship\logs`; test runs: `<ICCWORSHIP_DATA>/.userdata/logs`). Log ids, counts, error codes and short messages, **never** lyrics,
   people, prayer requests, request URLs or payloads. Logs are attached to public bug reports.
 
 ## Layout
@@ -84,7 +88,8 @@ Run reports go in `docs/e2e_testing/results/` (git-ignored); don't commit them.
 
 ## E2E testing gotchas (Playwright MCP)
 - The MCP often starts on the projector tab; select the `index.html` (operator) tab first.
-- Native file dialogs: queue the answer with `window.api.e2e.queueOpenFiles([...])` / `queueSaveFile(...)`
+- Native file dialogs: queue the answer with `window.api.e2e.queueOpenFiles([...])` / `queueSaveFile(...)`;
+  native message boxes (e.g. "the window crashed again — reload?") with `queueMessageBox(<button index>)`
   before clicking.
 - `confirm()` dialogs are cancelled when the tool call ends. Stub `window.confirm = () => true` in the same
   `browser_run_code_unsafe` call that clicks the button.
