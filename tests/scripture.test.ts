@@ -113,34 +113,36 @@ describe('built-in bibles', () => {
 })
 
 describe('pasted (LBLA-style) verses', () => {
+  // placeholder wording only — never commit real copyrighted Bible text
   const pasted = `Juan 3:16-18
 La Biblia de las Américas
-16 Porque de tal manera amó Dios al mundo, que dio a su Hijo unigénito, para que todo aquel que cree en Él, no se pierda, mas tenga vida eterna.[a] 17 Porque Dios no envió a su Hijo al mundo para juzgar al mundo, sino para que el mundo sea salvo por Él.
-18 El que cree en Él no es condenado; pero el que no cree, ya ha sido condenado.`
+16 Texto de prueba del versículo dieciséis, como si viniera de la página web.[a] 17 Texto de prueba del versículo diecisiete (A) con una referencia cruzada.
+18 Texto de prueba del versículo dieciocho, que termina aquí.`
 
   it('splits pasted text into verses by number', () => {
     const r = parsePastedPassage('Juan 3:16-18', pasted, vers)
     expect(r.ok).toBe(true)
     expect(r.verses.map((v) => v.verse)).toEqual([16, 17, 18])
-    expect(r.verses[0].text).toMatch(/^Porque de tal manera/)
+    expect(r.verses[0].text).toMatch(/^Texto de prueba del versículo dieciséis/)
     expect(r.verses[0].text).not.toContain('[a]')
-    expect(r.verses[2].text).toMatch(/ya ha sido condenado\.$/)
+    expect(r.verses[1].text).not.toContain('(A)')
+    expect(r.verses[2].text).toMatch(/termina aquí\.$/)
   })
 
   it('accepts a single verse without a number', () => {
-    const r = parsePastedPassage('Juan 3:16', 'Porque de tal manera amó Dios al mundo…', vers)
+    const r = parsePastedPassage('Juan 3:16', 'Texto de prueba sin número…', vers)
     expect(r.ok).toBe(true)
     expect(r.verses[0].verse).toBe(16)
   })
 
   it('reports missing verse numbers', () => {
-    const r = parsePastedPassage('Juan 3:16-18', '16 Porque de tal manera amó Dios al mundo. 17 Porque Dios no envió', vers)
+    const r = parsePastedPassage('Juan 3:16-18', '16 Texto de prueba uno. 17 Texto de prueba dos', vers)
     expect(r.ok).toBe(false)
     expect(r.notFound).toEqual([18])
   })
 
   it('serves stored verses and lists missing ones', () => {
-    const lbla: PartialBible = { id: 'lbla', name: 'La Biblia de las Américas', abbrev: 'LBLA', lang: 'es', verseLimit: 500, verses: { '43:3:16': 'Porque de tal manera…' } }
+    const lbla: PartialBible = { id: 'lbla', name: 'La Biblia de las Américas', abbrev: 'LBLA', lang: 'es', verseLimit: 500, verses: { '43:3:16': 'Texto de prueba…' } }
     const p = passageFromPartial(lbla, 'Juan 3:16-17', vers)
     expect(p.verses.length).toBe(1)
     expect(p.missing).toEqual([{ book: 43, chapter: 3, verse: 17 }])

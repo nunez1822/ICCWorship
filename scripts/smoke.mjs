@@ -6,7 +6,7 @@
  *   node scripts/smoke.mjs [screenshotDir]
  */
 import { _electron as electron } from 'playwright-core'
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -89,8 +89,8 @@ try {
   await sleep(300)
   await op.locator('.btn.primary.lg').click()
   await sleep(500)
-  await op.fill('input.input.big', 'Juan 3:16-17')
-  await op.fill('textarea.textarea', 'Juan 3:16-17 LBLA\n16 Porque de tal manera amó Dios al mundo, que dio a su Hijo unigénito, para que todo aquel que cree en Él, no se pierda, mas tenga vida eterna. 17 Porque Dios no envió a su Hijo al mundo para juzgar al mundo, sino para que el mundo sea salvo por Él.')
+  await op.fill('input.input.big', 'Juan 3:16-18')
+  await op.fill('textarea.textarea', readFileSync(join(root, 'tests', 'fixtures', 'lbla-juan-3-16-18.txt'), 'utf8'))
   await op.locator('button:has-text("✨")').click()
   await sleep(500)
   await op.screenshot({ path: join(shots, '09-lbla-detect.png') })

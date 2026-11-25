@@ -1,0 +1,14 @@
+{title: E2E Chord Song}
+{artist: Test Writer}
+{key: G}
+{ccli: 7654321}
+
+{start_of_verse: Verse 1}
+[G]Walking in the [C]light of [G]day
+[Em]Singing all the [D]way
+{end_of_verse}
+
+{start_of_chorus}
+[C]Glory, [G]glory
+[D]Hallelu[G]jah
+{end_of_chorus}

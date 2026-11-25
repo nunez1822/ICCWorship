@@ -208,6 +208,23 @@ function forwardCommand(cmd: RemoteCommand | { type: 'videoEnded' }): void {
   operator?.webContents.send('remote:command', cmd)
 }
 
+/* ------------------------------ E2E test hook ------------------------------ */
+// Only when started by `npm run e2e:launch` (ICCWORSHIP_E2E=1): native file dialogs cannot be
+// driven by Playwright, so a tester can queue the path the next dialog should "pick".
+const E2E = !!process.env.ICCWORSHIP_E2E
+const openQueue: string[][] = []
+const saveQueue: string[] = []
+
+function openDialog(opts: Electron.OpenDialogOptions): Promise<Electron.OpenDialogReturnValue> {
+  if (E2E && openQueue.length) return Promise.resolve({ canceled: false, filePaths: openQueue.shift()! })
+  return dialog.showOpenDialog(operator!, opts)
+}
+
+function saveDialog(opts: Electron.SaveDialogOptions): Promise<Electron.SaveDialogReturnValue> {
+  if (E2E && saveQueue.length) return Promise.resolve({ canceled: false, filePath: saveQueue.shift()! })
+  return dialog.showSaveDialog(operator!, opts)
+}
+
 /* ------------------------------ IPC ------------------------------ */
 function registerIpc(): void {
   const h = ipcMain.handle.bind(ipcMain)
@@ -250,7 +267,7 @@ function registerIpc(): void {
   h('bible:deletePastedVerse', (_e, id: string, b: number, c: number, v: number) => bible.deletePastedVerse(id, b, c, v))
   h('bible:deleteVersion', (_e, id: string) => bible.deleteVersion(id))
   h('bible:importFile', async (_e, meta) => {
-    const r = await dialog.showOpenDialog(operator!, { properties: ['openFile'], filters: [{ name: 'Bible (OSIS, USFX, JSON)', extensions: ['xml', 'osis', 'usfx', 'json'] }] })
+    const r = await openDialog( { properties: ['openFile'], filters: [{ name: 'Bible (OSIS, USFX, JSON)', extensions: ['xml', 'osis', 'usfx', 'json'] }] })
     if (r.canceled || !r.filePaths[0]) return { ok: false, canceled: true }
     try {
       return { ok: true, info: bible.importFile(r.filePaths[0], meta) }
@@ -281,7 +298,7 @@ function registerIpc(): void {
 
   // dialogs & files
   h('dialog:openFiles', async (_e, opts: { filters?: Electron.FileFilter[]; multi?: boolean; directory?: boolean }) => {
-    const r = await dialog.showOpenDialog(operator!, {
+    const r = await openDialog( {
       properties: opts.directory ? ['openDirectory'] : opts.multi ? ['openFile', 'multiSelections'] : ['openFile'],
       filters: opts.filters
     })
@@ -290,7 +307,7 @@ function registerIpc(): void {
   h('file:exists', (_e, paths: string[]) => paths.map((p) => existsSync(p)))
   h('file:readText', (_e, p: string) => readFileSync(p, 'utf8').replace(/^﻿/, ''))
   h('file:saveText', async (_e, name: string, content: string, filters?: Electron.FileFilter[]) => {
-    const r = await dialog.showSaveDialog(operator!, { defaultPath: name, filters })
+    const r = await saveDialog( { defaultPath: name, filters })
     if (r.canceled || !r.filePath) return null
     writeFileSync(r.filePath, '﻿' + content, 'utf8')
     return r.filePath
@@ -308,14 +325,14 @@ function registerIpc(): void {
 
   // backup
   h('backup:create', async () => {
-    const r = await dialog.showSaveDialog(operator!, { defaultPath: defaultBackupName(), filters: [{ name: 'ICCWorship backup', extensions: ['zip'] }] })
+    const r = await saveDialog( { defaultPath: defaultBackupName(), filters: [{ name: 'ICCWorship backup', extensions: ['zip'] }] })
     if (r.canceled || !r.filePath) return null
     return createBackup(r.filePath)
   })
   h('backup:restore', async (_e, path?: string) => {
     let p = path
     if (!p) {
-      const r = await dialog.showOpenDialog(operator!, { properties: ['openFile'], filters: [{ name: 'ICCWorship backup', extensions: ['zip'] }] })
+      const r = await openDialog( { properties: ['openFile'], filters: [{ name: 'ICCWorship backup', extensions: ['zip'] }] })
       if (r.canceled || !r.filePaths[0]) return null
       p = r.filePaths[0]
     }
@@ -331,10 +348,10 @@ function registerIpc(): void {
     await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
     const pdf = await win.webContents.printToPDF({ printBackground: true, pageSize: 'Letter' })
     win.destroy()
-    const r = await dialog.showSaveDialog(operator!, { defaultPath: name, filters: [{ name: 'PDF', extensions: ['pdf'] }] })
+    const r = await saveDialog( { defaultPath: name, filters: [{ name: 'PDF', extensions: ['pdf'] }] })
     if (r.canceled || !r.filePath) return null
     writeFileSync(r.filePath, pdf)
-    void shell.openPath(r.filePath)
+    if (!E2E) void shell.openPath(r.filePath)
     return r.filePath
   })
   h('print:print', async (_e, html: string) => {
@@ -342,6 +359,12 @@ function registerIpc(): void {
     await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
     win.webContents.print({ printBackground: true }, () => win.destroy())
   })
+
+  // e2e
+  if (E2E) {
+    h('e2e:queueOpen', (_e, paths: string[]) => void openQueue.push(paths))
+    h('e2e:queueSave', (_e, path: string) => void saveQueue.push(path))
+  }
 
   // app
   h('app:info', () => ({ version: app.getVersion(), dataPath: dataRoot(), electron: process.versions.electron }))

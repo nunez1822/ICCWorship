@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<song xmlns="http://openlyrics.info/namespace/2009/song" version="0.9" createdIn="ICCWorship e2e">
+  <properties>
+    <titles>
+      <title lang="en">E2E Test Hymn</title>
+      <title lang="es">Himno de Prueba E2E</title>
+    </titles>
+    <authors><author>Test Author</author></authors>
+    <copyright>Public domain</copyright>
+    <ccliNo>1234567</ccliNo>
+    <verseOrder>v1 c1 v2 c1</verseOrder>
+  </properties>
+  <lyrics>
+    <verse name="v1" lang="en"><lines>First verse line one<br/>First verse line two</lines></verse>
+    <verse name="v1" lang="es"><lines>Primer verso línea uno<br/>Primer verso línea dos</lines></verse>
+    <verse name="c1" lang="en"><lines>This is the chorus<br/>Sing it again</lines></verse>
+    <verse name="c1" lang="es"><lines>Este es el coro<br/>Cántalo otra vez</lines></verse>
+    <verse name="v2" lang="en"><lines>Second verse line one<br/>Second verse line two</lines></verse>
+    <verse name="v2" lang="es"><lines>Segundo verso línea uno<br/>Segundo verso línea dos</lines></verse>
+  </lyrics>
+</song>

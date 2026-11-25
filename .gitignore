@@ -8,3 +8,7 @@ Thumbs.db
 .vscode/
 .idea/
 smoke-shots/
+.e2e-data/
+docs/e2e_testing/results/*
+!docs/e2e_testing/results/README.md
+!docs/e2e_testing/results/TEMPLATE.md

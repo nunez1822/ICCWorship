@@ -85,7 +85,7 @@ function Lookup({ refText, setRefText, onPasteMissing }: { refText: string; setR
   const [res, setRes] = useState<{ p: PassageResult; s?: PassageResult } | null>(null)
   const parsed = refText.trim() ? parseReference(refText) : null
   const bookPart = refText.replace(/\s*\d+[\d:.,\- ]*$/, '')
-  const suggestions = refText && !/\d/.test(refText.replace(/^[1-3]\s*/, '')) ? bookSuggestions(bookPart, s.settings.uiLang) : []
+  const suggestions = refText && !/\d/.test(refText.replace(/^[1-3]\s*/, '')) ? [...new Set([...bookSuggestions(bookPart, s.settings.uiLang), ...bookSuggestions(bookPart, s.settings.uiLang === 'es' ? 'en' : 'es')])].slice(0, 8) : []
 
   const lookup = async () => {
     if (!parsed?.ok || !primary) return

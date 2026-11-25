@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "iccworship-app": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@playwright/mcp@0.0.86", "--cdp-endpoint", "http://localhost:9222", "--output-dir", "docs/e2e_testing/results"]
+    },
+    "iccworship-phone": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@playwright/mcp@0.0.86", "--isolated", "--browser", "msedge", "--device", "iPhone 15", "--output-dir", "docs/e2e_testing/results"]
+    }
+  }
+}
