@@ -59,7 +59,7 @@ same time**, switchable live with one key.
 
 **Safe with data**
 - Everything lives in `Documents\ICCWorship` as plain JSON — no cloud, no account.
-- Automatic daily backup (keeps 14) + one-click **Backup to USB** (.zip) and restore.
+- Automatic backups (at start and hourly, keeps 14 days) + one-click **Backup to USB** (.zip) and restore.
 
 ## Screenshots
 
@@ -84,7 +84,8 @@ same time**, switchable live with one key.
 ## Your data and backups
 
 - Everything ICCWorship creates lives in **`Documents\ICCWorship`** (Settings → Backup → 📂 Open data folder).
-- A backup is made automatically every day (the last 14 are kept in `Documents\ICCWorship\backups`).
+- A backup is made automatically when the app starts and every hour it stays open, if something changed
+  (in `Documents\ICCWorship\backups`; the newest of each of the last 14 days is kept).
 - **Moving to a new computer:** on the old PC, Settings → Backup → **Back up now** to a USB stick. Install ICCWorship
   on the new PC and choose **Restore** with that file. Videos and images you added are *referenced*, not copied:
   copy those files across too.

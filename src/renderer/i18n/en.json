@@ -530,7 +530,7 @@
     "backupNow": "Back up now",
     "backupDone": "Backup saved ({{files}} files, {{size}} MB)",
     "restore": "Restore…",
-    "restoreConfirm": "Restoring replaces current data (a safety copy is made first). Continue?",
+    "restoreConfirm": "Restoring REPLACES all current data with the backup (a safety copy is made first). Pasted Bible verses and anything imported after the backup was made will be replaced too. This computer’s screen, phone-remote and PIN settings are kept. Continue?",
     "restoreFailed": "That file is not an ICCWorship backup.",
     "openData": "Open data folder",
     "about": "About",
@@ -545,7 +545,15 @@
     "newPin": "New PIN (disconnects phones and stage screens)",
     "portHelp": "Press Enter to apply. Use a number from 1024 to 65535.",
     "restartOutput": "Restart projector",
-    "restartOutputHelp": "Reloads the projector window (and leaves the black \"safe\" mode after repeated errors)"
+    "restartOutputHelp": "Reloads the projector window (and leaves the black \"safe\" mode after repeated errors)",
+    "restoreError": {
+      "not-a-backup": "That file is not an ICCWorship backup.",
+      "newer-format": "That backup was made by a newer ICCWorship. Install the latest version to restore it.",
+      "newer-schema": "That backup was made by a newer ICCWorship. Install the latest version to restore it.",
+      "damaged-backup": "That backup is damaged (a data file in it can’t be read). Nothing was changed.",
+      "restore-failed": "The restore could not finish, so your previous data was put back. Close other programs that may use the files (OneDrive, antivirus) and try again.",
+      "forbidden": "That file can’t be restored from here. Use Restore… to pick it."
+    }
   },
   "help": {
     "title": "Keyboard shortcuts",
@@ -663,5 +671,11 @@
     "upToDate": "You have the latest version.",
     "available": "ICCWorship {{version}} is available",
     "failed": "Could not check (no internet?)."
+  },
+  "data": {
+    "readOnly": "Your data could not be safely prepared, so ICCWorship opened it read-only: you can run the service, but changes are NOT saved. Free some disk space and restart.",
+    "readOnlyNewer": "This data was saved by a newer ICCWorship. This older version can show it, but changes — including the CCLI song log — are NOT saved. Please install the latest version.",
+    "readOnlyAction": "Not saved: this data is open read-only (see the message at the top).",
+    "openBackups": "Open backups folder"
   }
 }

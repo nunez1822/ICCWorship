@@ -530,7 +530,7 @@
     "backupNow": "Hacer copia ahora",
     "backupDone": "Copia guardada ({{files}} archivos, {{size}} MB)",
     "restore": "Restaurar…",
-    "restoreConfirm": "Restaurar reemplaza los datos actuales (primero se hace una copia de seguridad). ¿Continuar?",
+    "restoreConfirm": "Restaurar REEMPLAZA todos los datos actuales con la copia (antes se hace una copia de seguridad). También se reemplazan los versículos pegados y todo lo importado después de hacer la copia. Se conservan los ajustes de pantallas, control remoto y PIN de esta computadora. ¿Continuar?",
     "restoreFailed": "Ese archivo no es una copia de ICCWorship.",
     "openData": "Abrir carpeta de datos",
     "about": "Acerca de",
@@ -545,7 +545,15 @@
     "newPin": "PIN nuevo (desconecta teléfonos y pantallas de escenario)",
     "portHelp": "Presione Enter para aplicar. Use un número de 1024 a 65535.",
     "restartOutput": "Reiniciar proyector",
-    "restartOutputHelp": "Recarga la ventana del proyector (y sale del modo negro \"seguro\" después de errores repetidos)"
+    "restartOutputHelp": "Recarga la ventana del proyector (y sale del modo negro \"seguro\" después de errores repetidos)",
+    "restoreError": {
+      "not-a-backup": "Ese archivo no es una copia de seguridad de ICCWorship.",
+      "newer-format": "Esa copia la hizo una versión más nueva de ICCWorship. Instale la versión más reciente para restaurarla.",
+      "newer-schema": "Esa copia la hizo una versión más nueva de ICCWorship. Instale la versión más reciente para restaurarla.",
+      "damaged-backup": "Esa copia está dañada (no se puede leer un archivo de datos). No se cambió nada.",
+      "restore-failed": "La restauración no pudo terminar, así que se volvieron a poner sus datos anteriores. Cierre otros programas que puedan usar los archivos (OneDrive, antivirus) e intente de nuevo.",
+      "forbidden": "Ese archivo no se puede restaurar desde aquí. Use Restaurar… para elegirlo."
+    }
   },
   "help": {
     "title": "Atajos de teclado",
@@ -663,5 +671,11 @@
     "upToDate": "Tiene la versión más reciente.",
     "available": "ICCWorship {{version}} está disponible",
     "failed": "No se pudo comprobar (¿sin internet?)."
+  },
+  "data": {
+    "readOnly": "No se pudieron preparar sus datos de forma segura, así que ICCWorship los abrió en solo lectura: puede dirigir el servicio, pero los cambios NO se guardan. Libere espacio en disco y reinicie.",
+    "readOnlyNewer": "Estos datos los guardó una versión más nueva de ICCWorship. Esta versión anterior puede mostrarlos, pero los cambios — incluido el registro CCLI — NO se guardan. Instale la versión más reciente.",
+    "readOnlyAction": "No se guardó: estos datos están abiertos en solo lectura (vea el mensaje arriba).",
+    "openBackups": "Abrir carpeta de copias"
   }
 }

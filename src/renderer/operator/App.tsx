@@ -46,6 +46,7 @@ export function App() {
   const liveState = useApp((s) => s.live)
   const outputOpen = useApp((s) => s.outputOpen)
   const toasts = useApp((s) => s.toasts)
+  const dataStatus = useApp((s) => s.dataStatus)
   const [help, setHelp] = useState(false)
   const [clients, setClients] = useState(0)
 
@@ -232,6 +233,14 @@ export function App() {
           {t('nav.settings')}
         </button>
       </nav>
+      {dataStatus?.readOnly && (
+        <div className="readonly-banner" role="alert">
+          <span>⚠ {t(dataStatus.newerSchema ? 'data.readOnlyNewer' : 'data.readOnly')}</span>
+          <button className="btn sm" onClick={() => void window.api.app.openBackups()}>
+            📂 {t('data.openBackups')}
+          </button>
+        </div>
+      )}
       <main className="main">
         {/* a bug on one page must not take the top bar, the shortcuts or the phone remote with it */}
         <ErrorBoundary

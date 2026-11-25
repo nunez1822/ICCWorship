@@ -63,10 +63,14 @@ Stop the app: `taskkill /F /IM electron.exe`. Relaunch keeping data: `npm run e2
 
 ### TC-RES-08 · Restore a backup made on another computer  `P1`
 **Steps**
-1. Add `.e2e-data/tmp/other.jpg` to the library and a plan; **Back up now**.
-2. Delete `other.jpg` from disk; restore the backup.
+1. Add `.e2e-data/tmp/other.jpg` to the library and a plan; import `tests/fixtures/sample.pdf` (Media → PowerPoint & PDF); **Back up now**.
+2. Delete `other.jpg` from disk; restore the backup **into a different data folder**: quit, copy the zip, launch with
+   `ICCWORSHIP_DATA=<another folder>` (a "different PC"), finish the welcome, Restore… the zip.
 **Expected**
 - Restore succeeds; the image item is marked missing (not a crash); everything else is back.
+- The imported PDF's slides **show** on the projector (converted slides are found in the new data folder — also
+  for backups made by 1.0, whose slides held the old PC's full path).
+- This "PC"'s PIN and screen choice are kept, not the backup's.
 
 ### TC-RES-09 · Restoring something that isn't a backup  `P0`
 **Setup (Bash):** `echo hello > .e2e-data/tmp/fake.zip`; `cp tests/fixtures/sample.pptx .e2e-data/tmp/realzip.zip` (a zip, but not a backup).

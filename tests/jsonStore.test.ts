@@ -105,3 +105,34 @@ describe('JsonStore backups', () => {
     })
   })
 })
+
+describe('JsonStore read-only mode and atomic writes', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'iccw-store-ro-'))
+  })
+  afterEach(() => rmSync(dir, { recursive: true, force: true }))
+
+  it('keeps changes in memory but never writes (data from a newer version)', () => {
+    writeFileSync(join(dir, 'songs.json'), '[{"id":"newer"}]')
+    const store = new JsonStore(dir)
+    store.readOnly = true
+    store.upsert('songs', { id: 'x' })
+    store.write('settings', { a: 1 }, true)
+    store.flush()
+    expect(store.list('songs').map((s) => s.id)).toEqual(['newer', 'x']) // visible for this session
+    expect(readFileSync(join(dir, 'songs.json'), 'utf8')).toBe('[{"id":"newer"}]') // untouched on disk
+    expect(readdirSync(dir)).toEqual(['songs.json'])
+    expect(store.writeCount).toBe(0)
+  })
+
+  it('counts saves and leaves no temporary file behind', () => {
+    const store = new JsonStore(dir)
+    store.upsert('songs', { id: 'a' })
+    store.flush()
+    store.upsert('songs', { id: 'b' })
+    store.flush()
+    expect(store.writeCount).toBe(2)
+    expect(readdirSync(dir).sort()).toEqual(['songs.json', 'songs.json.bak'])
+  })
+})

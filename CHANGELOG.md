@@ -26,10 +26,17 @@ All notable changes to ICCWorship are documented here. The format is based on
 - Developer and test switches (environment variables) are ignored by the installed app.
 
 ### Added
+- **Data versions.** ICCWorship now records which version wrote the data. Data from 1.0 is upgraded
+  automatically after a safety backup (`before-migrate-….zip`). Data written by a **newer** version opens
+  **read-only**: an older copy (say, a portable one on a USB stick) can still run the service, but changes are not
+  saved — a red bar says so.
+- Automatic backups also run **every hour** while the app is open (only if something changed, never while
+  something is on screen, never when the disk is nearly full). Kept: the newest of each of the last 14 days plus the last 6.
 - **The projector and stage windows recover by themselves.** If their page crashes or freezes, it restarts in a
   second or two and shows what is live again — a playing video continues where it was. If it keeps failing, the
   projector shows black instead of looping, and **Settings → Screens → 🔄 Restart projector** brings it back.
 - If the main window crashes it reloads once by itself; the projector keeps showing what was live.
+- Clear error messages when a backup can't be restored (newer version, damaged file…).
 - A problem on one page of the main window no longer blanks the whole window: that page shows "Try again" while
   the top bar, shortcuts and phone remote keep working.
 - **Help → Export diagnostics** (also in Settings → About): a .zip to attach to a bug report — logs, PC details,
@@ -52,6 +59,15 @@ All notable changes to ICCWorship are documented here. The format is based on
 - The untested macOS and Linux build targets. ICCWorship is a Windows app.
 
 ### Fixed
+- **Restoring a backup now replaces the data** instead of mixing it with the current data (songs added after the
+  backup no longer survived a restore). The backup is fully checked before anything is touched, a damaged
+  backup changes nothing, and if replacing fails half-way the previous data is put back.
+- A restore (maybe of another computer's backup) keeps **this** computer's screen, phone-remote and PIN settings.
+- PowerPoint/PDF slides restored on another computer (another user name or drive) showed as missing. Converted
+  slides are now stored relative to the data folder, and slides from 1.0 backups are found too.
+- Bible files and backups are written safely (a power cut can't leave half a file); data files are flushed to
+  disk before they replace the old version.
+- Safety backups (`before-restore-…`) piled up forever; the newest 5 of each kind are kept.
 - Changes made just before Windows shuts down, restarts or goes to sleep are saved (they could be lost before).
 - Restoring a backup no longer occasionally reported an error although it had worked.
 - PDFs with JPEG 2000 or JBIG2 images (most scanned PDFs) imported with blank pages; they now show the images.

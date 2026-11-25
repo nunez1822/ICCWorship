@@ -95,6 +95,8 @@ const api = {
     open: (opts: { filters?: { name: string; extensions: string[] }[]; multi?: boolean; directory?: boolean }): Promise<string[]> =>
       invoke('dialog:openFiles', opts),
     exists: (paths: string[]): Promise<boolean[]> => invoke('file:exists', paths),
+    /** media:// URLs → the file they point to on this PC and whether it is there (as the projector resolves them) */
+    mediaStatus: (urls: string[]): Promise<{ path: string | null; exists: boolean }[]> => invoke('file:mediaStatus', urls),
     readText: (p: string): Promise<string> => invoke('file:readText', p),
     saveText: (name: string, content: string, filters?: { name: string; extensions: string[] }[]): Promise<string | null> =>
       invoke('file:saveText', name, content, filters),
@@ -118,7 +120,10 @@ const api = {
   },
   backup: {
     create: (): Promise<{ ok: boolean; path: string; files: number; bytes: number } | null> => invoke('backup:create'),
-    restore: (path?: string): Promise<{ ok: boolean; error?: string } | null> => invoke('backup:restore', path),
+    restore: (
+      path?: string
+    ): Promise<{ ok: boolean; error?: 'not-a-backup' | 'newer-format' | 'newer-schema' | 'damaged-backup' | 'restore-failed' | 'forbidden' } | null> =>
+      invoke('backup:restore', path),
     list: (): Promise<{ name: string; path: string; size: number; date: number }[]> => invoke('backup:list')
   },
   print: {
@@ -135,6 +140,9 @@ const api = {
   app: {
     info: (): Promise<{ version: string; dataPath: string; electron: string }> => invoke('app:info'),
     openDataFolder: () => invoke('app:openDataFolder'),
+    openBackups: () => invoke('app:openBackups'),
+    /** readOnly: the data was written by a newer ICCWorship (nothing is saved this session) */
+    dataStatus: (): Promise<{ readOnly: boolean; newerSchema?: number }> => invoke('app:dataStatus'),
     openExternal: (url: string) => invoke('app:openExternal', url),
     /** write a line to the app's log file (never put lyrics, people or PINs in it) */
     log: (level: 'info' | 'warn' | 'error', message: string) => ipcRenderer.send('app:log', level, message),

@@ -6,7 +6,7 @@
  *   node scripts/smoke.mjs [screenshotDir]
  */
 import { _electron as electron } from 'playwright-core'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { request as httpRequest } from 'node:http'
 import { WebSocket as WsClient } from 'ws'
 import { tmpdir } from 'node:os'
@@ -243,6 +243,15 @@ try {
     if (!red) errors.push('JPEG 2000 image in a PDF was not decoded')
   }
 
+  // converted slides are stored relative to the data folder (so a backup restored on another PC finds them)
+  {
+    const jpx = pres.find((p) => p.method === 'pdf')
+    const img = decodeURIComponent((jpx?.slides[0]?.image || '').replace('media://local/', ''))
+    const relativeOk = img.startsWith('cache/presentations/') && !/^[A-Za-z]:/.test(img)
+    console.log('converted slides stored relative to the data folder:', relativeOk ? '✓' : `✗ ${img}`)
+    if (!relativeOk) errors.push('converted slide stored with an absolute path: ' + img)
+  }
+
   // media:// must answer bad requests instead of failing, and serve only media files
   expectingFailures = true
   const mediaChecks = await op.evaluate(
@@ -403,11 +412,15 @@ try {
     window.api.db.upsert('songs', { id: 'temp-song', title: 'Temp', tags: [], sections: [], arrangement: [], linesPerSlide: 4, createdAt: 0, updatedAt: 0 })
   )
   await sleep(400)
+  const pinBeforeRestore = (await op.evaluate(() => window.api.settings.get())).remotePin
   const restored = await op.evaluate((p) => window.api.backup.restore(p), backupPath)
   await sleep(2500)
   const op2 = await windowByUrl('index.html')
   const songsAfter = (await op2.evaluate(() => window.api.db.list('songs'))).length
   console.log('backup/restore:', JSON.stringify({ files: made?.files, ok: restored?.ok, songsBefore, songsAfter }), songsAfter === songsBefore ? '✓' : '✗')
+  const pinAfterRestore = (await op2.evaluate(() => window.api.settings.get())).remotePin
+  console.log('restore keeps this PC’s PIN:', pinAfterRestore === pinBeforeRestore ? '✓' : '✗')
+  if (pinAfterRestore !== pinBeforeRestore) errors.push('restore changed the PIN of this computer')
   if (songsAfter !== songsBefore) errors.push('restore did not bring back the backed-up data')
 
   // the log exists and holds the startup line (Help → Open logs folder / Export diagnostics)
@@ -419,11 +432,63 @@ try {
   const opPage = await fetch(`http://127.0.0.1:${info.port}/index.html`).then((r) => r.status)
   console.log('operator page over LAN blocked:', opPage === 404 ? '✓' : `✗ (${opPage})`)
   if (opPage !== 404) errors.push('operator page exposed over the network')
+  // ---- data written by a NEWER version opens read-only (an old portable copy must not damage it) ----
+  await app.close()
+  const metaFile = join(data, 'data', 'meta.json')
+  const songsFile = join(data, 'data', 'songs.json')
+  const env2 = { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_WINDOWED: '1', ELECTRON_RENDERER_URL: '' }
+
+  // ---- data from 1.0 (no schema version) is upgraded, after a safety backup ----
+  writeFileSync(metaFile, JSON.stringify({ seeded: 1 }))
+  {
+    const appM = await electron.launch({ args: [root], cwd: root, env: env2 })
+    try {
+      for (let i = 0; i < 60 && !appM.windows().some((w) => w.url().includes('index.html')); i++) await sleep(250)
+      await sleep(1500)
+    } finally {
+      await appM.close().catch(() => {})
+    }
+    const upgraded = JSON.parse(readFileSync(metaFile, 'utf8')).schemaVersion === 1
+    const safety = readdirSync(join(data, 'backups')).some((f) => f.startsWith('before-migrate-'))
+    console.log('1.0 data upgraded after a safety backup:', upgraded && safety ? '✓' : `✗ upgraded=${upgraded} safety=${safety}`)
+    if (!upgraded || !safety) errors.push('1.0 data was not upgraded safely')
+  }
+
+  writeFileSync(metaFile, JSON.stringify({ seeded: 1, schemaVersion: 99 }))
+  const songsOnDisk = readFileSync(songsFile, 'utf8')
+  const app2 = await electron.launch({
+    args: [root],
+    cwd: root,
+    env: { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_WINDOWED: '1', ELECTRON_RENDERER_URL: '' }
+  })
+  try {
+    let op3
+    for (let i = 0; i < 60 && !op3; i++) {
+      op3 = app2.windows().find((w) => w.url().includes('index.html'))
+      if (!op3) await sleep(250)
+    }
+    await op3.waitForSelector('.readonly-banner', { timeout: 15000 })
+    const st = await op3.evaluate(() => window.api.app.dataStatus())
+    await op3
+      .evaluate(() =>
+        window.api.db.upsert('songs', { id: 'ro-test', title: 'RO', tags: [], sections: [], arrangement: [], linesPerSlide: 4, createdAt: 0, updatedAt: 0 })
+      )
+      .catch(() => {})
+    await sleep(800)
+    await app2.evaluate(({ app }) => app.quit())
+    await sleep(500)
+    const untouched = readFileSync(songsFile, 'utf8') === songsOnDisk && JSON.parse(readFileSync(metaFile, 'utf8')).schemaVersion === 99
+    const ok = st.readOnly && st.newerSchema === 99 && untouched
+    console.log('newer data opens read-only and stays untouched:', ok ? '✓' : `✗ ${JSON.stringify(st)} untouched=${untouched}`)
+    if (!ok) errors.push('data from a newer version was not protected')
+  } finally {
+    await app2.close().catch(() => {})
+  }
 } catch (e) {
   errors.push('SMOKE FAILURE: ' + (e?.stack || e))
 } finally {
   await app.close().catch(() => {})
-  rmSync(data, { recursive: true, force: true })
+  rmSync(data, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 })
 }
 
 console.log('screenshots in', shots)

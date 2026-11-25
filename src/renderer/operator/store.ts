@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import type { BibleVersionInfo, LiveState, MediaItem, Person, PrayerRequest, Presentation, ServicePlan, Settings, Song, Team, Theme } from '@shared/types'
 import i18n from '../i18n'
-import { mediaUrlToPath } from '../lib/media'
 import { localDate } from '@shared/dates'
 
 export type Page = 'live' | 'plans' | 'songs' | 'bible' | 'media' | 'themes' | 'people' | 'reports' | 'settings'
@@ -46,16 +45,18 @@ interface AppState {
   setActivePlan: (id?: string) => void
   selectItem: (id?: string) => void
   toast: (text: string, kind?: Toast['kind'], ms?: number) => void
+  /** readOnly: the data was written by a newer ICCWorship; nothing is saved this session */
+  dataStatus?: { readOnly: boolean; newerSchema?: number }
 }
 
 let toastId = 0
 
 /** Tell the operator why a live video/image isn't showing: missing file or unplayable. */
 export async function reportMediaProblem(url: string | undefined, toast: AppState['toast']): Promise<void> {
-  const path = mediaUrlToPath(url)
-  if (!path) return
-  const [exists] = await window.api.files.exists([path])
-  toast(exists ? i18n.t('errors.mediaUnplayable') : i18n.t('errors.mediaMissing', { file: path }), 'err', 10_000)
+  if (!url?.startsWith('media://')) return
+  const [st] = await window.api.files.mediaStatus([url])
+  if (!st?.path) return
+  toast(st.exists ? i18n.t('errors.mediaUnplayable') : i18n.t('errors.mediaMissing', { file: st.path }), 'err', 10_000)
 }
 
 /** Fill in missing fields so an incomplete record (older version, hand-edited backup,
@@ -164,6 +165,8 @@ export const useApp = create<AppState>((set, get) => ({
     for (const p of await api.db.problems()) {
       get().toast(i18n.t(p.kind === 'recovered' ? 'errors.dataRecovered' : 'errors.dataUnreadable', { what: p.name, file: p.savedAs || '' }), 'err', 30_000)
     }
+    // data written by a newer ICCWorship: shown as a banner (App)
+    set({ dataStatus: await api.app.dataStatus() })
     // this window was restarted after a crash: what the operator has to know
     for (const n of await api.app.notices()) {
       if (n === 'operatorRecovered') get().toast(i18n.t('recovery.operatorRecovered'), 'err', 30_000)
@@ -229,6 +232,8 @@ export const useApp = create<AppState>((set, get) => ({
 /** Tell the operator an action failed (instead of failing silently). */
 export function toastError(e: unknown): void {
   const msg = String((e as Error)?.message || e || '').replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+  // data from a newer version is open read-only: say what that means instead of a technical message
+  if (msg === 'read-only') return useApp.getState().toast(i18n.t('data.readOnlyAction'), 'err', 10_000)
   useApp.getState().toast(`⚠ ${msg || i18n.t('errors.generic')}`, 'err', 8000)
 }
 

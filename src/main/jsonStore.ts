@@ -1,11 +1,15 @@
-import { existsSync, readFileSync, renameSync, writeFileSync, copyFileSync, unlinkSync } from 'node:fs'
+import { existsSync, readFileSync, copyFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { writeFileAtomic } from './atomicWrite'
 
 /**
  * Tiny JSON-file store. Each collection lives in one file (<dir>/<name>.json).
- * Writes are debounced and atomic (write temp file, then rename) so a power cut
- * during a service can never leave a half-written file. The previous version is
- * kept as <name>.json.bak.
+ * Writes are debounced and atomic (write temp file, flush it to disk, then rename — see atomicWrite.ts) so a
+ * power cut during a service can never leave a half-written file. The previous version is kept as
+ * <name>.json.bak.
+ *
+ * Read-only mode (data written by a newer ICCWorship): changes are kept in memory for this session but never
+ * written, so an old version can still run a service without damaging the newer data.
  *
  * Damage handling: a file that can't be parsed is first copied aside as
  * <name>.json.corrupt-<time> (so nothing is ever lost), the backup is used if it parses,
@@ -58,6 +62,10 @@ export class JsonStore {
   private unpreserved = new Set<string>()
   readonly problems: StoreProblem[] = []
   onWriteError?: (name: string, error: Error) => void
+  /** never write to disk (see the class comment) */
+  readOnly = false
+  /** saves that reached the disk — lets the hourly backup skip when nothing changed */
+  writeCount = 0
 
   constructor(private dir: string) {}
 
@@ -102,6 +110,7 @@ export class JsonStore {
 
   write<T>(name: string, value: T, immediate = false): void {
     this.cache.set(name, value)
+    if (this.readOnly) return
     const prev = this.timers.get(name)
     if (prev) clearTimeout(prev)
     if (immediate) {
@@ -118,16 +127,15 @@ export class JsonStore {
     this.timers.delete(name)
     // forgotten by reset() (a restore replaced the files): nothing of ours left to write
     if (!this.cache.has(name)) return
+    if (this.readOnly) return
     const value = this.cache.get(name)
     const f = this.file(name)
-    const tmp = f + '.tmp'
     try {
       // the main file was never read or kept: copy it aside first (throws → retried later)
       if (this.unpreserved.has(name)) {
         if (existsSync(f)) copyFileSync(f, corruptName(f))
         this.unpreserved.delete(name)
       }
-      writeFileSync(tmp, JSON.stringify(value, null, 1), 'utf8')
       // only a known-good file may become the backup (never copy a damaged one over it)
       if (existsSync(f) && this.healthy.has(name)) {
         try {
@@ -136,14 +144,11 @@ export class JsonStore {
           /* ignore */
         }
       }
-      renameSync(tmp, f)
+      // <name>.json.tmp → flushed → renamed over <name>.json (a leftover .tmp is cleaned up on failure)
+      writeFileAtomic(f, JSON.stringify(value, null, 1))
       this.healthy.add(name)
+      this.writeCount++
     } catch (e) {
-      try {
-        if (existsSync(tmp)) unlinkSync(tmp)
-      } catch {
-        /* ignore */
-      }
       // keep it pending: a retry (or flush() at quit) writes it once the file is free again,
       // even if the operator makes no further edit
       this.timers.set(

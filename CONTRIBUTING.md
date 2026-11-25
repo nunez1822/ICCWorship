@@ -38,6 +38,9 @@ npm run build && npm run smoke   # end-to-end check with screenshots (smoke-shot
 The whole codebase was reformatted with Prettier once. To keep `git blame` useful, run
 `git config blame.ignoreRevsFile .git-blame-ignore-revs` once in your clone.
 
+Changing how data is stored? Bump `SCHEMA_VERSION` and add a migration in `src/shared/migrations.ts` (with a
+test) so existing churches' data is upgraded safely — see CLAUDE.md.
+
 Pure logic belongs in `src/shared/` with a unit test in `tests/`. UI goes in `src/renderer/`.
 Main-process features expose a typed method in `src/preload/index.ts`. See [CLAUDE.md](CLAUDE.md) for a map of
 the code and the end-to-end test conventions.
