@@ -24,7 +24,10 @@ export class PinGuard {
   private failures = new Map<string, Record>()
   private opts: PinGuardOptions
 
-  constructor(opts: Partial<PinGuardOptions> = {}, private now: () => number = Date.now) {
+  constructor(
+    opts: Partial<PinGuardOptions> = {},
+    private now: () => number = Date.now
+  ) {
     this.opts = { ...DEFAULTS, ...opts }
   }
 

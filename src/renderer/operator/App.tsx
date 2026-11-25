@@ -198,7 +198,14 @@ export function App() {
           📱 {clients}
         </span>
         <span className="small muted">{t('top.app')}</span>
-        <Seg value={settings.uiLang} onChange={(v) => void setSettings({ uiLang: v })} options={[{ value: 'es', label: 'Español' }, { value: 'en', label: 'English' }]} />
+        <Seg
+          value={settings.uiLang}
+          onChange={(v) => void setSettings({ uiLang: v })}
+          options={[
+            { value: 'es', label: 'Español' },
+            { value: 'en', label: 'English' }
+          ]}
+        />
         <button className="btn ghost icon-btn" onClick={() => setHelp(true)} title={t('help.title')}>
           ⌨️
         </button>

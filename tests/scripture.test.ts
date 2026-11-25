@@ -3,7 +3,16 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { findBook } from '@shared/books'
 import { formatReference, parseReference } from '@shared/scriptureRef'
-import { passageFromFull, passageFromPartial, parsePastedPassage, searchFull, versificationFrom, importBibleText, type FullBible, type PartialBible } from '@shared/bibleCore'
+import {
+  passageFromFull,
+  passageFromPartial,
+  parsePastedPassage,
+  searchFull,
+  versificationFrom,
+  importBibleText,
+  type FullBible,
+  type PartialBible
+} from '@shared/bibleCore'
 
 const kjv = JSON.parse(readFileSync(join(__dirname, '..', 'resources', 'bibles', 'kjv.json'), 'utf8')) as FullBible
 const rv = JSON.parse(readFileSync(join(__dirname, '..', 'resources', 'bibles', 'rv1909.json'), 'utf8')) as FullBible
@@ -52,13 +61,25 @@ describe('parseReference', () => {
     expect(r.ok && r.ref.segments).toEqual([{ startChapter: 3, startVerse: 16, endChapter: 3, endVerse: 16 }])
   })
   it('accepts "San Juan" / "S. Mateo" / "St. Luke"', () => {
-    for (const [q, num] of [['San Juan 3:16', 43], ['S. Mateo 5:3', 40], ['St. Luke 2:11', 42], ['Saint John 1:1', 43]] as const) {
+    for (const [q, num] of [
+      ['San Juan 3:16', 43],
+      ['S. Mateo 5:3', 40],
+      ['St. Luke 2:11', 42],
+      ['Saint John 1:1', 43]
+    ] as const) {
       const r = parseReference(q)
       expect(r.ok && r.ref.book.num, q).toBe(num)
     }
   })
   it('accepts "San" / "Saint" after a book number ("1 San Juan 4:8")', () => {
-    for (const [q, num] of [['1 San Juan 4:8', 62], ['2 San Pedro 1:3', 61], ['1 S. Juan 1:9', 62], ['1 St. John 4:8', 62], ['Primera San Juan 3:1', 62], ['3 San Juan 4', 64]] as const) {
+    for (const [q, num] of [
+      ['1 San Juan 4:8', 62],
+      ['2 San Pedro 1:3', 61],
+      ['1 S. Juan 1:9', 62],
+      ['1 St. John 4:8', 62],
+      ['Primera San Juan 3:1', 62],
+      ['3 San Juan 4', 64]
+    ] as const) {
       const r = parseReference(q)
       expect(r.ok && r.ref.book.num, q).toBe(num)
     }
@@ -167,7 +188,14 @@ La Biblia de las Américas
   })
 
   it('serves stored verses and lists missing ones', () => {
-    const lbla: PartialBible = { id: 'lbla', name: 'La Biblia de las Américas', abbrev: 'LBLA', lang: 'es', verseLimit: 500, verses: { '43:3:16': 'Texto de prueba…' } }
+    const lbla: PartialBible = {
+      id: 'lbla',
+      name: 'La Biblia de las Américas',
+      abbrev: 'LBLA',
+      lang: 'es',
+      verseLimit: 500,
+      verses: { '43:3:16': 'Texto de prueba…' }
+    }
     const p = passageFromPartial(lbla, 'Juan 3:16-17', vers)
     expect(p.verses.length).toBe(1)
     expect(p.missing).toEqual([{ book: 43, chapter: 3, verse: 17 }])

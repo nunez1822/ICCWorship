@@ -194,7 +194,10 @@ textarea {
   cursor: pointer;
   font-weight: 600;
   white-space: nowrap;
-  transition: background 0.12s, border-color 0.12s, transform 0.05s;
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    transform 0.05s;
 }
 .btn:hover {
   background: var(--hover);
@@ -700,7 +703,9 @@ table.table {
   border: 2px solid var(--border);
   cursor: pointer;
   background: #000;
-  transition: border-color 0.1s, transform 0.08s;
+  transition:
+    border-color 0.1s,
+    transform 0.08s;
 }
 .thumb:hover {
   border-color: var(--muted);
@@ -970,7 +975,9 @@ button.chip {
   padding: 22px;
   text-align: center;
   color: var(--muted);
-  transition: border-color 0.12s, background 0.12s;
+  transition:
+    border-color 0.12s,
+    background 0.12s;
 }
 .dropzone.over {
   border-color: var(--accent);

@@ -2,7 +2,15 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { SectionType, Song, SongSection } from '@shared/types'
 import { songName, songToSlides, uid } from '@shared/slides'
-import { detectAndParseSongFile, nameCopy, findDuplicateSong, sectionLabel, songFromPlainText, songToOpenLyrics, type SongImportError } from '@shared/songImport'
+import {
+  detectAndParseSongFile,
+  nameCopy,
+  findDuplicateSong,
+  sectionLabel,
+  songFromPlainText,
+  songToOpenLyrics,
+  type SongImportError
+} from '@shared/songImport'
 import { useApp } from '../store'
 import { showAdhoc, activePlan, syncPlanSummary, songEdited } from '../liveControl'
 import { usedInPlansNote } from '../../lib/planRefs'
@@ -115,7 +123,11 @@ function SongEditor({ song, onDeleted }: { song: Song; onDeleted: () => void }) 
   const addToPlan = async () => {
     const plan = activePlan()
     if (!plan) return s.toast(t('songs.noActivePlan'), 'err')
-    await s.save('plans', { ...plan, items: [...plan.items, { id: uid(), type: 'song', title: songName(song), refId: song.id, durationMin: 5 }], updatedAt: Date.now() })
+    await s.save('plans', {
+      ...plan,
+      items: [...plan.items, { id: uid(), type: 'song', title: songName(song), refId: song.id, durationMin: 5 }],
+      updatedAt: Date.now()
+    })
     void syncPlanSummary()
     s.toast(t('songs.addedToPlan', { plan: plan.date ? `${plan.date} · ${plan.title}` : plan.title }))
   }
@@ -141,7 +153,11 @@ function SongEditor({ song, onDeleted }: { song: Song; onDeleted: () => void }) 
         </button>
         <button
           className="btn"
-          onClick={() => void window.api.files.saveText(`${songName(song) || 'song'}.xml`, songToOpenLyrics(song), [{ name: 'OpenLyrics', extensions: ['xml'] }]).then((f) => f && s.toast(t('common.savedTo', { file: f })))}
+          onClick={() =>
+            void window.api.files
+              .saveText(`${songName(song) || 'song'}.xml`, songToOpenLyrics(song), [{ name: 'OpenLyrics', extensions: ['xml'] }])
+              .then((f) => f && s.toast(t('common.savedTo', { file: f })))
+          }
         >
           ⬆ {t('songs.export')}
         </button>
@@ -172,11 +188,29 @@ function SongEditor({ song, onDeleted }: { song: Song; onDeleted: () => void }) 
           <input className="input" value={song.key || ''} onChange={(e) => save({ key: e.target.value })} />
         </Field>
         <Field label={t('songs.linesPerSlide')}>
-          <input className="input" type="number" min={1} max={12} value={song.linesPerSlide} onChange={(e) => save({ linesPerSlide: Math.max(1, +e.target.value) })} />
+          <input
+            className="input"
+            type="number"
+            min={1}
+            max={12}
+            value={song.linesPerSlide}
+            onChange={(e) => save({ linesPerSlide: Math.max(1, +e.target.value) })}
+          />
         </Field>
       </div>
       <Field label={t('songs.tags')}>
-        <input className="input" value={song.tags.join(', ')} onChange={(e) => save({ tags: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) })} />
+        <input
+          className="input"
+          value={song.tags.join(', ')}
+          onChange={(e) =>
+            save({
+              tags: e.target.value
+                .split(',')
+                .map((x) => x.trim())
+                .filter(Boolean)
+            })
+          }
+        />
       </Field>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 20, marginTop: 20 }}>
@@ -190,7 +224,12 @@ function SongEditor({ song, onDeleted }: { song: Song; onDeleted: () => void }) 
           {song.sections.map((sec, i) => (
             <div className="section-card" key={sec.id}>
               <div className="sc-head">
-                <select className="select" style={{ height: 28 }} value={sec.type} onChange={(e) => setSection(sec.id, { type: e.target.value as SectionType })}>
+                <select
+                  className="select"
+                  style={{ height: 28 }}
+                  value={sec.type}
+                  onChange={(e) => setSection(sec.id, { type: e.target.value as SectionType })}
+                >
                   {TYPES.map((ty) => (
                     <option key={ty} value={ty}>
                       {t(`sectionTypes.${ty}`)}
@@ -218,11 +257,23 @@ function SongEditor({ song, onDeleted }: { song: Song; onDeleted: () => void }) 
               <div className="sc-body">
                 <div>
                   <span className="lang-tag">ENGLISH</span>
-                  <textarea className="textarea" style={{ width: '100%' }} rows={Math.max(4, sec.en.split('\n').length + 1)} value={sec.en} onChange={(e) => setSection(sec.id, { en: e.target.value })} />
+                  <textarea
+                    className="textarea"
+                    style={{ width: '100%' }}
+                    rows={Math.max(4, sec.en.split('\n').length + 1)}
+                    value={sec.en}
+                    onChange={(e) => setSection(sec.id, { en: e.target.value })}
+                  />
                 </div>
                 <div>
                   <span className="lang-tag">ESPAÑOL</span>
-                  <textarea className="textarea" style={{ width: '100%' }} rows={Math.max(4, sec.es.split('\n').length + 1)} value={sec.es} onChange={(e) => setSection(sec.id, { es: e.target.value })} />
+                  <textarea
+                    className="textarea"
+                    style={{ width: '100%' }}
+                    rows={Math.max(4, sec.es.split('\n').length + 1)}
+                    value={sec.es}
+                    onChange={(e) => setSection(sec.id, { es: e.target.value })}
+                  />
                 </div>
               </div>
             </div>
@@ -234,7 +285,13 @@ function SongEditor({ song, onDeleted }: { song: Song; onDeleted: () => void }) 
                 className="btn sm"
                 onClick={() => {
                   const n = song.sections.filter((x) => x.type === ty).length + 1
-                  const sec: SongSection = { id: uid().slice(0, 8), type: ty, label: sectionLabel(ty, ty === 'verse' ? n : n > 1 ? n : undefined), en: '', es: '' }
+                  const sec: SongSection = {
+                    id: uid().slice(0, 8),
+                    type: ty,
+                    label: sectionLabel(ty, ty === 'verse' ? n : n > 1 ? n : undefined),
+                    en: '',
+                    es: ''
+                  }
                   save({ sections: [...song.sections, sec], arrangement: song.arrangement.length ? [...song.arrangement, sec.id] : [] })
                 }}
               >
@@ -322,7 +379,10 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: (id?: s
   const [lastId, setLastId] = useState<string | undefined>()
 
   const importFiles = async () => {
-    const paths = await window.api.files.open({ multi: true, filters: [{ name: 'Songs (OpenLyrics, ChordPro, Text)', extensions: ['xml', 'cho', 'chopro', 'chordpro', 'crd', 'pro', 'txt'] }] })
+    const paths = await window.api.files.open({
+      multi: true,
+      filters: [{ name: 'Songs (OpenLyrics, ChordPro, Text)', extensions: ['xml', 'cho', 'chopro', 'chordpro', 'crd', 'pro', 'txt'] }]
+    })
     if (!paths.length) return
     setBusy(true)
     let last: string | undefined
@@ -438,11 +498,25 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: (id?: s
           <div className="grid2">
             <div>
               <span className="lang-tag">ENGLISH</span>
-              <textarea className="textarea" style={{ width: '100%' }} rows={16} value={en} onChange={(e) => setEn(e.target.value)} placeholder={'Verse 1\n...\n\nChorus\n...'} />
+              <textarea
+                className="textarea"
+                style={{ width: '100%' }}
+                rows={16}
+                value={en}
+                onChange={(e) => setEn(e.target.value)}
+                placeholder={'Verse 1\n...\n\nChorus\n...'}
+              />
             </div>
             <div>
               <span className="lang-tag">ESPAÑOL</span>
-              <textarea className="textarea" style={{ width: '100%' }} rows={16} value={es} onChange={(e) => setEs(e.target.value)} placeholder={'Verso 1\n...\n\nCoro\n...'} />
+              <textarea
+                className="textarea"
+                style={{ width: '100%' }}
+                rows={16}
+                value={es}
+                onChange={(e) => setEs(e.target.value)}
+                placeholder={'Verso 1\n...\n\nCoro\n...'}
+              />
             </div>
           </div>
         </div>

@@ -47,7 +47,8 @@ export function SlideView(p: SlideViewProps) {
   const layers = p.layers || { black: false, clearText: false, clearBackground: false, logo: false }
   const slide = p.slide
   const bg = p.background === undefined ? p.theme.background : p.background
-  const slideBg = slide?.media && slide.kind === 'text' ? { type: isVideoUrl(slide.media) ? 'video' : 'image', value: slide.media, dim: 0.35 } as Background : null
+  const slideBg =
+    slide?.media && slide.kind === 'text' ? ({ type: isVideoUrl(slide.media) ? 'video' : 'image', value: slide.media, dim: 0.35 } as Background) : null
 
   return (
     <div ref={box} className={`slide-box ${p.className || ''}`}>
@@ -93,11 +94,7 @@ function BackgroundLayer({ bg, thumb }: { bg?: Background | null; thumb?: boolea
 }
 
 function LogoLayer({ url, name }: { url?: string; name?: string }) {
-  return (
-    <div className="slide-logo">
-      {url ? <img src={url} alt="" /> : <div className="slide-logo-name">{name || 'ICCWorship'}</div>}
-    </div>
-  )
+  return <div className="slide-logo">{url ? <img src={url} alt="" /> : <div className="slide-logo-name">{name || 'ICCWorship'}</div>}</div>
 }
 
 function useNow(active: boolean) {
@@ -138,7 +135,11 @@ function ContentLayer(p: SlideViewProps & { slide: Slide; hideText: boolean }) {
     return (
       <div className="slide-countdown" style={{ color: theme.color, fontFamily: theme.fontFamily }}>
         {label.primary && <div className="cd-label">{label.primary}</div>}
-        {label.secondary && <div className="cd-label secondary" style={{ color: theme.secondaryColor }}>{label.secondary}</div>}
+        {label.secondary && (
+          <div className="cd-label secondary" style={{ color: theme.secondaryColor }}>
+            {label.secondary}
+          </div>
+        )}
         <div className="cd-time">{formatClock(Math.max(0, left))}</div>
       </div>
     )
@@ -190,23 +191,27 @@ function TextBlock(p: SlideViewProps & { slide: Slide }) {
     <>
       <div ref={ref} className={`slide-text ${p.thumb ? '' : 'fade-in'} ${theme.position}`} style={style} key={slide.id}>
         <div ref={inner} className="slide-text-inner" style={{ alignItems: style.alignItems }}>
-        {title.primary && (
-          <div className="slide-title" style={{ color: theme.color }}>
-            {title.primary}
-            {title.secondary && <div className="slide-title-2" style={{ color: theme.secondaryColor }}>{title.secondary}</div>}
-          </div>
-        )}
-        {text.primary && (
-          <div className="slide-primary" style={{ color: theme.color }}>
-            {text.primary}
-          </div>
-        )}
-        {twoLang && <div className="slide-divider" style={{ background: theme.secondaryColor }} />}
-        {text.secondary && (
-          <div className="slide-secondary" style={{ color: theme.secondaryColor, fontSize: `calc(var(--fs) * var(--fit) * ${theme.secondaryScale})` }}>
-            {text.secondary}
-          </div>
-        )}
+          {title.primary && (
+            <div className="slide-title" style={{ color: theme.color }}>
+              {title.primary}
+              {title.secondary && (
+                <div className="slide-title-2" style={{ color: theme.secondaryColor }}>
+                  {title.secondary}
+                </div>
+              )}
+            </div>
+          )}
+          {text.primary && (
+            <div className="slide-primary" style={{ color: theme.color }}>
+              {text.primary}
+            </div>
+          )}
+          {twoLang && <div className="slide-divider" style={{ background: theme.secondaryColor }} />}
+          {text.secondary && (
+            <div className="slide-secondary" style={{ color: theme.secondaryColor, fontSize: `calc(var(--fs) * var(--fit) * ${theme.secondaryScale})` }}>
+              {text.secondary}
+            </div>
+          )}
         </div>
       </div>
       {(footer.primary || footer.secondary) && (

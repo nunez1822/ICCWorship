@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { SAMPLE_SONGS } from '@shared/defaults'
-import { countdownTarget, notesToSlides, pickLangs, scriptureToSlides, songToSlides, splitLongText, stripChords, formatClock, targetTimeToday, upcomingSlideIndex } from '@shared/slides'
+import {
+  countdownTarget,
+  notesToSlides,
+  pickLangs,
+  scriptureToSlides,
+  songToSlides,
+  splitLongText,
+  stripChords,
+  formatClock,
+  targetTimeToday,
+  upcomingSlideIndex
+} from '@shared/slides'
 import type { PassageResult, Slide, Song } from '@shared/types'
 
 const song = (over: Partial<Song>): Song => ({
@@ -58,7 +69,9 @@ describe('songToSlides', () => {
   })
 
   it('adds a footer with CCLI info to the first slide', () => {
-    const slides = songToSlides(song({ title: 'Song', ccli: '123', sections: [{ id: 'a', type: 'verse', label: 'V', en: 'x', es: 'y' }] }), { ccliLicense: '999' })
+    const slides = songToSlides(song({ title: 'Song', ccli: '123', sections: [{ id: 'a', type: 'verse', label: 'V', en: 'x', es: 'y' }] }), {
+      ccliLicense: '999'
+    })
     expect(slides[0].footer?.en).toContain('CCLI # 123')
     expect(slides[0].footer?.en).toContain('CCLI License / Licencia # 999')
     expect(slides[0].footer?.es).toBe(slides[0].footer?.en) // no Spanish title → same line

@@ -118,7 +118,14 @@ function People() {
             <input className="input" value={person.email || ''} onChange={(e) => save({ ...person, email: e.target.value })} />
           </Field>
           <Field label={t('people.language')}>
-            <Seg<Lang> value={person.lang} onChange={(v) => save({ ...person, lang: v })} options={[{ value: 'es', label: 'Español' }, { value: 'en', label: 'English' }]} />
+            <Seg<Lang>
+              value={person.lang}
+              onChange={(v) => save({ ...person, lang: v })}
+              options={[
+                { value: 'es', label: 'Español' },
+                { value: 'en', label: 'English' }
+              ]}
+            />
           </Field>
           <Field label={t('people.teams')}>
             <div className="row wrap" style={{ gap: 6 }}>
@@ -147,7 +154,11 @@ function People() {
               // their positions stay as open slots (the run sheet shows them unfilled), so the
               // team leader can see someone still has to be found
               for (const p of inPlans)
-                await s.save('plans', { ...p, team: p.team.map((a) => (a.personId === person.id ? { ...a, personId: '', status: 'pending' as const } : a)), updatedAt: Date.now() })
+                await s.save('plans', {
+                  ...p,
+                  team: p.team.map((a) => (a.personId === person.id ? { ...a, personId: '', status: 'pending' as const } : a)),
+                  updatedAt: Date.now()
+                })
               setSel(undefined)
             }}
           >
@@ -178,7 +189,13 @@ function Teams() {
           <Field label={t('people.positions')}>
             <div className="row wrap" style={{ gap: 6 }}>
               {tm.positions.map((p, i) => (
-                <button type="button" key={i} className="chip x" aria-label={`${p} ✕`} onClick={() => save({ ...tm, positions: tm.positions.filter((_, j) => j !== i) })}>
+                <button
+                  type="button"
+                  key={i}
+                  className="chip x"
+                  aria-label={`${p} ✕`}
+                  onClick={() => save({ ...tm, positions: tm.positions.filter((_, j) => j !== i) })}
+                >
                   {p}
                 </button>
               ))}
@@ -198,7 +215,8 @@ function Teams() {
           </Field>
           <div className="row">
             <span className="small muted" style={{ flex: 1 }}>
-              {s.people.filter((p) => p.teamIds.includes(tm.id)).length} {t('people.members', { count: s.people.filter((p) => p.teamIds.includes(tm.id)).length })}
+              {s.people.filter((p) => p.teamIds.includes(tm.id)).length}{' '}
+              {t('people.members', { count: s.people.filter((p) => p.teamIds.includes(tm.id)).length })}
             </span>
             <button
               className="btn sm ghost"
@@ -234,7 +252,11 @@ function Prayer() {
     const plan = activePlan()
     if (!plan) return s.toast(t('songs.noActivePlan'), 'err')
     const slides = publicOpen.map((p) => ({ title: { en: 'Prayer', es: 'Oración' }, text: { en: prayerLine(p), es: prayerLine(p) } }))
-    await s.save('plans', { ...plan, items: [...plan.items, { id: uid(), type: 'prayer', title: t('people.prayerSlides'), slides, durationMin: 5 }], updatedAt: Date.now() })
+    await s.save('plans', {
+      ...plan,
+      items: [...plan.items, { id: uid(), type: 'prayer', title: t('people.prayerSlides'), slides, durationMin: 5 }],
+      updatedAt: Date.now()
+    })
     void syncPlanSummary()
     s.toast(t('songs.addedToPlan', { plan: plan.date ? `${plan.date} · ${plan.title}` : plan.title }))
   }
@@ -256,7 +278,14 @@ function Prayer() {
           className="btn primary"
           disabled={!req.trim()}
           onClick={async () => {
-            await s.save('prayer', { id: uid(), name: name.trim() || t('people.anonymous'), request: req.trim(), date: localDate(), status: 'open', private: priv } satisfies PrayerRequest)
+            await s.save('prayer', {
+              id: uid(),
+              name: name.trim() || t('people.anonymous'),
+              request: req.trim(),
+              date: localDate(),
+              status: 'open',
+              private: priv
+            } satisfies PrayerRequest)
             setName('')
             setReq('')
             setPriv(false)
@@ -277,7 +306,12 @@ function Prayer() {
               void showAdhoc({
                 title: t('people.prayerSlides'),
                 type: 'prayer',
-                slides: publicOpen.map((p) => ({ id: uid(), kind: 'text', title: { en: 'Prayer', es: 'Oración' }, text: { en: prayerLine(p), es: prayerLine(p) } }))
+                slides: publicOpen.map((p) => ({
+                  id: uid(),
+                  kind: 'text',
+                  title: { en: 'Prayer', es: 'Oración' },
+                  text: { en: prayerLine(p), es: prayerLine(p) }
+                }))
               })
             }
           >
@@ -286,7 +320,14 @@ function Prayer() {
         </div>
       </div>
       <div className="col">
-        <Seg value={filter} onChange={setFilter} options={[{ value: 'open', label: t('people.open') }, { value: 'answered', label: `🙌 ${t('people.answered')}` }]} />
+        <Seg
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: 'open', label: t('people.open') },
+            { value: 'answered', label: `🙌 ${t('people.answered')}` }
+          ]}
+        />
         {!list.length && <div className="empty">{t('people.noRequests')}</div>}
         {list.map((p) => (
           <div key={p.id} className="card row" style={{ alignItems: 'flex-start' }}>

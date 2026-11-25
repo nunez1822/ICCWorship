@@ -61,7 +61,10 @@ export async function readPptxText(data: ArrayBuffer | Uint8Array | Buffer): Pro
   const zip = await JSZip.loadAsync(data)
   const presXml = (await zip.file('ppt/presentation.xml')?.async('string')) || ''
   const presRels = relTargets((await zip.file('ppt/_rels/presentation.xml.rels')?.async('string')) || '')
-  let slidePaths = [...presXml.matchAll(/<p:sldId\b[^>]*r:id="([^"]+)"/g)].map((m) => presRels.get(m[1])).filter((x): x is string => !!x).map((t) => resolvePath('ppt', t))
+  let slidePaths = [...presXml.matchAll(/<p:sldId\b[^>]*r:id="([^"]+)"/g)]
+    .map((m) => presRels.get(m[1]))
+    .filter((x): x is string => !!x)
+    .map((t) => resolvePath('ppt', t))
   if (!slidePaths.length) {
     slidePaths = Object.keys(zip.files)
       .filter((f) => /^ppt\/slides\/slide\d+\.xml$/.test(f))
@@ -85,10 +88,11 @@ export async function readPptxText(data: ArrayBuffer | Uint8Array | Buffer): Pro
     for (const t of rels.values()) {
       if (/notesSlide/.test(t)) {
         const nx = (await zip.file(resolvePath(dir, t))?.async('string')) || ''
-        notes = shapes(nx)
-          .filter((s) => s.type === 'body')
-          .flatMap((s) => s.text)
-          .join('\n') || undefined
+        notes =
+          shapes(nx)
+            .filter((s) => s.type === 'body')
+            .flatMap((s) => s.text)
+            .join('\n') || undefined
       }
     }
     slides.push({ title: title || undefined, body, notes })

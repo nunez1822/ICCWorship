@@ -38,7 +38,9 @@ export function ReportsPage() {
     return [...m.entries()]
   }, [plans])
   const maxAtt = Math.max(1, ...plans.map((p) => p.attendance || 0))
-  const inRange = dedupeUsage(usage).filter((u) => u.date >= from && u.date <= to).sort((a, b) => a.date.localeCompare(b.date))
+  const inRange = dedupeUsage(usage)
+    .filter((u) => u.date >= from && u.date <= to)
+    .sort((a, b) => a.date.localeCompare(b.date))
   const songCounts = useMemo(() => {
     const m = new Map<string, { title: string; ccli?: string; count: number }>()
     for (const u of inRange) {
@@ -124,7 +126,11 @@ export function ReportsPage() {
             <button
               className="btn sm"
               disabled={!inRange.length}
-              onClick={() => void window.api.files.saveText(`CCLI-song-usage-${from}-${to}.csv`, usageCsv(inRange), [{ name: 'CSV', extensions: ['csv'] }]).then((f) => f && s.toast(t('common.savedTo', { file: f })))}
+              onClick={() =>
+                void window.api.files
+                  .saveText(`CCLI-song-usage-${from}-${to}.csv`, usageCsv(inRange), [{ name: 'CSV', extensions: ['csv'] }])
+                  .then((f) => f && s.toast(t('common.savedTo', { file: f })))
+              }
             >
               ⬇ CSV
             </button>

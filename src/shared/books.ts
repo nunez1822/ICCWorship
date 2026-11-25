@@ -35,7 +35,14 @@ export const BOOKS: BookInfo[] = [
   { num: 19, osis: 'Ps', usfx: 'PSA', en: 'Psalms', es: 'Salmos', alt: ['ps', 'psa', 'psalm', 'pss', 'sal', 'salmo', 'sl'] },
   { num: 20, osis: 'Prov', usfx: 'PRO', en: 'Proverbs', es: 'Proverbios', alt: ['prov', 'pr', 'pro', 'prv'] },
   { num: 21, osis: 'Eccl', usfx: 'ECC', en: 'Ecclesiastes', es: 'Eclesiastés', alt: ['eccl', 'ecc', 'ec', 'qoh', 'ecl'] },
-  { num: 22, osis: 'Song', usfx: 'SNG', en: 'Song of Solomon', es: 'Cantares', alt: ['song', 'song of songs', 'sos', 'sng', 'cant', 'cnt', 'cantar de los cantares', 'ct'] },
+  {
+    num: 22,
+    osis: 'Song',
+    usfx: 'SNG',
+    en: 'Song of Solomon',
+    es: 'Cantares',
+    alt: ['song', 'song of songs', 'sos', 'sng', 'cant', 'cnt', 'cantar de los cantares', 'ct']
+  },
   { num: 23, osis: 'Isa', usfx: 'ISA', en: 'Isaiah', es: 'Isaías', alt: ['isa', 'is'] },
   { num: 24, osis: 'Jer', usfx: 'JER', en: 'Jeremiah', es: 'Jeremías', alt: ['jer', 'je', 'jr'] },
   { num: 25, osis: 'Lam', usfx: 'LAM', en: 'Lamentations', es: 'Lamentaciones', alt: ['lam', 'la', 'lm'] },
@@ -84,13 +91,7 @@ export const BOOKS: BookInfo[] = [
 
 /** Lowercase, strip accents and punctuation, collapse spaces. Also normalizes roman numerals / ordinals for 1-3. */
 export function normalizeBookName(s: string): string {
-  let n = s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/\./g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
+  let n = s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\./g, ' ').replace(/\s+/g, ' ').trim()
   n = n
     .replace(/^(iii|3ro|3er|3rd|tercera|third)\s*/, '3 ')
     .replace(/^(ii|2do|2nd|segunda|segundo|second)\s*/, '2 ')

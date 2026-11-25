@@ -124,7 +124,8 @@ function proxyToDev(req: IncomingMessage, res: ServerResponse, path: string): vo
 }
 
 /** the stage/remote pages' icon (same as in remote.html / stage.html) */
-const FAVICON = '<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%23f6b93b%22/%3E%3Cpath d=%22M44 14h12v24h22v12H56v38H44V50H22V38h22z%22 fill=%22%230b1324%22/%3E%3C/svg%3E" />'
+const FAVICON =
+  '<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%23f6b93b%22/%3E%3Cpath d=%22M44 14h12v24h22v12H56v38H44V50H22V38h22z%22 fill=%22%230b1324%22/%3E%3C/svg%3E" />'
 
 /** The church name is user text — never put it into HTML unescaped (phones load this page). */
 function escapeHtml(v: string): string {
@@ -289,7 +290,15 @@ async function doStart(opts: { rendererDir: string; devUrl?: string }, my: numbe
         if (authed) pins.succeed(ip)
         else if (lock === 0) pins.fail(ip)
       }
-      ws.send(JSON.stringify({ type: 'hello', role, authed, locked: role === 'remote' && !authed ? Math.ceil(pins.lockedFor(ip) / 1000) : 0, uiLang: getSettings().uiLang }))
+      ws.send(
+        JSON.stringify({
+          type: 'hello',
+          role,
+          authed,
+          locked: role === 'remote' && !authed ? Math.ceil(pins.lockedFor(ip) / 1000) : 0,
+          uiLang: getSettings().uiLang
+        })
+      )
       if (!authed) {
         setTimeout(() => ws.close(), 200)
         return

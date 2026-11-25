@@ -84,7 +84,11 @@ function Stage() {
         </section>
         <aside className="stage-next">
           <div className="lbl">{t('stage.next')}</div>
-          {next ? <StageSlide slide={next} state={state} chords={false} /> : <div className="next-item">{nextItem ? `⏭ ${nextItem.title}` : t('stage.end')}</div>}
+          {next ? (
+            <StageSlide slide={next} state={state} chords={false} />
+          ) : (
+            <div className="next-item">{nextItem ? `⏭ ${nextItem.title}` : t('stage.end')}</div>
+          )}
           {cur?.notes && (
             <div className="stage-notes">
               <div className="lbl">📝</div>
@@ -98,7 +102,17 @@ function Stage() {
   )
 }
 
-function StageSlide({ slide, state, chords, big }: { slide?: Slide; state: NonNullable<ReturnType<typeof useLiveFeed>['state']>; chords: boolean; big?: boolean }) {
+function StageSlide({
+  slide,
+  state,
+  chords,
+  big
+}: {
+  slide?: Slide
+  state: NonNullable<ReturnType<typeof useLiveFeed>['state']>
+  chords: boolean
+  big?: boolean
+}) {
   if (!slide) return <div className="stage-empty">—</div>
   if ((slide.kind === 'image' || slide.kind === 'video') && slide.media) {
     return slide.kind === 'image' ? <img className="stage-img" src={slide.media} alt="" /> : <div className="stage-empty">🎬 {slide.group}</div>

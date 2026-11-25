@@ -137,7 +137,10 @@ try {
     await sleep(600)
   }
   const pres = await op.evaluate(() => window.api.db.list('presentations'))
-  console.log('presentations:', JSON.stringify(pres.map((p) => ({ name: p.name, method: p.method, slides: p.slides.length, notes: p.slides.map((s) => s.notes) }))))
+  console.log(
+    'presentations:',
+    JSON.stringify(pres.map((p) => ({ name: p.name, method: p.method, slides: p.slides.length, notes: p.slides.map((s) => s.notes) })))
+  )
   await op.locator('.media-card').first().click()
   await sleep(600)
   await op.screenshot({ path: join(shots, '24-pptx-modal.png') })
@@ -205,7 +208,10 @@ try {
     void w.loadURL(url)
   }, `http://127.0.0.1:${info.port}/remote#pin=0000`)
   await sleep(1500)
-  const bad = app.windows().filter((w) => w.url().includes('/remote')).pop()
+  const bad = app
+    .windows()
+    .filter((w) => w.url().includes('/remote'))
+    .pop()
   const rejected = await bad.locator('.r-err').count()
   console.log('wrong PIN rejected:', rejected ? '✓' : '✗')
   if (!rejected && pin !== '0000') errors.push('wrong PIN was accepted')
@@ -216,7 +222,9 @@ try {
   }, backupPath)
   const made = await op.evaluate(() => window.api.backup.create())
   const songsBefore = (await op.evaluate(() => window.api.db.list('songs'))).length
-  await op.evaluate(() => window.api.db.upsert('songs', { id: 'temp-song', title: 'Temp', tags: [], sections: [], arrangement: [], linesPerSlide: 4, createdAt: 0, updatedAt: 0 }))
+  await op.evaluate(() =>
+    window.api.db.upsert('songs', { id: 'temp-song', title: 'Temp', tags: [], sections: [], arrangement: [], linesPerSlide: 4, createdAt: 0, updatedAt: 0 })
+  )
   await sleep(400)
   const restored = await op.evaluate((p) => window.api.backup.restore(p), backupPath)
   await sleep(2500)

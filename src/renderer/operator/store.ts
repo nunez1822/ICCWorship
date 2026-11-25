@@ -1,17 +1,5 @@
 import { create } from 'zustand'
-import type {
-  BibleVersionInfo,
-  LiveState,
-  MediaItem,
-  Person,
-  PrayerRequest,
-  Presentation,
-  ServicePlan,
-  Settings,
-  Song,
-  Team,
-  Theme
-} from '@shared/types'
+import type { BibleVersionInfo, LiveState, MediaItem, Person, PrayerRequest, Presentation, ServicePlan, Settings, Song, Team, Theme } from '@shared/types'
 import i18n from '../i18n'
 import { mediaUrlToPath } from '../lib/media'
 import { localDate } from '@shared/dates'
@@ -73,7 +61,14 @@ export async function reportMediaProblem(url: string | undefined, toast: AppStat
 /** Fill in missing fields so an incomplete record (older version, hand-edited backup,
  *  third-party import) can't crash the editor with e.g. `undefined.join`. */
 function normalizeSong(x: Song): Song {
-  return { ...x, title: x.title ?? '', tags: x.tags ?? [], sections: (x.sections ?? []).map((z) => ({ ...z, en: z.en ?? '', es: z.es ?? '' })), arrangement: x.arrangement ?? [], linesPerSlide: x.linesPerSlide || 4 }
+  return {
+    ...x,
+    title: x.title ?? '',
+    tags: x.tags ?? [],
+    sections: (x.sections ?? []).map((z) => ({ ...z, en: z.en ?? '', es: z.es ?? '' })),
+    arrangement: x.arrangement ?? [],
+    linesPerSlide: x.linesPerSlide || 4
+  }
 }
 let listening = false
 

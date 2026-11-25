@@ -29,7 +29,14 @@ describe('run sheet team', () => {
   const team: Team = { id: 't', name: 'Tech', nameEs: 'Técnica', positions: ['Sound', 'Projection', 'Lights'] }
   const ana: Person = { id: 'p1', firstName: 'Ana', lastName: 'Ruiz', lang: 'es', teamIds: ['t'], createdAt: 0 }
   const plan: ServicePlan = {
-    id: 'pl', title: 'Sunday', date: '2026-11-29', time: '10:00', serviceType: 'Sunday', items: [], createdAt: 0, updatedAt: 0,
+    id: 'pl',
+    title: 'Sunday',
+    date: '2026-11-29',
+    time: '10:00',
+    serviceType: 'Sunday',
+    items: [],
+    createdAt: 0,
+    updatedAt: 0,
     team: [
       { id: 'a1', teamId: 't', position: 'Sound', personId: 'p1', status: 'confirmed' },
       { id: 'a2', teamId: 't', position: 'Projection', personId: '', status: 'pending' },

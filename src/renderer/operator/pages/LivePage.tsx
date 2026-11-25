@@ -115,10 +115,18 @@ function PlanRow(p: { item: PlanItem; index: number; selected: boolean; isLive: 
       <span className="type-ico">{TYPE_ICON[item.type]}</span>
       <div style={{ minWidth: 0 }}>
         <div className="ti">
-          {missing && <span title={t('plans.sourceMissing')} style={{ color: 'var(--warn)' }}>⚠ </span>}
+          {missing && (
+            <span title={t('plans.sourceMissing')} style={{ color: 'var(--warn)' }}>
+              ⚠{' '}
+            </span>
+          )}
           {item.title}
         </div>
-        {missing && <div className="meta" style={{ color: 'var(--warn)' }}>{t('plans.sourceMissing')}</div>}
+        {missing && (
+          <div className="meta" style={{ color: 'var(--warn)' }}>
+            {t('plans.sourceMissing')}
+          </div>
+        )}
         {(item.person || item.notes) && <div className="meta">{[item.person, item.notes].filter(Boolean).join(' · ')}</div>}
       </div>
       <div className="meta" style={{ textAlign: 'right' }}>
@@ -161,7 +169,15 @@ function SlidesColumn({ item }: { item?: PlanItem }) {
       setBuilt(null)
       return
     }
-    void buildItem(item, { songs: s.songs, media: s.media, presentations: s.presentations, themes: s.themes, settings: s.settings, bibles: s.bibles, planDate: plan?.date }).then((b) => {
+    void buildItem(item, {
+      songs: s.songs,
+      media: s.media,
+      presentations: s.presentations,
+      themes: s.themes,
+      settings: s.settings,
+      bibles: s.bibles,
+      planDate: plan?.date
+    }).then((b) => {
       if (!cancel) setBuilt({ ...b, itemId: item.id })
     })
     return () => {
@@ -210,10 +226,19 @@ function SlidesColumn({ item }: { item?: PlanItem }) {
                 <div
                   key={sl.id}
                   className={`thumb ${on ? 'live' : ''}`}
-                  onClick={() => (showLive ? void live.enqueue(() => live.goSlide(i)) : index >= 0 ? void live.enqueue(() => live.goItem(index, i)) : undefined)}
+                  onClick={() =>
+                    showLive ? void live.enqueue(() => live.goSlide(i)) : index >= 0 ? void live.enqueue(() => live.goItem(index, i)) : undefined
+                  }
                 >
                   <div className="ratio">
-                    <SlideView slide={sl} theme={theme} background={bg} displayLang={liveSt?.displayLang || 'both'} order={liveSt?.bilingualOrder || 'es-first'} thumb />
+                    <SlideView
+                      slide={sl}
+                      theme={theme}
+                      background={bg}
+                      displayLang={liveSt?.displayLang || 'both'}
+                      order={liveSt?.bilingualOrder || 'es-first'}
+                      thumb
+                    />
                   </div>
                   <div className="cap">
                     {sl.group || (sl.kind === 'blank' ? '—' : '')}
@@ -278,7 +303,11 @@ function Monitors() {
           <div className="small" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {nextSlide ? nextSlide.group || `#${nextIdx + 1}` : nextItem ? `${TYPE_ICON[nextItem.type]} ${nextItem.title}` : t('live.endOfPlan')}
           </div>
-          {cur?.notes && <div className="small muted" style={{ marginTop: 4, maxHeight: 54, overflow: 'auto' }}>📝 {cur.notes}</div>}
+          {cur?.notes && (
+            <div className="small muted" style={{ marginTop: 4, maxHeight: 54, overflow: 'auto' }}>
+              📝 {cur.notes}
+            </div>
+          )}
         </div>
       </div>
     </>
@@ -353,12 +382,16 @@ function Controls() {
               ⏮
             </button>
             <label className="check small">
-              <input type="checkbox" checked={l.video.loop} onChange={(e) => {
+              <input
+                type="checkbox"
+                checked={l.video.loop}
+                onChange={(e) => {
                   // read now: React resets the controlled box before the queued action runs
                   const loop = e.target.checked
                   void live.enqueue(() => live.videoSet({ loop }, videoSrc))
                 }}
-              /> {t('live.loop')}
+              />{' '}
+              {t('live.loop')}
             </label>
             <span style={{ flex: 1 }} />
             <span className="small" style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -378,10 +411,18 @@ function Controls() {
           </div>
           <div className="row" style={{ marginTop: 8 }}>
             <span className="small muted">🔊</span>
-            <input type="range" min={0} max={1} step={0.05} value={l.video.volume} onChange={(e) => {
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={l.video.volume}
+              onChange={(e) => {
                 const volume = +e.target.value
                 void live.enqueue(() => live.videoSet({ volume }, videoSrc))
-              }} style={{ flex: 1 }} />
+              }}
+              style={{ flex: 1 }}
+            />
           </div>
         </div>
       )}
@@ -409,7 +450,11 @@ function Controls() {
         <div className="row wrap" style={{ gap: 6 }}>
           {settings.messageTemplates.map((tpl) => (
             <button key={tpl.id} className="btn sm" onClick={() => sendTemplate(tpl)} title={fillTemplate(lang === 'es' ? tpl.es : tpl.en, num || '…')}>
-              {(lang === 'es' ? tpl.es : tpl.en).replace(/[,:].*$/, '').replace(/#?\{n\}/g, '').trim().slice(0, 24)}
+              {(lang === 'es' ? tpl.es : tpl.en)
+                .replace(/[,:].*$/, '')
+                .replace(/#?\{n\}/g, '')
+                .trim()
+                .slice(0, 24)}
             </button>
           ))}
         </div>
@@ -429,11 +474,15 @@ function Controls() {
             }
           }}
         />
-        <button className="btn sm" disabled={!msgText.trim()} onClick={() => {
+        <button
+          className="btn sm"
+          disabled={!msgText.trim()}
+          onClick={() => {
             const text = msgText.trim()
             void live.enqueue(() => live.showMessage(text))
             setMsgText('')
-          }}>
+          }}
+        >
           {t('live.show')}
         </button>
         {l.message && (
@@ -457,10 +506,13 @@ function Controls() {
             void live.enqueue(() => live.stageMessage(text))
           }}
         />
-        <button className="btn sm" onClick={() => {
+        <button
+          className="btn sm"
+          onClick={() => {
             const text = stageText.trim()
             void live.enqueue(() => live.stageMessage(text))
-          }}>
+          }}
+        >
           {t('live.send')}
         </button>
         {l.stageMessage && (
@@ -471,10 +523,14 @@ function Controls() {
       </div>
       <div className="row wrap" style={{ gap: 6 }}>
         {['wrap', 'slow', 'repeat', 'louder'].map((k) => (
-          <button key={k} className="btn sm ghost" onClick={() => {
+          <button
+            key={k}
+            className="btn sm ghost"
+            onClick={() => {
               const text = t(`stageQuick.${k}`)
               void live.enqueue(() => live.stageMessage(text))
-            }}>
+            }}
+          >
             {t(`stageQuick.${k}`)}
           </button>
         ))}

@@ -28,7 +28,9 @@
     "smoke": "node scripts/smoke.mjs",
     "e2e:launch": "node scripts/e2e-launch.mjs",
     "build:win": "electron-vite build && electron-builder --win --config electron-builder.yml",
-    "build:dir": "electron-vite build && electron-builder --win --dir --config electron-builder.yml"
+    "build:dir": "electron-vite build && electron-builder --win --dir --config electron-builder.yml",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "jszip": "^3.10.2",
@@ -48,6 +50,7 @@
     "i18next": "^27.2.7",
     "pdfjs-dist": "^6.5.438",
     "playwright-core": "^1.65.1",
+    "prettier": "^3.10.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-i18next": "^18.0.3",
