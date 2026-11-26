@@ -3,6 +3,8 @@
  * wav, flac, ogg…), then let the worker encode it to Ogg/Opus. Every failure is a TrackError with a code the page
  * turns into a message — never a silent stop.
  */
+import type { VoicePreset } from '@shared/types'
+import type { StereoCheck } from '@shared/vocalRemoval'
 import AudioTrackWorker from './audioTrack.worker?worker&inline'
 
 export type TrackErrorCode = 'format' | 'memory' | 'too-long' | 'too-large' | 'encoder' | 'failed' | 'canceled' | 'empty'
@@ -13,11 +15,15 @@ export class TrackError extends Error {
   }
 }
 
-export type WorkerIn = { type: 'load'; left: Float32Array; right: Float32Array } | { type: 'encode' }
+export type WorkerIn =
+  | { type: 'load'; left: Float32Array; right: Float32Array }
+  | { type: 'preview'; preset: VoicePreset }
+  | { type: 'encode'; voice?: VoicePreset }
 export type WorkerOut =
-  | { type: 'loaded' }
-  | { type: 'progress'; fraction: number }
-  | { type: 'done'; ogg: Uint8Array }
+  | { type: 'loaded'; stereo: StereoCheck }
+  | { type: 'progress'; fraction: number; phase?: 'voice' | 'encode' }
+  | { type: 'preview'; original: [Float32Array, Float32Array]; processed: [Float32Array, Float32Array] }
+  | { type: 'done'; ogg: Uint8Array; removedRatio?: number }
   | { type: 'error'; code: TrackErrorCode }
 
 /** longest song accepted (memory: ~20 min of 48 kHz stereo is ~460 MB while decoding) */
@@ -70,12 +76,12 @@ export async function decodeAudio(bytes: Uint8Array): Promise<Decoded> {
 export class TrackJob {
   private worker = new AudioTrackWorker()
   private waiting: ((m: WorkerOut) => void) | null = null
-  private onProgress?: (f: number) => void
+  private onProgress?: (f: number, phase?: 'voice' | 'encode') => void
   private canceled = false
 
   constructor() {
     this.worker.onmessage = (e: MessageEvent<WorkerOut>) => {
-      if (e.data.type === 'progress') this.onProgress?.(e.data.fraction)
+      if (e.data.type === 'progress') this.onProgress?.(e.data.fraction, e.data.phase)
       else this.waiting?.(e.data)
     }
     this.worker.onerror = () => this.waiting?.({ type: 'error', code: 'failed' })
@@ -92,18 +98,28 @@ export class TrackJob {
     })
   }
 
-  /** hand the decoded audio to the worker (the arrays move there: don't use them afterwards) */
-  async load(d: Decoded): Promise<void> {
+  /** hand the decoded audio to the worker (the arrays move there: don't use them afterwards); says how stereo it is */
+  async load(d: Decoded): Promise<StereoCheck> {
     const r = await this.ask({ type: 'load', left: d.left, right: d.right }, [d.left.buffer, d.right.buffer])
     if (r.type === 'error') throw new TrackError(r.code)
+    return r.type === 'loaded' ? r.stereo : 'ok'
   }
 
-  async encode(onProgress: (fraction: number) => void): Promise<Uint8Array> {
+  /** 20 s of the song, as it is and without the voice (same loudness), for the A/B preview */
+  async preview(preset: VoicePreset): Promise<{ original: [Float32Array, Float32Array]; processed: [Float32Array, Float32Array] }> {
+    const r = await this.ask({ type: 'preview', preset })
+    if (r.type === 'error') throw new TrackError(r.code)
+    if (r.type !== 'preview') throw new TrackError('failed')
+    return r
+  }
+
+  /** the finished Ogg file — with the voice removed when `voice` is given (this changes the loaded audio: call it last) */
+  async encode(onProgress: (fraction: number, phase?: 'voice' | 'encode') => void, voice?: VoicePreset): Promise<{ ogg: Uint8Array; removedRatio?: number }> {
     this.onProgress = onProgress
-    const r = await this.ask({ type: 'encode' })
+    const r = await this.ask({ type: 'encode', voice })
     if (r.type === 'error') throw new TrackError(r.code)
     if (r.type !== 'done') throw new TrackError('failed')
-    return r.ogg
+    return { ogg: r.ogg, removedRatio: r.removedRatio }
   }
 
   cancel(): void {

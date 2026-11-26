@@ -122,3 +122,26 @@ Reload the operator (`location.reload()`), then do TC-SONG-12.
 1. Delete "Track Test" (stub the confirm).
 **Expected**
 - The song is gone and so is its `.ogg` in `.e2e-data/tracks/`. Other songs' tracks are untouched.
+
+### TC-SONG-15 · Remove the voice from a stereo recording (no AI)  `P1`
+**Pre:** TC-SONG-12's setup (a song, `sample-stereo.mp3` queued)
+**Steps**
+1. **Add backing track…** → choose `sample-stereo.mp3` → **No — remove the voice**.
+2. Leave **Normal**; **▶ Listen to a 20-second sample**, switch **Original ⇄ Without voice**, **⏹ Stop**.
+3. **✓ Save the track**.
+**Expected**
+- Step 1: "How much: Less · Normal · More", the sample button and the limits note ("Works best on studio recordings…").
+- Step 2: the sample plays on this PC (A/B switch at the same moment of the song).
+- Step 3: progress "Removing the voice… %", then "🎵 Backing track ready."; the card shows the badge **voice removed**;
+  the song's `track` has `vocalsRemoved: true, preset: 'normal'`.
+- The voice is really gone (gain-independent check, in `browser_evaluate`): decode the saved track and the source
+  with `OfflineAudioContext(2,1,48000).decodeAudioData`, measure 1000 Hz and 440 Hz (Goertzel over the middle) in the
+  left channel: `level(1000)/level(440)` drops by **≥ 15 dB** compared with the source (measured: −26 dB). Same length.
+- A 6-minute song takes well under 30 s and the operator window keeps responding.
+
+### TC-SONG-16 · A mono file is explained  `P1`
+**Steps**
+1. **Add backing track…** → choose `sample.mp3` (mono) → **No — remove the voice**.
+**Expected**
+- "⚠ This file is mono (one channel): the voice can't be separated…"; there is no **Save the track** button.
+  **← Back** and **Yes — use it as is** still work (a mono instrumental is fine to play).

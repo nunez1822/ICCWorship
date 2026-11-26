@@ -757,6 +757,27 @@
       "empty": "⚠ This file has no audio.",
       "failed": "⚠ The backing track could not be made.",
       "canceled": "Canceled."
+    },
+    "removeVoice": "No — remove the voice",
+    "removeVoiceHelp": "“Remove the voice” takes out what sits in the center of a stereo recording — usually the lead singer. No AI, works offline; the result depends on the recording.",
+    "voice": {
+      "amount": "How much:",
+      "less": "Less",
+      "normal": "Normal",
+      "more": "More",
+      "preview": "Listen to a 20-second sample",
+      "preparing": "Preparing the sample…",
+      "original": "Original",
+      "without": "Without voice",
+      "save": "Save the track",
+      "back": "Back",
+      "removing": "Removing the voice… {{pct}}%",
+      "mono": "⚠ This file is mono (one channel): the voice can't be separated from the music. Use a stereo recording, or a file that already has no singing.",
+      "notStereo": "⚠ Both channels of this file are (almost) the same: removing the center would remove nearly everything. Use a real stereo recording.",
+      "narrow": "This recording has little stereo: the result may be weak.",
+      "limits": "Works best on studio recordings with the lead voice in the center. Backing vocals, reverb and voices spread left and right stay.",
+      "little": "ℹ Little was in the center of this recording: the voice may still be heard. Try “More”.",
+      "almostAll": "⚠ Nearly everything was in the center of this recording: the track may sound thin. Try “Less”."
     }
   }
 }

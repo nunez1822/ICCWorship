@@ -43,6 +43,12 @@ All notable changes to ICCWorship are documented here. The format is based on
   next item when finished". Adding a track to a song never turns it on in plans that already have the song. The plan,
   the Live page and the printed run sheet mark songs that play a track (🎧). Tracks are stored small (Opus,
   ~1.2 MB per minute) in `Documents\ICCWorship\tracks`.
+- **Remove the voice** from a stereo recording to make a backing track — classic center-channel removal (like
+  Audacity's "Vocal Reduction" or Audition's "Center Channel Extractor"), **no AI, offline**. Choose Less / Normal /
+  More and compare a 20-second sample (Original ⇄ Without voice) before saving. It takes out what is in the center
+  (usually the lead voice) between 150 Hz and 8 kHz, so bass and kick stay; backing vocals, reverb and wide voices
+  stay too. Mono files and files whose two channels are the same are explained instead of processed. A 6-minute song
+  takes a few seconds; the operator window keeps responding.
 - **"No sound" is never silent any more.** All sound (videos, audio files) plays through the projector window. If a
   video or audio item goes live while the projector window is off, a message says so with an **Open projector**
   button, and closing the projector while something plays says that the sound stopped.

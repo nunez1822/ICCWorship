@@ -757,6 +757,27 @@
       "empty": "⚠ Este archivo no tiene audio.",
       "failed": "⚠ No se pudo preparar la pista de acompañamiento.",
       "canceled": "Cancelado."
+    },
+    "removeVoice": "No — quitar la voz",
+    "removeVoiceHelp": "«Quitar la voz» saca lo que está en el centro de una grabación estéreo — normalmente la voz principal. Sin inteligencia artificial, funciona sin internet; el resultado depende de la grabación.",
+    "voice": {
+      "amount": "Cuánto:",
+      "less": "Menos",
+      "normal": "Normal",
+      "more": "Más",
+      "preview": "Escuchar una muestra de 20 segundos",
+      "preparing": "Preparando la muestra…",
+      "original": "Original",
+      "without": "Sin voz",
+      "save": "Guardar la pista",
+      "back": "Atrás",
+      "removing": "Quitando la voz… {{pct}}%",
+      "mono": "⚠ Este archivo es mono (un solo canal): la voz no se puede separar de la música. Use una grabación estéreo, o un archivo que ya esté sin voz.",
+      "notStereo": "⚠ Los dos canales de este archivo son (casi) iguales: quitar el centro quitaría casi todo. Use una grabación estéreo de verdad.",
+      "narrow": "Esta grabación tiene poco estéreo: el resultado puede ser débil.",
+      "limits": "Funciona mejor con grabaciones de estudio con la voz principal en el centro. Los coros, la reverberación y las voces abiertas a los lados se quedan.",
+      "little": "ℹ Había poco en el centro de esta grabación: la voz puede seguir escuchándose. Pruebe «Más».",
+      "almostAll": "⚠ Casi todo estaba en el centro de esta grabación: la pista puede sonar pobre. Pruebe «Menos»."
     }
   }
 }

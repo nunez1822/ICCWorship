@@ -203,3 +203,11 @@ foreach ($s in @(@(16,16,'tiny'), @(1080,4000,'tall'), @(6000,400,'wide'))) { $b
 1. Try to add a backing track to a song.
 **Expected**
 - The read-only message ("…opened read-only…" toast), no file appears in `.e2e-data/tracks/`.
+
+### TC-EDGE-23 · "Remove the voice" on a file whose channels are the same  `P2`
+**Setup:** `ffmpeg -i tests/fixtures/sample.mp3 -ac 2 .e2e-data/tmp/fake-stereo.mp3` (two identical channels)
+**Steps**
+1. **Add backing track…** → `fake-stereo.mp3` → **No — remove the voice**.
+**Expected**
+- "⚠ Both channels of this file are (almost) the same: removing the center would remove nearly everything…" and no
+  **Save the track** button.
