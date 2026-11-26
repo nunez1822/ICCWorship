@@ -242,6 +242,17 @@
 - Choosing an output that isn't connected (`window.api.settings.set({ audioOutputId: 'x', audioOutputLabel: 'Gone' })`,
   then Test sound): the beep still plays (default speakers) and the toast says “Gone” isn't connected; the Settings
   list shows "Gone (not connected)" with a warning under it.
+- Two outputs with the same name (e.g. two identical USB interfaces): picking the second one saves **its** id
+  (`(await window.api.settings.get()).audioOutputId` is the second device's id, not the first's), and the list
+  shows the second one as chosen.
+
+### TC-SET-14 · Losing the sound output a second time is told again  `P1` (manual)
+**Pre:** a USB sound output chosen in Settings, projector on, a video or backing track playing
+**Steps**
+1. Unplug the USB output, start the video again. 2. Plug it back in. 3. Unplug it again, start the video again.
+**Expected**
+- Steps 1 and 3 each show the toast "⚠ The sound output chosen in Settings (“<name>”) isn't connected…" — the
+  second loss is never silent. The sound plays through the default speakers both times.
 
 ### TC-BAK-15 · A manual backup carries the backing tracks; restoring it brings them back  `P1`
 **Pre:** a song with a backing track (TC-SONG-12)
@@ -264,3 +275,5 @@
 - Step 3: the restored song points to its track again, and the file is back in `.e2e-data/tracks/` (taken from
   `backups/tracks/`). The log says `backing tracks brought back from backups/tracks: 1`.
 - Restoring an automatic backup never deletes tracks that exist now (tracks/ is left as it is).
+- The copies never freeze the app: during the hourly backup slides, the phone remote and the projector keep
+  responding. A copy that is cut off leaves only a `….ogg.tmp` (never a half `….ogg`) in `backups/tracks/` or `tracks/`.

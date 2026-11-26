@@ -73,7 +73,10 @@ function Output() {
   // drive the <video> (or the backing track's <audio>) from live state
   useEffect(() => {
     const vs = state?.video
-    const v = vs?.track ? audio.current : video.current
+    // A new track arrives in the same render as its state, before its <audio> mounts: audio.current is still the
+    // previous song's element (about to fade). Only drive the element of the live track; the new one applies the
+    // state itself when it attaches.
+    const v = vs?.track ? (audio.current?.dataset.track === trackKey ? audio.current : null) : video.current
     if (!v || !vs) return
     v.loop = vs.loop
     v.volume = Math.max(0, Math.min(1, vs.volume))
@@ -187,14 +190,14 @@ function Output() {
       </ErrorBoundary>
       {/* outside the error boundary: a slide that can't be drawn must not stop the music */}
       {tracks.map((t) => (
-        <TrackAudio key={t.key} src={t.src} fading={t.fading} attach={attachTrack} detach={detachTrack} />
+        <TrackAudio key={t.key} trackKey={t.key} src={t.src} fading={t.fading} attach={attachTrack} detach={detachTrack} />
       ))}
     </div>
   )
 }
 
 /** One backing track's hidden <audio>: live (driven like the video), or fading out and then pausing. */
-function TrackAudio(p: { src: string; fading: boolean; attach: (el: HTMLMediaElement) => void; detach: (el: HTMLMediaElement) => void }) {
+function TrackAudio(p: { trackKey: string; src: string; fading: boolean; attach: (el: HTMLMediaElement) => void; detach: (el: HTMLMediaElement) => void }) {
   const el = useRef<HTMLAudioElement>(null)
   const { attach, detach, fading } = p
   useEffect(() => {
@@ -217,7 +220,7 @@ function TrackAudio(p: { src: string; fading: boolean; attach: (el: HTMLMediaEle
     }, 30)
     return () => clearInterval(timer)
   }, [fading, attach, detach])
-  return <audio ref={el} src={p.src} preload="auto" />
+  return <audio ref={el} src={p.src} preload="auto" data-track={p.trackKey} />
 }
 
 // "I'm alive" for main's freeze detection (a frozen page stops sending it and gets restarted)

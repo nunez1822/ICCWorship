@@ -12,8 +12,11 @@ let reported = ''
 
 const keyOf = (o: Output) => `${o?.id || ''}|${o?.label || ''}`
 
-// a device plugged in (or out) later: look it up again next time
-navigator.mediaDevices?.addEventListener?.('devicechange', () => (cache = null))
+// a device plugged in (or out) later: look it up again next time, and tell the operator again if it is lost again
+navigator.mediaDevices?.addEventListener?.('devicechange', () => {
+  cache = null
+  reported = ''
+})
 
 function report(key: string): void {
   if (reported === key) return
@@ -89,12 +92,14 @@ function toneUrl(): string {
 export async function playTestSound(o: Output): Promise<void> {
   const url = toneUrl()
   const a = new Audio(url)
+  a.onended = () => URL.revokeObjectURL(url)
   try {
     await applySink(a, o)
     await a.play()
     window.api.output.testSoundResult({ ok: true })
   } catch {
+    // it never played, so 'ended' never comes
+    URL.revokeObjectURL(url)
     window.api.output.testSoundResult({ ok: false })
   }
-  a.onended = () => URL.revokeObjectURL(url)
 }

@@ -213,3 +213,21 @@ to a time of day, which would hide a rebuild). Welcome is live.
 **Expected**
 - Step 2: nothing moves by itself (`live.get().followOff === true`); `Space` still works.
 - Step 3: it follows again from the next start in the music (no jump to "where the music is now").
+
+### TC-LIVE-27 · Going from one track song to another: the old track only fades out  `P1`
+**Pre:** two songs with backing tracks ("Track Test" and a second one made the same way, TC-SONG-12), both in the
+active plan with "Play the backing track" on
+**Steps**
+1. Double-click "Track Test" and let its track play to the end (or press `P` to pause it). 2. Double-click the
+second song's item (if its timing is recorded, enter it part-way so it starts with a seek).
+**Expected**
+- Only the second song's track is heard; the first one never starts again from 0:00, and never jumps to the second
+  song's start point, while it fades. `videoProgress.src` is the second track's url.
+
+### TC-LIVE-28 · The top bar says "Off air" once the outro's music has finished  `P2`
+**Pre:** TC-LIVE-19 step 1 (the outro playing), the item without "Go to the next item when finished"
+**Steps**
+1. Let the track play to its end.
+**Expected**
+- While it plays: "🎵 Music playing". After it ends (`live.get().video.playing === false`): the top bar says
+  "Off air", not the gold Music pill.

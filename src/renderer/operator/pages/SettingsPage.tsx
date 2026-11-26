@@ -494,7 +494,11 @@ function SoundOutput() {
     return () => navigator.mediaDevices?.removeEventListener('devicechange', list)
   }, [])
   const chosen = st.audioOutputLabel || ''
-  const connected = !chosen || !!outs?.some((o) => o.id === st.audioOutputId || o.label === chosen)
+  // by id first: two identical devices share a name ("Speakers (USB Audio Device)") but never an id
+  const current = chosen ? outs?.find((o) => !!st.audioOutputId && o.id === st.audioOutputId) || outs?.find((o) => o.label === chosen) : undefined
+  const connected = !chosen || !!current
+  /** the saved device that isn't connected (device ids are long hex strings: never this) */
+  const MISSING = '-missing-'
   const test = async () => {
     setTesting(true)
     try {
@@ -515,16 +519,17 @@ function SoundOutput() {
         <select
           className="input"
           style={{ flex: 1 }}
-          value={chosen}
+          value={!chosen ? '' : current ? current.id : MISSING}
           onChange={(e) => {
-            const o = outs?.find((x) => x.label === e.target.value)
+            if (e.target.value === MISSING) return
+            const o = outs?.find((x) => x.id === e.target.value)
             void s.setSettings({ audioOutputId: o?.id || '', audioOutputLabel: o?.label || '' })
           }}
         >
           <option value="">{t('settings.soundDefault')}</option>
-          {chosen && !connected && <option value={chosen}>{t('settings.soundMissing', { label: chosen })}</option>}
+          {chosen && !connected && <option value={MISSING}>{t('settings.soundMissing', { label: chosen })}</option>}
           {outs?.map((o) => (
-            <option key={o.id} value={o.label}>
+            <option key={o.id} value={o.id}>
               {o.label}
             </option>
           ))}

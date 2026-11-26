@@ -156,8 +156,9 @@ export function App() {
   // so the bar never says "Off air" over a black screen or "ON AIR" under the logo
   const cover = liveState?.layers.black ? 'black' : liveState?.layers.logo ? 'logo' : null
   const isLive = !!liveState && liveState.slideIndex >= 0 && !cover
-  // the lyrics are off but the backing track still plays (the outro): the bar says so instead of "Off air"
-  const musicOnly = (!!liveState?.outro || !!liveState?.intro) && !!liveState?.video?.track
+  // the lyrics are off but the backing track still plays (the outro): the bar says so instead of "Off air" —
+  // and goes back to "Off air" once the track has finished (or is paused)
+  const musicOnly = (!!liveState?.outro || !!liveState?.intro) && !!liveState?.video?.track && !!liveState.video.playing
 
   return (
     <div className="shell">

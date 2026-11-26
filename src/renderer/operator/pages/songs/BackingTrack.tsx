@@ -150,24 +150,37 @@ function AddTrackModal({ song, onClose }: { song: Song; onClose: () => void }) {
   const [preset, setPreset] = useState<VoicePreset>('normal')
   const [info, setInfo] = useState<{ channels: number; stereo: StereoCheck } | null>(null)
   const loaded = useRef<Loaded | null>(null)
+  /** the worker still being loaded (not in `loaded` yet), so Cancel can stop it too */
+  const pending = useRef<TrackJob | null>(null)
+  /** the window was closed: whatever is still running stops at its next step and changes nothing */
+  const closed = useRef(false)
   const somethingLive = !!s.live && (s.live.slideIndex >= 0 || !!s.live.video?.playing)
   const ab = useAbPreview()
 
+  /** stop everything this window started (worker, preview) */
+  const shutDown = () => {
+    closed.current = true
+    pending.current?.cancel()
+    pending.current = null
+    loaded.current?.job.cancel()
+    loaded.current = null
+    ab.dispose()
+  }
+  /** after each await: give up if the window was closed meanwhile */
+  const stillOpen = () => {
+    if (closed.current) throw new TrackError('canceled')
+  }
+
   useEffect(
-    () => () => {
-      loaded.current?.job.dispose()
-      ab.stop()
-    },
+    () => shutDown,
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- on close only
     []
   )
 
   const working = phase.kind === 'working'
   const close = () => {
-    if (working) {
-      if (!window.confirm(t('track.confirmCancel'))) return
-      loaded.current?.job.cancel()
-    }
+    if (working && !window.confirm(t('track.confirmCancel'))) return
+    shutDown()
     onClose()
   }
 
@@ -186,7 +199,7 @@ function AddTrackModal({ song, onClose }: { song: Song; onClose: () => void }) {
   }
 
   const fail = (e: unknown) => {
-    if (e instanceof TrackError && e.code === 'canceled') return
+    if (closed.current || (e instanceof TrackError && e.code === 'canceled')) return
     const code = e instanceof TrackError ? e.code : 'failed'
     window.api.app.log('warn', `backing track not made: ${code}`)
     s.toast(t(`track.err.${code}`, { max: MAX_MINUTES }), 'err', 10_000)
@@ -201,10 +214,14 @@ function AddTrackModal({ song, onClose }: { song: Song; onClose: () => void }) {
     if (loaded.current?.key === keyOf(src)) return loaded.current
     setPhase({ kind: 'working', label: t('track.reading') })
     const job = new TrackJob()
+    pending.current = job
     try {
       const bytes = await readSource('path' in src ? { path: src.path } : { url: src.url })
+      stillOpen()
       const decoded = await decodeAudio(bytes)
+      stillOpen()
       const stereo = await job.load(decoded)
+      stillOpen()
       const l: Loaded = { key: keyOf(src), job, channels: decoded.channels, stereo }
       loaded.current = l
       setInfo({ channels: l.channels, stereo })
@@ -212,6 +229,8 @@ function AddTrackModal({ song, onClose }: { song: Song; onClose: () => void }) {
     } catch (e) {
       job.dispose()
       throw e
+    } finally {
+      if (pending.current === job) pending.current = null
     }
   }
 
@@ -227,8 +246,13 @@ function AddTrackModal({ song, onClose }: { song: Song; onClose: () => void }) {
       const { ogg, removedRatio } = await l.job.encode((f, ph) => setPhase({ kind: 'working', label: label(f, ph), fraction: f }), voice)
       // the audio in the worker is changed now: a second save reads the file again
       l.job.dispose()
-      loaded.current = null
+      if (loaded.current === l) loaded.current = null
+      stillOpen()
       const url = await window.api.tracks.save(song.id, ogg)
+      if (closed.current) {
+        await window.api.tracks.prune(song.id) // canceled while storing: the new file is not used by the song
+        return
+      }
       // the song as it is NOW (it may have been edited while the track was being made)
       const cur = useApp.getState().songs.find((x) => x.id === song.id)
       if (!cur) {
@@ -255,6 +279,7 @@ function AddTrackModal({ song, onClose }: { song: Song; onClose: () => void }) {
     if (!source) return
     try {
       await load(source)
+      stillOpen()
       setPhase({ kind: 'pick' })
       setMode('voice')
     } catch (e) {
@@ -269,6 +294,7 @@ function AddTrackModal({ song, onClose }: { song: Song; onClose: () => void }) {
       const l = await load(source)
       setPhase({ kind: 'working', label: t('track.voice.preparing') })
       const p = await l.job.preview(preset)
+      stillOpen()
       setPhase({ kind: 'pick' })
       await ab.play(p.original, p.processed)
     } catch (e) {
@@ -479,5 +505,13 @@ function useAbPreview() {
     apply(which)
   }
 
-  return { playing, hearing, play, stop, hear }
+  /** the window closes: stop and let go of the audio device */
+  const dispose = () => {
+    stop()
+    const c = ctx.current
+    ctx.current = null
+    if (c && c.state !== 'closed') void c.close().catch(() => {})
+  }
+
+  return { playing, hearing, play, stop, hear, dispose }
 }

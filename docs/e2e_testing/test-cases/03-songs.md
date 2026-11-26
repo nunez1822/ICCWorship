@@ -159,3 +159,22 @@ Reload the operator (`location.reload()`), then do TC-SONG-12.
 - Step 4: "⏱ Timing saved…"; the card shows **⏱ timing** and **Edit timing**;
   `track.timings` = `[2, 5, 8]` and `track.timingsKey` is set.
 - **Edit timing** opens the list directly (no recording); **Remove the timing** removes it.
+
+### TC-SONG-18 · Cancel while the file is still being read makes no track  `P1`
+**Pre:** TC-SONG-12's setup, "Track Test" without a backing track; a large audio file queued
+(`window.api.e2e.queueOpenFiles([...])`, a few minutes long so reading takes a moment)
+**Steps**
+1. **＋ Add backing track…** → **📂 Choose a file…** → **✓ Yes — use it as is**.
+2. While it says "Reading…", **Cancel** and accept the confirm (stub `window.confirm = () => true` in the same call).
+3. Wait 15 s. 4. Repeat with **No — remove the voice** and cancel while it reads.
+**Expected**
+- The window closes at once. No "🎵 Backing track ready." toast ever appears, and no error toast.
+- The song still has no `track` (`db.list('songs')`), and no new `.ogg` for it is left in `.e2e-data/tracks/`.
+
+### TC-SONG-19 · Closing the window after the A/B preview leaves no sound device open  `P2`
+**Pre:** TC-SONG-15 step 2 done (the sample played)
+**Steps**
+1. Close the window (✕). 2. Open **Add backing track…** again, choose the file, **No — remove the voice**, play
+the sample again. Repeat 3 times.
+**Expected**
+- The sample plays every time, and closing the window stops it at once (no sound left playing).

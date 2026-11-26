@@ -1,7 +1,7 @@
 import JSZip from 'jszip'
 import { app } from 'electron'
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statfsSync, statSync, unlinkSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statfsSync, statSync, unlinkSync } from 'node:fs'
+import { copyFile, readFile, rename, rm } from 'node:fs/promises'
 import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import { backupDir, dataRoot } from './paths'
 import { dataStatus, db, getSettings } from './db'
@@ -293,7 +293,7 @@ async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: Restor
     }
     db().reset()
     reloadBibles()
-    fillMissingTracks(root)
+    await fillMissingTracks(root)
     return { ok: true, safetyBackup: safety }
   } finally {
     // the restore's answer is already decided: a folder antivirus still holds must not turn it into an error
@@ -367,8 +367,20 @@ async function putBack(root: string, safetyZip: string): Promise<void> {
 
 const mirrorDir = () => join(backupDir(), 'tracks')
 
-/** Bring backups/tracks/ up to date. Never fails the backup that calls it. */
-export function mirrorTracks(): void {
+/** copy to .tmp, then rename: a half-copied file must never look like a finished copy. Doesn't block main. */
+async function copyFileSafely(from: string, to: string): Promise<void> {
+  const tmp = to + '.tmp'
+  try {
+    await copyFile(from, tmp)
+    await rename(tmp, to)
+  } catch (e) {
+    await rm(tmp, { force: true }).catch(() => {})
+    throw e
+  }
+}
+
+/** Bring backups/tracks/ up to date (a track can be 60 MB: copied without blocking main). Never fails the backup that calls it. */
+export async function mirrorTracks(): Promise<void> {
   try {
     const src = join(dataRoot(), TRACKS_DIR)
     const dst = mirrorDir()
@@ -383,11 +395,7 @@ export function mirrorTracks(): void {
       entries.filter((e) => e.isDirectory()).map((e) => e.name),
       today
     )
-    for (const n of plan.copy) {
-      // copy to .tmp, then rename: a half-copied file must never look like a finished copy
-      copyFileSync(join(src, n), join(dst, n + '.tmp'))
-      renameSync(join(dst, n + '.tmp'), join(dst, n))
-    }
+    for (const n of plan.copy) await copyFileSafely(join(src, n), join(dst, n))
     if (plan.retire.length) mkdirSync(join(dst, `gone-${today}`), { recursive: true })
     for (const n of plan.retire) renameSync(join(dst, n), join(dst, `gone-${today}`, n))
     for (const d of plan.dropDirs) rmSync(join(dst, d), { recursive: true, force: true })
@@ -398,7 +406,7 @@ export function mirrorTracks(): void {
 }
 
 /** After a restore: a track a restored song uses but tracks/ lacks comes back from backups/tracks/ if it is there. */
-function fillMissingTracks(root: string): void {
+async function fillMissingTracks(root: string): Promise<void> {
   try {
     const songs = JSON.parse(stripBom(readFileSync(join(root, 'data', 'songs.json'), 'utf8')))
     if (!Array.isArray(songs)) return
@@ -412,7 +420,7 @@ function fillMissingTracks(root: string): void {
       const from = [join(m, name), ...gone.map((g) => join(m, g.name, name))].find((f) => existsSync(f))
       if (!from) continue
       mkdirSync(dir, { recursive: true })
-      copyFileSync(from, dest)
+      await copyFileSafely(from, dest)
       n++
     }
     if (n) log.info('backing tracks brought back from backups/tracks:', n)
@@ -442,7 +450,8 @@ let writesAtLastAuto = -1
 export async function autoBackup(): Promise<void> {
   const store = db()
   if (store.readOnly) return // data from a newer version: leave its backups alone
-  mirrorTracks()
+  // inside the lock: a restore must not replace tracks/ while they are being copied
+  await exclusive(mirrorTracks)
   const dir = backupDir()
   const now = new Date()
   const today = localDate(now)
