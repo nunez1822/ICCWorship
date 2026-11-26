@@ -11,7 +11,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import fuses from '@electron/fuses' // CommonJS: no named exports
+import { FuseState, FuseV1Options, getCurrentFuseWire } from '@electron/fuses'
 import { chromium } from 'playwright-core'
 
 const root = resolve(import.meta.dirname, '..')
@@ -30,10 +30,9 @@ const check = (ok, what) => {
 }
 
 // Fuses: must match electronFuses in electron-builder.yml. Read before launching, so an error here leaves no app
-// running. The wire holds one byte per fuse: '1' (49) on, '0' (48) off (FuseState is not exported by the package).
-const { FuseV1Options, getCurrentFuseWire } = fuses
+// running. (electron-builder flips them with its own copy of @electron/fuses; this one only reads them back.)
 const wire = await getCurrentFuseWire(exe)
-const expectFuse = (opt, on) => check(wire[opt] === (on ? 49 : 48), `fuse ${FuseV1Options[opt]} ${on ? 'on' : 'off'}`)
+const expectFuse = (opt, on) => check(wire[opt] === (on ? FuseState.ENABLE : FuseState.DISABLE), `fuse ${FuseV1Options[opt]} ${on ? 'on' : 'off'}`)
 expectFuse(FuseV1Options.RunAsNode, false)
 expectFuse(FuseV1Options.EnableNodeOptionsEnvironmentVariable, false)
 expectFuse(FuseV1Options.EnableNodeCliInspectArguments, false)
