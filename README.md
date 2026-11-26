@@ -38,6 +38,7 @@ same time**, switchable live with one key.
 - 🎵 **Bilingual songs** – English and Spanish side by side in the editor; on screen show ES, EN or **ES + EN stacked** (keys `1` `2` `3`). Arrangements (V1 C V2 C B C), lines-per-slide, auto-fit text.
 - 📖 **Bible** – King James and Reina-Valera 1909 built in. Type `Juan 3:16-18`, `Jn 3.16`, `1 Cor 13`, `Salmos 23` in either language → parallel bilingual slides, long verses split automatically.
 - ⭐ **La Biblia de las Américas (LBLA) & other copyrighted Bibles** – see [below](#copyrighted-bibles-lbla-nvi-rvr1960).
+- 🎧 **Backing tracks** – no musicians? Give a song an instrumental and the music plays under the lyrics while you advance them (outro included) — or record when each slide starts once, and the lyrics follow the music by themselves. Use a file that already has no singing, or **remove the voice** from a stereo recording right in the app (classic audio processing, no AI, works offline).
 - 🎬 **Video** – MP4 / MOV / WebM as a service item (play, pause, seek, volume, loop, auto-next, time-remaining) **or as a looping motion background behind lyrics**. No codecs to install.
 - 📊 **PowerPoint & PDF** – drag a `.pptx` in. With PowerPoint installed slides look *exactly* like the original; with LibreOffice they're converted; with neither, the text is imported as editable (translatable!) slides. Speaker notes go to the stage display.
 - 📣 Announcements (with auto-advance loops), ⏱ countdown to service start, 📝 sermon notes with **fill-in-the-blank reveal**, 🙏 prayer slides.
@@ -47,7 +48,8 @@ same time**, switchable live with one key.
 **Running the service**
 - 📺 Live page: plan on the left, slide grid in the middle, Live + Next monitors and big controls on the right.
 - 📱 **Phone remote** – scan a QR code, enter the PIN, control slides from any phone on the church Wi-Fi.
-- 🎤 **Stage display** – current/next slide, chords, clock, item & service timers, video time left, and messages from the booth (“Please wrap up”). Open it on a third screen or any browser on the network.
+- 🔊 **Sound output** – choose where videos and backing tracks play (e.g. the cable to the sound desk), with a test sound.
+- 🎤 **Stage display** – current/next slide, chords, clock, item & service timers, video / music time left, and messages from the booth (“Please wrap up”). Open it on a third screen or any browser on the network.
 - ⌨️ Keyboard & clicker friendly (Space, arrows, PageUp/PageDown, B, C, L, Esc, P).
 
 **Planning & people**
@@ -92,7 +94,9 @@ same time**, switchable live with one key.
   on the new PC and choose **Restore** with that file. Videos and images you added (including the logo and theme
   backgrounds) are *referenced by their full folder path*, not copied: copy them to the **same folder path** on the
   new PC (for example `C:\Users\Pastor\Videos`), or add them again from the Media page and re-pick the logo and
-  backgrounds.
+  backgrounds. **Backing tracks are inside that backup**, so songs keep their music.
+- Automatic backups leave the backing tracks out (they would make every hourly copy large): each track is kept once in
+  `Documents\ICCWorship\backups\tracks`, and restoring an automatic backup never deletes tracks.
 - Nothing is uploaded anywhere — see [PRIVACY.md](PRIVACY.md).
 
 ## Your first Sunday (5 minutes)

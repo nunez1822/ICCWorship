@@ -1,5 +1,6 @@
 import type { Background, MediaItem, PlanItem, Presentation, Settings, Slide, Song, Theme, BibleVersionInfo } from '@shared/types'
 import { countdownTarget, notesToSlides, scriptureToSlides, songToSlides, uid } from '@shared/slides'
+import { normalizeItemTrack } from '@shared/tracks'
 import { backgroundFromMedia, isVideoUrl, toMediaUrl } from './media'
 
 export type BuildSettings = Pick<Settings, 'defaultThemeId' | 'ccliLicense'>
@@ -23,6 +24,8 @@ export interface BuiltItem {
   /** message to show the operator, e.g. "song not found" */
   warning?: string
   isVideo?: boolean
+  /** the song's backing track, when this plan item plays it */
+  track?: { src: string; volume: number }
 }
 
 export function themeFor(item: Pick<PlanItem, 'themeId'> | undefined, ctx: BuildContext): Theme {
@@ -57,7 +60,9 @@ export async function buildItem(item: PlanItem, ctx: BuildContext): Promise<Buil
     case 'song': {
       const song = ctx.songs.find((s) => s.id === item.refId)
       if (!song) return { ...base, slides: [], warning: 'warn.songMissing' }
-      return { ...base, slides: songToSlides(song, { ccliLicense: ctx.settings.ccliLicense }) }
+      const it = normalizeItemTrack(item.track)
+      const track = it?.play && song.track?.url ? { src: song.track.url, volume: it.volume } : undefined
+      return { ...base, slides: songToSlides(song, { ccliLicense: ctx.settings.ccliLicense }), track }
     }
     case 'scripture': {
       const sc = item.scripture

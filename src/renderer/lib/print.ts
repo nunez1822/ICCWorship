@@ -1,4 +1,7 @@
-import type { Person, ServicePlan, Team, Lang, SongUsage } from '@shared/types'
+import type { Person, ServicePlan, Team, Lang, Song, SongUsage } from '@shared/types'
+import { playsTrack } from './planRefs'
+import en from '../i18n/en.json'
+import es from '../i18n/es.json'
 
 const esc = (s: string | number | null | undefined) =>
   String(s ?? '')
@@ -6,36 +9,8 @@ const esc = (s: string | number | null | undefined) =>
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
 
-const L = {
-  en: {
-    order: 'Order of Service',
-    time: 'Time',
-    item: 'Item',
-    who: 'Who',
-    min: 'Min',
-    notes: 'Notes',
-    team: 'Team',
-    total: 'Total',
-    printed: 'Printed with ICCWorship — free & open-source church software',
-    position: 'Position',
-    person: 'Person',
-    status: 'Status'
-  },
-  es: {
-    order: 'Orden del Servicio',
-    time: 'Hora',
-    item: 'Elemento',
-    who: 'Quién',
-    min: 'Min',
-    notes: 'Notas',
-    team: 'Equipo',
-    total: 'Total',
-    printed: 'Impreso con ICCWorship — software libre y gratuito para iglesias',
-    position: 'Puesto',
-    person: 'Persona',
-    status: 'Estado'
-  }
-}
+// the run sheet is printed in the plan's language, whatever the operator's is: both tables, from the i18n files
+const L = { en: en.runSheet, es: es.runSheet }
 
 export function addMinutes(hhmm: string, minutes: number): string {
   const [h, m] = (hhmm || '00:00').split(':').map((x) => parseInt(x, 10) || 0)
@@ -55,7 +30,7 @@ h2{font-size:14px;margin:18px 0 6px;border-bottom:1px solid #222;padding-bottom:
 .bi{color:#777;font-style:italic}
 `
 
-export function runSheetHtml(plan: ServicePlan, opts: { people: Person[]; teams: Team[]; lang: Lang; churchName: string }): string {
+export function runSheetHtml(plan: ServicePlan, opts: { people: Person[]; teams: Team[]; lang: Lang; churchName: string; songs?: Song[] }): string {
   const l = L[opts.lang]
   const other = L[opts.lang === 'es' ? 'en' : 'es']
   let clock = plan.time || '00:00'
@@ -65,7 +40,9 @@ export function runSheetHtml(plan: ServicePlan, opts: { people: Person[]; teams:
       clock = addMinutes(clock, it.durationMin || 0)
       const isHeader = it.type === 'header' && !it.slides?.length
       const detail = it.type === 'scripture' && it.scripture ? it.scripture.ref : ''
-      return `<tr class="${isHeader ? 'header' : ''}"><td class="t">${esc(start)}</td><td><b>${esc(it.title)}</b>${detail && detail !== it.title ? ` <span class="n">(${esc(detail)})</span>` : ''}</td><td>${esc(it.person || '')}</td><td class="m">${it.durationMin || ''}</td><td class="n">${esc(it.notes || '')}</td></tr>`
+      // the sound person needs to know which songs play a backing track
+      const music = playsTrack(it, opts.songs || []) ? ` <span class="n">🎧 ${l.track}</span>` : ''
+      return `<tr class="${isHeader ? 'header' : ''}"><td class="t">${esc(start)}</td><td><b>${esc(it.title)}</b>${detail && detail !== it.title ? ` <span class="n">(${esc(detail)})</span>` : ''}${music}</td><td>${esc(it.person || '')}</td><td class="m">${it.durationMin || ''}</td><td class="n">${esc(it.notes || '')}</td></tr>`
     })
     .join('')
   const total = plan.items.reduce((a, i) => a + (i.durationMin || 0), 0)

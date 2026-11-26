@@ -5,6 +5,25 @@ import '../styles/app.css'
 import { App } from './App'
 import { ErrorBoundary, errorSummary } from '../components/ErrorBoundary'
 
+// "I'm alive" for main's freeze detection (see guardOperator): a page that stops beating gets the volunteer a
+// "not responding — restart the window?" question instead of a frozen window and no way out.
+setInterval(() => window.api.win.alive(), 1000)
+// confirm() / alert() block this page — and its heartbeat — until the volunteer answers: that is waiting, not a freeze
+{
+  const nativeConfirm = window.confirm.bind(window)
+  const nativeAlert = window.alert.bind(window)
+  const busyWhile = <T,>(fn: () => T): T => {
+    window.api.win.busy(true)
+    try {
+      return fn()
+    } finally {
+      window.api.win.busy(false)
+    }
+  }
+  window.confirm = (message?: string) => busyWhile(() => nativeConfirm(message))
+  window.alert = (message?: string) => busyWhile(() => nativeAlert(message))
+}
+
 // Each page has its own error boundary (see App), which logs what it catches. This one catches the rest (top
 // bar, overlays): instead of a blank window it offers a reload — the projector and the phone keep working.
 createRoot(document.getElementById('root')!, {

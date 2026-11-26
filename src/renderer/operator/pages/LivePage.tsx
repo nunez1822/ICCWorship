@@ -8,7 +8,7 @@ import { buildItem } from '../../lib/buildSlides'
 import { SlideView } from '../../components/SlideView'
 import { TYPE_ICON, fmtMin, itemIcon } from '../../components/ui'
 import { toMediaUrl } from '../../lib/media'
-import { itemSourceMissing } from '../../lib/planRefs'
+import { itemSourceMissing, playsTrack } from '../../lib/planRefs'
 
 /** Replace every `{n}` placeholder in a message template. */
 function fillTemplate(text: string, n: string): string {
@@ -104,6 +104,7 @@ function PlanRow(p: { item: PlanItem; index: number; selected: boolean; isLive: 
   const { item } = p
   const { t } = useTranslation()
   const missing = useApp((s) => itemSourceMissing(item, s))
+  const music = useApp((s) => playsTrack(item, s.songs))
   const media = useApp((s) => s.media)
   const isHeader = item.type === 'header' && !item.slides?.length
   return (
@@ -113,7 +114,10 @@ function PlanRow(p: { item: PlanItem; index: number; selected: boolean; isLive: 
       onDoubleClick={p.onGo}
       title={item.notes}
     >
-      <span className="type-ico">{itemIcon(item, media)}</span>
+      <span className="type-ico" title={music ? t('track.pill') : undefined}>
+        {itemIcon(item, media)}
+        {music && <span aria-label={t('track.pill')}>🎧</span>}
+      </span>
       <div style={{ minWidth: 0 }}>
         <div className="ti">
           {missing && (
@@ -389,6 +393,27 @@ function Controls() {
               {t('live.videoError')}
             </div>
           )}
+          {l.video.track && (
+            <div className="small" style={{ fontWeight: 600, marginBottom: 6 }}>
+              {t('track.label')}
+            </div>
+          )}
+          {l.video.track && l.intro && (
+            <div className="small" role="status" style={{ color: 'var(--gold, var(--warn))', marginBottom: 6 }}>
+              {t('timing.introHint', { time: formatClock(Math.max(0, l.intro.firstAt - (progress?.current || 0)) * 1000) })}
+            </div>
+          )}
+          {/* only while the music really plays (as the top bar): a finished or paused track leaves the room silent */}
+          {l.video.track && l.outro && l.video.playing && (
+            <div className="small" role="status" style={{ color: 'var(--gold, var(--warn))', marginBottom: 6 }}>
+              {t('track.musicStill')}
+            </div>
+          )}
+          {l.video.track && !l.video.playing && !(progress?.current && progress.current > 0) && !progress?.error && (
+            <div className="small" role="status" style={{ color: 'var(--warn)', marginBottom: 6 }}>
+              {t('track.paused')}
+            </div>
+          )}
           <div className="row" style={{ marginBottom: 8 }}>
             <button className="btn sm primary" onClick={() => void live.enqueue(() => live.videoToggle())}>
               {l.video.playing ? '⏸ ' + t('live.pause') : '▶ ' + t('live.play')}
@@ -396,18 +421,21 @@ function Controls() {
             <button className="btn sm" onClick={() => void live.enqueue(() => live.videoSeek(0, videoSrc))}>
               ⏮
             </button>
-            <label className="check small">
-              <input
-                type="checkbox"
-                checked={l.video.loop}
-                onChange={(e) => {
-                  // read now: React resets the controlled box before the queued action runs
-                  const loop = e.target.checked
-                  void live.enqueue(() => live.videoSet({ loop }, videoSrc))
-                }}
-              />{' '}
-              {t('live.loop')}
-            </label>
+            {/* a backing track doesn't loop: the song ends with it (not rendered: `hidden` loses to .check's display) */}
+            {!l.video.track && (
+              <label className="check small">
+                <input
+                  type="checkbox"
+                  checked={l.video.loop}
+                  onChange={(e) => {
+                    // read now: React resets the controlled box before the queued action runs
+                    const loop = e.target.checked
+                    void live.enqueue(() => live.videoSet({ loop }, videoSrc))
+                  }}
+                />{' '}
+                {t('live.loop')}
+              </label>
+            )}
             <span style={{ flex: 1 }} />
             <span className="small" style={{ fontVariantNumeric: 'tabular-nums' }}>
               −{formatClock(((progress?.duration || 0) - (progress?.current || 0)) * 1000)}
@@ -425,6 +453,19 @@ function Controls() {
             <div style={{ width: `${progress?.duration ? (progress.current / progress.duration) * 100 : 0}%` }} />
           </div>
           <div className="row" style={{ marginTop: 8 }}>
+            {l.video.track && live.liveTimings(l) && (
+              <label className="check small" title={t('timing.followHelp')}>
+                <input
+                  type="checkbox"
+                  checked={!l.followOff}
+                  onChange={(e) => {
+                    const on = e.target.checked
+                    void live.enqueue(() => live.setFollow(on))
+                  }}
+                />{' '}
+                ⏱ {t('timing.follow')}
+              </label>
+            )}
             <span className="small muted">🔊</span>
             <input
               type="range"

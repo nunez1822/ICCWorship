@@ -143,3 +143,42 @@ keyboard together.
 **Expected**
 - Logo screen updates immediately with the new name, then the image.
 - Bilingual order flip updates the live slide immediately.
+
+### TC-CONF-18 · Video or audio goes live with the projector off  `P1`
+**Pre:** `sample.mp3` in the library
+**Steps**
+1. Top bar → **Projector on** (turns it off). 2. Media → Show now on the audio card.
+3. Click **Open projector** on the toast.
+**Expected**
+- Step 2: an error toast "⚠ No sound or picture: the projector window is off…" with an **Open projector** button (not silence).
+- Step 3: the projector window opens and the audio plays (`videoProgress.current` advances).
+
+### TC-CONF-19 · Closing the projector while sound plays says so  `P1`
+**Pre:** `sample.mp4` playing on the projector (TC-MED-02)
+**Steps**
+1. Top bar → **Projector on** (turns it off) while the video plays.
+**Expected**
+- An error toast "⚠ The projector window was closed: the sound stopped…". Turning the projector on again resumes the video.
+
+### TC-CONF-20 · Keys pressed while recording a timing never move the live screen  `P0`
+**Pre:** another song live on slide 1 (Songs → Show now); TC-SONG-12
+**Steps**
+1. "Track Test" → **⏱ Record timing** → **⏺ Start**. 2. Press `Space` three times, then `PageUp`, `PageDown`, `B`,
+   `L`, `P`, `2`, `Ctrl+→`.
+**Expected**
+- The live song is still on slide 1, no Black / Logo, the screen language unchanged, the same item
+  (`window.api.live.get()` unchanged); only the recording took the presses (PageUp took one back, PageDown added one).
+- A click beside the window doesn't close it; `Esc` asks "Close without saving the timing?".
+
+### TC-CONF-21 · A checkbox, slider or dropdown clicked with the mouse never swallows the live keys  `P1`
+**Pre:** a song live on slide 1 (Live page), a video or backing track playing
+**Steps**
+1. Click the media bar's **Loop** box (or **⏱ Follow the timing**), then press `Space`, `B`, `B`.
+2. Click the volume slider, then press `→`.
+3. Pick a plan in the Live page's plan dropdown with the mouse, then press `↓` and `Space`.
+4. Press `Tab` until the Loop box has a focus ring, then press `Space`.
+**Expected**
+- Steps 1–3: each key does its live action (next slide, black on / off, next slide); the box does **not** toggle, the
+  slider doesn't move, and the dropdown does **not** switch to another plan.
+- Step 4 (reached with the keyboard): `Space` ticks the box, as it should for keyboard users.
+- Typing in a text box (a song title, the message box) still never triggers a shortcut (TC-CONF-01).

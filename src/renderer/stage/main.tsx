@@ -73,7 +73,9 @@ function Stage() {
         </div>
         {state.video && progress?.duration ? (
           <div className="stage-timer warn">
-            <div className="lbl">🎬 {t('stage.videoLeft')}</div>
+            <div className="lbl">
+              {state.video.track ? '🎵' : '🎬'} {t('stage.videoLeft')}
+            </div>
             <div className="val">{formatClock(remainingVideo)}</div>
           </div>
         ) : null}
@@ -116,7 +118,14 @@ function Stage() {
           <section className="stage-current">
             {state.layers.black && <div className="stage-flag">⬛ {t('stage.black')}</div>}
             {state.layers.logo && !state.layers.black && <div className="stage-flag">✝ {t('stage.logo')}</div>}
-            <StageSlide slide={cur} state={state} chords={chords && hasChords} big />
+            {/* the backing track's intro: the choir sees when to come in */}
+            {state.intro && !cur ? (
+              <div className="stage-empty" role="status">
+                🎵 {t('stage.firstLineIn')} {formatClock(Math.max(0, state.intro.firstAt - (progress?.current || 0)) * 1000)}
+              </div>
+            ) : (
+              <StageSlide slide={cur} state={state} chords={chords && hasChords} big />
+            )}
           </section>
           <aside className="stage-next">
             <div className="lbl">{t('stage.next')}</div>

@@ -49,6 +49,9 @@ Do **not** fix bugs during the run — record them. Read `docs/e2e_testing/READM
   also add a `page.on('dialog')` handler — two handlers race ("dialog already handled").
 - Never click **🖨️ Print**: it opens the native Windows print dialog, which blocks the page and hangs the MCP
   connection (~30 min timeout). Print and **📄 PDF** use the same `runSheetHtml`, so check the PDF instead.
+- Freezing / crashing the operator page (TC-RES-33): `queueMessageBox(0)` **before**, start `while (true) {}` from a
+  `setTimeout` so the call returns, and use CDP `Page.crash` from a Node script, not the MCP (it may close the crashed
+  page, which quits the app). A frozen page never answers the MCP again: don't call it until the window restarted.
 - App log (attach the relevant lines to failure reports): `.e2e-data/.userdata/logs/main.log`.
 - Remote PIN: `browser_evaluate` → `(await window.api.settings.get()).remotePin`. The phone `/stage` page needs it
   too: open `/stage#pin=<PIN>`. TC-SEC-04 locks out the whole device for minutes — run it last.

@@ -15,12 +15,13 @@ import {
   type MenuItemConstructorOptions
 } from 'electron'
 import { createReadStream, existsSync, statSync, writeFileSync, readFileSync, type Stats } from 'node:fs'
+import { readFile, stat } from 'node:fs/promises'
 import { dirname, extname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Readable } from 'node:stream'
 import type { LiveState, RemoteCommand, VideoEndedCommand } from '@shared/types'
-import { parseRange, sanitizeSettingsPatch, validateCommand } from '@shared/security'
-import { COLLECTIONS, dataStatus, db, ensurePin, getSettings, isCollection, prepareData, seedIfEmpty, setSettings } from './db'
+import { parseRange, permissionAllowed, sanitizeSettingsPatch, validateCommand } from '@shared/security'
+import { assertWritable, COLLECTIONS, dataStatus, db, ensurePin, getSettings, isCollection, prepareData, seedIfEmpty, setSettings } from './db'
 import * as bible from './bible'
 import { live } from './live'
 import { serverInfo, setCommandHandler, startServer, stopServer } from './server'
@@ -36,6 +37,8 @@ import { setMainLang, t } from './i18n'
 import { Heartbeat, ReloadBudget } from '@shared/recovery'
 import { exportDiagnostics, systemInfoText } from './diagnostics'
 import { checkForUpdates, RELEASES_URL } from './updates'
+import { cleanupOrphanTracks, pruneTrack, saveTrack } from './tracks'
+import { MAX_SOURCE_BYTES } from '@shared/tracks'
 
 // media:// serves local media files to the app's own pages. corsEnabled + "Access-Control-Allow-Origin: *" are
 // needed: PDF import fetch()es media:// from a file:// page, and thumbnails load with crossOrigin="anonymous".
@@ -61,6 +64,7 @@ type AppEvent =
   | { type: 'diagnostics'; ok: boolean }
   | { type: 'menu'; action: 'shortcuts' | 'about' }
   | { type: 'openFailed'; what: 'logs' | 'notices' }
+  | { type: 'soundOutputMissing'; label: string }
 function notify(evt: AppEvent): void {
   if (operator && !operator.isDestroyed()) operator.webContents.send('app:event', evt)
 }
@@ -134,6 +138,8 @@ const MIME: Record<string, string> = {
   '.wav': 'audio/wav',
   '.m4a': 'audio/mp4',
   '.ogg': 'audio/ogg',
+  '.opus': 'audio/ogg',
+  '.flac': 'audio/flac',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -176,8 +182,6 @@ function registerMediaProtocol(): void {
 }
 
 /* ------------------------------ web contents hardening ------------------------------ */
-const ALLOWED_PERMISSIONS = new Set(['fullscreen', 'clipboard-sanitized-write'])
-
 function hardenWebContents(): void {
   app.on('web-contents-created', (_e, wc) => {
     // The app's pages never navigate. Without this, a file dropped outside a drop zone would replace the
@@ -194,8 +198,24 @@ function hardenWebContents(): void {
       return { action: 'deny' }
     })
   })
-  session.defaultSession.setPermissionRequestHandler((_wc, permission, done) => done(ALLOWED_PERMISSIONS.has(permission)))
-  session.defaultSession.setPermissionCheckHandler((_wc, permission) => ALLOWED_PERMISSIONS.has(permission))
+  // Choosing the sound output (Settings → Screens) needs to list the outputs by name: allowed only as a check, only
+  // for our own pages. A request (getUserMedia — microphone, camera) is always refused. See permissionAllowed.
+  const seen = new Set<string>()
+  const devLog = (kind: string, permission: string, mediaType?: string) => {
+    const key = `${kind}:${permission}:${mediaType || ''}`
+    if (app.isPackaged || seen.has(key)) return
+    seen.add(key)
+    log.info(`permission ${kind}: ${permission}${mediaType ? ` (${mediaType})` : ''}`)
+  }
+  session.defaultSession.setPermissionRequestHandler((wc, permission, done, details) => {
+    const mediaType = (details as { mediaTypes?: string[] }).mediaTypes?.join(',')
+    devLog('request', permission, mediaType)
+    done(permissionAllowed(permission, { check: false, trusted: isTrustedSender(wc?.mainFrame) }))
+  })
+  session.defaultSession.setPermissionCheckHandler((wc, permission, _origin, details) => {
+    devLog('check', permission, details.mediaType)
+    return permissionAllowed(permission, { check: true, trusted: isTrustedSender(wc?.mainFrame), mediaType: details.mediaType })
+  })
 }
 
 /** Only our own three pages (operator, projector, stage) may call into main. */
@@ -369,17 +389,81 @@ function kindOf(sender: Electron.WebContents): Guarded | null {
 // window has run fine for a minute, it goes back to reloading by itself.
 const operatorBudget = new ReloadBudget(1, 60_000)
 let operatorStable: ReturnType<typeof setTimeout> | undefined
+
+// The operator page beats too (see operator/main.tsx). A FROZEN page (an endless loop, a stuck task) doesn't crash,
+// and Chromium's "unresponsive" only fires after input, so without this nothing would ever notice. Like VS Code's
+// "The window is not responding" and Chrome's "Page Unresponsive", the volunteer is asked instead of the page being
+// killed: something long may still finish. The question closes by itself if the page starts beating again.
+const OPERATOR_STALL_MS = 10_000
+const operatorBeat = new Heartbeat(() => void askAboutFrozenOperator(), OPERATOR_STALL_MS)
+/** the open "not responding" question (aborted when the page answers again) */
+let frozenAsk: AbortController | null = null
+/** the volunteer chose "Restart the window": the crash that follows is ours, reload without asking again */
+let restartingFrozen = false
+/** a confirm() is open in the operator page: it blocks the page (and its beats) while the volunteer reads it */
+let operatorBusy = false
+
+async function askAboutFrozenOperator(): Promise<void> {
+  const win = operator
+  if (quitting || !win || win.isDestroyed() || frozenAsk) return
+  log.warn('operator window stopped responding: asking')
+  const ask = new AbortController()
+  frozenAsk = ask
+  const r = await messageBox({
+    type: 'warning',
+    title: 'ICCWorship',
+    message: t('recovery.operatorFrozen'),
+    detail: t('recovery.operatorFrozenDetail'),
+    buttons: [t('recovery.restartWindow'), t('recovery.keepWaiting')],
+    defaultId: 0,
+    cancelId: 1,
+    noLink: true,
+    signal: ask.signal
+  })
+  frozenAsk = null
+  if (ask.signal.aborted || quitting || win.isDestroyed()) return // it answered again by itself
+  if (r.response === 0) {
+    log.warn('operator window stopped responding: restarting it')
+    restartingFrozen = true
+    win.webContents.forcefullyCrashRenderer() // → render-process-gone → reload (guardOperator)
+  } else {
+    log.info('operator window stopped responding: waiting')
+    operatorBeat.beat() // watch again: still no sign of life in 10 s → ask again
+  }
+}
+
+/** a heartbeat from the operator page: it is alive (and a "not responding" question is no longer needed) */
+function operatorAlive(): void {
+  operatorBeat.beat()
+  if (frozenAsk) {
+    log.info('operator window responding again')
+    frozenAsk.abort()
+  }
+}
 function guardOperator(win: BrowserWindow): void {
   win.webContents.on('did-finish-load', () => {
     clearTimeout(operatorStable)
     operatorStable = setTimeout(() => operatorBudget.reset(), 60_000)
   })
-  win.on('closed', () => clearTimeout(operatorStable))
+  win.on('closed', () => {
+    clearTimeout(operatorStable)
+    operatorBeat.stop()
+    frozenAsk?.abort()
+  })
   win.webContents.on('render-process-gone', async (_e, d) => {
     clearTimeout(operatorStable)
+    operatorBeat.stop() // the new page starts watching again with its first beat
+    frozenAsk?.abort()
     if (d.reason === 'clean-exit' || quitting || win.isDestroyed()) return
-    log.error(`operator window crashed (${d.reason})`)
     db().flush()
+    if (restartingFrozen) {
+      // the volunteer asked for it (the window had stopped responding): reload, no second question
+      restartingFrozen = false
+      pendingNotices.push('operatorRecovered')
+      loadPage(win, 'index')
+      return
+    }
+    log.error(`operator window crashed (${d.reason})`)
     if (operatorBudget.next() === 'reload') {
       pendingNotices.push('operatorRecovered')
       loadPage(win, 'index')
@@ -398,7 +482,11 @@ function guardOperator(win: BrowserWindow): void {
       loadPage(win, 'index')
     } else app.quit()
   })
-  win.on('unresponsive', () => log.warn('operator window unresponsive'))
+  // the volunteer is clicking a window that doesn't answer: ask now rather than after the heartbeat's 10 s
+  win.on('unresponsive', () => {
+    log.warn('operator window unresponsive')
+    if (!operatorBusy) void askAboutFrozenOperator()
+  })
   // Windows shutdown / log off skips before-quit: save now
   win.on('session-end', () => {
     log.info('Windows session ending: saving')
@@ -623,7 +711,10 @@ function registerIpc(): void {
   })
   h('db:remove', (_e, c: string, id: string) => {
     if (c === 'presentations') deletePresentation(id)
-    else if (isCollection(c)) db().remove(c, id)
+    else if (isCollection(c)) {
+      db().remove(c, id)
+      if (c === 'songs') pruneTrack(id) // its backing track goes with it (unless it is playing right now)
+    }
   })
 
   // settings — only known settings with valid values are saved (see sanitizeSettingsPatch)
@@ -640,6 +731,7 @@ function registerIpc(): void {
     if (patch.outputDisplayId !== undefined && output) placeOutput()
     if (before.serverPort !== s.serverPort || before.serverEnabled !== s.serverEnabled) await restartServer()
     if (patch.logoPath !== undefined || patch.churchName !== undefined) live.update({ logoPath: s.logoPath, churchName: s.churchName })
+    if (patch.audioOutputId !== undefined || patch.audioOutputLabel !== undefined) live.update({ audioOutput: audioOutputOf(s) })
     return s
   })
 
@@ -669,15 +761,21 @@ function registerIpc(): void {
   // live
   h('live:get', () => live.state)
   h('live:update', (_e, patch: Partial<LiveState>) => live.update(patch))
-  on('output:progress', (_e, p: { current?: unknown; duration?: unknown; error?: unknown; src?: unknown }) => {
-    const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
-    live.progress({
-      current: num(p?.current),
-      duration: num(p?.duration),
-      error: p?.error === true ? true : undefined,
-      src: typeof p?.src === 'string' && p.src.length < 4000 ? p.src : undefined
-    })
-  })
+  on(
+    'output:progress',
+    (_e, p: { current?: unknown; duration?: unknown; error?: unknown; src?: unknown; itemId?: unknown; seekSeq?: unknown; load?: unknown }) => {
+      const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
+      live.progress({
+        current: num(p?.current),
+        duration: num(p?.duration),
+        error: p?.error === true ? true : undefined,
+        src: typeof p?.src === 'string' && p.src.length < 4000 ? p.src : undefined,
+        itemId: typeof p?.itemId === 'string' && p.itemId.length < 200 ? p.itemId : undefined,
+        seekSeq: typeof p?.seekSeq === 'number' && Number.isSafeInteger(p.seekSeq) ? p.seekSeq : undefined,
+        load: p?.load === true ? true : undefined
+      })
+    }
+  )
   on('output:ended', (_e, info: { itemId?: unknown; src?: unknown }) => {
     if (typeof info?.src !== 'string') return
     forwardCommand({ type: 'videoEnded', src: info.src, itemId: typeof info.itemId === 'string' ? info.itemId : undefined })
@@ -689,8 +787,16 @@ function registerIpc(): void {
 
   // crash & freeze recovery (see guardWindow)
   on('win:alive', (e) => {
+    if (operator && !operator.isDestroyed() && e.sender === operator.webContents) return operatorAlive()
     const kind = kindOf(e.sender)
     if (kind) guards[kind].beat.beat()
+  })
+  // the operator page opened / closed a confirm() (it blocks the page): waiting for the volunteer isn't a freeze
+  on('win:busy', (e, busy: unknown) => {
+    if (!operator || operator.isDestroyed() || e.sender !== operator.webContents) return
+    operatorBusy = busy === true
+    if (operatorBusy) operatorBeat.pause()
+    else operatorBeat.resume()
   })
   on('win:fatal', (e, message: unknown) => {
     const kind = kindOf(e.sender)
@@ -711,6 +817,36 @@ function registerIpc(): void {
       notify({ type: 'renderError', window: kind })
     })
   }
+  // Settings → Screens → Test sound: the projector plays a short tone through the chosen output and answers
+  {
+    let waiter: ((r: { ok: boolean; error?: 'closed' | 'failed' }) => void) | null = null
+    h(
+      'output:testSound',
+      () =>
+        new Promise<{ ok: boolean; error?: 'closed' | 'failed' }>((resolve) => {
+          if (!output || output.isDestroyed()) return resolve({ ok: false, error: 'closed' })
+          waiter?.({ ok: false, error: 'failed' })
+          const timer = setTimeout(() => {
+            waiter = null
+            resolve({ ok: false, error: 'failed' })
+          }, 5000)
+          waiter = (r) => {
+            clearTimeout(timer)
+            waiter = null
+            resolve(r)
+          }
+          output.webContents.send('output:testSound')
+        })
+    )
+    on('output:testSoundResult', (e, r: { ok?: unknown }) => {
+      if (kindOf(e.sender) === 'output') waiter?.(r?.ok === true ? { ok: true } : { ok: false, error: 'failed' })
+    })
+  }
+  on('output:sinkFailed', (e) => {
+    if (kindOf(e.sender) !== 'output') return
+    log.warn('the chosen sound output is not available: playing through the default one')
+    notify({ type: 'soundOutputMissing', label: getSettings().audioOutputLabel || '' })
+  })
   h('output:restart', () => {
     guards.output.budget.reset()
     guards.output.failed = false
@@ -773,6 +909,18 @@ function registerIpc(): void {
     return r.filePath
   })
 
+  // backing tracks: the renderer reads the picked audio file, decodes and encodes it, and hands back Ogg bytes
+  h('tracks:readPicked', async (_e, p: unknown) => {
+    if (!isGranted(p)) throw new Error('forbidden') // only a file the user picked in a dialog
+    if ((await stat(p)).size > MAX_SOURCE_BYTES) throw new Error('too-large')
+    return new Uint8Array(await readFile(p))
+  })
+  h('tracks:save', (_e, songId: unknown, bytes: unknown) => saveTrack(songId, bytes))
+  h('tracks:prune', (_e, songId: unknown) => {
+    assertWritable()
+    pruneTrack(songId)
+  })
+
   // presentations
   h('pres:detect', () => detectConverters())
   h('pres:import', (_e, path: string, prefer?: 'powerpoint' | 'libreoffice' | 'text', reuseId?: string) => importPresentation(path, prefer, reuseId))
@@ -819,7 +967,7 @@ function registerIpc(): void {
       const s = getSettings()
       setMainLang(s.uiLang)
       buildMenu()
-      live.update({ logoPath: s.logoPath, churchName: s.churchName })
+      live.update({ logoPath: s.logoPath, churchName: s.churchName, audioOutput: audioOutputOf(s) })
       BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('settings:changed', s))
       if (before.remotePin !== s.remotePin || before.serverPort !== s.serverPort || before.serverEnabled !== s.serverEnabled) await restartServer()
       // reply first, then reload: reloading before the answer arrives destroys the page that is waiting for it
@@ -880,6 +1028,11 @@ function registerIpc(): void {
   })
 }
 
+/** the sound output the projector plays through ({} = the Windows default) */
+function audioOutputOf(s: ReturnType<typeof getSettings>): LiveState['audioOutput'] {
+  return s.audioOutputId || s.audioOutputLabel ? { id: s.audioOutputId || undefined, label: s.audioOutputLabel || undefined } : undefined
+}
+
 async function restartServer(): Promise<{ ok: boolean; error?: string }> {
   // startServer stops the old server itself, in turn with any other restart
   const r = await startServer({ rendererDir, devUrl })
@@ -926,6 +1079,7 @@ app
         }`
       )
     seedIfEmpty()
+    cleanupOrphanTracks() // backing tracks no song uses any more (only when the songs list is complete: not just seeded)
     setMainLang(getSettings().uiLang)
     buildMenu()
     live.init()
@@ -956,11 +1110,13 @@ app
       db().flush()
       guards.output.beat.pause()
       guards.stage.beat.pause()
+      operatorBeat.pause()
     })
     powerMonitor.on('resume', () => {
       log.info('system resumed')
       guards.output.beat.resume()
       guards.stage.beat.resume()
+      if (!operatorBusy) operatorBeat.resume() // a confirm() still open keeps it paused
     })
 
     // optional update check (off by default; never during a service), a minute after start and then daily

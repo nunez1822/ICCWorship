@@ -181,3 +181,56 @@ foreach ($s in @(@(16,16,'tiny'), @(1080,4000,'tall'), @(6000,400,'wide'))) { $b
 1. Add the three images; Show now each; use `tall.png` as a theme Image background behind a song.
 **Expected**
 - Items are letterboxed (aspect kept, not stretched); background covers the screen without distortion; lyrics readable.
+
+### TC-EDGE-20 · A damaged audio file makes no track and says why  `P1`
+**Setup:** `node -e "require('fs').writeFileSync('.e2e-data/tmp/broken.mp3', Buffer.alloc(5000, 7))"`
+**Steps**
+1. Songs → a song → **Add backing track…** → choose `broken.mp3` → **Use it as is**.
+**Expected**
+- An error toast "⚠ This file can't be opened (damaged, or a format such as WMA, ALAC or AIFF)…"; the window stays
+  open to choose another file; the song has no track.
+
+### TC-EDGE-21 · A 2-second file works  `P2`
+**Setup:** `ffmpeg -f lavfi -i "sine=frequency=440:duration=2" -ac 2 .e2e-data/tmp/short.wav` (or any 2 s stereo WAV)
+**Steps**
+1. Make it the backing track of "Track Test" (**Use it as is**), then **Show with track**.
+**Expected**
+- The track is made; it plays and ends after ~2 s; the lyrics stay up when it ends.
+
+### TC-EDGE-22 · No new track while the data is read-only  `P1`
+**Pre:** data opened read-only (TC-BAK-08)
+**Steps**
+1. Click **＋ Add backing track…** (or **Replace…**) on a song. 2. On a song with a track, **⏱ Record timing**.
+**Expected**
+- At once, before any file is chosen or read: the read-only message "Not saved: this data is open read-only (see
+  the red bar at the bottom)" — not "The backing track could not be made". No window opens, no file appears in
+  `.e2e-data/tracks/`.
+- (If the data becomes read-only while a track is being made, the same message appears and the window closes.)
+
+### TC-EDGE-23 · "Remove the voice" on a file whose channels are the same  `P2`
+**Setup:** `ffmpeg -i tests/fixtures/sample.mp3 -ac 2 .e2e-data/tmp/fake-stereo.mp3` (two identical channels)
+**Steps**
+1. **Add backing track…** → `fake-stereo.mp3` → **No — remove the voice**.
+**Expected**
+- "⚠ Both channels of this file are (almost) the same: removing the center would remove nearly everything…" and no
+  **Save the track** button.
+
+### TC-EDGE-24 · A song changed after its timing was recorded  `P1`
+**Pre:** TC-SONG-17
+**Steps**
+1. "Track Test" → **＋ Chorus** and type one line in it (4 slides now). 2. **🎵 Show with track**.
+3. Remove that chorus (✕); then fix a word in a line (a typo, no line added); Show with track again.
+**Expected**
+- Step 1: the card's badge becomes "⚠ timing out of date".
+- Step 2: the lyrics start on slide 1 (no intro), nothing moves by itself, and one message says the timing no longer
+  fits ("…advance by hand, or record the timing again").
+- Step 3: the badge is "⏱ timing" again and the lyrics follow (a typo doesn't break the timing).
+
+### TC-EDGE-25 · A huge file from the media library says it is too large  `P1`
+**Setup:** add a WAV over 200 MB to the media library (e.g. a long silent recording).
+**Steps**
+1. Songs → a song → **Add backing track…** → pick that file in the "— or from the media library —" list →
+   **Use it as is**.
+**Expected**
+- The toast "⚠ The file is larger than 200 MB."; the operator window stays responsive (it doesn't read the whole
+  file first); the song has no track.

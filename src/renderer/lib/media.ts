@@ -13,7 +13,7 @@ export function mediaUrlToPath(u?: string): string | null {
 
 export const VIDEO_EXT = ['mp4', 'm4v', 'webm', 'mov', 'mkv']
 export const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']
-export const AUDIO_EXT = ['mp3', 'wav', 'm4a', 'ogg']
+export const AUDIO_EXT = ['mp3', 'wav', 'm4a', 'ogg', 'opus', 'flac']
 
 export function kindOf(path: string): MediaKind | null {
   const ext = path.split('.').pop()?.toLowerCase() || ''
@@ -80,4 +80,17 @@ export function makeThumb(path: string, kind: MediaKind): Promise<string | undef
       v.src = url
     } else resolve(undefined)
   })
+}
+
+/**
+ * Stop an audio/video element we are done with and let go of its file. Its handlers go first: emptying the source
+ * makes the element fire 'error' (and maybe 'ended'), and a handler still attached would tell the operator the file
+ * "can't be played" when nothing went wrong. Never `el.src = ''` on its own.
+ */
+export function releaseAudio(el: HTMLMediaElement | null | undefined): void {
+  if (!el) return
+  el.onerror = el.onended = el.ontimeupdate = el.onloadedmetadata = el.oncanplay = null
+  el.pause()
+  el.removeAttribute('src')
+  el.load()
 }

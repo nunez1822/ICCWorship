@@ -23,6 +23,8 @@ import { writeFileAtomic } from './atomicWrite'
  * until it succeeds — the operator is told their changes are kept, so they must reach disk.
  */
 export type StoreProblem = { name: string; kind: 'recovered' | 'unreadable'; savedAs?: string }
+/** how a collection was found when it was read: its own file read fine, damaged or recovered from .bak, or no file */
+export type LoadState = 'ok' | 'degraded' | 'missing'
 
 /** how long to wait before trying a failed save again */
 export const RETRY_MS = 3000
@@ -62,12 +64,16 @@ export class JsonStore {
   private unpreserved = new Set<string>()
   /** collections loaded from <name>.json.bak because the main file was damaged or missing (until saved again) */
   private fromBak = new Set<string>()
+  /** how each collection was found on disk when it was read — a later save doesn't change it (see loadedAs) */
+  private loadState = new Map<string, LoadState>()
   readonly problems: StoreProblem[] = []
   onWriteError?: (name: string, error: Error) => void
   /** never write to disk (see the class comment) */
   readOnly = false
   /** saves that reached the disk — lets the hourly backup skip when nothing changed */
   writeCount = 0
+  /** goes up each time reset() forgets what was read (a restore): what was learned about the old files is stale */
+  generation = 0
 
   constructor(private dir: string) {}
 
@@ -108,6 +114,7 @@ export class JsonStore {
       }
     }
     if (damaged) this.problems.push({ name, kind: loaded ? 'recovered' : 'unreadable', savedAs })
+    this.loadState.set(name, damaged || this.fromBak.has(name) ? 'degraded' : loaded ? 'ok' : 'missing')
     this.cache.set(name, value)
     return value
   }
@@ -187,6 +194,8 @@ export class JsonStore {
     this.healthy.clear()
     this.unpreserved.clear()
     this.fromBak.clear()
+    this.loadState.clear()
+    this.generation++
   }
 
   /**
@@ -198,6 +207,19 @@ export class JsonStore {
     const out = new Map<string, string>()
     for (const name of this.fromBak) if (this.cache.has(name)) out.set(name, JSON.stringify(this.cache.get(name), null, 1))
     return out
+  }
+
+  /**
+   * How this collection was found on disk when it was read (reads it first if needed): 'ok' only when its own file
+   * was read undamaged. Saving the collection does NOT change the answer, and neither does handing the problems to
+   * the operator: a list recovered from an older .bak, or rebuilt after its file went missing, stays incomplete
+   * however often it is saved. Anything that deletes files based on a collection's content (unused backing tracks)
+   * must check this. Forgotten by reset() (a restore), like everything else read.
+   */
+  loadedAs(name: string): LoadState {
+    this.read(name, [])
+    // written before it was ever read: what was on disk is unknown
+    return this.loadState.get(name) ?? 'missing'
   }
 
   /** A data file was changed outside the store (a Bible, slide images): count it, so the hourly backup runs. */

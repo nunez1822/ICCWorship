@@ -17,6 +17,9 @@ import { ShortcutsHelp } from './ShortcutsHelp'
 import { Seg } from '../components/ui'
 import { ErrorBoundary, errorSummary } from '../components/ErrorBoundary'
 import type { DisplayLang } from '@shared/types'
+import { formatClock } from '@shared/slides'
+import { keyBelongsToControl } from '@shared/shortcutTarget'
+import { focusedByKeyboard } from '../lib/focusOrigin'
 
 const NAV: { id: Page; ico: string }[] = [
   { id: 'live', ico: '📺' },
@@ -29,11 +32,19 @@ const NAV: { id: Page; ico: string }[] = [
   { id: 'reports', ico: '📊' }
 ]
 
+/** typing in a field, or a key a keyboard-focused control uses itself: the shortcuts leave it alone (see keyBelongsToControl) */
 function isTyping(e: KeyboardEvent): boolean {
   const el = e.target as HTMLElement | null
-  if (!el) return false
-  const tag = el.tagName
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable
+  if (!el?.tagName) return false
+  return keyBelongsToControl(
+    {
+      tag: el.tagName,
+      type: (el as HTMLInputElement).type,
+      editable: el.isContentEditable,
+      keyboardFocused: focusedByKeyboard(el)
+    },
+    e.key
+  )
 }
 
 export function App() {
@@ -155,6 +166,9 @@ export function App() {
   // so the bar never says "Off air" over a black screen or "ON AIR" under the logo
   const cover = liveState?.layers.black ? 'black' : liveState?.layers.logo ? 'logo' : null
   const isLive = !!liveState && liveState.slideIndex >= 0 && !cover
+  // the lyrics are off but the backing track still plays (the outro): the bar says so instead of "Off air" —
+  // and goes back to "Off air" once the track has finished (or is paused)
+  const musicOnly = (!!liveState?.outro || !!liveState?.intro) && !!liveState?.video?.track && !!liveState.video.playing
 
   return (
     <div className="shell">
@@ -168,12 +182,18 @@ export function App() {
           </div>
         </div>
         <div className="status-strip">
-          {!cover && (
+          {!cover && !musicOnly && (
             <span className={`pill ${isLive ? 'live' : ''}`}>
               <span className={`dot ${isLive ? 'live' : ''}`} style={isLive ? { background: '#fff' } : undefined} /> {isLive ? t('top.onAir') : t('top.offAir')}
             </span>
           )}
           {liveState?.itemTitle && liveState.slideIndex >= 0 && <span className="pill">{liveState.itemTitle}</span>}
+          {/* the lyrics are off but the backing track still plays (the outro) */}
+          {!cover && musicOnly && (
+            <span className="pill gold" title={liveState?.intro ? undefined : t('track.musicStill')}>
+              {liveState?.intro ? <IntroCountdown firstAt={liveState.intro.firstAt} /> : t('top.music')}
+            </span>
+          )}
           {/* a cover is up: the audience does not see the slide the operator is moving through */}
           {cover === 'black' && (
             <span className="pill live" title={t('top.coverHelp')}>
@@ -293,4 +313,11 @@ export function App() {
       </div>
     </div>
   )
+}
+
+/** "🎵 Intro — first line in 0:08": its own component, so only it re-renders with every position report */
+function IntroCountdown({ firstAt }: { firstAt: number }) {
+  const { t } = useTranslation()
+  const current = useApp((s) => s.progress?.current || 0)
+  return <>{t('top.intro', { time: formatClock(Math.max(0, firstAt - current) * 1000) })}</>
 }

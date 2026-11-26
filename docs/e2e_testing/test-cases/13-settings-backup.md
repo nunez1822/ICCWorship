@@ -48,6 +48,7 @@
 1. `queueSaveFile('<repo>/.e2e-data/backup.zip')` → **Back up now**.
 **Expected**
 - Toast "Backup saved (N files, x MB)"; the zip exists and contains `iccworship-backup.json` and `data/songs.json`.
+- `iccworship-backup.json` has `"schemaVersion": 2` and `"hasTracks": true` (a manual backup carries the backing tracks).
 
 ### TC-BAK-02 · Restore replaces data with the backup  `P0`
 **Pre:** TC-BAK-01
@@ -56,10 +57,12 @@
 2. **Restore…** → accept confirm → `queueOpenFiles([backup.zip])` must be queued **before** clicking.
 **Expected**
 - The confirm says the restore **replaces** all data (pasted Bible verses and anything imported after the backup too)
-  and that this computer's screen, remote and PIN settings are kept.
+  and that this computer's screen, sound output, remote and PIN settings are kept.
 - Operator reloads; the deleted song is back and "Después de la copia" is **gone** (replace, not merge).
 - The PIN is unchanged, and a phone on `/remote` before the restore stays connected (the server is not restarted).
-  A safety zip "before-restore-…" appears in the backups list.
+  The sound output chosen in Settings → Screens is unchanged too.
+  A safety zip "before-restore-…" appears in the backups list ("before-restore-tracks-…" when the backup holds
+  backing tracks: then the safety copy holds the current tracks too).
 - The projector and stage windows were not reloaded (what was live stays on screen).
 
 ### TC-BAK-03 · Automatic backups  `P2`
@@ -174,14 +177,17 @@
 **Steps**
 1. Quit. Remove `schemaVersion` from `.e2e-data/data/meta.json` (as 1.0 wrote it). Launch `--keep`.
 **Expected**
-- A `before-migrate-….zip` appears in the backups folder; `meta.json` now has `"schemaVersion": 1`; everything works as before.
-- The log has `data upgraded: 1: …`.
+- A `before-migrate-….zip` appears in the backups folder; `meta.json` now has `"schemaVersion": 2`; everything works as before.
+- The log has `data upgraded: 1: …; 2: …` (from 1.1 data — `"schemaVersion": 1` — only `2: …`).
 
 ### TC-BAK-10 · Automatic backup when the disk is nearly full  `P2` (manual)
 **Steps**
 1. Run from a small USB stick or a nearly full drive (less than 300 MB free) with `ICCWORSHIP_DATA` pointing there.
 **Expected**
 - No automatic backup is written; the log says "automatic backup skipped: the disk is nearly full"; saving songs still works.
+- With backing tracks not yet copied beside the backups: none are copied into `backups/tracks/` either (the log says
+  "backing tracks not copied beside the backups: the disk is nearly full"); they are copied on a later run once
+  there is space.
 
 ### TC-BAK-11 · Restore doesn't bring back data from leftover .bak copies  `P1`
 **Pre:** a fresh data folder (`pnpm e2e:launch`) where no song has been shown live yet, so there is no `usage.json`.
@@ -201,7 +207,7 @@
 2. Restore the copy.
 **Expected**
 - "Tema propio" is still on the Themes page next to the built-in themes; no sample songs or sample plan appear.
-- `.e2e-data/data/meta.json` exists with a `seeded` time and `"schemaVersion": 1`.
+- `.e2e-data/data/meta.json` exists with a `seeded` time and `"schemaVersion": 2`.
 
 ### TC-BAK-13 · No restore while the data is read-only  `P1`
 **Pre:** TC-BAK-08 step 1 (data from a newer version, red bar showing).
@@ -225,3 +231,143 @@
 - `unzip -p recovered.zip data/songs.json` is the full, valid song list (not the damaged file).
 - The restore succeeds (no "damaged" message); afterwards the songs are all there, `songs.json` is valid, and a
   `songs.json.corrupt-…` copy of the damaged file is still in `.e2e-data/data/`.
+
+### TC-SET-13 · Choose the sound output and test it  `P1`
+**Pre:** projector on
+**Steps**
+1. Settings → Screens → **🔊 Sound output**: open the list. 2. Pick an output other than "Default (Windows)".
+3. **🔊 Test sound**. 4. Turn the projector off, **Test sound** again. 5. Pick **Default (Windows)** again.
+**Expected**
+- The list shows this PC's sound outputs by name (not only "Default"); Windows' "Default -" / "Communications -"
+  aliases are not listed twice.
+- Step 2: `window.api.live.get().audioOutput.label` is the chosen name (the projector plays through it).
+- Step 3: a short beep plays and the toast "🔊 Sound sent to: <name>". Step 4: "Open the projector first…".
+- Step 5: `audioOutput` is gone from the live state.
+- Choosing an output that isn't connected (`window.api.settings.set({ audioOutputId: 'x', audioOutputLabel: 'Gone' })`,
+  then Test sound): the beep still plays (default speakers) and the toast says “Gone” isn't connected; after
+  reloading the operator (`location.reload()`: a direct `settings.set` doesn't update the page's copy) the Settings
+  list shows "Gone (not connected)" with a warning under it.
+- Two outputs with the same name (e.g. two identical USB interfaces): picking the second one saves **its** id
+  (`(await window.api.settings.get()).audioOutputId` is the second device's id, not the first's), and the list
+  shows the second one as chosen.
+
+### TC-SET-14 · Losing the sound output a second time is told again  `P1` (manual)
+**Pre:** a USB sound output chosen in Settings, projector on, a video or backing track playing
+**Steps**
+1. Unplug the USB output, start the video again. 2. Plug it back in. 3. Unplug it again, start the video again.
+**Expected**
+- Steps 1 and 3 each show the toast "⚠ The sound output chosen in Settings (“<name>”) isn't connected…" — the
+  second loss is never silent. The sound plays through the default speakers both times.
+
+### TC-BAK-15 · A manual backup carries the backing tracks; restoring it brings them back  `P1`
+**Pre:** a song with a backing track (TC-SONG-12)
+**Steps**
+1. **Back up now** to `.e2e-data/backup-tracks.zip`. 2. Settings → song → **Remove** the backing track.
+3. Restore `backup-tracks.zip`.
+**Expected**
+- Step 1: the zip has `tracks/<songId>-<digits>.ogg`, stored uncompressed (same size as the file in `.e2e-data/tracks/`).
+- Step 3: the song has its backing track again and it plays (Show with track → `videoProgress.current` advances).
+
+### TC-BAK-16 · Automatic backups leave the tracks out but keep one copy beside them  `P1`
+**Pre:** a song with a backing track
+**Steps**
+1. Quit and relaunch with `--keep` (an automatic backup runs at start-up if today has none — delete today's
+   `auto-….zip` first). 2. Look in `.e2e-data/backups/`.
+3. Remove the song's track (song editor → ⋯ → Remove), restore the newest `auto-….zip`.
+**Expected**
+- The `auto-….zip` has **no** `tracks/` entries and its manifest says `"hasTracks": false`.
+- `.e2e-data/backups/tracks/` holds a copy of the track file (copied once, not again on the next backup).
+- Step 3: the restored song points to its track again, and the file is back in `.e2e-data/tracks/` (taken from
+  `backups/tracks/`). The log says `backing tracks brought back from backups/tracks: 1`.
+- Restoring an automatic backup never deletes tracks that exist now (tracks/ is left as it is).
+- The copies never freeze the app: during the hourly backup slides, the phone remote and the projector keep
+  responding. A copy that is cut off leaves only a `….ogg.tmp` (never a half `….ogg`) in `backups/tracks/` or `tracks/`.
+
+### TC-BAK-17 · A track a song still uses is never thrown away from backups/tracks  `P1`
+**Pre:** TC-BAK-16 (the track has a copy in `.e2e-data/backups/tracks/`)
+**Steps**
+1. Quit. Move the song's track file out of `.e2e-data/tracks/` (as antivirus or a sync tool might).
+2. Relaunch with `--keep` (delete today's `auto-….zip` first so the start-up backup runs).
+**Expected**
+- The track file is back in `.e2e-data/tracks/`, the song plays its track, and the log says
+  `backing tracks brought back from backups/tracks: 1`.
+- The copy stays in `.e2e-data/backups/tracks/` (never moved to a `gone-<day>` folder while a song uses it).
+- (Manual) On a disk with less than the app's minimum free space left after the copy, the track is **not** brought
+  back: the log says `backing tracks not brought back from backups/tracks: the disk is nearly full`, and songs and
+  plans can still be saved.
+
+### TC-BAK-18 · Sample songs seeded into an empty data folder never cost the church its tracks  `P0`
+**Pre:** a song with a backing track whose file is more than 7 days old (set its modified date back), with a copy in
+`.e2e-data/backups/tracks/`
+**Steps**
+1. Quit. Delete `.e2e-data/data/` (as if it were lost or only partly synced), keep `tracks/` and `backups/`.
+2. Relaunch with `--keep`. 3. Quit and relaunch with `--keep` again (delete today's `auto-….zip` first).
+**Expected**
+- The sample songs appear (a first run); the log says "sample songs added while tracks/ already holds backing
+  tracks: they are kept" and `data/meta.json` lists the file under `keepTracks`.
+- After **both** launches the track file is still in `.e2e-data/tracks/` (the log has no "removed unused backing
+  tracks"), and its copy is still directly in `.e2e-data/backups/tracks/` (not in `gone-…`).
+- After restoring the newest backup, the song plays its track again (and `keepTracks` is gone from `meta.json`).
+
+### TC-BAK-19 · Back up now says when it can't save  `P1`
+**Steps**
+1. `queueSaveFile` a path on a drive with less free space than the data and tracks (a nearly full USB stick), or a
+   folder that can't be written → **Back up now**.
+**Expected**
+- A red toast: "Not enough free space on that drive for the backup. Nothing was saved…" (or "The backup could not be
+  saved. Check the drive…" for a write error). No `.zip` and no `.zip.tmp` is left at that path. Never silent.
+
+### TC-BAK-20 · A big track library backs up and restores without freezing  `P2` (manual)
+**Pre:** 100+ songs with backing tracks (≈ 600 MB in `tracks/`)
+**Steps**
+1. **Back up now**, then restore that backup. Watch the memory of ICCWorship in Task Manager.
+**Expected**
+- Both finish; the app's memory doesn't grow by the size of the library (the files are streamed, never all in memory).
+  Slides, the phone remote and the projector keep responding.
+- A restore when the disk doesn't have room to unpack the backup and keep a safety copy says "There isn't enough
+  free disk space to restore this backup safely… Nothing was changed." and changes nothing.
+- At most 2 `before-restore-tracks-…` safety zips are kept in the backups list; they don't push out the 5
+  data-only `before-restore-…` ones.
+- With thousands of slide images in `cache/presentations/` the backup still works (files are opened one at a time).
+
+### TC-BAK-21 · A track library over 4 GB still gets a backup  `P2` (manual)
+**Pre:** backing tracks totalling more than 4 GB in `tracks/`
+**Steps**
+1. **Back up now**. 2. Restore a manual backup that holds tracks.
+**Expected**
+- Step 1: a blue toast "Backup saved WITHOUT the backing tracks (…): together they are over 4 GB… Copy the folder
+  Documents\ICCWorship\tracks to the same drive too." The zip's manifest says `"hasTracks": false`.
+- Step 2: the restore works; its safety copy is a data-only `before-restore-…` zip, the backup's tracks are added
+  and none of the current tracks are removed.
+- If that restore fails while replacing files (hold a data file open in another program so it can't be replaced):
+  "your previous data was put back", and the backup's tracks it had added are taken out of `tracks/` again (the log
+  says `tracks the failed restore added were taken out again: <n>`); the tracks that were there before all stay.
+
+### TC-BAK-22 · A songs list recovered from an older .bak never costs the church its tracks  `P0`
+**Pre:** "Track Test" with a backing track whose file is more than 7 days old (set its modified date back), with a copy
+in `.e2e-data/backups/tracks/`; at least one other song
+**Steps**
+1. Quit. Write `.e2e-data/data/songs.json.bak` as the songs list **without** "Track Test" (an older list), and
+   truncate `songs.json` to `[{"id":` (damaged). Launch `--keep`.
+2. Edit another song (fix a typo) and save, so `songs.json` is a good file again. Wait for the hourly backup, or
+   quit and relaunch with `--keep` after deleting today's `auto-….zip`.
+3. Quit and relaunch with `--keep` twice more.
+4. Restore the newest backup made **before** step 1.
+5. Repeat steps 1–3 with `songs.json` deleted and no `.bak` at all, then one new song added in step 2.
+**Expected**
+- Step 1: the log says `songs list degraded: every backing track there is now is kept`, and `data/meta.json` lists
+  the track file under `keepTracks`.
+- After steps 2–3: the track file is still in `.e2e-data/tracks/` (the log never says "removed unused backing
+  tracks"), and its copy is still directly in `.e2e-data/backups/tracks/` (not in `gone-…`).
+- Step 4: "Track Test" is back and plays its track.
+- Step 5: the same, with the log saying `songs list missing: …`.
+
+### TC-BAK-23 · A backup with more than 65,535 files restores every one of them  `P2` (manual)
+**Pre:** more than 65,535 files in `data/`, `cache/presentations/` and `tracks/` together (e.g. many imported
+presentations)
+**Steps**
+1. **Back up now**. 2. Restore that backup.
+**Expected**
+- The restore says it worked, and afterwards the number of files in `cache/presentations/` (and `tracks/`) is the
+  same as before: no slide images or tracks are missing. (JSZip writes only the low 16 bits of the file count; the
+  restore reads the whole list anyway.)

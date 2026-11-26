@@ -20,6 +20,7 @@ export type AppEvent =
   | { type: 'diagnostics'; ok: boolean }
   | { type: 'menu'; action: 'shortcuts' | 'about' }
   | { type: 'openFailed'; what: 'logs' | 'notices' }
+  | { type: 'soundOutputMissing'; label: string }
 
 export interface ImportOutcome {
   presentation?: Presentation
@@ -67,7 +68,8 @@ const api = {
     onState: (cb: (s: LiveState) => void) => on('live:state', cb),
     onProgress: (cb: (p: LiveState['videoProgress']) => void) => on('live:progress', cb),
     onCommand: (cb: (c: RemoteCommand | VideoEndedCommand) => void) => on('remote:command', cb),
-    videoProgress: (p: { current: number; duration: number; error?: boolean; src?: string }) => ipcRenderer.send('output:progress', p),
+    videoProgress: (p: { current: number; duration: number; error?: boolean; src?: string; itemId?: string; seekSeq?: number; load?: boolean }) =>
+      ipcRenderer.send('output:progress', p),
     videoEnded: (info: { itemId?: string; src: string }) => ipcRenderer.send('output:ended', info),
     stageCommand: (cmd: RemoteCommand) => ipcRenderer.send('stage:command', cmd)
   },
@@ -82,11 +84,19 @@ const api = {
     replace: () => invoke('output:replace'),
     onStatus: (cb: (s: { open: boolean }) => void) => on('output:status', cb),
     /** reload the projector page (and leave "safe" mode after repeated crashes) */
-    restart: () => invoke('output:restart')
+    restart: () => invoke('output:restart'),
+    /** Settings: play a short tone in the projector, through the chosen sound output */
+    testSound: (): Promise<{ ok: boolean; error?: 'closed' | 'failed' }> => invoke('output:testSound'),
+    /** projector page: main asks for the test tone / the page answers / the chosen output isn't there */
+    onTestSound: (cb: () => void) => on('output:testSound', cb),
+    testSoundResult: (r: { ok: boolean }) => ipcRenderer.send('output:testSoundResult', r),
+    sinkFailed: () => ipcRenderer.send('output:sinkFailed')
   },
-  /** projector / stage windows: "I'm alive" every second, and "my page broke, reload me" */
+  /** every window: "I'm alive" every second (freeze detection), and the projector / stage: "my page broke, reload me" */
   win: {
     alive: () => ipcRenderer.send('win:alive'),
+    /** operator: a confirm() is open (it blocks the page, so its heartbeat stops while the volunteer reads it) */
+    busy: (busy: boolean) => ipcRenderer.send('win:busy', busy),
     fatal: (message: string) => ipcRenderer.send('win:fatal', message),
     /** this window couldn't draw the current slide (its error boundary caught it): tell the operator */
     renderError: (message: string) => ipcRenderer.send('win:renderError', message)
@@ -104,6 +114,15 @@ const api = {
     /** absolute path of a file dropped from Windows Explorer */
     pathOf: (f: File): string => webUtils.getPathForFile(f)
   },
+  /** backing tracks (see src/main/tracks.ts): the renderer never names a file to write or delete */
+  tracks: {
+    /** the bytes of an audio file the user picked in a dialog (≤ 200 MB) */
+    readPicked: (path: string): Promise<Uint8Array> => invoke('tracks:readPicked', path),
+    /** store an encoded Ogg/Opus track for a song → its media:// URL */
+    save: (songId: string, bytes: Uint8Array): Promise<string> => invoke('tracks:save', songId, bytes),
+    /** delete the song's track files it no longer uses (after Replace / Remove) */
+    prune: (songId: string): Promise<void> => invoke('tracks:prune', songId)
+  },
   pres: {
     detect: (): Promise<{ powerpoint: boolean; libreoffice: string | null }> => invoke('pres:detect'),
     import: (path: string, prefer?: 'powerpoint' | 'libreoffice' | 'text', reuseId?: string): Promise<ImportOutcome> =>
@@ -120,7 +139,13 @@ const api = {
     onStatus: (cb: (s: { ok: boolean; error?: string }) => void) => on('server:status', cb)
   },
   backup: {
-    create: (): Promise<{ ok: boolean; path: string; files: number; bytes: number } | null> => invoke('backup:create'),
+    create: (): Promise<
+      /** tracksLeftOut: too many backing tracks for one .zip — saved without them */
+      | { ok: true; path: string; files: number; bytes: number; tracksLeftOut?: boolean }
+      /** nothing was saved: no room on that drive, more than one .zip can hold, or the write failed */
+      | { ok: false; error: 'no-space' | 'too-large' | 'failed' }
+      | null
+    > => invoke('backup:create'),
     restore: (
       path?: string
     ): Promise<{
@@ -131,6 +156,8 @@ const api = {
         | 'newer-schema'
         | 'damaged-backup'
         | 'restore-failed'
+        | 'no-space'
+        | 'not-started'
         | 'restore-failed-mixed'
         | 'read-only'
         | 'read-only-unprepared'

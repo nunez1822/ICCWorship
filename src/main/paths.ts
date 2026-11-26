@@ -13,6 +13,8 @@ export const dataDir = (): string => ensure(join(dataRoot(), 'data'))
 export const cacheDir = (...p: string[]): string => ensure(join(dataRoot(), 'cache', ...p))
 export const bibleDataDir = (): string => ensure(join(dataRoot(), 'data', 'bibles'))
 export const backupDir = (): string => ensure(join(dataRoot(), 'backups'))
+/** where each backing track is copied once, beside the backups (see mirrorTracks in backup.ts); not created here */
+export const trackMirrorDir = (): string => join(dataRoot(), 'backups', 'tracks')
 
 function ensure(p: string): string {
   mkdirSync(p, { recursive: true })

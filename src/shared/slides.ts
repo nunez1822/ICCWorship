@@ -126,6 +126,30 @@ export function upcomingSlideIndex(l: Pick<LiveState, 'slides' | 'slideIndex' | 
   return l.slideIndex + 1 < l.slides.length ? l.slideIndex + 1 : -1
 }
 
+/**
+ * The layout recorded timing belongs to: how many slides, and each slide's group and number of lines — not the words
+ * (a typo fixed during worship keeps the lyrics following the music) and not the footer. A reordered arrangement or
+ * another "lines per slide" gives another key, and the recorded times no longer fit: following stops (with a message).
+ */
+export function slidesTimingKey(slides: readonly Pick<Slide, 'group' | 'text'>[]): string {
+  const lines = (s?: string) => (s ? s.split('\n').length : 0)
+  const shape = slides.map((s) => `${s.group ?? ''}:${Math.max(lines(s.text?.en), lines(s.text?.es))}`).join('|')
+  // FNV-1a, 32 bit: a short key to store with the song
+  let h = 0x811c9dc5
+  for (let i = 0; i < shape.length; i++) h = Math.imul(h ^ shape.charCodeAt(i), 0x01000193) >>> 0
+  return `${slides.length}-${h.toString(16)}`
+}
+
+/**
+ * Following a backing track: the slide whose recorded start the music has reached (−1 = still in the intro, before
+ * the first line). `lead` starts a slide a moment early (the projector reports the music's position ~4× a second).
+ */
+export function timedSlideAt(timings: readonly number[], seconds: number, lead = 0.2): number {
+  let i = -1
+  while (i + 1 < timings.length && timings[i + 1] <= seconds + lead) i++
+  return i
+}
+
 /** Display name for a song: English title, else Spanish title (one-language songs). */
 export function songName(song: Pick<Song, 'title' | 'titleEs'>): string {
   return song.title?.trim() || song.titleEs?.trim() || ''

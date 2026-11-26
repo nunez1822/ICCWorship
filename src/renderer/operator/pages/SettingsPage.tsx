@@ -137,6 +137,7 @@ export function SettingsPage() {
               <input type="checkbox" checked={st.outputEnabled} onChange={(e) => void s.setSettings({ outputEnabled: e.target.checked })} />{' '}
               {t('settings.openOnStart')}
             </label>
+            <SoundOutput />
             <div className="row wrap">
               <Field label={t('settings.bilingualOrder')}>
                 <Seg<BilingualOrder>
@@ -317,7 +318,13 @@ export function SettingsPage() {
                 className="btn primary"
                 onClick={async () => {
                   const r = await window.api.backup.create()
-                  if (r) s.toast(t('settings.backupDone', { files: r.files, size: (r.bytes / 1024 / 1024).toFixed(1) }))
+                  if (r?.ok)
+                    s.toast(
+                      t(r.tracksLeftOut ? 'settings.backupNoTracks' : 'settings.backupDone', { files: r.files, size: (r.bytes / 1024 / 1024).toFixed(1) }),
+                      r.tracksLeftOut ? 'info' : 'ok',
+                      r.tracksLeftOut ? 20_000 : undefined
+                    )
+                  else if (r) s.toast(t(`settings.backupError.${r.error}`), 'err', 15_000)
                   refresh()
                 }}
               >
@@ -461,5 +468,88 @@ export function SettingsPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * Where videos, audio and backing tracks play (the projector window plays all sound). The list comes from this
+ * window; the projector finds the same device by id or name. Test sound plays a beep in the projector itself, so it
+ * tests the path the congregation will hear.
+ */
+function SoundOutput() {
+  const { t } = useTranslation()
+  const s = useApp()
+  const st = s.settings
+  const [outs, setOuts] = useState<{ id: string; label: string }[] | null>(null)
+  const [testing, setTesting] = useState(false)
+  useEffect(() => {
+    const list = () =>
+      void navigator.mediaDevices
+        ?.enumerateDevices()
+        .then((ds) =>
+          setOuts(
+            ds
+              // "default" / "communications" are Windows' aliases for a real device that is listed too
+              .filter((d) => d.kind === 'audiooutput' && d.deviceId && d.deviceId !== 'default' && d.deviceId !== 'communications' && d.label)
+              .map((d) => ({ id: d.deviceId, label: d.label }))
+          )
+        )
+        .catch(() => setOuts([]))
+    list()
+    navigator.mediaDevices?.addEventListener('devicechange', list)
+    return () => navigator.mediaDevices?.removeEventListener('devicechange', list)
+  }, [])
+  const chosen = st.audioOutputLabel || ''
+  // by id first: two identical devices share a name ("Speakers (USB Audio Device)") but never an id
+  const current = chosen ? outs?.find((o) => !!st.audioOutputId && o.id === st.audioOutputId) || outs?.find((o) => o.label === chosen) : undefined
+  const connected = !chosen || !!current
+  /** the saved device that isn't connected (device ids are long hex strings: never this) */
+  const MISSING = '-missing-'
+  const test = async () => {
+    setTesting(true)
+    try {
+      const r = await window.api.output.testSound()
+      if (r.ok) s.toast(t('settings.testSoundOk', { device: chosen && connected ? chosen : t('settings.soundDefault') }), 'ok')
+      else if (r.error === 'closed') s.toast(t('settings.testSoundClosed'), 'err', 8000)
+      else s.toast(t('settings.testSoundFailed'), 'err', 8000)
+    } catch (e) {
+      toastError(e)
+    } finally {
+      setTesting(false)
+    }
+  }
+  return (
+    <Field label={`🔊 ${t('settings.soundOutput')}`}>
+      <div className="small muted">{t('settings.soundOutputHelp')}</div>
+      <div className="row">
+        <select
+          className="input"
+          style={{ flex: 1 }}
+          value={!chosen ? '' : current ? current.id : MISSING}
+          onChange={(e) => {
+            if (e.target.value === MISSING) return
+            const o = outs?.find((x) => x.id === e.target.value)
+            void s.setSettings({ audioOutputId: o?.id || '', audioOutputLabel: o?.label || '' })
+          }}
+        >
+          <option value="">{t('settings.soundDefault')}</option>
+          {chosen && !connected && <option value={MISSING}>{t('settings.soundMissing', { label: chosen })}</option>}
+          {outs?.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <button className="btn" disabled={testing} onClick={() => void test()}>
+          🔊 {t('settings.testSound')}
+        </button>
+      </div>
+      {outs && outs.length === 0 && <div className="small muted">{t('settings.soundNoList')}</div>}
+      {chosen && outs && !connected && (
+        <div className="small" style={{ color: 'var(--warn)' }}>
+          ⚠ {t('settings.soundNotConnected')}
+        </div>
+      )}
+    </Field>
   )
 }

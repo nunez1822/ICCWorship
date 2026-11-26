@@ -82,3 +82,22 @@
 **Expected**
 - The editor's Preview clock keeps counting down from where it was. It never jumps back to 5:00.
 - The projector switches language as in TC-REM-04.
+
+### TC-PLAN-13 · A song item can play its backing track — or not  `P1`
+**Pre:** TC-SONG-12
+**Steps**
+1. Songs → "Track Test" → **＋ Add to plan**. 2. Plans → open the new item's options.
+3. Untick **🎧 Play the backing track**, Save; double-click it on the Live page.
+**Expected**
+- Step 1: the plan row shows 🎵🎧 (tooltip "Plays the backing track"), also in the Live page's plan list and the run
+  sheet PDF ("🎧 backing track").
+- Step 2: the options show **Play the backing track** (ticked), **Go to the next item when finished** and a volume.
+- Step 3: the 🎧 is gone and the song goes live with lyrics only (`video` undefined).
+
+### TC-PLAN-14 · Adding a track to a song never changes existing plans  `P0`
+**Pre:** "Holy, Holy, Holy" is in the sample plan (added before it had a track)
+**Steps**
+1. Give "Holy, Holy, Holy" a backing track (TC-SONG-12 steps). 2. Double-click its item in the sample plan.
+**Expected**
+- No 🎧 on that plan row; the song goes live with lyrics only — a Sunday with a live band is not surprised by music.
+- Adding the song to a plan **now** gives an item that does play it (TC-PLAN-13).

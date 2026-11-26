@@ -1,7 +1,11 @@
 import { Children, cloneElement, isValidElement, useEffect, useId, type ReactElement, type ReactNode } from 'react'
 import type { MediaItem, PlanItem, PlanItemType } from '@shared/types'
 
-export function Modal(p: { title: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
+/**
+ * `dismissable={false}`: a click beside the dialog doesn't close it (work in progress — recorded marks, a track being
+ * made — must not be lost to a stray click). Esc and ✕ still call onClose, which may ask first.
+ */
+export function Modal(p: { title: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean; dismissable?: boolean }) {
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -14,7 +18,7 @@ export function Modal(p: { title: ReactNode; onClose: () => void; children: Reac
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- only onClose is used; `p` is a new object every render
   }, [p.onClose])
   return (
-    <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && p.onClose()}>
+    <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && p.dismissable !== false && p.onClose()}>
       <div className={`modal ${p.wide ? 'wide' : ''}`} role="dialog">
         <div className="modal-head">
           <h2>{p.title}</h2>

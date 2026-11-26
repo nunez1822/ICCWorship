@@ -76,3 +76,11 @@ setTimeout(() => socks.forEach((s) => s.close()), 30_000) // free the places aft
 **Expected**
 - Each box holds only the first 500 characters (typing stops there).
 - The projector shows the screen message and the stage shows the stage message — nothing vanishes silently.
+
+### TC-REM-11 · Pause and play the backing track from the phone  `P1`
+**Pre:** TC-LIVE-15 (music playing), phone connected
+**Steps**
+1. On the phone tap the play/pause button twice.
+**Expected**
+- The button reads "⏸ 🎵 Music" while it plays (not "Video"); each tap pauses / resumes the music on the projector.
+- The stage display shows "🎵 Time left" with the music's remaining time.
