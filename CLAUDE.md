@@ -51,7 +51,7 @@ usually operated by a volunteer during a live service, so reliability and simpli
 - `src/shared/`: pure logic (types, slides, scripture references, song import, dates). **Pure logic goes here, with
   a unit test in `tests/`.**
 - Data lives in `Documents\ICCWorship` (`ICCWORSHIP_DATA` overrides it; e2e runs use `.e2e-data/`).
-- Node.js 22.22.1+ is required (Electron 45, Vitest 5 and the `vp staged` hook); see `.nvmrc`. pnpm is the package manager
+- Node.js 22.22.1+ is required (Electron 45, Vitest 5 and the `vp staged` hook); see `.node-version` (Vite+ reads it first; it must stay on 22, the range in `engines` alone would pick a newer major). pnpm is the package manager
   (version pinned in `package.json#packageManager`).
 
 ## Commands

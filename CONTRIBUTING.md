@@ -23,8 +23,8 @@ reported privately (see [SECURITY.md](SECURITY.md)).
   never be silent: show a message, never a crash or a frozen screen.
 
 ## Development setup
-Requirements: Windows 10/11, **Node.js 22.22.1 or newer** (see `.nvmrc`), **pnpm** and Git. The easiest way to get
-the right Node and pnpm is the [Vite+ CLI](https://viteplus.dev/guide/) (`vp`): it reads `.nvmrc` and
+Requirements: Windows 10/11, **Node.js 22.22.1 or newer** (see `.node-version`), **pnpm** and Git. The easiest way to get
+the right Node and pnpm is the [Vite+ CLI](https://viteplus.dev/guide/) (`vp`): it reads `.node-version` and
 `package.json#packageManager`. Or install pnpm with `corepack enable pnpm`.
 
 ```bash

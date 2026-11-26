@@ -15,7 +15,7 @@ updates:
         exclude-patterns: [electron]
     # Electron majors arrive as their own PR: upgrade at least every second major (see SECURITY.md).
     ignore:
-      # The app targets Node 22 (.nvmrc, engines): types for a newer Node would allow APIs it doesn't have.
+      # The app targets Node 22 (.node-version, engines): types for a newer Node would allow APIs it doesn't have.
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
 
