@@ -76,7 +76,11 @@ mostrar en un idioma o **en ambos a la vez**, cambiando en vivo con una sola tec
 1. Descargue **`ICCWorship-Setup-x.y.z.exe`** (instalador) o **`ICCWorship-Portable-x.y.z.exe`** (no necesita instalación) en la página de Releases.
    La versión portátil guarda sus datos en la PC donde se usa (`Documentos\ICCWorship`), no en la memoria USB.
 2. Windows SmartScreen puede advertir porque la app no tiene firma digital (los certificados cuestan dinero). Haga clic en **Más información → Ejecutar de todas formas**.
-3. La primera vez que use el control desde el teléfono, el Firewall de Windows pedirá permiso — elija **Permitir** en redes privadas.
+3. **Opcional: verifique su descarga.** Cada versión incluye las sumas SHA-256 (`SHA256SUMS.txt`). En PowerShell,
+   `(Get-FileHash .\ICCWorship-Setup-x.y.z.exe).Hash -eq '<suma de SHA256SUMS.txt>'` debe mostrar `True`
+   (`Get-FileHash` muestra la suma en mayúsculas; la comparación no distingue mayúsculas de minúsculas). Con GitHub CLI también puede confirmar que
+   el archivo lo compiló el flujo de publicación de este repositorio: `gh attestation verify ICCWorship-Setup-x.y.z.exe --repo nunez1822/ICCWorship`.
+4. La primera vez que use el control desde el teléfono, el Firewall de Windows pedirá permiso — elija **Permitir** en redes privadas.
 
 ## Sus datos y copias de seguridad
 

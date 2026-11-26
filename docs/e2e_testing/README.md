@@ -62,6 +62,12 @@ npm run build
 npm run e2e:launch          # fresh test data each time; add -- --keep to reuse it
 ```
 
+To test **the installed-style build** (asar packaging, Electron fuses) instead of the dev build, run
+`npm run build:dir` and then `npm run e2e:launch -- --packaged`. The launcher sets `ICCWORSHIP_E2E` for it too,
+so the `window.api.e2e` dialog hooks work and every case can run. Stop it with Ctrl+C (the launcher ends the whole
+process tree) or `taskkill /F /T /IM ICCWorship.exe`. For a quick automated check that the packaged app starts, its
+windows render and its fuses are set, run `npm run packaged-check` (CI runs it too).
+
 Then ask Claude to "use the iccworship-app tools to run TC-LIVE-01 … ". Stop the app with Ctrl+C.
 
 ### How the pieces connect
