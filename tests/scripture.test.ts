@@ -218,6 +218,12 @@ describe('bible importer', () => {
     const meta = { id: 'x', name: 'X', abbrev: 'X', lang: 'en' as const }
     expect(() => importBibleText('{"books": [[["Lorem ipsum', meta)).toThrow(/^damaged$/)
     expect(() => importBibleText('{"name": "no books"}', meta)).toThrow(/^damaged$/)
+    // books that aren't books → chapters → verses
+    expect(() => importBibleText('{"books": [1, 2]}', meta)).toThrow(/^damaged$/)
+    expect(() => importBibleText('{"books": [[null]]}', meta)).toThrow(/^damaged$/)
+    expect(() => importBibleText('{"books": [[[1]]]}', meta)).toThrow(/^damaged$/)
+    // well-formed, with an empty and a missing verse
+    expect(importBibleText('{"books": [[["Lorem", "", null]], []]}', meta).books[0][0]).toHaveLength(3)
     expect(BIBLE_ERRORS).toContain('damaged')
   })
 })

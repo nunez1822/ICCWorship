@@ -282,7 +282,12 @@ export function importBibleText(content: string, meta: { id: string; name: strin
     } catch {
       throw new Error('damaged')
     }
-    if (!Array.isArray(j?.books)) throw new Error('damaged')
+    // books → chapters → verses (a verse may be empty or null): anything else would break the verse count and
+    // lookups with a technical message, so it is damaged too
+    const isVerse = (v: unknown) => typeof v === 'string' || v === null
+    const isChapter = (c: unknown) => Array.isArray(c) && c.every(isVerse)
+    const isBook = (b: unknown) => Array.isArray(b) && b.every(isChapter)
+    if (!Array.isArray(j?.books) || !j.books.every(isBook)) throw new Error('damaged')
     return { ...meta, books: j.books as BookArray }
   }
   if (/<osis/i.test(trimmed.slice(0, 2000))) {

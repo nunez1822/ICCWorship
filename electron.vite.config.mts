@@ -76,7 +76,7 @@ export default defineConfig({
     plugins: [react(), productionCsp(), pdfjsWasm()],
     // Dev server: pre-bundle every React entry point together, as one copy. Without this, Vite 8's dependency
     // optimizer put two copies of React into separate chunks (react-dom/client used one, components the other), so
-    // every hook failed with "Invalid hook call" and `npm run dev` showed blank windows.
+    // every hook failed with "Invalid hook call" and `pnpm dev` showed blank windows.
     optimizeDeps: {
       include: ['react', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'react-dom', 'react-dom/client', 'react-i18next', 'i18next', 'zustand']
     },

@@ -237,3 +237,13 @@ projector first — earlier crashes in the last minute count toward the limit.
 **Expected**
 - The window shows "This window had a problem" with ↻ Reload window / Try again — never a blank window.
 - The projector and phone remote keep working; `main.log` has one `operator: Error` line (not two).
+
+### TC-RES-30 · An unexpected error that isn't an error message shows the generic message  `P2`
+**Steps**
+1. Operator tab: `browser_evaluate` → `setTimeout(() => Promise.reject({ code: 42 }))` (an action failing with
+   something that isn't an `Error`, left unhandled).
+2. Repeat with `setTimeout(() => Promise.reject(new Error('e2e-visible')))`.
+**Expected**
+- Step 1: a red toast "⚠ Something went wrong." / "⚠ Algo salió mal." — never "⚠ [object Object]".
+- Step 2: a red toast "⚠ e2e-visible" (a real error message is still shown).
+- The app keeps working; `main.log` has a `unhandled rejection:` line for each.

@@ -6,9 +6,10 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     groups:
-      # Vite+ and its Vite core (the `vite` alias in pnpm-workspace.yaml's catalog) must move together.
+      # Vite+ and its Vite core (the `vite` alias in pnpm-workspace.yaml's catalog) must move together. Dependabot
+      # matches the dependency's name, which for the alias is `vite`, not the package it points to: list both.
       vite-plus:
-        patterns: [vite-plus, '@voidzero-dev/*']
+        patterns: [vite-plus, vite, '@voidzero-dev/*']
       # Minor and patch updates of everything except Electron, in one weekly PR.
       npm-minor-patch:
         update-types: [minor, patch]

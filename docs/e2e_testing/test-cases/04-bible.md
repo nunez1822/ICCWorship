@@ -60,3 +60,13 @@
 1. Versions tab → Default Spanish = RV1909, Default English = KJV. Swap primary to KJV in Look up.
 **Expected**
 - Table lists KJV and RV1909 as "Built-in". With KJV as main version, English is shown first/primary.
+
+### TC-BIB-10 · A JSON Bible with the wrong layout is reported as damaged  `P2`
+**Steps**
+1. Write `.e2e-data/wrong-shape-bible.json` containing `{"books":[1,2]}`. Versions tab → import with abbreviation
+   `WRG` → `queueOpenFiles([<that file>])` first.
+2. Repeat with `{"books":[[null]]}`.
+**Expected**
+- Both show the error toast "That Bible file is damaged or incomplete…" / "Ese archivo de Biblia está dañado…",
+  never a technical message (`b.reduce is not a function`, `Cannot read properties of null`…).
+- No `WRG` version is added; the app keeps working. `main.log` has "bible import failed: damaged".
