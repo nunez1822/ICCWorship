@@ -56,9 +56,12 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: installers
+          # latest.yml + .blockmap: what installed copies read to update themselves (src/main/updates.ts)
           path: |
             dist/ICCWorship-Setup-${{ steps.guard.outputs.version }}.exe
+            dist/ICCWorship-Setup-${{ steps.guard.outputs.version }}.exe.blockmap
             dist/ICCWorship-Portable-${{ steps.guard.outputs.version }}.exe
+            dist/latest.yml
           if-no-files-found: error
           retention-days: 7
 
@@ -100,4 +103,4 @@ jobs:
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" release/*.exe release/SHA256SUMS.txt --draft --verify-tag --title "ICCWorship ${{ needs.build.outputs.version }}" --notes-file notes.md
+        run: gh release create "${GITHUB_REF_NAME}" release/*.exe release/*.blockmap release/latest.yml release/SHA256SUMS.txt --draft --verify-tag --title "ICCWorship ${{ needs.build.outputs.version }}" --notes-file notes.md

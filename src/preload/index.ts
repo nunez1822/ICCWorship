@@ -201,8 +201,11 @@ const api = {
     /** false when the licences file is missing */
     openNotices: (): Promise<boolean> => invoke('app:openNotices'),
     reportProblem: () => invoke('app:reportProblem'),
-    checkUpdates: (): Promise<{ ok: true; latest: string; newer: boolean; url: string } | { ok: false; error?: string; skipped?: true }> =>
-      invoke('app:checkUpdates'),
+    checkUpdates: () => invoke('app:checkUpdates'),
+    /** installed app: is a new version downloading / downloaded? */
+    updateStatus: () => invoke('app:updateStatus'),
+    /** install the downloaded version now (refused while something is on screen) */
+    installUpdate: () => invoke('app:installUpdate'),
     openRelease: (url: string) => invoke('app:openRelease', url),
     /** things to tell the operator after a (re)load, e.g. 'operatorRecovered' */
     notices: (): Promise<string[]> => invoke('app:notices'),

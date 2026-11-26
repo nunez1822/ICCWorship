@@ -39,6 +39,10 @@ All notable changes to ICCWorship are documented here. The format is based on
   and connects by itself as soon as a place is free.
 
 ### Added
+- **Automatic updates for the installed version.** With "Check for new versions" on (Settings → About), the
+  installed ICCWorship also downloads a new version by itself — never while something is on screen — and installs it
+  when you close the app, or right away with **Restart now** when nothing is live. Untick "Download new versions…"
+  to only be told. The download is checked against the release's SHA-512. The portable version only tells you.
 - **Put it back after a crash.** If ICCWorship closes unexpectedly (a crash, a power cut, Windows restarting for an
   update) while a plan item is on screen, the next start offers it back: one click on **▶ Put it back** shows that
   item again on the slide it was on. Nothing goes on screen by itself, and a normal quit leaves nothing to offer.

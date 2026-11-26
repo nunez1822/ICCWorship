@@ -285,6 +285,7 @@ const SETTING_CHECKS: { [K in keyof Settings]?: (v: unknown) => Settings[K] | un
   operatorTheme: oneOf(['dark', 'light'] as const),
   firstRunDone: bool,
   checkForUpdates: bool,
+  autoUpdate: bool,
   disableHwAccel: bool,
   audioOutputId: str(500),
   audioOutputLabel: str(300)

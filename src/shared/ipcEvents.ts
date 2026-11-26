@@ -14,6 +14,8 @@ export type AppEvent =
   | { type: 'renderError'; window: 'output' | 'stage' }
   | { type: 'gpuCrashed' }
   | { type: 'update'; latest: string; url: string }
+  /** the installed app downloaded a new version: it installs when ICCWorship closes (or "Restart now") */
+  | { type: 'updateReady'; version: string }
   | { type: 'diagnostics'; ok: boolean }
   | { type: 'menu'; action: 'shortcuts' | 'about' }
   | { type: 'openFailed'; what: 'logs' | 'notices' }

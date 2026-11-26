@@ -309,6 +309,8 @@ export interface Settings {
   firstRunDone: boolean
   /** opt-in: ask GitHub once a day whether a newer ICCWorship exists (off by default: offline-first) */
   checkForUpdates?: boolean
+  /** installed app: download a newer version found by the check and install it when ICCWorship closes (default on) */
+  autoUpdate?: boolean
   /** when the update check last ran (epoch ms) — set by main only */
   lastUpdateCheck?: number
   /** troubleshooting: turn off GPU acceleration (takes effect after a restart) */

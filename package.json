@@ -39,6 +39,7 @@
     "prepare": "vp config"
   },
   "dependencies": {
+    "electron-updater": "^6.8.11",
     "jszip": "^3.10.2",
     "qrcode": "^1.5.4",
     "ws": "^8.23.0"

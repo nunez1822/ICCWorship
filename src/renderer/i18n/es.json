@@ -719,12 +719,19 @@
   "updates": {
     "title": "Actualizaciones",
     "toggle": "Buscar versiones nuevas una vez al día",
-    "help": "Pregunta a GitHub si hay una versión nueva de ICCWorship — nunca durante un servicio, no se envía nada sobre usted y no se instala nada automáticamente.",
+    "help": "Pregunta a GitHub si hay una versión nueva de ICCWorship — nunca durante un servicio, y no se envía nada sobre usted.",
     "checkNow": "Buscar ahora",
     "upToDate": "Tiene la versión más reciente.",
     "available": "ICCWorship {{version}} está disponible",
     "download": "Página de descarga",
-    "failed": "No se pudo comprobar (¿sin internet?)."
+    "failed": "No se pudo comprobar (¿sin internet?).",
+    "autoToggle": "Descargar las versiones nuevas e instalarlas al cerrar ICCWorship (solo la versión instalada)",
+    "downloading": "Descargando ICCWorship {{version}}… {{percent}} %",
+    "ready": "ICCWorship {{version}} está listo. Se instala cuando cierre ICCWorship.",
+    "restartNow": "Reiniciar ahora",
+    "notWhileLive": "No mientras haya algo en pantalla. La actualización se instala cuando cierre ICCWorship.",
+    "notReady": "La actualización todavía no se ha descargado.",
+    "downloadFailed": "No se pudo descargar la versión nueva. ICCWorship lo intentará de nuevo en la próxima comprobación."
   },
   "data": {
     "portableFallback": "El ICCWorship portátil no puede escribir en su carpeta (una memoria USB bloqueada o una carpeta de solo lectura), así que esta vez sus datos se guardan en Documentos\\ICCWorship en esta computadora.",

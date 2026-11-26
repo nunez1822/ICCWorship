@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { BilingualOrder, Lang } from '@shared/types'
 import { uid } from '@shared/slides'
 import { SETTING_LIMITS } from '@shared/security'
-import { toastError, useApp } from '../store'
+import { installUpdate, toastError, useApp } from '../store'
 import { Field, Seg } from '../../components/ui'
 import { IMAGE_EXT } from '../../lib/media'
 import { updateLive } from '../liveControl'
@@ -18,6 +18,7 @@ export function SettingsPage() {
   const [info, setInfo] = useState<Awaited<ReturnType<typeof window.api.app.info>> | null>(null)
   const [includeDumps, setIncludeDumps] = useState(false)
   const [update, setUpdate] = useState<Awaited<ReturnType<typeof window.api.app.checkUpdates>> | 'checking' | null>(null)
+  const [updateStatus, setUpdateStatus] = useState<Awaited<ReturnType<typeof window.api.app.updateStatus>> | null>(null)
   // the port is applied on Enter / leaving the field, not on every keystroke ("8080" would pass through 8, 80, 808)
   const [portDraft, setPortDraft] = useState<string | null>(null)
   const applyPort = () => {
@@ -40,11 +41,16 @@ export function SettingsPage() {
   useEffect(() => {
     refresh()
     void window.api.app.info().then(setInfo)
+    // a new version downloading or downloaded (installed app): poll while this page is open
+    const poll = () => void window.api.app.updateStatus().then(setUpdateStatus)
+    poll()
+    const pollTimer = setInterval(poll, 2000)
     const off = window.api.displays.onChange(refresh)
     const off2 = window.api.server.onStatus(() => void window.api.server.info().then(setServer))
     return () => {
       off()
       off2()
+      clearInterval(pollTimer)
     }
   }, [])
 
@@ -441,6 +447,33 @@ export function SettingsPage() {
               {t('updates.toggle')}
             </label>
             <div className="small muted">{t('updates.help')}</div>
+            {updateStatus?.selfUpdate && (
+              <label className="check">
+                <input
+                  type="checkbox"
+                  disabled={!st.checkForUpdates}
+                  checked={!!st.checkForUpdates && st.autoUpdate !== false}
+                  onChange={(e) => void s.setSettings({ autoUpdate: e.target.checked })}
+                />{' '}
+                {t('updates.autoToggle')}
+              </label>
+            )}
+            {updateStatus?.phase === 'downloading' && (
+              <div className="small muted">⬇️ {t('updates.downloading', { version: updateStatus.version, percent: updateStatus.percent })}</div>
+            )}
+            {updateStatus?.phase === 'ready' && (
+              <div className="row wrap" style={{ alignItems: 'center' }}>
+                <span className="small">✓ {t('updates.ready', { version: updateStatus.version })}</span>
+                <button className="btn sm primary" onClick={() => void installUpdate(s.toast)}>
+                  🔄 {t('updates.restartNow')}
+                </button>
+              </div>
+            )}
+            {updateStatus?.phase === 'failed' && (
+              <div className="small" style={{ color: 'var(--warn)' }}>
+                {t('updates.downloadFailed')}
+              </div>
+            )}
             <div className="row wrap" style={{ alignItems: 'center' }}>
               <button
                 className="btn sm"
@@ -454,7 +487,8 @@ export function SettingsPage() {
               </button>
               {update === 'checking' && <span className="small muted">…</span>}
               {update && update !== 'checking' && update.ok && !update.newer && <span className="small">✓ {t('updates.upToDate')}</span>}
-              {update && update !== 'checking' && update.ok && update.newer && (
+              {/* the installed app downloads it by itself (status above) unless that is turned off: then, the release page */}
+              {update && update !== 'checking' && update.ok && update.newer && !(update.selfUpdate && st.checkForUpdates && st.autoUpdate !== false) && (
                 <button className="btn sm primary" onClick={() => void window.api.app.openRelease(update.url)}>
                   ⬇️ {t('updates.available', { version: update.latest })}
                 </button>

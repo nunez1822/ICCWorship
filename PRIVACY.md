@@ -25,7 +25,8 @@ requests. Our promise is simple: **your data stays on your computer.**
 | Feature | What it does | Default |
 |---|---|---|
 | Phone remote and stage display | Runs a small web server on the church's local network (port 7272) so phones and tablets can connect. Nothing leaves your network. | On (turn it off in **Settings**) |
-| Update check | Asks GitHub at most once a day (never during a service) whether a newer ICCWorship exists. GitHub sees your IP address, as with any website; nothing else is sent. Nothing is downloaded or installed. | **Off** (turn it on in **Settings → About**) |
+| Update check | Asks GitHub at most once a day (never during a service) whether a newer ICCWorship exists. GitHub sees your IP address, as with any website; nothing else is sent. | **Off** (turn it on in **Settings → About**) |
+| Automatic updates (installed version) | When the update check is on, the installed app also downloads a newer version from this project's GitHub release (never during a service) and installs it when you close ICCWorship. The download is checked against the release's SHA-512 before it is used. The portable version only tells you. | On **when the update check is on** (untick "Download new versions…" to only be told) |
 
 ## Español
 
@@ -51,4 +52,5 @@ peticiones de oración. Nuestra promesa es sencilla: **sus datos se quedan en su
 | Función | Qué hace | Por defecto |
 |---|---|---|
 | Control remoto y pantalla de escenario | Un pequeño servidor web en la red local de la iglesia (puerto 7272) para que teléfonos y tabletas se conecten. Nada sale de su red. | Activado (se apaga en **Ajustes**) |
-| Buscar actualizaciones | Pregunta a GitHub como máximo una vez al día (nunca durante un servicio) si hay una versión nueva. GitHub ve su dirección IP, como cualquier sitio web; no se envía nada más. No se descarga ni se instala nada. | **Desactivado** (se activa en **Ajustes → Acerca de**) |
+| Buscar actualizaciones | Pregunta a GitHub como máximo una vez al día (nunca durante un servicio) si hay una versión nueva. GitHub ve su dirección IP, como cualquier sitio web; no se envía nada más. | **Desactivado** (se activa en **Ajustes → Acerca de**) |
+| Actualizaciones automáticas (versión instalada) | Con la búsqueda activada, la app instalada también descarga la versión nueva desde la versión publicada en GitHub de este proyecto (nunca durante un servicio) y la instala cuando usted cierra ICCWorship. La descarga se comprueba con el SHA-512 de esa versión antes de usarla. La versión portátil solo avisa. | Activadas **cuando la búsqueda está activada** (desmarque "Descargar las versiones nuevas…" para solo recibir el aviso) |

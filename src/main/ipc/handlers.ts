@@ -29,7 +29,7 @@ import { log } from '../log'
 import { newPin, within } from '../pathGuard'
 import { setMainLang } from '../i18n'
 import { systemInfoText } from '../diagnostics'
-import { checkForUpdates, RELEASES_URL } from '../updates'
+import { canSelfUpdate, checkForUpdates, installUpdate, RELEASES_URL, updatePhase } from '../updates'
 import { pruneTrack, saveTrack } from '../tracks'
 import { e2eQueues, isGranted, openDialog, saveDialog } from '../dialogs'
 import { E2E } from '../env'
@@ -257,6 +257,9 @@ export function createHandlers() {
     'app:openNotices': () => openNotices(),
     'app:reportProblem': (): void => void shell.openExternal(newIssueUrl()),
     'app:checkUpdates': () => checkForUpdates({ manual: true }),
+    /** where a self-update is (installed app): downloading, ready to install… */
+    'app:updateStatus': () => ({ selfUpdate: canSelfUpdate(), ...updatePhase() }),
+    'app:installUpdate': () => installUpdate(),
     'app:openRelease': (url: string): void => {
       if (typeof url === 'string' && url.startsWith(RELEASES_URL)) void shell.openExternal(url)
     },

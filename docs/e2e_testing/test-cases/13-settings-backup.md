@@ -96,8 +96,9 @@
 - Step 2 shows "You have the latest version" or an "ICCWorship x.y.z is available" button that opens the GitHub releases page.
 - Step 3 shows "Could not check (no internet?)" — no error dialog. `main.log` has `update check failed:` with only a
   short code (`timeout`, a network error code, `http-404`…) — never the text of a web page.
-- With the daily check on and a newer release out, the automatic message "ICCWorship x.y.z is available" has a
-  **Download page** button that opens the GitHub releases page.
+- With the daily check on and a newer release out, the **portable** version shows "ICCWorship x.y.z is available"
+  with a **Download page** button that opens the GitHub releases page (the installed version downloads it: TC-SET-15).
+- In a dev build (`pnpm e2e:launch`) there is no "Download new versions…" box (only the installed app can update itself).
 
 ### TC-SET-10 · Graphics acceleration switch  `P2`
 **Steps**
@@ -259,6 +260,23 @@
 - Steps 1 and 3 each show the toast "⚠ The sound output chosen in Settings (“<name>”) isn't connected…" — the
   second loss is never silent. The sound plays through the default speakers both times.
 
+
+### TC-SET-15 · The installed app downloads an update and installs it only when closed  `P0`
+**Automated:** `pnpm smoke` runs the download part against a local test feed ("update found, downloaded and checked
+(SHA-512)…", "update never installs while something is on screen"). **Manual** for a real release:
+**Steps**
+1. Install an older release (`ICCWorship-Setup-<old>.exe`) while a newer one is published. Settings → About →
+   tick "Check for new versions once a day"; leave "Download new versions and install them when ICCWorship closes" ticked.
+2. Put a song live; click 🔎 Check now. Clear the screen (Esc), Check now again; wait.
+3. Put a song live and click **Restart now** on the toast; clear the screen and click it again.
+**Expected**
+- 2: while live nothing downloads; once nothing is live, "Downloading ICCWorship x.y.z… n%", then a toast
+  "ICCWorship x.y.z is ready. It installs when you close ICCWorship." with **Restart now**.
+- 3: while live, "Not while something is on screen…"; otherwise the app closes, installs silently and opens the new
+  version with all data. Quitting normally instead installs it too.
+- Unticking "Download new versions…" makes Check now show the "is available" button (download page) instead.
+- `main.log` has `update check: latest x.y.z (newer)`, `downloading update x.y.z`, `update x.y.z downloaded…` and no
+  web page text.
 ### TC-BAK-15 · A manual backup carries the backing tracks; restoring it brings them back  `P1`
 **Pre:** a song with a backing track (TC-SONG-12)
 **Steps**

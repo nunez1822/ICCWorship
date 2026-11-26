@@ -22,6 +22,14 @@ extraFiles:
   - from: out/THIRD_PARTY_NOTICES.md
     to: THIRD_PARTY_NOTICES.md
 asar: true
+# Self-update (src/main/updates.ts): the installed app reads resources/app-update.yml (written from this) and looks
+# for latest.yml on this repository's newest published GitHub release. The release workflow uploads latest.yml and
+# the installer's .blockmap next to the exes; electron-builder itself never publishes (--publish never).
+publish:
+  provider: github
+  owner: nunez1822
+  repo: ICCWorship
+  releaseType: release
 # Electron fuses: switch off ways to run the packaged app as something else (a plain Node.js, an inspector
 # target) and make it refuse a tampered app.asar. scripts/packaged-check.mjs (CI + release) verifies them and that
 # the packaged app still starts. Nothing in the app uses ELECTRON_RUN_AS_NODE / process.fork, NODE_OPTIONS or

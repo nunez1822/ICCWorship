@@ -206,6 +206,7 @@ export const MACHINE_SETTINGS = [
   'serverEnabled',
   'remotePin',
   'checkForUpdates',
+  'autoUpdate',
   'lastUpdateCheck',
   'disableHwAccel',
   'audioOutputId',

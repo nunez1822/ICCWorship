@@ -719,12 +719,19 @@
   "updates": {
     "title": "Updates",
     "toggle": "Check for new versions once a day",
-    "help": "Asks GitHub whether a newer ICCWorship exists — never during a service, nothing about you is sent, nothing is installed automatically.",
+    "help": "Asks GitHub whether a newer ICCWorship exists — never during a service, and nothing about you is sent.",
     "checkNow": "Check now",
     "upToDate": "You have the latest version.",
     "available": "ICCWorship {{version}} is available",
     "download": "Download page",
-    "failed": "Could not check (no internet?)."
+    "failed": "Could not check (no internet?).",
+    "autoToggle": "Download new versions and install them when ICCWorship closes (installed version only)",
+    "downloading": "Downloading ICCWorship {{version}}… {{percent}}%",
+    "ready": "ICCWorship {{version}} is ready. It installs when you close ICCWorship.",
+    "restartNow": "Restart now",
+    "notWhileLive": "Not while something is on screen. The update installs when you close ICCWorship.",
+    "notReady": "The update is not downloaded yet.",
+    "downloadFailed": "The new version could not be downloaded. ICCWorship will try again at the next check."
   },
   "data": {
     "portableFallback": "The portable ICCWorship can't write to the folder it is in (a locked USB stick or a read-only folder), so this time your data is kept in Documents\\ICCWorship on this computer.",

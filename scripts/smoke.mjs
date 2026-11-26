@@ -7,7 +7,8 @@
  */
 import { _electron as electron } from 'playwright-core'
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { request as httpRequest } from 'node:http'
+import { createServer, request as httpRequest } from 'node:http'
+import { createHash, randomBytes } from 'node:crypto'
 import { WebSocket as WsClient } from 'ws'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -55,10 +56,52 @@ const wsConnect = (port, pin, opts = {}, onOpen) =>
     ws.on('error', (e) => done({ error: String(e) }))
   })
 
+// An update feed on this computer (see ICCWORSHIP_TEST_UPDATE_CONFIG in src/main/updates.ts): a "99.0.0" release whose
+// installer is random bytes with their real SHA-512. The app downloads and checks it but never runs it.
+const feedDir = join(data, '.update-feed')
+mkdirSync(feedDir, { recursive: true })
+const fakeInstaller = randomBytes(300_000)
+writeFileSync(join(feedDir, 'ICCWorship-Setup-99.0.0.exe'), fakeInstaller)
+const sha512 = createHash('sha512').update(fakeInstaller).digest('base64')
+writeFileSync(
+  join(feedDir, 'latest.yml'),
+  `version: 99.0.0
+files:
+  - url: ICCWorship-Setup-99.0.0.exe
+    sha512: ${sha512}
+    size: ${fakeInstaller.length}
+path: ICCWorship-Setup-99.0.0.exe
+sha512: ${sha512}
+releaseDate: '2026-01-01T00:00:00.000Z'
+`
+)
+const feed = createServer((req, res) => {
+  const name = (req.url || '').split('?')[0].replace(/^\//, '')
+  if (!['latest.yml', 'ICCWorship-Setup-99.0.0.exe'].includes(name)) return res.writeHead(404).end()
+  res.writeHead(200).end(readFileSync(join(feedDir, name)))
+})
+await new Promise((r) => feed.listen(0, '127.0.0.1', r))
+const updaterCache = 'iccworship-smoke-updater'
+const updateConfig = join(data, 'dev-app-update.yml')
+writeFileSync(
+  updateConfig,
+  `provider: generic
+url: http://127.0.0.1:${feed.address().port}/
+updaterCacheDirName: ${updaterCache}
+`
+)
+
 const app = await electron.launch({
   args: [root],
   cwd: root,
-  env: { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_TEST_PROFILE: '1', ICCWORSHIP_WINDOWED: '1', ELECTRON_RENDERER_URL: '' }
+  env: {
+    ...process.env,
+    ICCWORSHIP_DATA: data,
+    ICCWORSHIP_TEST_PROFILE: '1',
+    ICCWORSHIP_WINDOWED: '1',
+    ELECTRON_RENDERER_URL: '',
+    ICCWORSHIP_TEST_UPDATE_CONFIG: updateConfig
+  }
 })
 
 /** true while the test makes requests that are SUPPOSED to fail (Chromium logs those as console errors) */
@@ -122,12 +165,39 @@ try {
   await sleep(800)
   await op.screenshot({ path: join(shots, '02-live-empty.png') })
 
+  // ---- updates (installed app): a newer version is found, downloaded and checked, then waits for the app to close ----
+  {
+    await op.evaluate(() => window.api.settings.set({ checkForUpdates: true }))
+    const r = await op.evaluate(() => window.api.app.checkUpdates())
+    let status
+    for (let i = 0; i < 60; i++) {
+      status = await op.evaluate(() => window.api.app.updateStatus())
+      if (status.phase === 'ready' || status.phase === 'failed') break
+      await sleep(250)
+    }
+    const toast = await op
+      .locator('.toast-action')
+      .first()
+      .textContent({ timeout: 5000 })
+      .catch(() => '')
+    const ok = r.ok && r.newer && r.latest === '99.0.0' && r.selfUpdate && status.phase === 'ready' && !!toast
+    console.log('update found, downloaded and checked (SHA-512), "Restart now" offered:', ok ? '✓' : `✗ ${JSON.stringify({ r, status, toast })}`)
+    if (!ok) errors.push('self-update download failed')
+    await op.evaluate(() => window.api.settings.set({ checkForUpdates: false }))
+  }
+
   // go live on the first song (3rd item in the sample plan)
   const items = op.locator('.plan-item')
   console.log('plan items:', await items.count())
   await items.nth(2).dblclick()
   await sleep(900)
   await op.screenshot({ path: join(shots, '03-live-song.png') })
+  {
+    const r = await op.evaluate(() => window.api.app.installUpdate())
+    const ok = !r.ok && r.error === 'live'
+    console.log('update never installs while something is on screen:', ok ? '✓' : `✗ ${JSON.stringify(r)}`)
+    if (!ok) errors.push('update install was allowed while live')
+  }
   await outShot(join(shots, '04-projector-song-both.png'))
 
   // next slide, then Spanish only
@@ -608,7 +678,10 @@ try {
   errors.push('SMOKE FAILURE: ' + (e?.stack || e))
 } finally {
   await app.close().catch(() => {})
+  feed.close()
   rmSync(data, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 })
+  // electron-updater keeps what it downloaded in %LOCALAPPDATA%\<updaterCacheDirName>
+  if (process.env.LOCALAPPDATA) rmSync(join(process.env.LOCALAPPDATA, updaterCache), { recursive: true, force: true, maxRetries: 5, retryDelay: 300 })
 }
 
 console.log('screenshots in', shots)

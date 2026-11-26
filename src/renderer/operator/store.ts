@@ -174,6 +174,11 @@ export const useApp = create<AppState>((set, get) => ({
             label: i18n.t('updates.download'),
             run: () => void api.app.openRelease(e.url)
           })
+        else if (e.type === 'updateReady')
+          toast(i18n.t('updates.ready', { version: e.version }), 'info', 60_000, {
+            label: i18n.t('updates.restartNow'),
+            run: () => void installUpdate(toast)
+          })
         else if (e.type === 'diagnostics') toast(i18n.t(e.ok ? 'about.diagSaved' : 'about.diagFailed'), e.ok ? 'ok' : 'err')
         else if (e.type === 'openFailed') toast(i18n.t(e.what === 'logs' ? 'about.openLogsFailed' : 'about.noticesMissing'), 'err')
         else if (e.type === 'soundOutputMissing') toast(i18n.t('errors.soundOutputMissing', { label: e.label || '?' }), 'err', 15_000)
@@ -312,3 +317,9 @@ export function toastError(e: unknown): void {
 }
 
 export const t = (key: string, opts?: Record<string, unknown>): string => i18n.t(key, opts ?? {}) as string
+
+/** "Restart now" on a downloaded update: main refuses while something is on screen (it installs at close anyway) */
+export async function installUpdate(toast: AppState['toast']): Promise<void> {
+  const r = await window.api.app.installUpdate()
+  if (!r.ok) toast(i18n.t(r.error === 'live' ? 'updates.notWhileLive' : 'updates.notReady'), 'err', 10_000)
+}

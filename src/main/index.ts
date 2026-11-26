@@ -147,10 +147,12 @@ app
       resumeHeartbeats()
     })
 
-    // optional update check (off by default; never during a service), a minute after start and then daily
+    // optional update check (off by default; never during a service), a minute after start and then daily. The
+    // installed app downloads a newer version by itself and says so when it is ready (updates.ts); the portable
+    // exe can only point to the download page.
     const runUpdateCheck = () =>
       void checkForUpdates({ manual: false }).then((r) => {
-        if (r.ok && r.newer) notify({ type: 'update', latest: r.latest, url: r.url })
+        if (r.ok && r.newer && !r.selfUpdate) notify({ type: 'update', latest: r.latest, url: r.url })
       })
     setTimeout(runUpdateCheck, 60_000)
     setInterval(runUpdateCheck, 6 * 60 * 60 * 1000)
