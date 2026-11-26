@@ -298,11 +298,13 @@
 `.e2e-data/backups/tracks/`
 **Steps**
 1. Quit. Delete `.e2e-data/data/` (as if it were lost or only partly synced), keep `tracks/` and `backups/`.
-2. Relaunch with `--keep`.
+2. Relaunch with `--keep`. 3. Quit and relaunch with `--keep` again (delete today's `auto-….zip` first).
 **Expected**
-- The sample songs appear (a first run). The track file is **still** in `.e2e-data/tracks/` (the log has no
-  "removed unused backing tracks"), and its copy is still directly in `.e2e-data/backups/tracks/` (not in `gone-…`).
-- After restoring the newest backup, the song plays its track again.
+- The sample songs appear (a first run); the log says "sample songs added while tracks/ already holds backing
+  tracks: they are kept" and `data/meta.json` lists the file under `keepTracks`.
+- After **both** launches the track file is still in `.e2e-data/tracks/` (the log has no "removed unused backing
+  tracks"), and its copy is still directly in `.e2e-data/backups/tracks/` (not in `gone-…`).
+- After restoring the newest backup, the song plays its track again (and `keepTracks` is gone from `meta.json`).
 
 ### TC-BAK-19 · Back up now says when it can't save  `P1`
 **Steps**
@@ -321,4 +323,16 @@
   Slides, the phone remote and the projector keep responding.
 - A restore when the disk doesn't have room to unpack the backup and keep a safety copy says "There isn't enough
   free disk space to restore this backup safely… Nothing was changed." and changes nothing.
-- At most 2 `before-restore-tracks-…` safety zips are kept in the backups list.
+- At most 2 `before-restore-tracks-…` safety zips are kept in the backups list; they don't push out the 5
+  data-only `before-restore-…` ones.
+- With thousands of slide images in `cache/presentations/` the backup still works (files are opened one at a time).
+
+### TC-BAK-21 · A track library over 4 GB still gets a backup  `P2` (manual)
+**Pre:** backing tracks totalling more than 4 GB in `tracks/`
+**Steps**
+1. **Back up now**. 2. Restore a manual backup that holds tracks.
+**Expected**
+- Step 1: a blue toast "Backup saved WITHOUT the backing tracks (…): together they are over 4 GB… Copy the folder
+  Documents\ICCWorship\tracks to the same drive too." The zip's manifest says `"hasTracks": false`.
+- Step 2: the restore works; its safety copy is a data-only `before-restore-…` zip, the backup's tracks are added
+  and none of the current tracks are removed.

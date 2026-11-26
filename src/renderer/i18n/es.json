@@ -540,6 +540,7 @@
     "backupHelp": "Todo (cantos, servicios, personas, versículos pegados, diapositivas importadas) en un solo .zip — guárdelo en una memoria USB. ICCWorship también hace una copia automática cada día.",
     "backupNow": "Hacer copia ahora",
     "backupDone": "Copia guardada ({{files}} archivos, {{size}} MB)",
+    "backupNoTracks": "Copia guardada SIN las pistas de acompañamiento ({{files}} archivos, {{size}} MB): juntas pasan de 4 GB, demasiado para un solo archivo de copia. Copie también la carpeta Documentos\\ICCWorship\\tracks a la misma unidad.",
     "backupError": {
       "no-space": "No hay suficiente espacio libre en esa unidad para la copia. No se guardó nada. Elija otra unidad (una memoria USB) o libere espacio.",
       "too-large": "Los datos y las pistas de acompañamiento son demasiado grandes para un solo archivo de copia (más de 4 GB). No se guardó nada. Quite las pistas que ya no use e intente de nuevo.",

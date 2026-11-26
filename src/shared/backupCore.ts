@@ -124,14 +124,21 @@ export const SAFETY_WITH_TRACKS_PREFIX = 'before-restore-tracks-'
 /**
  * Safety backups made before a restore / a data upgrade: keep the newest `keep` of each kind. A newer kind
  * never pushes out the other (an upgrade's safety copy must survive several restores). The ones that hold every
- * backing track (they can be GBs) are fewer: only the newest `keepWithTracks` of them stay.
+ * backing track (they can be GBs) are a kind of their own, and fewer: only the newest `keepWithTracks` stay.
  */
 export function safetyBackupsToDelete(files: { name: string; mtime: number }[], keep = 5, keepWithTracks = 2): string[] {
-  const out = new Set<string>()
-  const newest = (prefix: string) => files.filter((f) => f.name.startsWith(prefix) && f.name.endsWith('.zip')).sort((a, b) => b.mtime - a.mtime)
-  for (const prefix of ['before-restore-', 'before-migrate-']) for (const f of newest(prefix).slice(keep)) out.add(f.name)
-  for (const f of newest(SAFETY_WITH_TRACKS_PREFIX).slice(keepWithTracks)) out.add(f.name)
-  return [...out]
+  const kinds: [(name: string) => boolean, number][] = [
+    [(n) => n.startsWith('before-restore-') && !n.startsWith(SAFETY_WITH_TRACKS_PREFIX), keep],
+    [(n) => n.startsWith(SAFETY_WITH_TRACKS_PREFIX), keepWithTracks],
+    [(n) => n.startsWith('before-migrate-'), keep]
+  ]
+  return kinds.flatMap(([mine, n]) =>
+    files
+      .filter((f) => mine(f.name) && f.name.endsWith('.zip'))
+      .sort((a, b) => b.mtime - a.mtime)
+      .slice(n)
+      .map((f) => f.name)
+  )
 }
 
 /* ------------------------------ room for a backup ------------------------------ */

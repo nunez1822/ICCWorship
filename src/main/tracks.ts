@@ -10,7 +10,7 @@ import { join } from 'node:path'
 import type { Song } from '@shared/types'
 import { isSafeId } from '@shared/security'
 import { isOggBytes, MAX_TRACK_BYTES, orphanTrackFiles, referencedTrackFiles, trackFileName, trackFileOfUrl, unusedTrackFiles } from '@shared/tracks'
-import { assertWritable, db, songsSeededThisRun } from './db'
+import { assertWritable, db, tracksKeptFromBeforeSeeding } from './db'
 import { dataRoot } from './paths'
 import { within } from './pathGuard'
 import { dataMediaUrl } from './mediaPath'
@@ -109,13 +109,17 @@ live.on('change', () => {
 
 /**
  * Can the songs list be trusted to hold every song the church has? Only when it was read healthy from its own file (a
- * damaged list, or one recovered from its .bak, could be missing songs), isn't empty, and isn't the sample songs this
- * start-up just seeded (data/ lost or half synced while tracks/ is still there). Anything that deletes or retires a
- * backing track because no song uses it must check this first.
+ * damaged list, or one recovered from its .bak, could be missing songs) and isn't empty. Anything that deletes or
+ * retires a backing track because no song uses it must check this first, and treat tracksInUse() as used.
  */
 export function songsListIsComplete(): boolean {
   const store = db()
-  return store.isHealthy('songs') && store.list<Song>('songs').length > 0 && !songsSeededThisRun()
+  return store.isHealthy('songs') && store.list<Song>('songs').length > 0
+}
+
+/** The track files that must never count as unused: the ones the songs use, and those kept from before seeding. */
+export function tracksInUse(songs: readonly Pick<Song, 'track'>[]): Set<string> {
+  return new Set([...referencedTrackFiles(songs), ...tracksKeptFromBeforeSeeding()])
 }
 
 /** At start-up: remove track files no song uses, older than a week — only when the songs list is complete. */
@@ -132,7 +136,7 @@ export function cleanupOrphanTracks(): void {
         return []
       }
     })
-    const orphans = orphanTrackFiles(files, referencedTrackFiles(songs), Date.now())
+    const orphans = orphanTrackFiles(files, tracksInUse(songs), Date.now())
     for (const name of orphans) {
       const f = join(dir, name)
       if (within(dir, f)) unlinkSync(f)

@@ -1,21 +1,8 @@
 import JSZip from 'jszip'
 import { app } from 'electron'
-import {
-  createReadStream,
-  existsSync,
-  fstatSync,
-  mkdirSync,
-  openSync,
-  readdirSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  statSync,
-  unlinkSync,
-  type ReadStream
-} from 'node:fs'
+import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync } from 'node:fs'
 import { stat, statfs } from 'node:fs/promises'
-import type { Readable } from 'node:stream'
+import { Readable } from 'node:stream'
 import { basename, dirname, join, parse, relative, resolve, sep } from 'node:path'
 import { backupDir, dataRoot } from './paths'
 import { dataStatus, db, getSettings } from './db'
@@ -46,7 +33,7 @@ import {
 } from '@shared/backupCore'
 import { copyFileAtomic, renameSyncWithRetry, writeFileAtomic, writeStreamAtomic } from './atomicWrite'
 import { ZipError, ZipReader, type ZipEntry } from './zipReader'
-import { songsListIsComplete } from './tracks'
+import { songsListIsComplete, tracksInUse } from './tracks'
 import { log } from './log'
 import { within } from './pathGuard'
 
@@ -83,7 +70,14 @@ function exclusive<T>(fn: () => Promise<T>): Promise<T> {
   return run
 }
 
-type BackupResult = { ok: true; path: string; files: number; bytes: number }
+type BackupResult = {
+  ok: true
+  path: string
+  files: number
+  bytes: number
+  /** the tracks were too many for one .zip: this backup holds the data only (they stay in tracks/ and backups/tracks/) */
+  tracksLeftOut?: boolean
+}
 export type BackupError = 'no-space' | 'too-large' | 'failed'
 
 /** No room for the backup on that disk ('no-space'), or more than a .zip can hold ('too-large'). Nothing was written. */
@@ -104,15 +98,28 @@ async function freeBytes(dir: string): Promise<number> {
 }
 
 /**
+ * A file's content for JSZip, opened only when JSZip reaches it and closed when it is done (JSZip reads one entry at
+ * a time). Opening every file up front could run out of file handles with thousands of slide images. A file removed
+ * before it is reached (a track pruned meanwhile) fails the backup, which says so; the next one is complete.
+ */
+function fileWhenRead(f: string): Readable {
+  return Readable.from(
+    (async function* () {
+      yield* createReadStream(f)
+    })(),
+    { objectMode: false }
+  )
+}
+
+/**
  * `writes`: the store's write count when the files were read (saves after that are not in this backup).
  * `tracks`: include the backing tracks (manual backups, and the safety copy before a restore that replaces them).
  * `reserve`: bytes that must stay free on the target's disk afterwards (else BackupRoomError, and nothing is written).
  *
  * The files in data/ are read in one go, synchronously: no save can land between two of them, so the backup is one
  * consistent snapshot (a plan saved after its new song was read would point to a song the backup lacks). Track and
- * slide-image files are only opened here and then streamed into the .zip, which is streamed to the disk: a backup with
- * every track (GBs) is never all in memory. A track never changes after it is written, and Windows still lets the app
- * remove a file that is open — the backup keeps reading what it opened.
+ * slide-image files are streamed into the .zip one at a time (a track never changes after it is written; slide images
+ * neither), and the .zip is streamed to the disk: a backup with every track (GBs) is never all in memory.
  */
 async function writeBackup(target: string, tracks: boolean, reserve: number): Promise<BackupResult & { writes: number }> {
   const store = db()
@@ -122,7 +129,7 @@ async function writeBackup(target: string, tracks: boolean, reserve: number): Pr
   const recovered = store.recoveredForBackup()
   const root = dataRoot()
   const zip = new JSZip()
-  const opened: ReadStream[] = []
+  const opened: Readable[] = []
   let files = 0
   let bytes = 0
   try {
@@ -141,10 +148,10 @@ async function writeBackup(target: string, tracks: boolean, reserve: number): Pr
             zip.file(rel, data)
             bytes += data.length
           } else {
-            const fd = openSync(f, 'r')
-            const s = createReadStream(f, { fd })
+            const size = statSync(f).size
+            const s = fileWhenRead(f)
             opened.push(s)
-            bytes += fstatSync(fd).size
+            bytes += size
             // track files are already compressed (Opus): stored as they are
             zip.file(rel, s, isTracks ? { compression: 'STORE', binary: true } : { binary: true })
           }
@@ -171,7 +178,7 @@ async function writeBackup(target: string, tracks: boolean, reserve: number): Pr
     await writeStreamAtomic(target, out)
     return { ok: true, path: target, files, bytes: statSync(target).size, writes }
   } finally {
-    for (const s of opened) s.destroy() // a failed backup didn't read them all: close them
+    for (const s of opened) s.destroy() // a failed backup didn't read them all: close any still open
   }
 }
 
@@ -179,12 +186,23 @@ async function writeBackup(target: string, tracks: boolean, reserve: number): Pr
 const reserveFor = (target: string) =>
   parse(resolve(target)).root.toLowerCase() === parse(resolve(dataRoot())).root.toLowerCase() ? MIN_FREE_BYTES : 1024 * 1024
 
-/** "Back up now": everything, backing tracks included (the copy to take to another PC or a USB stick) */
+/**
+ * "Back up now": everything, backing tracks included (the copy to take to another PC or a USB stick). When the tracks
+ * are too many for one .zip (over 4 GB), the data is still backed up, without them (`tracksLeftOut`: the operator is
+ * told to copy the tracks folder too) — a church with a big library must never be left with no backup at all.
+ */
 export function createBackup(target: string): Promise<BackupResult | { ok: false; error: BackupError }> {
   return exclusive(async () => {
     try {
-      const { writes: _writes, ...r } = await writeBackup(target, true, reserveFor(target))
-      return r
+      try {
+        const { writes: _writes, ...r } = await writeBackup(target, true, reserveFor(target))
+        return r
+      } catch (e) {
+        if (!(e instanceof BackupRoomError && e.reason === 'too-large')) throw e
+        log.warn('backup too large with the backing tracks: saved without them')
+        const { writes: _writes, ...r } = await writeBackup(target, false, reserveFor(target))
+        return { ...r, tracksLeftOut: true }
+      }
     } catch (e) {
       if (e instanceof BackupRoomError) {
         log.warn('backup not made:', e.reason)
@@ -386,10 +404,21 @@ async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: Restor
       )
     )
 
-    // 6. safety copy of what is there now (with the tracks if they are about to be replaced), then replace file by file
-    const safety = freeName(backupDir(), `${m.hasTracks ? SAFETY_WITH_TRACKS_PREFIX : 'before-restore-'}${stamp()}`)
+    // 6. safety copy of what is there now (with the tracks if they are about to be replaced), then replace file by file.
+    //    Current tracks too many for one .zip (over 4 GB): the safety copy holds the data only, and the restore then
+    //    adds the backup's tracks but removes none of the current ones (they are what the safety copy would have held)
+    let replaceTracks = m.hasTracks
+    let safety = freeName(backupDir(), `${replaceTracks ? SAFETY_WITH_TRACKS_PREFIX : 'before-restore-'}${stamp()}`)
     try {
-      await writeBackup(safety, m.hasTracks, MIN_FREE_BYTES)
+      try {
+        await writeBackup(safety, replaceTracks, MIN_FREE_BYTES)
+      } catch (e) {
+        if (!(replaceTracks && e instanceof BackupRoomError && e.reason === 'too-large')) throw e
+        log.warn('current backing tracks too large for the safety copy: the restore keeps them')
+        replaceTracks = false
+        safety = freeName(backupDir(), `before-restore-${stamp()}`)
+        await writeBackup(safety, false, MIN_FREE_BYTES)
+      }
     } catch (e) {
       // no safety copy, no restore: nothing was changed
       log.warn('restore not started: no safety backup', e instanceof BackupRoomError ? e.reason : e)
@@ -398,7 +427,7 @@ async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: Restor
     pruneSafetyBackups()
     db().reset()
     try {
-      replaceFrom(root, staged, m.hasTracks)
+      replaceFrom(root, staged, replaceTracks)
     } catch (e) {
       log.error('restore failed while replacing files; putting the safety backup back', e)
       let putBackOk = true
@@ -437,7 +466,8 @@ function removeLeftoverTempDirs(root: string): void {
  * Move every staged file into place, then remove every file the backup doesn't have (except kept-aside
  * .corrupt copies). That includes every .bak: JsonStore falls back to <name>.json.bak when <name>.json is
  * missing or damaged, so a .bak left behind would bring back the data from before the restore.
- * tracks/ is replaced only when `replaceTracks` (the backup holds the tracks); otherwise it is left as it is.
+ * Staged tracks are always moved in. The other files in tracks/ are removed only when `replaceTracks` (the backup
+ * holds the tracks, and so does the safety copy); otherwise they are left as they are.
  */
 function replaceFrom(root: string, staged: Map<string, string>, replaceTracks: boolean): void {
   for (const [rel, tmp] of staged) {
@@ -544,7 +574,7 @@ export async function mirrorTracks(): Promise<void> {
       entries.filter((e) => e.isFile()).map((e) => e.name),
       entries.filter((e) => e.isDirectory()).map((e) => e.name),
       today,
-      songsListIsComplete() ? referencedTrackFiles(songs) : null
+      songsListIsComplete() ? tracksInUse(songs) : null
     )
     let copied = 0
     for (const n of plan.copy) {

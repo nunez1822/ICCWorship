@@ -261,6 +261,15 @@ describe('live control', () => {
       expect(L().video).toMatchObject({ src: TRACK, playing: false, seekTo: 0 })
     })
 
+    it('Esc then Space keeps a waiting or paused track paused (never starts the intro under a verse)', async () => {
+      setup([song(), after])
+      await live.goItem(0, 1) // part-way: held at 0:00
+      state.current.progress = { current: 0, duration: 200 }
+      await live.clearAll()
+      await live.next()
+      expect(L()).toMatchObject({ slideIndex: 1, video: { src: TRACK, track: true, playing: false, seekTo: 0 } })
+    })
+
     it('going to the same song again (a thumbnail click) keeps the music and its position', async () => {
       setup([song(), after])
       await live.goItem(0)
@@ -359,7 +368,16 @@ describe('live control', () => {
       expect(L().slideIndex).toBe(2)
     })
 
-    it('Space in the intro shows the first line early; ← stays in the intro', async () => {
+    it('← in the intro goes back to the previous plan item (one Next too many)', async () => {
+      setup([after, item])
+      state.current.songs = [songWith(TIMES)]
+      await live.goItem(1)
+      expect(L().intro).toMatchObject({ firstAt: 5 })
+      await live.prev()
+      expect(L()).toMatchObject({ itemId: 'next', intro: undefined })
+    })
+
+    it('Space in the intro shows the first line early; ← stays in the intro of the first item', async () => {
       await start()
       await live.prev()
       expect(L()).toMatchObject({ slideIndex: -1, intro: { firstAt: 5 } })

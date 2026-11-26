@@ -138,7 +138,8 @@ const api = {
   },
   backup: {
     create: (): Promise<
-      | { ok: true; path: string; files: number; bytes: number }
+      /** tracksLeftOut: too many backing tracks for one .zip — saved without them */
+      | { ok: true; path: string; files: number; bytes: number; tracksLeftOut?: boolean }
       /** nothing was saved: no room on that drive, more than one .zip can hold, or the write failed */
       | { ok: false; error: 'no-space' | 'too-large' | 'failed' }
       | null

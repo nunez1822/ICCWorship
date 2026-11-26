@@ -83,15 +83,9 @@ describe('safety backups', () => {
       { name: 'before-migrate-1.zip', mtime: 5 }
     ]
     expect(safetyBackupsToDelete(files)).toEqual(['before-restore-tracks-a.zip'])
-    // they still count among the newest 5 before a restore
+    // they don't take the places of the data-only ones: 5 of those stay as well
     const many = Array.from({ length: 6 }, (_, i) => ({ name: `before-restore-${i}.zip`, mtime: i + 10 }))
-    expect(safetyBackupsToDelete([...files, ...many]).sort()).toEqual([
-      'before-restore-0.zip',
-      'before-restore-tracks-a.zip',
-      'before-restore-tracks-b.zip',
-      'before-restore-tracks-c.zip',
-      'before-restore-x.zip'
-    ])
+    expect(safetyBackupsToDelete([...files, ...many]).sort()).toEqual(['before-restore-0.zip', 'before-restore-tracks-a.zip', 'before-restore-x.zip'])
   })
 })
 

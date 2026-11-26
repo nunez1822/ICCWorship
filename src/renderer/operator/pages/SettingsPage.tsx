@@ -318,7 +318,12 @@ export function SettingsPage() {
                 className="btn primary"
                 onClick={async () => {
                   const r = await window.api.backup.create()
-                  if (r?.ok) s.toast(t('settings.backupDone', { files: r.files, size: (r.bytes / 1024 / 1024).toFixed(1) }))
+                  if (r?.ok)
+                    s.toast(
+                      t(r.tracksLeftOut ? 'settings.backupNoTracks' : 'settings.backupDone', { files: r.files, size: (r.bytes / 1024 / 1024).toFixed(1) }),
+                      r.tracksLeftOut ? 'info' : 'ok',
+                      r.tracksLeftOut ? 20_000 : undefined
+                    )
                   else if (r) s.toast(t(`settings.backupError.${r.error}`), 'err', 15_000)
                   refresh()
                 }}

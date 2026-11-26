@@ -204,7 +204,7 @@ to a time of day, which would hide a rebuild). Welcome is live.
 1. **🎵 Show with track**. 2. `←` during the intro. 3. `Space` during the intro.
 **Expected**
 - The projector shows no text during the intro; the stage display shows "🎵 First line in 0:0x" counting down.
-- Step 2: still the intro. Step 3: slide 1 shows at once.
+- Step 2: still the intro (Show with track has no plan item before it; see TC-LIVE-32). Step 3: slide 1 shows at once.
 
 ### TC-LIVE-26 · Follow the timing off  `P2`
 **Pre:** TC-LIVE-22 running
@@ -247,3 +247,20 @@ second song's item (if its timing is recorded, enter it part-way so it starts wi
 **Expected**
 - While it plays, the Live page says "🎵 Music still playing — Space = next item". Once
   `live.get().video.playing === false`, that line is gone (the room is silent), as the top bar goes back to "Off air".
+
+### TC-LIVE-31 · Esc then Space keeps a waiting or paused track paused  `P1`
+**Pre:** TC-LIVE-20 step 1 (3rd slide live, the music waiting at 0:00)
+**Steps**
+1. `Esc`, then `Space`. 2. Start the music with `P`, press `P` again to pause it at about 0:05, then `Esc`, `Space`.
+**Expected**
+- Step 1: the 3rd slide comes back and the music is **still** paused at 0:00 ("⏸ Music paused — press P to play") —
+  the intro never starts under the verse.
+- Step 2: the slide comes back with the music paused at about 0:05 (it doesn't start again over the band).
+  (A track that was playing when Esc was pressed still continues, as in TC-LIVE-16.)
+
+### TC-LIVE-32 · ← during a song's intro goes back to the previous plan item  `P2`
+**Pre:** a plan whose 2nd item is a song with recorded timing (an intro before the first line)
+**Steps**
+1. Put item 1 live, press `→` until item 2's intro starts. 2. Press `←` during the intro.
+**Expected**
+- Step 2: item 1 comes back on its last slide; the intro's music fades out. The phone remote's Prev does the same.

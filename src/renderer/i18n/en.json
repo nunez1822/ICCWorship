@@ -540,6 +540,7 @@
     "backupHelp": "Everything (songs, plans, people, pasted verses, imported slides) goes in one .zip — save it to a USB drive. ICCWorship also makes an automatic backup every day.",
     "backupNow": "Back up now",
     "backupDone": "Backup saved ({{files}} files, {{size}} MB)",
+    "backupNoTracks": "Backup saved WITHOUT the backing tracks ({{files}} files, {{size}} MB): together they are over 4 GB, too much for one backup file. Copy the folder Documents\\ICCWorship\\tracks to the same drive too.",
     "backupError": {
       "no-space": "Not enough free space on that drive for the backup. Nothing was saved. Pick another drive (a USB stick) or free up space.",
       "too-large": "The data and backing tracks are too large for one backup file (over 4 GB). Nothing was saved. Remove backing tracks you no longer use and try again.",

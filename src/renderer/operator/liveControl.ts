@@ -413,9 +413,11 @@ export async function goSlide(index: number): Promise<void> {
     patch.video = undefined
     patch.videoProgress = undefined
   } else if (slide.kind !== 'video' && !l.video && clearedVideo?.video.track) {
-    // back from an accidental Esc: the music continues where it was (its position stays in videoProgress)
+    // back from an accidental Esc: the music continues where it was (its position stays in videoProgress) — and
+    // only if it was playing: a track held at 0:00 (song entered part-way) or paused with P (the band took over)
+    // stays paused, never starts over the verse on screen
     const c = clearedVideo
-    patch.video = holdUnderCover({ ...c.video, playing: true, seekSeq: c.video.seekSeq + 1, seekTo: c.at })
+    patch.video = holdUnderCover({ ...c.video, playing: c.video.playing, seekSeq: c.video.seekSeq + 1, seekTo: c.at })
   }
   // the position Esc saved is good for one resume only: once the operator resumed or moved
   // to another slide, coming back to the video starts it fresh
@@ -490,9 +492,14 @@ function canResumeCleared(l: LiveState): boolean {
 export async function prev(): Promise<void> {
   const l = live()
   if (!l) return
-  // during the outro, Back brings the last lyric slide back; during the intro there is nothing before it
+  // during the outro, Back brings the last lyric slide back; during the intro there is no slide before it, so Back
+  // goes to the previous plan item (one Next too many started this song) — or stays, for an item without one
   if (l.outro) return goSlide(Math.min(l.clearedFrom ?? l.slides.length - 1, l.slides.length - 1))
-  if (l.intro) return
+  if (l.intro) {
+    const plan = activePlan()
+    if (plan && l.itemIndex > 0 && l.planId === plan.id) return goItem(l.itemIndex - 1, -1)
+    return
+  }
   // after an accidental Esc, ← brings the cleared slide back (like Space), instead of
   // jumping to the previous plan item
   if (canResumeCleared(l)) return goSlide(l.clearedFrom!)

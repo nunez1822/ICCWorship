@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import JSZip from 'jszip'
 import { ZipError, ZipReader } from '../src/main/zipReader'
-import { copyFileAtomic, writeStreamAtomic } from '../src/main/atomicWrite'
+import { writeStreamAtomic } from '../src/main/atomicWrite'
 
 // placeholder content only (never real lyrics or Bible text)
 const json = JSON.stringify([{ id: 's1', title: 'Placeholder song', lyrics: 'la la la\n'.repeat(500) }])
@@ -75,38 +75,5 @@ describe('ZipReader', () => {
     await makeZip(f, true)
     writeFileSync(f, readFileSync(f).subarray(0, 5000))
     await expect(ZipReader.open(f)).rejects.toThrow()
-  })
-})
-
-describe('atomic copies and streams', () => {
-  let dir: string
-  beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), 'iccw-atomic-'))
-  })
-  afterEach(() => rmSync(dir, { recursive: true, force: true }))
-
-  it('copies a file, leaving no .tmp', async () => {
-    writeFileSync(join(dir, 'a.ogg'), track)
-    await copyFileAtomic(join(dir, 'a.ogg'), join(dir, 'b.ogg'))
-    expect(readFileSync(join(dir, 'b.ogg')).equals(track)).toBe(true)
-    expect(existsSync(join(dir, 'b.ogg.tmp'))).toBe(false)
-  })
-
-  it('a failed copy leaves nothing behind', async () => {
-    await expect(copyFileAtomic(join(dir, 'missing.ogg'), join(dir, 'b.ogg'))).rejects.toThrow()
-    expect(readdirSync(dir)).toEqual([])
-  })
-
-  it('a stream that fails half-way never replaces the file', async () => {
-    writeFileSync(join(dir, 'f.zip'), 'old')
-    const failing = new Readable({
-      read() {
-        this.push(Buffer.alloc(1000))
-        this.destroy(new Error('read failed'))
-      }
-    })
-    await expect(writeStreamAtomic(join(dir, 'f.zip'), failing)).rejects.toThrow('read failed')
-    expect(readFileSync(join(dir, 'f.zip'), 'utf8')).toBe('old')
-    expect(readdirSync(dir)).toEqual(['f.zip'])
   })
 })

@@ -1,5 +1,9 @@
+import { existsSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
 import { JsonStore } from './jsonStore'
-import { dataDir } from './paths'
+import { dataDir, dataRoot } from './paths'
+import { TRACKS_DIR } from './restorePath'
+import { isTrackFileName } from '@shared/tracks'
 import { newPin } from './pathGuard'
 import { DEFAULT_SETTINGS, DEFAULT_TEAMS, DEFAULT_THEMES, SAMPLE_SONGS, sampleTemplate } from '@shared/defaults'
 import type { Settings, Theme } from '@shared/types'
@@ -100,15 +104,25 @@ export function ensurePin(): boolean {
   return true
 }
 
-/** this run wrote the sample songs (see songsSeededThisRun) */
-let seededSongs = false
-
 /**
- * Did this start-up write the sample songs into an empty songs list? Then the list says nothing about the church's
- * real library (data/ may have been lost or only partly synced while tracks/ is still there): anything that
- * deletes files by what the songs use (unused backing tracks) must leave them alone for this run.
+ * Backing tracks that were already in tracks/ when the sample songs were written into an empty songs list: data/ was
+ * lost or only partly synced while tracks/ is still there, so they belong to songs this list doesn't have. They are
+ * kept in meta.json (so it lasts beyond this run) and are never deleted or retired as "unused" — until a restore
+ * replaces meta.json with the backup's. Anything that deletes tracks no song uses must add these to the ones in use.
  */
-export const songsSeededThisRun = (): boolean => seededSongs
+export function tracksKeptFromBeforeSeeding(): Set<string> {
+  const keep = db().read<{ keepTracks?: unknown }>('meta', {}).keepTracks
+  return new Set(Array.isArray(keep) ? keep.filter((n): n is string => typeof n === 'string' && isTrackFileName(n)) : [])
+}
+
+function trackFilesOnDisk(): string[] {
+  try {
+    const dir = join(dataRoot(), TRACKS_DIR)
+    return existsSync(dir) ? readdirSync(dir).filter(isTrackFileName) : []
+  } catch {
+    return []
+  }
+}
 
 /** First launch: seed sample songs, themes, teams and a Sunday template so the app is useful immediately. */
 export function seedIfEmpty(): void {
@@ -124,14 +138,17 @@ export function seedIfEmpty(): void {
     if (JSON.stringify(next) !== JSON.stringify(themes)) s.write('themes', next)
     return
   }
+  let keepTracks: string[] = []
   if (!s.list('songs').length) {
     s.write('songs', SAMPLE_SONGS)
-    seededSongs = true
+    // tracks already here belong to songs this list doesn't have (see tracksKeptFromBeforeSeeding)
+    keepTracks = trackFilesOnDisk()
+    if (keepTracks.length) log.warn('sample songs added while tracks/ already holds backing tracks: they are kept', keepTracks.length)
   }
   s.write('themes', DEFAULT_THEMES)
   if (!s.list('teams').length) s.write('teams', DEFAULT_TEAMS)
   if (!s.list('plans').length) s.write('plans', [sampleTemplate()])
-  s.write('meta', { ...meta, seeded: Date.now(), schemaVersion: SCHEMA_VERSION }, true)
+  s.write('meta', { ...meta, seeded: Date.now(), schemaVersion: SCHEMA_VERSION, ...(keepTracks.length ? { keepTracks } : {}) }, true)
   s.flush()
 }
 
