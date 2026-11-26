@@ -3,6 +3,7 @@ import type { BibleVersionInfo, LiveState, MediaItem, Person, PrayerRequest, Pre
 import i18n from '../i18n'
 import { mediaUrlToPath } from '../lib/media'
 import { localDate } from '@shared/dates'
+import { loggableError } from '@shared/loggableError'
 
 export type Page = 'live' | 'plans' | 'songs' | 'bible' | 'media' | 'themes' | 'people' | 'reports' | 'settings'
 
@@ -143,7 +144,7 @@ export const useApp = create<AppState>((set, get) => ({
       // file to a folder that no longer exists) must not fail silently
       window.addEventListener('unhandledrejection', (ev) => {
         toastError(ev.reason)
-        api.app.log('warn', `unhandled rejection: ${ev.reason instanceof Error ? `${ev.reason.name}: ${ev.reason.message}` : String(ev.reason)}`)
+        api.app.log('warn', `unhandled rejection: ${loggableError(ev.reason)}`)
       })
       // what main reports: windows restarted after a crash, updates, diagnostics…
       api.app.onEvent((e) => {
@@ -158,6 +159,7 @@ export const useApp = create<AppState>((set, get) => ({
         else if (e.type === 'gpuCrashed') toast(i18n.t('recovery.gpuCrashed'), 'err', 30_000)
         else if (e.type === 'update') toast(i18n.t('updates.available', { version: e.latest }), 'info', 30_000)
         else if (e.type === 'diagnostics') toast(i18n.t(e.ok ? 'about.diagSaved' : 'about.diagFailed'), e.ok ? 'ok' : 'err')
+        else if (e.type === 'openFailed') toast(i18n.t(e.what === 'logs' ? 'about.openLogsFailed' : 'about.noticesMissing'), 'err')
       })
     }
     // damaged data files found at startup: say so (and where the damaged copy was kept)

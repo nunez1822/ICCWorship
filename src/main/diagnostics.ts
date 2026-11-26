@@ -7,7 +7,7 @@
 import { app, screen } from 'electron'
 import JSZip from 'jszip'
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { arch, release, totalmem, type as osType } from 'node:os'
+import { arch, homedir, release, totalmem, type as osType } from 'node:os'
 import { join } from 'node:path'
 import { COLLECTIONS, db, getSettings } from './db'
 import { dataDir, dataRoot } from './paths'
@@ -30,7 +30,10 @@ export function systemInfo(): Record<string, unknown> {
       .getAllDisplays()
       .map((d) => ({ size: `${d.size.width}x${d.size.height}`, scale: d.scaleFactor, primary: d.id === screen.getPrimaryDisplay().id })),
     gpu: app.getGPUFeatureStatus(),
-    dataFolder: redact(dataRoot())
+    // where the data lives (Documents, another drive, OneDrive…) without the Windows user name. redact()'s default
+    // would turn the data folder itself into "<data>", which says nothing.
+    dataFolder: redact(dataRoot(), { home: homedir() }),
+    customDataFolder: !!process.env.ICCWORSHIP_DATA
   }
 }
 

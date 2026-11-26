@@ -334,7 +334,7 @@ export function SettingsPage() {
               >
                 ♻️ {t('settings.restore')}
               </button>
-              <button className="btn" onClick={() => window.api.app.openDataFolder()}>
+              <button className="btn" onClick={() => void window.api.app.openDataFolder().then((ok) => ok || s.toast(t('settings.openDataFailed'), 'err'))}>
                 📂 {t('settings.openData')}
               </button>
             </div>
@@ -378,7 +378,7 @@ export function SettingsPage() {
               <button className="btn sm" onClick={() => void s.setSettings({ firstRunDone: false })}>
                 👋 {t('settings.showWelcome')}
               </button>
-              <button className="btn sm" onClick={() => void window.api.app.openNotices()}>
+              <button className="btn sm" onClick={() => void window.api.app.openNotices().then((ok) => ok || s.toast(t('about.noticesMissing'), 'err'))}>
                 📜 {t('about.notices')}
               </button>
             </div>
@@ -401,7 +401,7 @@ export function SettingsPage() {
               <button className="btn sm" onClick={() => void window.api.app.copySystemInfo().then(() => s.toast(t('about.copied')))}>
                 📋 {t('about.copyInfo')}
               </button>
-              <button className="btn sm" onClick={() => void window.api.app.openLogs()}>
+              <button className="btn sm" onClick={() => void window.api.app.openLogs().then((ok) => ok || s.toast(t('about.openLogsFailed'), 'err'))}>
                 📂 {t('about.openLogs')}
               </button>
             </div>

@@ -1,6 +1,7 @@
 {
   "errors": {
     "generic": "Something went wrong.",
+    "startFailed": "ICCWorship could not start.",
     "saveFailed": "⚠ Could not save {{what}} ({{reason}}). Your changes are kept while the app is open — check that the data folder isn't read-only or full.",
     "dataRecovered": "⚠ The {{what}} file was damaged and was restored from its backup. The damaged copy was kept: {{file}}",
     "dataUnreadable": "⚠ The {{what}} file is damaged and could not be read. It was kept as {{file}} — restore a backup in Settings → Backup.",
@@ -535,6 +536,7 @@
     "restoreConfirm": "Restoring replaces current data (a safety copy is made first). Continue?",
     "restoreFailed": "That file is not an ICCWorship backup.",
     "openData": "Open data folder",
+    "openDataFailed": "Could not open the data folder.",
     "about": "About",
     "aboutText": "Free and open-source church presentation software (MIT license). Made with love for churches that need it.",
     "credits": "Bibles included: King James Version and Reina-Valera 1909 (public domain, via the open-bibles project).",
@@ -647,6 +649,7 @@
   },
   "about": {
     "notices": "Open-source licences",
+    "noticesMissing": "The open-source licences file is missing from this copy of ICCWorship. The list is also on the ICCWorship website.",
     "troubleshooting": "Troubleshooting",
     "troubleshootingHelp": "Reporting a problem? Attach the diagnostics file to the report. It contains no lyrics, people, prayer requests or PIN, but reports on GitHub are public.",
     "reportProblem": "Report a problem",
@@ -656,6 +659,7 @@
     "copyInfo": "Copy system info",
     "copied": "Copied — paste it into your report.",
     "openLogs": "Open logs folder",
+    "openLogsFailed": "Could not open the logs folder.",
     "includeDumps": "Include crash dumps (may contain text that was on screen)",
     "hwAccel": "Turn off graphics acceleration",
     "hwAccelHelp": "Only if the projector goes black, flickers or freezes on this computer. Takes effect after restarting ICCWorship."

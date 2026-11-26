@@ -1,6 +1,7 @@
 {
   "errors": {
     "generic": "Algo salió mal.",
+    "startFailed": "ICCWorship no se pudo iniciar.",
     "saveFailed": "⚠ No se pudo guardar {{what}} ({{reason}}). Sus cambios se conservan mientras la aplicación esté abierta — verifique que la carpeta de datos no sea de solo lectura ni esté llena.",
     "dataRecovered": "⚠ El archivo de {{what}} estaba dañado y se restauró desde su copia de respaldo. La copia dañada se guardó: {{file}}",
     "dataUnreadable": "⚠ El archivo de {{what}} está dañado y no se pudo leer. Se guardó como {{file}} — restaure una copia en Ajustes → Copia de seguridad.",
@@ -535,6 +536,7 @@
     "restoreConfirm": "Restaurar reemplaza los datos actuales (primero se hace una copia de seguridad). ¿Continuar?",
     "restoreFailed": "Ese archivo no es una copia de ICCWorship.",
     "openData": "Abrir carpeta de datos",
+    "openDataFailed": "No se pudo abrir la carpeta de datos.",
     "about": "Acerca de",
     "aboutText": "Software libre y gratuito para presentaciones en la iglesia (licencia MIT). Hecho con amor para las iglesias que lo necesitan.",
     "credits": "Biblias incluidas: King James Version y Reina-Valera 1909 (dominio público, vía el proyecto open-bibles).",
@@ -647,6 +649,7 @@
   },
   "about": {
     "notices": "Licencias de código abierto",
+    "noticesMissing": "Falta el archivo de licencias de código abierto en esta copia de ICCWorship. La lista también está en el sitio web de ICCWorship.",
     "troubleshooting": "Solución de problemas",
     "troubleshootingHelp": "¿Va a reportar un problema? Adjunte el archivo de diagnóstico. No contiene letras, personas, peticiones de oración ni el PIN, pero los reportes en GitHub son públicos.",
     "reportProblem": "Reportar un problema",
@@ -656,6 +659,7 @@
     "copyInfo": "Copiar información del sistema",
     "copied": "Copiado — péguelo en su reporte.",
     "openLogs": "Abrir carpeta de registros",
+    "openLogsFailed": "No se pudo abrir la carpeta de registros.",
     "includeDumps": "Incluir volcados de fallos (pueden contener texto que estaba en pantalla)",
     "hwAccel": "Desactivar la aceleración gráfica",
     "hwAccelHelp": "Solo si el proyector se pone negro, parpadea o se congela en esta computadora. Se aplica al reiniciar ICCWorship."

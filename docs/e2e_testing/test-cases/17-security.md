@@ -198,3 +198,13 @@ Logs are attached to public bug reports.
 - The data (`data\`, `backups\`…) is in `%TEMP%\icc-data`, but there is **no** `.userdata` folder there: logs stay in
   `%APPDATA%\ICCWorship\logs`.
 - Starting ICCWorship normally while that copy runs just brings the running window forward (one instance only).
+
+### TC-SEC-18 · Page errors in the log never quote their text  `P1`
+An error's message can quote what a page was reading (a SyntaxError quotes the JSON: a song, a Bible).
+**Steps**
+1. Operator tab: `browser_evaluate` →
+   `setTimeout(() => Promise.reject(new SyntaxError('Unexpected token PLACEHOLDER-LYRIC-TEXT is not valid JSON')))`.
+2. Open `.e2e-data/.userdata/logs/main.log`.
+**Expected**
+- The operator shows an error toast (the failure isn't silent).
+- `main.log` has `[index.html] unhandled rejection: SyntaxError` and does **not** contain `PLACEHOLDER-LYRIC-TEXT`.

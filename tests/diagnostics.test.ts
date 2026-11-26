@@ -13,4 +13,10 @@ describe('diagnostics privacy', () => {
     const roots = { data: 'C:\\Users\\Pastor Juan\\Documents\\ICCWorship', home: 'C:\\Users\\Pastor Juan' }
     expect(redact('missing C:\\Users\\Pastor Juan\\Videos\\intro.mp4', roots)).toBe('missing %USERPROFILE%/Videos/intro.mp4')
   })
+  it("system.json's data folder says where the data lives, without the user name", () => {
+    // as systemInfo() builds it: only the home folder is redacted, not the data folder itself
+    const home = { home: 'C:\\Users\\Pastor Juan' }
+    expect(redact('C:\\Users\\Pastor Juan\\OneDrive\\Documents\\ICCWorship', home)).toBe('%USERPROFILE%/OneDrive/Documents/ICCWorship')
+    expect(redact('D:\\ICCWorship', home)).toBe('D:/ICCWorship')
+  })
 })

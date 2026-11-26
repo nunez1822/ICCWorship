@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { loggableError } from '@shared/loggableError'
 
 interface Props {
   /** what to show instead of the broken part; `reset` tries rendering it again */
@@ -38,8 +39,10 @@ export class ErrorBoundary extends Component<Props, { failed: boolean }> {
   }
 }
 
-/** Short, content-free description of an error for the log (never include slide text). */
+/**
+ * Short, content-free description of an error for the log (never slide text: a SyntaxError from JSON.parse quotes
+ * its input, which can be a song or a Bible). Same rules as main's log: see loggableError.
+ */
 export function errorSummary(e: unknown): string {
-  if (e instanceof Error) return `${e.name}: ${e.message}`.slice(0, 200)
-  return String(e).slice(0, 200)
+  return loggableError(e).slice(0, 200)
 }

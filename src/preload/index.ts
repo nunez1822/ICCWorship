@@ -19,6 +19,7 @@ export type AppEvent =
   | { type: 'update'; latest: string; url: string }
   | { type: 'diagnostics'; ok: boolean }
   | { type: 'menu'; action: 'shortcuts' | 'about' }
+  | { type: 'openFailed'; what: 'logs' | 'notices' }
 
 export interface ImportOutcome {
   presentation?: Presentation
@@ -134,14 +135,17 @@ const api = {
   },
   app: {
     info: (): Promise<{ version: string; dataPath: string; electron: string }> => invoke('app:info'),
-    openDataFolder: () => invoke('app:openDataFolder'),
+    /** false when the folder could not be opened */
+    openDataFolder: (): Promise<boolean> => invoke('app:openDataFolder'),
     openExternal: (url: string) => invoke('app:openExternal', url),
     /** write a line to the app's log file (never put lyrics, people or PINs in it) */
     log: (level: 'info' | 'warn' | 'error', message: string) => ipcRenderer.send('app:log', level, message),
-    openLogs: () => invoke('app:openLogs'),
+    /** false when the folder could not be opened */
+    openLogs: (): Promise<boolean> => invoke('app:openLogs'),
     exportDiagnostics: (includeCrashDumps: boolean): Promise<{ ok: boolean; path: string } | null> => invoke('app:exportDiagnostics', includeCrashDumps),
     copySystemInfo: (): Promise<boolean> => invoke('app:copySystemInfo'),
-    openNotices: () => invoke('app:openNotices'),
+    /** false when the licences file is missing */
+    openNotices: (): Promise<boolean> => invoke('app:openNotices'),
     reportProblem: () => invoke('app:reportProblem'),
     checkUpdates: (): Promise<{ ok: true; latest: string; newer: boolean; url: string } | { ok: false; error?: string; skipped?: true }> =>
       invoke('app:checkUpdates'),
