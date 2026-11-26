@@ -22,18 +22,26 @@ export type RangeResult = { kind: 'full' } | { kind: 'partial'; start: number; e
  * A syntactically valid range that doesn't fit the file is "unsatisfiable" (HTTP 416).
  */
 export function parseRange(header: string | null | undefined, size: number): RangeResult {
-  if (!header) return { kind: 'full' }
-  const m = /^\s*bytes\s*=\s*(\d*)\s*-\s*(\d*)\s*$/i.exec(header)
-  if (!m || (m[1] === '' && m[2] === '')) return { kind: 'full' }
+  if (!header || header.length > 200) return { kind: 'full' }
+  // Split by hand rather than with one regex: optional spaces around optional digits (\s*(\d*)\s*) backtrack
+  // polynomially on a long run of spaces, and this header comes from anyone on the Wi-Fi.
+  const eq = header.indexOf('=')
+  if (eq < 0 || header.slice(0, eq).trim().toLowerCase() !== 'bytes') return { kind: 'full' }
+  const spec = header.slice(eq + 1)
+  const dash = spec.indexOf('-')
+  if (dash < 0) return { kind: 'full' }
+  const first = spec.slice(0, dash).trim()
+  const last = spec.slice(dash + 1).trim()
+  if (!/^\d*$/.test(first) || !/^\d*$/.test(last) || (first === '' && last === '')) return { kind: 'full' }
   if (size <= 0) return { kind: 'unsatisfiable' }
-  if (m[1] === '') {
+  if (first === '') {
     // suffix range: the last N bytes
-    const n = Number(m[2])
+    const n = Number(last)
     if (!Number.isSafeInteger(n) || n <= 0) return { kind: 'unsatisfiable' }
     return { kind: 'partial', start: Math.max(0, size - n), end: size - 1 }
   }
-  const start = Number(m[1])
-  const end = m[2] === '' ? size - 1 : Math.min(Number(m[2]), size - 1)
+  const start = Number(first)
+  const end = last === '' ? size - 1 : Math.min(Number(last), size - 1)
   if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start >= size || start > end) return { kind: 'unsatisfiable' }
   return { kind: 'partial', start, end }
 }
