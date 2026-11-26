@@ -60,6 +60,48 @@
 **Expected**
 - Backups list shows "auto-YYYY-MM-DD.zip" for today after launch.
 
+### TC-SET-08 · Export diagnostics  `P1`
+**Steps**
+1. Settings → About → 📦 Export diagnostics… (queue a save path `.e2e-data/tmp/diag.zip` first). Leave "Include crash dumps" off.
+2. Unzip it (Bash: `unzip -l` / `unzip -p`).
+**Expected**
+- Contains `logs/main.log`, `system.json`, `settings.json`, `data-summary.json`, `README.txt` — no `crash-dumps/`.
+- `settings.json` has **no** `remotePin` and no church name; logo/CCLI show only `(set)`.
+- `system.json` has `"dataFolder"` showing where the data lives with the user folder written as `%USERPROFILE%`
+  (in a test run: the `.e2e-data` path) — not just `<data>` — and `"customDataFolder": true` (false on a normal install).
+- No file contains the Windows user name, a song lyric, a person's name or a prayer request (grep for a few you added).
+- Help menu (press Alt) has the same Export diagnostics, plus Open logs folder, Report a problem, Keyboard shortcuts.
+
+### TC-SET-09 · Update check is off until turned on  `P1`
+**Steps**
+1. Fresh install: Settings → About → Updates. 2. Click 🔎 Check now (with internet). 3. Disconnect the network, Check now.
+**Expected**
+- "Check for new versions once a day" is **unticked** by default; nothing contacts the internet until Check now or the box.
+- Step 2 shows "You have the latest version" or an "ICCWorship x.y.z is available" button that opens the GitHub releases page.
+- Step 3 shows "Could not check (no internet?)" — no error dialog. `main.log` has `update check failed:` with only a
+  short code (`timeout`, a network error code, `http-404`…) — never the text of a web page.
+- With the daily check on and a newer release out, the automatic message "ICCWorship x.y.z is available" has a
+  **Download page** button that opens the GitHub releases page.
+
+### TC-SET-10 · Graphics acceleration switch  `P2`
+**Steps**
+1. Settings → About → tick "Turn off graphics acceleration". Quit and relaunch (`--keep`). Show a video and a song.
+**Expected**
+- The setting is kept; the app starts and shows slides and video normally (the "graphics" line in
+  `system.json` of a diagnostics export says features are software/disabled). Untick it afterwards.
+
+### TC-SET-11 · Help buttons that can't open something say so  `P2`
+`npm run build` doesn't create the licences file (only `npm run build:win` / `build:dir` do), so a test run has none.
+**Steps**
+1. Check `out/THIRD_PARTY_NOTICES.md` does **not** exist (rename it away if it does).
+2. Settings → About → 📜 Open-source licences. 3. Help menu (press Alt) → Open-source licences.
+**Expected**
+- Each time a red toast: "The open-source licences file is missing from this copy of ICCWorship…" /
+  "Falta el archivo de licencias de código abierto…" — never a click that does nothing.
+- `main.log` has `open-source notices file missing`. Rename the file back if you moved it.
+- (Same rule, not driven in tests because it opens Explorer: 📂 Open logs folder and 📂 Open data folder show
+  "Could not open the logs/data folder." if Windows can't open it.)
+
 ### TC-BAK-04 · Restoring a backup without a PIN keeps the phones working  `P1`
 **Pre:** TC-BAK-01; phone connected to `/remote` (TC-REM-02)
 **Steps**

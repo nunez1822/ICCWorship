@@ -7,7 +7,9 @@ import type { Slide } from '@shared/types'
 import { safeMediaSrc, useLiveFeed } from '../lib/liveFeed'
 import { rememberPin, usePin } from '../lib/pin'
 import { PinScreen } from '../components/PinScreen'
+import { ErrorBoundary, errorSummary } from '../components/ErrorBoundary'
 import './stage.css'
+import '../lib/noDropNavigation'
 
 /** Stage display for musicians and the preacher: current + next slide, clock, timers, chords, messages */
 function Stage() {
@@ -98,28 +100,41 @@ function Stage() {
         )}
       </header>
       {state.stageMessage && <div className={`stage-msg ${flash ? 'flash' : ''}`}>{state.stageMessage.text}</div>}
-      <main className="stage-main">
-        <section className="stage-current">
-          {state.layers.black && <div className="stage-flag">⬛ {t('stage.black')}</div>}
-          {state.layers.logo && !state.layers.black && <div className="stage-flag">✝ {t('stage.logo')}</div>}
-          <StageSlide slide={cur} state={state} chords={chords && hasChords} big />
-        </section>
-        <aside className="stage-next">
-          <div className="lbl">{t('stage.next')}</div>
-          {next ? (
-            <StageSlide slide={next} state={state} chords={false} />
-          ) : (
-            <div className="next-item">{nextItem ? `⏭ ${nextItem.title}` : t('stage.end')}</div>
-          )}
-          {cur?.notes && (
-            <div className="stage-notes">
-              <div className="lbl">📝</div>
-              {cur.notes}
-            </div>
-          )}
-          {state.itemNotes && <div className="stage-notes">{state.itemNotes}</div>}
-        </aside>
-      </main>
+      {/* a slide that can't be drawn shows "—" until the next one, and the operator is told (app window) */}
+      <ErrorBoundary
+        resetKeys={[state.seq]}
+        fallback={() => (
+          <main className="stage-main">
+            <div className="stage-empty">—</div>
+          </main>
+        )}
+        onError={(e) => {
+          if (inApp) window.api.win.renderError(`${errorSummary(e)} (slide ${cur?.kind || 'none'})`)
+        }}
+      >
+        <main className="stage-main">
+          <section className="stage-current">
+            {state.layers.black && <div className="stage-flag">⬛ {t('stage.black')}</div>}
+            {state.layers.logo && !state.layers.black && <div className="stage-flag">✝ {t('stage.logo')}</div>}
+            <StageSlide slide={cur} state={state} chords={chords && hasChords} big />
+          </section>
+          <aside className="stage-next">
+            <div className="lbl">{t('stage.next')}</div>
+            {next ? (
+              <StageSlide slide={next} state={state} chords={false} />
+            ) : (
+              <div className="next-item">{nextItem ? `⏭ ${nextItem.title}` : t('stage.end')}</div>
+            )}
+            {cur?.notes && (
+              <div className="stage-notes">
+                <div className="lbl">📝</div>
+                {cur.notes}
+              </div>
+            )}
+            {state.itemNotes && <div className="stage-notes">{state.itemNotes}</div>}
+          </aside>
+        </main>
+      </ErrorBoundary>
     </div>
   )
 }
@@ -178,4 +193,24 @@ function renderChords(text?: string) {
   })
 }
 
-createRoot(document.getElementById('root')!).render(<Stage />)
+const inAppWindow = !!window.api
+if (inAppWindow) setInterval(() => window.api.win.alive(), 1000) // freeze detection (see main's guardWindow)
+
+/** the page itself broke (not just one slide): in the app's stage window main reloads it; a browser reloads itself */
+function pageBroke(e: unknown): void {
+  if (inAppWindow) window.api.win.fatal(errorSummary(e))
+  else setTimeout(() => location.reload(), 3000)
+}
+
+createRoot(document.getElementById('root')!, { onUncaughtError: pageBroke }).render(
+  <ErrorBoundary
+    onError={pageBroke}
+    fallback={(reset) => (
+      <div className="stage-wait" onClick={reset}>
+        …
+      </div>
+    )}
+  >
+    <Stage />
+  </ErrorBoundary>
+)

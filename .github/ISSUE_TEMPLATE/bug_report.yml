@@ -50,6 +50,13 @@ body:
       label: Did this happen during a live service? / ¿Pasó durante un servicio en vivo?
       options: ['No', 'Yes / Sí']
   - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics / Diagnóstico (optional / opcional)
+      description: |
+        **Help → Export diagnostics…** (press Alt to show the menu) or **Settings → About → 📦 Export diagnostics…**, then attach the .zip here. It contains no lyrics, people or PIN, but attachments are public.
+        **Ayuda → Exportar diagnóstico…** (pulse Alt para ver el menú) o **Ajustes → Acerca de → 📦 Exportar diagnóstico…**, y adjunte el .zip aquí. No contiene letras, personas ni el PIN, pero los adjuntos son públicos.
+  - type: textarea
     id: screenshots
     attributes:
       label: Screenshots / Capturas (optional / opcional)

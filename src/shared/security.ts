@@ -251,7 +251,10 @@ const SETTING_CHECKS: { [K in keyof Settings]?: (v: unknown) => Settings[K] | un
       : undefined,
   messageSeconds: (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(3600, Math.max(5, Math.round(v))) : undefined),
   operatorTheme: oneOf(['dark', 'light'] as const),
-  firstRunDone: bool
+  firstRunDone: bool,
+  checkForUpdates: bool,
+  disableHwAccel: bool
+  // lastUpdateCheck: main only
 }
 
 /** Keeps only valid, known settings from a renderer patch. Invalid values are dropped, never thrown. */

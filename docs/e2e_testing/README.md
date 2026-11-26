@@ -104,6 +104,7 @@ Then ask Claude to "use the iccworship-app tools to run TC-LIVE-01 … ". Stop t
   ```js
   await window.api.e2e.queueOpenFiles(['C:/path/to/ICCWorship/tests/fixtures/sample.mp4'])   // open dialog
   await window.api.e2e.queueSaveFile('C:/path/to/ICCWorship/.e2e-data/out.zip')             // save dialog
+  await window.api.e2e.queueMessageBox(0)                                                   // next message box: button 0
   ```
   (only available when started with `npm run e2e:launch`). Use absolute paths.
 - **Confirm boxes** (`window.confirm`): the MCP cancels them when the tool call ends, so accept them by stubbing

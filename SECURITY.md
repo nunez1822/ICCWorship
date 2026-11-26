@@ -15,7 +15,7 @@ and credit you, unless you prefer otherwise.
 
 ### Supported versions
 Only the **latest release** gets security fixes. Churches should update when a new version is announced
-(Settings → About shows your version).
+(Settings → About shows your version; the optional update check there can tell you when a new one is out).
 
 ICCWorship is built on Electron, which supports only its latest three major versions. We upgrade Electron at
 least every second major version so the app never runs on an unsupported Chromium.
@@ -28,6 +28,7 @@ surface is small, and most of it is on the church's local network:
 |---|---|---|
 | Phone remote and stage display server (`http://<pc>:7272`, on by default) | Anyone on the same Wi-Fi/LAN | A 6-digit PIN is required for the phone remote **and** the stage display. PIN guessing is rate-limited and locked out. Requests are answered only for IP addresses, `localhost` and this computer's own name (alone or with a local suffix such as `.local`), never for other domain names, and browsers must come from its own pages, which blocks DNS rebinding and other websites. Phones receive only what their pages show: never file paths. Only slide images currently on screen can be downloaded, through opaque links. Malformed requests are refused without affecting the app. |
 | The app itself | Whoever uses the PC | Sandboxed, isolated renderers. A strict content-security policy, no remote content, and no navigation away from the app's pages. Main accepts calls only from the app's own pages, and validates every id, path and setting. Hardened Electron fuses: no "run as Node", no inspector, and asar integrity is checked. |
+| Optional update check (off by default) | — | One HTTPS request to the GitHub Releases API, at most daily. Nothing is sent about you or your church, and nothing is downloaded or installed; it only links to this project's releases page. |
 
 **Known limits.** The LAN server uses plain HTTP, not HTTPS: phones can't trust a self-signed certificate
 without warnings that volunteers would have to click through. So the PIN protects against other people on the
@@ -50,7 +51,7 @@ de seguridad en GitHub y le daremos crédito, a menos que prefiera lo contrario.
 
 ### Versiones con soporte
 Solo la **última versión** recibe correcciones de seguridad. Actualice cuando se anuncie una versión nueva
-(Ajustes → Acerca de muestra su versión).
+(Ajustes → Acerca de muestra su versión; allí la búsqueda opcional de actualizaciones le avisa cuando hay una nueva).
 
 ICCWorship usa Electron, que solo da soporte a sus tres últimas versiones mayores. Actualizamos Electron al
 menos cada dos versiones mayores para que la app nunca use un Chromium sin soporte.
@@ -63,6 +64,7 @@ superficie de red es pequeña, y casi toda está en la red local de la iglesia:
 |---|---|---|
 | Servidor del control remoto y la pantalla de escenario (`http://<pc>:7272`, activo por defecto) | Cualquiera en la misma Wi-Fi/red | Se necesita un PIN de 6 dígitos para el control remoto **y** la pantalla de escenario. Los intentos de adivinar el PIN tienen límite y bloqueo. Solo responde a las direcciones y nombres de esta computadora, y los navegadores deben venir de sus propias páginas, lo que bloquea "DNS rebinding" y otros sitios web. Los teléfonos reciben solo lo que muestran sus páginas: nunca rutas de archivos. Solo se pueden descargar las imágenes de las diapositivas que están en pantalla, mediante enlaces opacos. Las peticiones malformadas se rechazan sin afectar la app. |
 | La app | Quien use la PC | Procesos de interfaz aislados (sandbox). Política de seguridad de contenido estricta, sin contenido remoto y sin navegar fuera de las páginas de la app. El proceso principal solo acepta llamadas de las páginas de la app y valida cada id, ruta y ajuste. "Fuses" de Electron reforzados: sin "ejecutar como Node", sin inspector, y se verifica la integridad del asar. |
+| Buscar actualizaciones (opcional, desactivada) | — | Una petición HTTPS a la API de GitHub Releases, como máximo una vez al día. No se envía nada sobre usted ni su iglesia, y no se descarga ni instala nada; solo enlaza a la página de versiones de este proyecto. |
 
 **Límites conocidos.** El servidor de la red local usa HTTP, no HTTPS: los teléfonos no confían en un
 certificado autofirmado sin advertencias que los voluntarios tendrían que aceptar. El PIN impide que otras

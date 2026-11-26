@@ -35,6 +35,17 @@ All notable changes to ICCWorship are documented here. The format is based on
   and connects by itself as soon as a place is free.
 
 ### Added
+- **The projector and stage windows recover by themselves.** If their page crashes or freezes, it restarts in a
+  second or two and shows what is live again — a playing video continues where it was. If it keeps failing, the
+  projector shows black instead of looping, and **Settings → Screens → 🔄 Restart projector** brings it back.
+- If the main window crashes it reloads once by itself; the projector keeps showing what was live.
+- A problem on one page of the main window no longer blanks the whole window: that page shows "Try again" while
+  the top bar, shortcuts and phone remote keep working.
+- **Help → Export diagnostics** (also in Settings → About): a .zip to attach to a bug report — logs, PC details,
+  settings without the PIN. Plus Copy system info, Open logs folder, Report a problem and the open-source licences.
+- **Optional update check** (Settings → About, off by default): at most once a day and never during a service.
+- **Turn off graphics acceleration** (Settings → About) for PCs whose graphics driver makes the projector black,
+  flicker or freeze.
 - Logs for troubleshooting in `%APPDATA%\ICCWorship\logs` (no lyrics, people, prayer requests or PIN).
 - A menu bar (press Alt): reload, zoom, full screen, website, report a problem.
 - A QR code for the stage display in Settings, next to the phone remote's.
@@ -50,6 +61,8 @@ All notable changes to ICCWorship are documented here. The format is based on
 - The untested macOS and Linux build targets. ICCWorship is a Windows app.
 
 ### Fixed
+- Changes made just before Windows shuts down, restarts or goes to sleep are saved (they could be lost before).
+- Restoring a backup no longer occasionally reported an error although it had worked.
 - PDFs with JPEG 2000 or JBIG2 images (most scanned PDFs) imported with blank pages; they now show the images.
 - `npm run dev` showed blank windows ("Invalid hook call"): Vite loaded two copies of React in development.
 - Typing a new port in Settings → Remote no longer restarts the server on every keystroke; it applies on Enter.

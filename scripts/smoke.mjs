@@ -6,7 +6,7 @@
  *   node scripts/smoke.mjs [screenshotDir]
  */
 import { _electron as electron } from 'playwright-core'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { request as httpRequest } from 'node:http'
 import { WebSocket as WsClient } from 'ws'
 import { tmpdir } from 'node:os'
@@ -64,6 +64,18 @@ function watch(page, name) {
   page.on('pageerror', (e) => errors.push(`[${name}] ${e.message}`))
 }
 
+/**
+ * Screenshot of the projector window, taken by main. (After the crash test below, Playwright's handle for the
+ * projector page stays "crashed" even though the window reloaded fine.)
+ */
+async function outShot(path) {
+  const b64 = await app.evaluate(async ({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('output.html'))
+    return w ? (await w.webContents.capturePage()).toPNG().toString('base64') : ''
+  })
+  if (b64) writeFileSync(path, Buffer.from(b64, 'base64'))
+}
+
 async function windowByUrl(part) {
   for (let i = 0; i < 60; i++) {
     const w = app.windows().find((p) => p.url().includes(part))
@@ -112,20 +124,20 @@ try {
   await items.nth(2).dblclick()
   await sleep(900)
   await op.screenshot({ path: join(shots, '03-live-song.png') })
-  await out.screenshot({ path: join(shots, '04-projector-song-both.png') })
+  await outShot(join(shots, '04-projector-song-both.png'))
 
   // next slide, then Spanish only
   await op.keyboard.press('Space')
   await op.keyboard.press('2')
   await sleep(500)
-  await out.screenshot({ path: join(shots, '05-projector-spanish.png') })
+  await outShot(join(shots, '05-projector-spanish.png'))
   await op.keyboard.press('3')
 
   // nursery message
   await op.fill('.controls input[placeholder="#"]', '12')
   await op.locator('.controls .btn.sm').first().click()
   await sleep(700)
-  await out.screenshot({ path: join(shots, '06-projector-message.png') })
+  await outShot(join(shots, '06-projector-message.png'))
 
   // scripture from the Bible page
   await op.click('.nav button:nth-child(4)')
@@ -135,7 +147,7 @@ try {
   await op.screenshot({ path: join(shots, '07-bible.png') })
   await op.locator('.btn.live').first().click()
   await sleep(700)
-  await out.screenshot({ path: join(shots, '08-projector-scripture.png') })
+  await outShot(join(shots, '08-projector-scripture.png'))
 
   // LBLA paste-in setup
   await op.click('.tabs button:nth-child(3)')
@@ -156,7 +168,7 @@ try {
     app.evaluate(({ dialog }, p) => {
       dialog.showOpenDialog = async () => ({ canceled: false, filePaths: p })
     }, paths)
-  const mp4 = process.env.SMOKE_MP4
+  const mp4 = process.env.SMOKE_MP4 || join(root, 'tests', 'fixtures', 'sample.mp4') // a 5-second clip
   // default: a scanned-style PDF whose only content is a JPEG 2000 image (needs pdf.js's wasm decoder)
   const pdf = process.env.SMOKE_PDF || join(root, 'tests', 'fixtures', 'sample-jpx.pdf')
   const pptx = process.env.SMOKE_PPTX || join(root, 'tests', 'fixtures', 'sample.pptx')
@@ -170,9 +182,31 @@ try {
     await op.screenshot({ path: join(shots, '20-media-library.png') })
     await op.locator('.media-card').first().dblclick()
     await sleep(2500)
-    await out.screenshot({ path: join(shots, '21-projector-video.png') })
+    await outShot(join(shots, '21-projector-video.png'))
     const st = await op.evaluate(() => window.api.live.get())
     console.log('video:', JSON.stringify({ playing: st.video?.playing, progress: st.videoProgress }))
+
+    // The projector page crashes in the middle of the video: it must come back by itself, showing what is live
+    // and continuing the video where it was (not from the start, with sound, mid-service).
+    const before = (await op.evaluate(() => window.api.live.get())).videoProgress?.current || 0
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((w) => w.webContents.getURL().includes('output.html'))
+        ?.webContents.forcefullyCrashRenderer()
+    )
+    // ask the window itself (Playwright's handle for the crashed page stays dead)
+    let resumedAt = -1
+    for (let i = 0; i < 40 && resumedAt <= 0; i++) {
+      await sleep(250)
+      resumedAt = await app.evaluate(({ BrowserWindow }) => {
+        const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('output.html'))
+        return w ? w.webContents.executeJavaScript("document.querySelector('video')?.currentTime ?? -1").catch(() => -1) : -1
+      })
+    }
+    const logText = readFileSync(join(data, '.userdata', 'logs', 'main.log'), 'utf8')
+    const recovered = before > 0.5 && resumedAt >= before - 0.3 && /output window crashed/.test(logText)
+    console.log('projector restarted after a crash, video resumed:', recovered ? '✓' : '✗', JSON.stringify({ before, resumedAt }))
+    if (!recovered) errors.push(`projector did not recover from a crash mid-video (before ${before}, after ${resumedAt})`)
     await op.click('.nav button:nth-child(1)')
     await sleep(600)
     await op.screenshot({ path: join(shots, '22-live-video-controls.png') })
@@ -200,13 +234,13 @@ try {
   await op.screenshot({ path: join(shots, '24-pptx-modal.png') })
   await op.locator('.modal-foot .btn.live').click()
   await sleep(900)
-  await out.screenshot({ path: join(shots, '25-projector-pptx.png') })
+  await outShot(join(shots, '25-projector-pptx.png'))
   if (pdf) {
     await op.locator('.media-card').nth(1).click()
     await sleep(500)
     await op.locator('.modal-foot .btn.live').click()
     await sleep(900)
-    await out.screenshot({ path: join(shots, '26-projector-pdf.png') })
+    await outShot(join(shots, '26-projector-pdf.png'))
   }
 
   // the JPEG 2000 image must be decoded (it rendered blank before pdf.js got its wasm decoders)
@@ -357,6 +391,22 @@ try {
     .waitForSelector('.stage', { timeout: 10000 })
     .then(() => true)
     .catch(() => false)
+  // reloading a page must still work although navigation away from it is blocked; the PIN is remembered
+  await lanStage.evaluate(() => location.reload())
+  await sleep(500)
+  const reloaded = await lanStage
+    .waitForSelector('.stage', { timeout: 10000 })
+    .then(() => true)
+    .catch(() => false)
+  console.log('page reload works, PIN remembered:', reloaded ? '✓' : '✗')
+  if (!reloaded) errors.push('reloading the stage page failed')
+  // …but going anywhere else is not (e.g. a file dropped outside a drop zone would replace the page)
+  const stageUrl = lanStage.url()
+  await lanStage.evaluate((u) => (location.href = u), `http://localhost:${info.port}/remote`).catch(() => {})
+  await sleep(800)
+  const stayed = lanStage.url() === stageUrl && (await lanStage.locator('.stage').count()) > 0
+  console.log('navigating away is blocked:', stayed ? '✓' : `✗ ${lanStage.url()}`)
+  if (!stayed) errors.push('a page navigated away (will-navigate guard)')
   console.log('stage asks for the PIN, then shows:', askedPin && shown ? '✓' : `✗ ${askedPin} ${shown}`)
   if (!askedPin || !shown) errors.push('stage display PIN flow failed')
   // ---- backup → change data → restore round trip ----
@@ -375,6 +425,11 @@ try {
   const songsAfter = (await evaluateWhenReady('index.html', () => window.api.db.list('songs'))).length
   console.log('backup/restore:', JSON.stringify({ files: made?.files, ok: restored?.ok, songsBefore, songsAfter }), songsAfter === songsBefore ? '✓' : '✗')
   if (songsAfter !== songsBefore) errors.push('restore did not bring back the backed-up data')
+
+  // the log exists and holds the startup line (Help → Open logs folder / Export diagnostics)
+  const logOk = /ICCWorship .* starting/.test(readFileSync(join(data, '.userdata', 'logs', 'main.log'), 'utf8'))
+  console.log('log file written:', logOk ? '✓' : '✗')
+  if (!logOk) errors.push('no log file')
 
   // operator page must never be served over the network
   const opPage = await fetch(`http://127.0.0.1:${info.port}/index.html`).then((r) => r.status)

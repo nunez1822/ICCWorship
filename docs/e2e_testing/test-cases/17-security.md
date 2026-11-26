@@ -73,7 +73,8 @@ let n = 0; for (let i = 0; i < 50; i++) { await new Promise(r => { const w = new
 3. Export the run sheet PDF and print preview of a plan containing the Prayer item.
 **Expected**
 - `SECRET-PRIVATE-TEXT` appears in **no** network message, stage, phone, projector, PDF or printout.
-- No network message contains a local file path (`C:\…`, the Windows user name) or a `media://` URL.
+- No network message contains a local file path (`C:\…`, the Windows user name) or a `media://` URL — also
+  while a video plays (the `progress` messages).
 
 ### TC-SEC-07 · Malicious backup can't write outside the data folder  `P0`
 **Setup (node, from repo root):**
@@ -170,8 +171,10 @@ A web page a phone opens could point its own domain at the church PC (DNS rebind
 **Steps**
 1. Live page: drag `tests/fixtures/sample.pdf` from Explorer onto the slide grid (not a drop zone).
    With Playwright: `browser_drop` the file onto `.slides-grid`, or on the projector window.
+2. Songs → open a song → drag the same PDF onto the lyrics box.
 **Expected**
 - The operator page (and projector) stay as they are — the window does not navigate to the PDF or show a file.
+- Step 2: nothing happens either (a file dropped on a text box is cancelled too).
 
 ### TC-SEC-16 · Logs never quote a file's text or name  `P0`
 Logs are attached to public bug reports.
@@ -197,3 +200,13 @@ Logs are attached to public bug reports.
 - The data (`data\`, `backups\`…) is in `%TEMP%\icc-data`, but there is **no** `.userdata` folder there: logs stay in
   `%APPDATA%\ICCWorship\logs`.
 - Starting ICCWorship normally while that copy runs just brings the running window forward (one instance only).
+
+### TC-SEC-18 · Page errors in the log never quote their text  `P1`
+An error's message can quote what a page was reading (a SyntaxError quotes the JSON: a song, a Bible).
+**Steps**
+1. Operator tab: `browser_evaluate` →
+   `setTimeout(() => Promise.reject(new SyntaxError('Unexpected token PLACEHOLDER-LYRIC-TEXT is not valid JSON')))`.
+2. Open `.e2e-data/.userdata/logs/main.log`.
+**Expected**
+- The operator shows an error toast (the failure isn't silent).
+- `main.log` has `[index.html] unhandled rejection: SyntaxError` and does **not** contain `PLACEHOLDER-LYRIC-TEXT`.

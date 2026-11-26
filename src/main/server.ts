@@ -299,7 +299,8 @@ live.on('change', (state: LiveState) => {
   refreshAllowList(state)
   broadcast({ type: 'state', state: publicState(state) })
 })
-live.on('progress', (p) => broadcast({ type: 'progress', progress: p }))
+// only the numbers the stage page shows: progress.src is a local file path (it names the Windows user)
+live.on('progress', (p) => broadcast({ type: 'progress', progress: p ? { current: p.current, duration: p.duration, error: p.error } : p }))
 
 /**
  * Is something else already answering on this port (IPv4 or IPv6)? Windows lets two
