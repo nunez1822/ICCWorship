@@ -11,7 +11,7 @@ import { checkSchema, runMigrations, SCHEMA_VERSION } from '@shared/migrations'
 import type { Song } from '@shared/types'
 import { reload as reloadBibles } from './bible'
 import { isMediaEntry, isTracksEntry, RESTORE_DIRS, restoreTarget, TRACKS_DIR } from './restorePath'
-import { MEDIA_DIR } from '@shared/mediaLibrary'
+import { isLibraryFileName, MEDIA_DIR } from '@shared/mediaLibrary'
 import { isTrackFileName, referencedTrackFiles } from '@shared/tracks'
 import {
   autoBackupDecision,
@@ -69,6 +69,11 @@ function exclusive<T>(fn: () => Promise<T>): Promise<T> {
   const run = busy.then(fn, fn)
   busy = run.catch(() => undefined)
   return run
+}
+
+/** run `fn` once no backup or restore is running (deleting a media copy must not pull a file from under a backup) */
+export function afterBackups(fn: () => void): void {
+  void exclusive(async () => fn())
 }
 
 type BackupResult = {
@@ -194,27 +199,27 @@ const reserveFor = (target: string) =>
 
 /**
  * "Back up now": everything, the media library and backing tracks included (the copy to take to another PC or a USB
- * stick). When that is too much for one .zip (over 4 GB), the media library is left out first (`mediaLeftOut`), then
- * the tracks too (`tracksLeftOut`): the operator is told to copy those folders as well — a church with a big library
- * must never be left with no backup at all.
+ * stick). When that is too much for one .zip (over 4 GB) or for the room on the target's disk (a small USB stick), the
+ * media library is left out first (`mediaLeftOut`), then the tracks too (`tracksLeftOut`): the operator is told to
+ * copy those folders as well — a church with a big library must never be left with no backup at all.
  */
 export function createBackup(target: string): Promise<BackupResult | { ok: false; error: BackupError }> {
   return exclusive(async () => {
-    const tooLarge = (e: unknown) => e instanceof BackupRoomError && e.reason === 'too-large'
+    const noRoom = (e: unknown) => e instanceof BackupRoomError
     try {
       try {
         const { writes: _writes, ...r } = await writeBackup(target, true, reserveFor(target), true)
         return r
       } catch (e) {
-        if (!tooLarge(e)) throw e
-        log.warn('backup too large with the media library: saved without it')
+        if (!noRoom(e)) throw e
+        log.warn(`backup with the media library: ${(e as BackupRoomError).reason}, saving without it`)
       }
       try {
         const { writes: _writes, ...r } = await writeBackup(target, true, reserveFor(target))
         return { ...r, mediaLeftOut: true }
       } catch (e) {
-        if (!tooLarge(e)) throw e
-        log.warn('backup too large with the backing tracks: saved without them')
+        if (!noRoom(e)) throw e
+        log.warn(`backup with the backing tracks: ${(e as BackupRoomError).reason}, saving without them`)
         const { writes: _writes, ...r } = await writeBackup(target, false, reserveFor(target))
         return { ...r, tracksLeftOut: true, mediaLeftOut: true }
       }
@@ -341,6 +346,9 @@ async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: Restor
     // tracks/ is replaced only by a backup that says it holds the tracks; media/ is only added to, from one that holds it
     if (isTracksEntry(rel) && !m.hasTracks) continue
     if (isMediaEntry(rel) && !m.hasMedia) continue
+    // a library copy is named by a unique id and never changes: one already here (same size) is the same file — not
+    // counted, unpacked or replaced (a playing video's file may be locked, and restoring on the same PC needs no room)
+    if (isMediaEntry(rel) && statSync(join(root, rel), { throwIfNoEntry: false })?.size === entry.size) continue
     wanted.push({ entry, rel })
   }
   // a full disk must stop the restore before anything is unpacked (the safety copy checks its own room next)
@@ -573,8 +581,8 @@ async function putBack(root: string, safetyZip: string): Promise<void> {
 
 const mirrorDir = trackMirrorDir
 
-/** Remove `<track>.ogg.tmp` files a cut-off save or copy left in `dir` (nothing else ever would). Best effort. */
-function removeStaleTrackTemps(dir: string): void {
+/** Remove `<track>.ogg.tmp` (or media/'s `<id>.<ext>.tmp`) files a cut-off save or copy left in `dir`. Best effort. */
+function removeStaleTrackTemps(dir: string, isName?: (name: string) => boolean): void {
   try {
     if (!existsSync(dir)) return
     const files = readdirSync(dir).flatMap((name) => {
@@ -584,7 +592,7 @@ function removeStaleTrackTemps(dir: string): void {
         return []
       }
     })
-    for (const name of staleTrackTemps(files, Date.now())) {
+    for (const name of staleTrackTemps(files, Date.now(), undefined, isName)) {
       const f = join(dir, name)
       if (!within(dir, f)) continue
       try {
@@ -616,6 +624,7 @@ export async function mirrorTracks(): Promise<void> {
     const dst = mirrorDir()
     removeStaleTrackTemps(src)
     removeStaleTrackTemps(dst)
+    removeStaleTrackTemps(join(dataRoot(), MEDIA_DIR), isLibraryFileName) // a media copy cut off by a crash
     const tracks = existsSync(src) ? readdirSync(src) : []
     if (!tracks.length && !existsSync(dst)) return
     mkdirSync(dst, { recursive: true })

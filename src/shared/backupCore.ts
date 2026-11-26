@@ -194,11 +194,17 @@ export function trackMirrorPlan(
 }
 
 /**
- * `<track>.ogg.tmp` files in tracks/ or backups/tracks/ left by a save or copy that was cut off (crash, power cut).
- * Nothing else ever removes them (they aren't track files). Only those older than `maxAgeMs`: never one being written.
+ * `<track>.ogg.tmp` files in tracks/ or backups/tracks/ (or `<id>.<ext>.tmp` in media/, with `isName` =
+ * isLibraryFileName) left by a save or copy that was cut off (crash, power cut). Nothing else ever removes them (they
+ * aren't track or library files). Only those older than `maxAgeMs`: never one being written.
  */
-export function staleTrackTemps(files: { name: string; mtime: number }[], now: number, maxAgeMs = 24 * 60 * 60_000): string[] {
-  return files.filter((f) => /\.tmp$/i.test(f.name) && isTrackFileName(f.name.slice(0, -4)) && now - f.mtime > maxAgeMs).map((f) => f.name)
+export function staleTrackTemps(
+  files: { name: string; mtime: number }[],
+  now: number,
+  maxAgeMs = 24 * 60 * 60_000,
+  isName: (name: string) => boolean = isTrackFileName
+): string[] {
+  return files.filter((f) => /\.tmp$/i.test(f.name) && isName(f.name.slice(0, -4)) && now - f.mtime > maxAgeMs).map((f) => f.name)
 }
 
 /** Settings that describe this computer, not the church: a restore (maybe from another PC) keeps them. */
@@ -211,6 +217,7 @@ export const MACHINE_SETTINGS = [
   'checkForUpdates',
   'autoUpdate',
   'lastUpdateCheck',
+  'lastManualBackup',
   'disableHwAccel',
   'audioOutputId',
   'audioOutputLabel'

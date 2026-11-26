@@ -28,25 +28,24 @@ describe('isLibraryFileName / isLibraryPath', () => {
 
 describe('libraryFileToDelete', () => {
   const item = { id: 'm1', path: 'media/m1.mp4' }
-  const none = { media: [], themes: [], logoPath: '' }
+  const none = { media: [], logoPath: '' }
   it('deletes the copy of a deleted item nothing else shows', () => {
     expect(libraryFileToDelete(item, none)).toBe('media/m1.mp4')
   })
   it('never deletes a linked file (the church’s own folders)', () => {
     expect(libraryFileToDelete({ id: 'm1', path: 'C:\\Videos\\m1.mp4' }, none)).toBeNull()
   })
-  it('keeps a copy still used by another item, a theme background or the logo', () => {
+  it('keeps a copy still used by another item, the logo, a plan slide or the screen', () => {
     expect(libraryFileToDelete(item, { ...none, media: [{ id: 'm2', path: 'media/m1.mp4' }] })).toBeNull()
-    expect(libraryFileToDelete(item, { ...none, themes: [{ background: { type: 'video', value: 'media://local/media%2Fm1.mp4' } }] })).toBeNull()
     expect(libraryFileToDelete(item, { ...none, logoPath: 'media/m1.mp4' })).toBeNull()
+    // an announcement slide keeps the picture's media:// URL
+    const plans = [{ items: [{ slides: [{ text: { es: 'x' }, media: 'media://local/media%2Fm1.mp4' }] }] }]
+    expect(libraryFileToDelete(item, { ...none, elsewhere: [plans] })).toBeNull()
+    // playing on the projector right now
+    expect(libraryFileToDelete(item, { ...none, elsewhere: [[], { video: { src: 'media://local/media%2FM1.MP4' } }] })).toBeNull()
     // the item itself (still in the list) doesn't count
     expect(libraryFileToDelete(item, { ...none, media: [item] })).toBe('media/m1.mp4')
-    // a color background or a broken URL doesn't hold it
-    expect(
-      libraryFileToDelete(item, {
-        ...none,
-        themes: [{ background: { type: 'color', value: '#000' } }, { background: { type: 'image', value: 'media://local/%E0%A4' } }]
-      })
-    ).toBe('media/m1.mp4')
+    // another file in the plans doesn't hold it
+    expect(libraryFileToDelete(item, { ...none, elsewhere: [[{ media: 'media://local/media%2Fm2.mp4' }]] })).toBe('media/m1.mp4')
   })
 })

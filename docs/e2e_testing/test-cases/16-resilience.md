@@ -294,11 +294,21 @@ projector first — earlier crashes in the last minute count toward the limit.
 3. `pnpm e2e:launch --keep`.
 **Expected**
 - The projector starts black (nothing goes on screen by itself).
-- A toast says ICCWorship closed unexpectedly while "<item>" (<plan>) was on screen, with **▶ Put it back (slide 2)**.
+- A toast says ICCWorship closed unexpectedly during "<item>" (<plan>), with **▶ Put it back (slide 2)**.
 - Clicking it puts that item live on slide 2 and selects that plan.
-- Quit normally and launch again: no such toast. `.e2e-data/.userdata/session.json` has `"clean":true`.
-- Variants: a Show-now item (from Bible/Songs) or nothing on screen → no toast. An offer more than 6 hours old → no
-  toast. The item was deleted from the plan in between → clicking says it is no longer in the plan.
+- Quit normally. Before launching again, `.e2e-data/.userdata/session.json` has `"clean":true` (the next launch
+  rewrites it to `false` while it runs). Launch again: no such toast.
+- Esc variant: go live, press **Esc** (Clear all), then kill the app → the toast is offered too (Space would have
+  brought that slide back), and **Put it back** shows the slide Esc cleared.
+- Second-crash variant: after the toast appears, kill the app again without answering → the next launch offers it
+  again.
+- Went live by hand variant: while the toast is up, go live on another item, then click **Put it back** → it says
+  something else is on screen and changes nothing.
+- Variants: a Show-now item (from Bible/Songs), or nothing live and nothing cleared mid-item → no toast. An offer more
+  than 6 hours old → no toast. The item was deleted from the plan in between → clicking says it is no longer in the
+  plan.
+- Windows shutting down (Electron's `session-end`) with nothing on screen counts as a normal quit (no toast next
+  time); with a slide on screen (a forced restart mid-service) the item is offered back.
 
 ### TC-RES-35 · The operator window opens where it was left  `P2`
 **Steps**

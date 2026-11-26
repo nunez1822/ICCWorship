@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { preflight, verdict, type Check, type CheckAction } from '@shared/preflight'
 import { Modal } from '../components/ui'
+import { backupNow } from './backupNow'
 import { gatherPreflight } from './preflight'
 import { useApp } from './store'
 
@@ -13,23 +14,36 @@ export function ReadyCheck({ onClose }: { onClose: () => void }) {
   const s = useApp()
   const [checks, setChecks] = useState<Check[] | null>(null)
   const [busy, setBusy] = useState(false)
+  // the Live page re-renders several times a second while a video plays (and passes a new onClose each time): the
+  // check runs when opened and on "Check again" only, and an older run never overwrites a newer one's result
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
+  const runId = useRef(0)
 
-  const run = useCallback(async () => {
+  const run = async () => {
+    const id = ++runId.current
     setBusy(true)
     try {
-      setChecks(preflight(await gatherPreflight()))
+      const result = preflight(await gatherPreflight())
+      if (id === runId.current) setChecks(result)
     } catch (e) {
+      if (id !== runId.current) return
       window.api.app.log('warn', `ready check failed: ${e instanceof Error ? e.name : 'error'}`)
       useApp.getState().toast(t('ready.failed'), 'err')
-      onClose()
+      closeRef.current()
     } finally {
-      setBusy(false)
+      if (id === runId.current) setBusy(false)
     }
-  }, [onClose, t])
+  }
 
   useEffect(() => {
     void run()
-  }, [run])
+    const ids = runId // (a counter, not a DOM node: the same object at cleanup)
+    return () => {
+      ids.current++ // closed: drop a run still going
+    }
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- once, when the checklist opens
+  }, [])
 
   const act = async (a: CheckAction) => {
     if (a === 'openOutput') {
@@ -37,8 +51,8 @@ export function ReadyCheck({ onClose }: { onClose: () => void }) {
       return void setTimeout(() => void run(), 800)
     }
     if (a === 'backupNow') {
-      const r = await window.api.backup.create()
-      if (r && !r.ok) s.toast(t('ready.backupFailed'), 'err')
+      // the same messages as Settings → Backup (also when the media library or the tracks had to stay out)
+      if (await backupNow()) useApp.setState({ settings: await window.api.settings.get() }) // main noted when (lastManualBackup)
       return void run()
     }
     onClose()
@@ -51,6 +65,7 @@ export function ReadyCheck({ onClose }: { onClose: () => void }) {
     screens: t('ready.actSettings'),
     sound: t('ready.actSettings'),
     phone: t('ready.actSettings'),
+    logo: t('ready.actSettings'),
     plans: t('ready.actPlan'),
     backupNow: t('ready.actBackup')
   }

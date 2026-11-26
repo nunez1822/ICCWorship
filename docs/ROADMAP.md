@@ -25,13 +25,14 @@ Changes that would have been breaking or hard to migrate once churches depend on
 ## Next (1.1 → 1.2)
 1. **Release 1.1.0** with the above: `pnpm release:prepare minor`, test the draft on a clean PC (P0 e2e cases plus
    `/e2e-test packaged`), publish, publish the drafted security advisories.
-2. **Code signing** ([ADR 0007](adr/0007-code-signing.md)): apply to the SignPath Foundation, add the `win.sign` hook,
-   set `publisherName`. Then **winget** (`winget-pkgs` manifest, updated by a workflow on each release).
+2. **Code signing** ([ADR 0007](adr/0007-code-signing.md)): apply to the SignPath Foundation, add the
+   `win.signtoolOptions.sign` hook, set `publisherName`. Then **winget** (`winget-pkgs` manifest, updated by a
+   workflow on each release).
 3. **Required checks:** make `smoke` and `packaged` required once they have been green for ~10 runs on `main`.
 4. **Beta channel:** pre-releases for volunteers who test before Sunday (`allowPrerelease` as a setting, a `beta`
    channel file from the release workflow).
-5. **Tidy the media library:** list copies nothing uses (after restores) and offer to remove them; "Copy into library"
-   for items added while copying was off.
+5. **Tidy the media library:** list copies nothing uses (after a restore, or an item removed while it was on screen)
+   and offer to remove them; "Copy into library" for items added while copying was off.
 
 ## Later (2.0 candidates)
 - **Any two languages, not only English + Spanish** ([ADR 0006](adr/0006-content-languages.md)): `primary` /
@@ -43,8 +44,8 @@ Changes that would have been breaking or hard to migrate once churches depend on
 - **A user guide** (GitHub Pages, bilingual, screenshots from `pnpm smoke`), linked from Help.
 - **Fuzz tests** for the importers that read files from strangers (OpenLyrics, ChordPro, OSIS/USFX, PowerPoint text,
   backup zips).
-- **Planning features** churches ask for once they use it: rehearsal mode on a second PC (read-only stage over the
-  LAN), shared plans between two laptops (export/import of a plan with its media), CCLI reporting export.
+- **Planning features** churches ask for once they use it: rehearsal mode (a second PC following the plan without
+  the projector), shared plans between two laptops (export/import of a plan with its media).
 
 ## Not planned
 - Telemetry or crash uploads (see [PRIVACY.md](../PRIVACY.md)): diagnostics stay something the user exports.

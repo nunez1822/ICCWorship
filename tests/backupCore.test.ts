@@ -18,6 +18,7 @@ import {
   MAX_BACKUP_BYTES
 } from '../src/shared/backupCore'
 import { checkSchema, MIGRATIONS, runMigrations, SCHEMA_VERSION, type Migration } from '@shared/migrations'
+import { isLibraryFileName } from '@shared/mediaLibrary'
 
 describe('backup manifest', () => {
   it('accepts backups from 1.0 and from now', () => {
@@ -159,6 +160,13 @@ describe('backing tracks kept beside the backups', () => {
       { name: 'D-4.OGG.TMP', mtime: now - 9 * day }
     ]
     expect(staleTrackTemps(files, now)).toEqual(['a-1.ogg.tmp'])
+    // media/: a cut-off library copy (<id>.<ext>.tmp), with the library's own name rule
+    const media = [
+      { name: 'f00d.mp4.tmp', mtime: now - 2 * day },
+      { name: 'f00e.mp4.tmp', mtime: now - 60_000 },
+      { name: 'notes.txt.tmp', mtime: now - 9 * day }
+    ]
+    expect(staleTrackTemps(media, now, undefined, isLibraryFileName)).toEqual(['f00d.mp4.tmp'])
   })
   it('keeps a deleted track 15 days (automatic backups go back 14), then lets it go', () => {
     const dirs = ['gone-2026-11-10', 'gone-2026-11-11', 'gone-2026-11-26', 'other', 'gone-junk']

@@ -8,7 +8,7 @@
 
 export type CheckLevel = 'ok' | 'warn' | 'error'
 /** what the check's button does (the page maps it to an action) */
-export type CheckAction = 'openOutput' | 'screens' | 'plans' | 'backupNow' | 'phone' | 'sound'
+export type CheckAction = 'openOutput' | 'screens' | 'plans' | 'backupNow' | 'phone' | 'sound' | 'logo'
 
 export interface Check {
   id: string
@@ -22,8 +22,9 @@ export interface Check {
 export interface ItemProblem {
   title: string
   /** missing: its song/media/presentation was deleted; file: a picture, video or track file isn't there;
-   *  warning: it can't be built as it is (no Bible version for a scripture item, an empty song…) */
-  kind: 'missing' | 'file' | 'warning'
+   *  blank: it would show nothing (no Bible version for a scripture item, an invalid reference, an empty song or
+   *  presentation); warning: it shows, but not all of it (some verses missing from a pasted version…) */
+  kind: 'missing' | 'file' | 'blank' | 'warning'
 }
 
 export interface PreflightInput {
@@ -40,15 +41,18 @@ export interface PreflightInput {
   sound: { chosen: string; connected: boolean }
   /** the plan plays something with sound (a video, a backing track, an audio file) */
   planHasSound: boolean
-  server: { enabled: boolean; running: boolean; error?: string; clients: number }
+  server: { enabled: boolean; running: boolean; clients: number }
+  /** when "Back up now" last saved a copy (the automatic ones stay on this disk: no help if the laptop dies) */
   lastBackupAt?: number
+  /** the logo file chosen in Settings is gone (the Logo button would show nothing) */
+  logoMissing?: boolean
   readOnly: boolean
   update?: { version: string }
 }
 
 const DAY = 24 * 60 * 60 * 1000
-/** a backup older than this is worth renewing before a service */
-export const BACKUP_STALE_DAYS = 7
+/** a "Back up now" copy older than this is worth renewing before a service */
+export const BACKUP_STALE_DAYS = 14
 
 export function preflight(i: PreflightInput): Check[] {
   const out: Check[] = []
@@ -76,6 +80,7 @@ export function preflight(i: PreflightInput): Check[] {
     if (count('missing'))
       add({ id: 'missing', level: 'error', key: 'itemsMissing', params: { count: count('missing'), names: names('missing') }, action: 'plans' })
     if (count('file')) add({ id: 'files', level: 'error', key: 'filesMissing', params: { count: count('file'), names: names('file') }, action: 'plans' })
+    if (count('blank')) add({ id: 'blank', level: 'error', key: 'itemsBlank', params: { count: count('blank'), names: names('blank') }, action: 'plans' })
     if (count('warning'))
       add({ id: 'warnings', level: 'warn', key: 'itemsWarn', params: { count: count('warning'), names: names('warning') }, action: 'plans' })
     if (!i.itemProblems.length) add({ id: 'items', level: 'ok', key: 'itemsOk' })
@@ -86,6 +91,7 @@ export function preflight(i: PreflightInput): Check[] {
   else if (i.displays < 2) add({ id: 'output', level: 'warn', key: 'oneScreen', action: 'screens' })
   else if (i.outputOnMainScreen) add({ id: 'output', level: 'warn', key: 'outputOnMain', action: 'screens' })
   else add({ id: 'output', level: 'ok', key: 'outputOk', params: { count: i.displays } })
+  if (i.logoMissing) add({ id: 'logo', level: 'warn', key: 'logoMissing', action: 'logo' })
 
   // sound (only worth a line when the plan plays something, or a chosen output is gone)
   if (i.sound.chosen && !i.sound.connected)
@@ -93,13 +99,13 @@ export function preflight(i: PreflightInput): Check[] {
   else if (i.planHasSound) add({ id: 'sound', level: 'ok', key: i.sound.chosen ? 'soundChosen' : 'soundDefault', params: { label: i.sound.chosen } })
 
   // phone remote / stage display
-  if (i.server.enabled && !i.server.running) add({ id: 'phone', level: 'warn', key: 'phoneDown', params: { error: i.server.error || '?' }, action: 'phone' })
+  if (i.server.enabled && !i.server.running) add({ id: 'phone', level: 'warn', key: 'phoneDown', action: 'phone' })
   else if (i.server.enabled) add({ id: 'phone', level: 'ok', key: 'phoneOk', params: { count: i.server.clients } })
 
   // a recent backup
   const age = i.lastBackupAt ? Math.floor((i.now - i.lastBackupAt) / DAY) : undefined
   if (age === undefined) add({ id: 'backup', level: 'warn', key: 'noBackup', action: 'backupNow' })
-  else if (age >= BACKUP_STALE_DAYS) add({ id: 'backup', level: 'warn', key: 'oldBackup', params: { days: age }, action: 'backupNow' })
+  else if (age >= BACKUP_STALE_DAYS) add({ id: 'backup', level: 'warn', key: 'oldBackup', params: { count: age }, action: 'backupNow' })
   else add({ id: 'backup', level: 'ok', key: 'backupOk' })
 
   // a downloaded update installs when the app closes: good to know it won't restart mid-service

@@ -27,6 +27,8 @@ All notable changes to ICCWorship are documented here. The format is based on
 - The installed app has hardened Electron fuses and checks its own files for tampering.
 - The app's windows load their pages from the app's own `app://iccworship` address instead of `file://`, which serves
   only the app's built pages. The last Electron fuse (extra `file://` privileges) is now off too.
+  *Upgrading from 1.0:* the stage window's **Chords** toggle starts off once (it was remembered under the old
+  address); turn it on again if the band uses it.
 - Developer and test switches (environment variables) are ignored by the installed app.
 - Phones and stage screens only load slide images from the app's own links, and imported song and Bible text
   is cleaned of markup more thoroughly (findings of GitHub's CodeQL scan).
@@ -42,25 +44,35 @@ All notable changes to ICCWorship are documented here. The format is based on
 - **The media library keeps its own copy** of the pictures, videos and sound you add, and of the logo, in
   `Documents\ICCWorship\media` (like EasyWorship and ProPresenter). Moving or deleting the original file no longer
   breaks a slide or a background, and **Back up now** includes them, so a restore on a new computer brings them
-  back. Deleting an item from the library removes its copy (unless a theme or the logo still uses it). Turn it off in
+  back. Deleting an item from the library removes its copy, unless a plan slide, the logo or the screen still uses it
+  (replacing the logo removes the old one's copy the same way). Turn it off in
   Settings → Backup for a very large video library on another drive (items then link to the original file, as
-  before). A backup too big for one file leaves the media out and says which folder to copy.
+  before). A backup too big for one file, or for the USB stick, leaves the media out and says which folder to copy.
+  Restoring a backup on the same computer doesn't unpack media files that are already there.
 - **"Ready for Sunday?"** (Live page → ✅): one click before the service checks the plan (deleted songs or media,
   video and picture files that moved, Bible versions), the projector window and second screen, the sound output,
-  the phone remote and stage display, and how recent the last backup is — each problem with a button to fix it.
+  the phone remote and stage display, the logo file, and how recent the last **Back up now** copy is (the automatic
+  backups stay on the same computer) — each problem with a button to fix it.
 - Each release also includes a **software bill of materials** (`ICCWorship-x.y.z.sbom.cdx.json`, CycloneDX) listing
   every third-party package inside the app, with a GitHub attestation like the installers'.
 - **Automatic updates for the installed version.** With "Check for new versions" on (Settings → About), the
-  installed ICCWorship also downloads a new version by itself — never while something is on screen — and installs it
-  when you close the app, or right away with **Restart now** when nothing is live. Untick "Download new versions…"
-  to only be told. The download is checked against the release's SHA-512. The portable version only tells you.
+  installed ICCWorship also downloads a new version by itself — it never starts while a service may be running, and
+  a download running when one starts is stopped (the next check resumes it) — and installs it when you close the app
+  with nothing on screen, or right away with **Restart now** when nothing is live. Closing it mid-song never installs.
+  Untick "Download new versions…" (or the check) to only be told: that also stops a download and keeps a downloaded
+  one from installing. The download is checked against the release's SHA-512. The portable version only tells you.
 - **Put it back after a crash.** If ICCWorship closes unexpectedly (a crash, a power cut, Windows restarting for an
-  update) while a plan item is on screen, the next start offers it back: one click on **▶ Put it back** shows that
-  item again on the slide it was on. Nothing goes on screen by itself, and a normal quit leaves nothing to offer.
+  update) during a plan item, the next start offers it back: one click on **▶ Put it back** shows that item again on
+  the slide it was on (or the one Esc cleared). Nothing goes on screen by itself, it does nothing if something else is
+  live by then, and a normal quit — or shutting Windows down with nothing on screen — leaves nothing to offer.
 - **The portable version is truly portable now.** `ICCWorship-Portable-x.y.z.exe` keeps the data, settings,
   backups and logs in an `ICCWorship Data` folder beside the exe, so it runs from a USB stick and leaves nothing on
-  the computer. (Before, it used `Documents\ICCWorship` on whichever PC it ran on.) If it can't write there, it says
-  so and uses Documents for that session.
+  the computer. (Before, it used `Documents\ICCWorship` on whichever PC it ran on.)
+  *Upgrading from portable 1.0:* until there is an `ICCWorship Data` folder beside the exe, it keeps using the data in
+  `Documents\ICCWorship` and says how to move it. On a write-protected stick it opens the stick's data read-only
+  (a red bar says nothing is saved); with no data and nowhere to write, it uses Documents and says so.
+- **Only one ICCWorship runs at a time**, also across the installed and a portable copy: opening a second one says
+  the other is already open, instead of starting a second projector window over the live one.
 - The main window opens at the size and place it had last time (maximized the first time), never on a screen that
   is no longer connected.
 - **Backing tracks.** No musicians? Give a song an instrumental (Songs → 🎵 Backing track): the music plays through the
@@ -207,7 +219,7 @@ All notable changes to ICCWorship are documented here. The format is based on
   wrong slide.
 - If a preview can't be prepared, the operator now sees a message instead of a stale or empty preview.
 - The README now says Node.js 22.12 or newer is needed to build (Electron 45 requires it).
-- The README now explains that the portable version keeps its data in the PC's `Documents\ICCWorship` folder.
+- The README now explains where the portable version keeps its data (see Added).
 
 ## [1.0.0] - 2026-11-24
 

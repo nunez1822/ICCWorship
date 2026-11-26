@@ -4,7 +4,7 @@
  * is ready, goes here.
  */
 import { app, crashReporter } from 'electron'
-import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { dataLocation, type DataLocation } from './portable'
 import { dataRoot, setPortableRoot } from './paths'
@@ -15,30 +15,50 @@ import { dataRoot, setPortableRoot } from './paths'
 // its own is a user setting (data on another drive or a synced folder) and must not move the profile, the logs or
 // the lock: that would lose localStorage and allow a second running copy.
 const testData = process.env.ICCWORSHIP_DATA
-if (testData && process.env.ICCWORSHIP_TEST_PROFILE === '1') {
+export const isTestProfile = !!testData && process.env.ICCWORSHIP_TEST_PROFILE === '1'
+if (testData && isTestProfile) {
   app.setPath('userData', join(testData, '.userdata'))
   app.setPath('crashDumps', join(testData, '.userdata', 'Crashpad'))
 }
 
 // Portable exe (see portable.ts): the data AND the profile, logs and crash dumps go in "ICCWorship Data" beside the
-// exe, so nothing is left on the computer. Its own profile also gives it its own single-instance lock.
+// exe, so nothing is left on the computer. Its own profile also gives it its own single-instance lock (so
+// machineLock.ts keeps a second copy from running).
 function canWrite(dir: string): boolean {
+  const created = !existsSync(dir)
   try {
     mkdirSync(dir, { recursive: true })
     const probe = join(dir, `.write-test-${process.pid}`)
     writeFileSync(probe, '')
-    unlinkSync(probe)
+    try {
+      unlinkSync(probe)
+    } catch {
+      /* it was written, so the folder is writable (antivirus may hold the probe a moment) */
+    }
     return true
   } catch {
+    try {
+      if (created) rmdirSync(dir) // don't leave an empty folder that would count as "the data is here" next time
+    } catch {
+      /* not created after all, or not empty */
+    }
     return false
   }
 }
-export const location: DataLocation = dataLocation({ env: process.env, isPackaged: app.isPackaged, canWrite })
+export const location: DataLocation = dataLocation({
+  env: process.env,
+  isPackaged: app.isPackaged,
+  exists: existsSync,
+  canWrite,
+  documentsHasData: () => existsSync(join(app.getPath('documents'), 'ICCWorship', 'data', 'meta.json'))
+})
 if (location.mode === 'portable') {
   setPortableRoot(location.root)
   app.setPath('userData', join(location.root, '.app'))
   app.setPath('crashDumps', join(location.root, '.app', 'Crashpad'))
 }
+// a write-protected stick: its data, read-only (prepareData); the profile and logs can't go there
+if (location.mode === 'portable-readonly') setPortableRoot(location.root, { locked: true })
 
 // Native crashes (GPU driver, video decoder) are written as minidumps to %APPDATA%\ICCWorship\Crashpad.
 // Nothing is ever uploaded; the user can choose to include them in Help → Export diagnostics.

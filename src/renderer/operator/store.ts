@@ -50,7 +50,7 @@ interface AppState {
   selectItem: (id?: string) => void
   toast: (text: string, kind?: Toast['kind'], ms?: number, action?: Toast['action']) => void
   /** readOnly: the data was written by a newer ICCWorship; nothing is saved this session */
-  dataStatus?: { readOnly: boolean; newerSchema?: number; upgradeFailed?: boolean }
+  dataStatus?: { readOnly: boolean; newerSchema?: number; upgradeFailed?: boolean; locked?: boolean }
 }
 
 let toastId = 0
@@ -193,6 +193,7 @@ export const useApp = create<AppState>((set, get) => ({
     // this window was restarted after a crash or a freeze: what the operator has to know
     for (const n of await api.app.notices()) {
       if (n === 'portableFallback') get().toast(i18n.t('data.portableFallback'), 'err', 30_000)
+      if (n === 'portableDocuments') get().toast(i18n.t('data.portableDocuments'), 'info', 60_000)
       if (n !== 'operatorRecovered') continue
       get().toast(i18n.t('recovery.operatorRecovered'), 'err', 30_000)
       // the music played on while this window was down: the lyrics catch up with it (see followTick)

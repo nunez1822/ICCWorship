@@ -1,6 +1,6 @@
 # 0006 · Song and Bible content stays English + Spanish
 
-**Status:** Accepted — revisit before 2.0
+**Status:** Accepted (2026-11), revisit before 2.0
 
 ## Context
 The data model is bilingual by construction: `BiText { en, es }`, song sections with `en` / `es` lyrics,

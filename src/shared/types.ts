@@ -318,6 +318,8 @@ export interface Settings {
   autoUpdate?: boolean
   /** when the update check last ran (epoch ms) — set by main only */
   lastUpdateCheck?: number
+  /** when "Back up now" last saved a backup on this computer (epoch ms) — set by main only */
+  lastManualBackup?: number
   /** troubleshooting: turn off GPU acceleration (takes effect after a restart) */
   disableHwAccel?: boolean
   /** where videos, audio and backing tracks play ('' / unset = the Windows default). The id is what Chromium

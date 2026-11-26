@@ -82,9 +82,12 @@ same time**, switchable live with one key.
 
 1. Download **`ICCWorship-Setup-x.y.z.exe`** (installer) or **`ICCWorship-Portable-x.y.z.exe`** (no installation needed) from the Releases page.
    The **portable** version keeps everything (songs, plans, settings, backups, logs) in an **`ICCWorship Data`** folder
-   right beside the exe, so it runs from a USB stick and leaves nothing on the computer. If that folder can't be
-   written (a locked stick), it says so and uses `Documents\ICCWorship` for that session.
-2. Windows SmartScreen may warn because the app is not code-signed (signing certificates cost money). Click **More info → Run anyway**.
+   right beside the exe, so it runs from a USB stick and leaves nothing on the computer. On a write-protected stick
+   it opens that data read-only (nothing is saved, a red bar says so). Already used an older portable version, which
+   kept the data in `Documents\ICCWorship`? Until there is an `ICCWorship Data` folder beside the exe it keeps using
+   that data; to carry it with the exe, create the folder and copy everything from `Documents\ICCWorship` into it.
+   Only one ICCWorship (installed or portable) can be open at a time.
+2. Windows SmartScreen may warn because the app is not code-signed yet. Click **More info → Run anyway**.
 3. **Optional: verify your download.** Each release lists SHA-256 checksums (`SHA256SUMS.txt`). In PowerShell,
    `(Get-FileHash .\ICCWorship-Setup-x.y.z.exe).Hash -eq '<checksum from SHA256SUMS.txt>'` must print `True`
    (`Get-FileHash` shows the hash in capital letters; the comparison ignores case). With the GitHub CLI you can also confirm the

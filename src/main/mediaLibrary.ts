@@ -7,9 +7,11 @@ import { mkdirSync, statSync, unlinkSync } from 'node:fs'
 import { statfs } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 import { libraryFileName, libraryFileToDelete, MEDIA_DIR } from '@shared/mediaLibrary'
-import type { MediaItem, Theme } from '@shared/types'
+import type { MediaItem, ServicePlan } from '@shared/types'
 import { copyFileAtomic } from './atomicWrite'
+import { afterBackups } from './backup'
 import { assertWritable, db, getSettings } from './db'
+import { live } from './live'
 import { log } from './log'
 import { dataRoot } from './paths'
 import { within } from './pathGuard'
@@ -46,19 +48,41 @@ export async function copyIntoLibrary(src: unknown): Promise<CopyResult> {
   }
 }
 
-/** db:remove('media', id): delete the item, and its library copy if nothing else shows it any more */
+/**
+ * db:remove('media', id): delete the item, and its library copy if nothing else shows it any more (see
+ * deleteCopyIfUnused).
+ */
 export function removeMediaItem(id: string): void {
   const store = db()
   const item = store.get<MediaItem>('media', id)
   store.remove('media', id)
-  if (!item) return
-  const file = libraryFileToDelete(item, { media: store.list<MediaItem>('media'), themes: store.list<Theme>('themes'), logoPath: getSettings().logoPath })
-  if (!file || store.readOnly) return
-  const abs = join(dataRoot(), file)
-  if (!within(join(dataRoot(), MEDIA_DIR), abs)) return
-  try {
-    unlinkSync(abs)
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') log.warn('could not delete a media library file:', (e as NodeJS.ErrnoException).code || 'error')
-  }
+  if (item) deleteCopyIfUnused(item)
+}
+
+/**
+ * A library copy lost its owner (a removed item, a replaced or cleared logo): delete it unless something else still
+ * shows it — another item, the logo, a plan slide, or what is on the projector right now. The file is deleted once no
+ * backup or restore is running (a backup streaming GBs of media would fail on a file that vanished under it).
+ */
+export function deleteCopyIfUnused(owner: Pick<MediaItem, 'id' | 'path'>): void {
+  const store = db()
+  if (store.readOnly) return
+  const toDelete = () =>
+    libraryFileToDelete(owner, {
+      media: store.list<MediaItem>('media'),
+      logoPath: getSettings().logoPath,
+      elsewhere: [store.list<ServicePlan>('plans'), live.state]
+    })
+  if (!toDelete()) return
+  afterBackups(() => {
+    const file = toDelete() // checked again: the plans or the screen may have changed while a backup ran
+    if (!file) return
+    const abs = join(dataRoot(), file)
+    if (!within(join(dataRoot(), MEDIA_DIR), abs)) return
+    try {
+      unlinkSync(abs)
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') log.warn('could not delete a media library file:', (e as NodeJS.ErrnoException).code || 'error')
+    }
+  })
 }

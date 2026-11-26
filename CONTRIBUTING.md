@@ -70,7 +70,8 @@ Every PR gets, from CI:
   checked. `packaged` uploads an **ICCWorship-test-build** artifact (the unpacked app, unsigned, kept a week):
   reviewers and testers can run a PR without building it.
 - `changelog`: a PR that changes the app must add a line under `[Unreleased]` in `CHANGELOG.md`, or carry the
-  `no-changelog` label.
+  `no-changelog` label (for changes users won't notice: refactors, tests, CI). A maintainer applies the label;
+  contributors from forks can't, so just say so in the PR.
 - `dependency-review`: no new dependency with a known vulnerability or a licence outside the allowed list.
 - CodeQL and OpenSSF Scorecard (on `main`) report under Security → Code scanning.
 
@@ -90,8 +91,14 @@ Commit messages and PRs can be in English or Spanish; both are fine.
 2. Merge that PR (squash) once CI is green. The release workflow sees the new version on `main`, **tags it
    `vX.Y.Z` itself**, builds the installers on GitHub's servers, checks the packaged app starts, and creates a
    **draft** release with: both exes, `SHA256SUMS.txt`, build provenance, an SBOM (`.sbom.cdx.json`, attested too)
-   and the self-update files (`latest.yml`, `.blockmap`). If a run fails, fix it and use **Run workflow** on the
-   Release workflow: it rebuilds the existing tag.
+   and the self-update files (`latest.yml`, `.blockmap`).
+
+   **If the run fails:** **Run workflow** (Actions → Release) rebuilds the *tagged commit*, so it only helps when the
+   failure had nothing to do with the code (a runner or network problem). When the code or the workflow needs a fix,
+   merge the fix to `main`, delete the unpublished tag (`git push origin :refs/tags/vX.Y.Z`, and delete its draft
+   release if there is one), then **Run workflow** on `main`: it tags `main` as it is now and builds that. Never
+   reuse the number of a *published* release (the workflow refuses): release a patch instead. A rebuild replaces its
+   own earlier draft.
 3. **Download and install the draft's files and try them** (the P0 e2e cases; `/e2e-test packaged`) before you press
    Publish. Releases are immutable: published files can never be replaced, and the version number can't be reused.
    **Publishing is what ships it:** installed copies with automatic updates on download it within a day.

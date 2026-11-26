@@ -48,7 +48,36 @@ export function appFile(url: string, root: string): string | null {
   } catch {
     return null
   }
+  // a NUL or a drive / stream colon never names one of our files
+  if (/[\0:]/.test(rel)) return null
   const file = join(root, rel)
   if (!within(root, file) || !APP_TYPES[extname(file).toLowerCase()]) return null
   return file
+}
+
+/** the pages that may use the IPC bridge (the phone remote is served over HTTP, never from here) */
+export const APP_PAGES = ['index.html', 'output.html', 'stage.html'] as const
+
+/**
+ * Is this frame URL one of our own pages? Exactly app://iccworship/index.html, output.html or stage.html (any query
+ * or hash), or the same page from the dev server in development. Anything else served by app:// (another .html, an
+ * .svg) is not a page that may talk to main. The IPC and permission trust boundary: unit tested.
+ */
+export function isAppPageUrl(url: string, devUrl?: string): boolean {
+  let u: URL
+  try {
+    u = new URL(url)
+  } catch {
+    return false
+  }
+  const page = (APP_PAGES as readonly string[]).includes(u.pathname.slice(1))
+  if (devUrl) {
+    try {
+      return page && u.origin === new URL(devUrl).origin
+    } catch {
+      return false
+    }
+  }
+  // not URL.origin: for a custom scheme it is "null"
+  return page && u.protocol === `${APP_SCHEME}:` && u.host === APP_HOST
 }

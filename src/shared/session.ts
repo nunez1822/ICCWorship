@@ -67,3 +67,59 @@ export function snapshotChanged(a: LiveSnapshot | undefined, b: LiveSnapshot | u
   if (!a || !b) return a !== b
   return a.planId !== b.planId || a.itemId !== b.itemId || a.itemIndex !== b.itemIndex || a.slideIndex !== b.slideIndex
 }
+
+/**
+ * Keeps session.json's "what was live" in step with the live state without writing on every change: a new place is
+ * written at most once per `delayMs`, only when it moved, and never after the run ended (a live change while the
+ * windows close must not mark a normal quit unclean again). The writer, clock and timer are injected so the rules are
+ * unit tested (tests/session.test.ts); main wires them to the file (src/main/session.ts).
+ */
+export class LiveRecorder {
+  /** what session.json says now (undefined: nothing live) */
+  private written: LiveSnapshot | undefined
+  /** the place waiting to be written (null: nothing waiting; { snap: undefined }: "nothing live" waiting) */
+  private pending: { snap: LiveSnapshot | undefined } | null = null
+  private timer: unknown
+  private ended = false
+
+  constructor(
+    private io: {
+      write: (live: LiveSnapshot | undefined) => void
+      now: () => number
+      setTimer: (fn: () => void, ms: number) => unknown
+      clearTimer: (t: unknown) => void
+    },
+    private delayMs = 1000
+  ) {}
+
+  /** the live state changed */
+  remember(l: Parameters<typeof snapshotOf>[0]): void {
+    if (this.ended) return
+    const snap = snapshotOf(l, this.io.now())
+    // compare with what will be on disk: the waiting place if there is one (even "nothing live"), else the written one
+    if (!snapshotChanged(this.pending ? this.pending.snap : this.written, snap)) return
+    this.pending = { snap }
+    this.timer ??= this.io.setTimer(() => {
+      this.timer = undefined
+      this.flush()
+    }, this.delayMs)
+  }
+
+  /** write the waiting place now (Windows is shutting down mid-service, or the timer fired) */
+  flush(): void {
+    if (this.timer !== undefined) this.io.clearTimer(this.timer)
+    this.timer = undefined
+    if (!this.pending || this.ended) return
+    this.written = this.pending.snap
+    this.pending = null
+    this.io.write(this.written)
+  }
+
+  /** the run ended normally: nothing more is written */
+  end(): void {
+    this.ended = true
+    if (this.timer !== undefined) this.io.clearTimer(this.timer)
+    this.timer = undefined
+    this.pending = null
+  }
+}

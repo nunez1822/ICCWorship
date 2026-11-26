@@ -24,6 +24,12 @@ const fail = (m) => {
 
 if (!kind) fail('usage: pnpm release:prepare <patch|minor|major|x.y.z> [--dry-run]')
 
+/** today on this computer (the release date in CHANGELOG.md and the release notes, never tomorrow's UTC date) */
+function localToday() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 // start from an up-to-date, clean main: the release is exactly what is on main
 if (run('git', 'status', '--porcelain')) fail('the working tree has changes: commit or stash them first')
 if (run('git', 'rev-parse', '--abbrev-ref', 'HEAD') !== 'main') fail('switch to main first (git switch main)')
@@ -38,11 +44,15 @@ let version
 let cut
 try {
   version = nextVersion(current, kind)
-  cut = cutChangelog(readFileSync(logFile, 'utf8'), version, new Date().toISOString().slice(0, 10))
+  cut = cutChangelog(readFileSync(logFile, 'utf8'), version, localToday())
 } catch (e) {
   fail(e.message)
 }
 if (run('git', 'tag', '--list', `v${version}`)) fail(`tag v${version} already exists`)
+const branch = `release/v${version}`
+if (run('git', 'branch', '--list', branch)) fail(`a local branch ${branch} already exists: delete it first (git branch -D ${branch})`)
+if (run('git', 'ls-remote', '--heads', 'origin', branch))
+  fail(`origin already has ${branch}: open its PR, or delete it first (git push origin --delete ${branch})`)
 
 console.log(`Release ${current} → ${version}\n\n${cut.notes}\n`)
 if (dry) {
@@ -50,13 +60,39 @@ if (dry) {
   process.exit(0)
 }
 
-const branch = `release/v${version}`
-run('git', 'switch', '-c', branch)
-writeFileSync(pkgFile, setPackageVersion(pkgText, version))
-writeFileSync(logFile, cut.text)
-run('git', 'add', 'package.json', 'CHANGELOG.md')
-run('git', 'commit', '-m', `Release ${version}`)
-run('git', 'push', '-u', 'origin', branch)
+// gh opens the PR at the end: check it can before changing anything
+try {
+  run('gh', 'auth', 'status')
+} catch {
+  fail('the GitHub CLI is not signed in: run `gh auth login` first')
+}
+
+let pushed = false
+/** something failed half-way: back to main, without the half-made release branch */
+function undo(e) {
+  console.error(`✗ ${e instanceof Error ? e.message.split('\n')[0] : e}`)
+  try {
+    run('git', 'reset', '--hard') // the tree was clean when this started (checked above): only our two edits go
+    run('git', 'switch', 'main')
+    run('git', 'branch', '-D', branch)
+  } catch {
+    console.error(`  could not switch back to main by itself: run git switch main && git branch -D ${branch}`)
+  }
+  if (pushed) console.error(`  ${branch} was already pushed: open its PR on GitHub, or delete it (git push origin --delete ${branch})`)
+  process.exit(1)
+}
+
+try {
+  run('git', 'switch', '-c', branch)
+  writeFileSync(pkgFile, setPackageVersion(pkgText, version))
+  writeFileSync(logFile, cut.text)
+  run('git', 'add', 'package.json', 'CHANGELOG.md')
+  run('git', 'commit', '-m', `Release ${version}`)
+  run('git', 'push', '-u', 'origin', branch)
+  pushed = true
+} catch (e) {
+  undo(e)
+}
 const body = `Release **${version}**. Merging this (squash) makes the release workflow tag \`v${version}\` on main, build the
 installers on GitHub's servers and create a **draft** release with checksums, provenance and the update files.
 
@@ -68,9 +104,13 @@ will download it.
 
 ${cut.notes}
 `
-const url = execFileSync('gh', ['pr', 'create', '--base', 'main', '--head', branch, '--title', `Release ${version}`, '--body-file', '-'], {
-  cwd: root,
-  input: body,
-  encoding: 'utf8'
-}).trim()
-console.log(`✓ release PR: ${url}`)
+try {
+  const url = execFileSync('gh', ['pr', 'create', '--base', 'main', '--head', branch, '--title', `Release ${version}`, '--body-file', '-'], {
+    cwd: root,
+    input: body,
+    encoding: 'utf8'
+  }).trim()
+  console.log(`✓ release PR: ${url}`)
+} catch (e) {
+  undo(e)
+}

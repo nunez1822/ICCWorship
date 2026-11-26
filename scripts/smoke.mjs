@@ -417,7 +417,10 @@ try {
     return {
       origin: location.origin,
       page: await status('app://iccworship/index.html'),
-      outside: await status('app://iccworship/%2e%2e/main/index.js'),
+      // an encoded slash survives the URL parser (a plain "../" or "%2e%2e/" is resolved before the handler sees it,
+      // so it couldn't tell whether the guard works): out/main/index.js exists, so only the guard makes this a 404
+      outside: await status('app://iccworship/..%2fmain%2findex.js'),
+      outsideBackslash: await status('app://iccworship/..%5cmain%5cindex.js'),
       wasmLicence: await status('app://iccworship/pdfjs-wasm/LICENSE_QCMS'),
       file: await status('file:///C:/Windows/win.ini')
     }
@@ -428,6 +431,7 @@ try {
     appChecks.origin === 'app://iccworship' &&
     appChecks.page === 200 &&
     appChecks.outside === 404 &&
+    appChecks.outsideBackslash === 404 &&
     appChecks.wasmLicence === 404 &&
     appChecks.file === 'refused'
   console.log('pages served from app://, nothing else reachable:', JSON.stringify(appChecks), appOk ? '✓' : '✗')

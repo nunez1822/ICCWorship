@@ -267,16 +267,27 @@
 **Steps**
 1. Install an older release (`ICCWorship-Setup-<old>.exe`) while a newer one is published. Settings → About →
    tick "Check for new versions once a day"; leave "Download new versions and install them when ICCWorship closes" ticked.
-2. Put a song live; click 🔎 Check now. Clear the screen (Esc), Check now again; wait.
+2. Put a song live; click 🔎 Check now. Clear the screen (Esc — the item is still live, paused) and **Clear all**
+   so nothing is live; Check now again; wait.
 3. Put a song live and click **Restart now** on the toast; clear the screen and click it again.
+4. With an update downloaded again (reinstall the old release, steps 1–2): put a song live and **close the window**
+   (or Quit in the "window crashed" question); relaunch.
+5. With an update downloaded: untick "Download new versions…", then quit with nothing on screen.
+6. Untick it while "Downloading… n%" shows; separately, put a song live while it downloads.
 **Expected**
-- 2: while live nothing downloads; once nothing is live, "Downloading ICCWorship x.y.z… n%", then a toast
-  "ICCWorship x.y.z is ready. It installs when you close ICCWorship." with **Restart now**.
+- 2: while live, Check now says "ICCWorship x.y.z is available. It downloads when nothing is on screen." and
+  nothing downloads; once nothing is live, "Downloading ICCWorship x.y.z… n%", then a toast
+  "ICCWorship x.y.z is ready. It installs when you close ICCWorship with nothing on screen." with **Restart now**.
 - 3: while live, "Not while something is on screen…"; otherwise the app closes, installs silently and opens the new
-  version with all data. Quitting normally instead installs it too.
+  version with all data. Quitting normally with nothing on screen installs it too.
+- 4: **nothing installs**: the old version starts again at once (`main.log`: `update x.y.z not installed at this
+  quit`). It installs at a later quit with nothing on screen.
+- 5: nothing installs; the old version is still there.
+- 6: the download stops (`update download stopped: updates turned off` / `something went live`); with updates still
+  on, the next check (or Check now with nothing live) starts it again.
 - Unticking "Download new versions…" makes Check now show the "is available" button (download page) instead.
 - `main.log` has `update check: latest x.y.z (newer)`, `downloading update x.y.z`, `update x.y.z downloaded…` and no
-  web page text.
+  web page text or URLs (updater errors are logged as short `ERR_UPDATER_…` codes).
 ### TC-BAK-15 · A manual backup carries the backing tracks; restoring it brings them back  `P1`
 **Pre:** a song with a backing track (TC-SONG-12)
 **Steps**
@@ -394,12 +405,27 @@ presentations)
 **Steps**
 1. `pnpm build:win`. Copy `dist/ICCWorship-Portable-<version>.exe` into an empty folder (or a USB stick) and run it.
 2. Add a song; Settings → About; quit.
-3. Make that folder read-only (or use a write-protected stick) and run the exe again.
+3. On a write-protected stick holding that folder (or deny yourself **Write** on the folder in Properties → Security
+   → Advanced: the Read-only checkbox on a folder doesn't stop writing), run the exe again.
+4. Copy the exe alone to a new folder you can't write to (e.g. a folder under `C:\Program Files` as a standard
+   user), with no `ICCWorship Data` beside it, and run it.
+5. Copy the exe alone to an empty folder on a PC that already has data in `Documents\ICCWorship` (e.g. from the
+   installed app or portable 1.0), and run it.
+6. With the installed ICCWorship open, run the portable exe (and the other way round).
 **Expected**
 - An `ICCWorship Data` folder appears beside the exe with `data\`, `backups\` and `.app\logs\main.log`; nothing new in
   `Documents\ICCWorship` or `%APPDATA%\ICCWorship`.
 - About shows that folder as the data folder, marked "portable".
-- Step 3: a toast says the portable ICCWorship can't write to its folder and uses `Documents\ICCWorship` this time.
+- 3: the song from step 2 is there; a red bar says the folder is write-protected and nothing is saved; About says
+  "portable, read-only…". Nothing is written to the stick.
+- 4: a toast says the portable ICCWorship can't write to its folder and uses `Documents\ICCWorship` this time;
+  About says so too ("portable, but the folder beside the exe can't be written…"), and no empty `ICCWorship Data`
+  folder is left behind.
+- 5: it opens the data in `Documents\ICCWorship` (no sample songs, the same PIN); a toast says how to move it beside
+  the exe; About says "portable, using Documents\ICCWorship…". Creating `ICCWorship Data` beside the exe makes the
+  next start portable.
+- 6: a message "ICCWorship is already running" / "ICCWorship ya está abierto"; the second copy doesn't start (no
+  second projector window).
 - `pnpm packaged-check` covers the first expectation automatically ("portable: data, settings and logs are kept
   beside the exe").
 
@@ -409,6 +435,7 @@ presentations)
    **Back up now**.
 2. Delete everything in `.e2e-data/media/`. **Restore** that backup.
 3. Make the media folder over 4 GB (manual: big videos), **Back up now**.
+4. Back up to a stick smaller than the media library.
 **Expected**
 - `pnpm smoke` covers 1–2 ("the media library is in the backup and comes back on restore").
 - 1: the .zip holds `media/<id>.mp4`, `media/<id>.jpg`, `media/<id>.png` (stored, not recompressed) and its
@@ -417,4 +444,9 @@ presentations)
   `media/` that the backup doesn't have.
 - Automatic backups (`auto-…zip`) never contain `media/`.
 - 3: "Backup saved WITHOUT the media library…" (the tracks are still in it, unless they are too big too).
+- 4 (manual): **Back up now** to a USB stick with less room than the media library but enough for the data → the
+  same "saved WITHOUT the media library…" message (never "Nothing was saved"). Too small even for the data and
+  tracks → saved without them too; only a stick too small for the data itself fails.
+- Restoring a backup on the same PC (media already in `media/`) needs no room for the media again, and doesn't
+  touch those files (a video playing meanwhile keeps playing).
 

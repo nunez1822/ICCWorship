@@ -4,12 +4,15 @@
 // finally stops retrying; the operator is told every time.
 import { app, type BrowserWindow } from 'electron'
 import { Heartbeat, ReloadBudget } from '@shared/recovery'
+import { onScreen } from '@shared/updatePolicy'
 import { lifecycle, notify, open, pendingNotices, wins } from './appState'
 import { db } from './db'
 import { messageBox } from './dialogs'
 import { t } from './i18n'
+import { live } from './live'
 import { log } from './log'
 import { loadPage } from './pages'
+import { endSession, flushSession } from './session'
 
 export type Guarded = 'output' | 'stage'
 const winOf = (kind: Guarded) => (kind === 'output' ? wins.output : wins.stage)
@@ -90,7 +93,7 @@ let operatorStable: ReturnType<typeof setTimeout> | undefined
 // "The window is not responding" and Chrome's "Page Unresponsive", the volunteer is asked instead of the page being
 // killed: something long may still finish. The question closes by itself if the page starts beating again.
 const OPERATOR_STALL_MS = 10_000
-export const operatorBeat = new Heartbeat(() => void askAboutFrozenOperator(), OPERATOR_STALL_MS)
+const operatorBeat = new Heartbeat(() => void askAboutFrozenOperator(), OPERATOR_STALL_MS)
 /** the open "not responding" question (aborted when the page answers again) */
 let frozenAsk: AbortController | null = null
 /** the volunteer chose "Restart the window": the crash that follows is ours, reload without asking again */
@@ -142,7 +145,6 @@ export function setOperatorBusy(busy: boolean): void {
   if (busy) operatorBeat.pause()
   else operatorBeat.resume()
 }
-export const isOperatorBusy = () => operatorBusy
 
 export function guardOperator(win: BrowserWindow): void {
   win.webContents.on('did-finish-load', () => {
@@ -191,10 +193,13 @@ export function guardOperator(win: BrowserWindow): void {
     log.warn('operator window unresponsive')
     if (!operatorBusy) void askAboutFrozenOperator()
   })
-  // Windows shutdown / log off skips before-quit: save now
+  // Windows shutdown / log off skips before-quit: save now. With nothing on screen it is a normal end of the day (no
+  // "closed unexpectedly" offer next time); mid-service (a forced restart for an update) the place is offered back.
   win.on('session-end', () => {
     log.info('Windows session ending: saving')
     db().flush()
+    if (onScreen(live.state)) flushSession()
+    else endSession()
   })
 }
 

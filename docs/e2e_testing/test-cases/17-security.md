@@ -248,12 +248,17 @@ An error's message can quote what a page was reading (a SyntaxError quotes the J
 **Steps**
 1. In the operator page: `location.origin`.
 2. `(await fetch('app://iccworship/index.html')).status`,
-   `(await fetch('app://iccworship/%2e%2e/main/index.js')).status`,
+   `(await fetch('app://iccworship/..%2fmain%2findex.js')).status`,
+   `(await fetch('app://iccworship/..%5cmain%5cindex.js')).status`,
    `(await fetch('app://iccworship/pdfjs-wasm/LICENSE_QCMS')).status`,
    `await fetch('file:///C:/Windows/win.ini').then(() => 'read', () => 'refused')`.
 3. Packaged build only: `pnpm packaged-check` (or `npx @electron/fuses read --app dist/win-unpacked/ICCWorship.exe`).
 **Expected**
 - `app://iccworship` (not `file://`).
-- `200`, `404`, `404`, `refused`: only the built pages' own files are served, never main's code or anything outside.
+- `200`, `404`, `404`, `404`, `refused`: only the built pages' own files are served, never main's code or anything
+  outside. (The encoded slashes matter: a plain `../` or `%2e%2e/` is resolved by the URL parser before the handler
+  sees it, so it would 404 even without the guard; `out/main/index.js` exists, so only the guard makes these 404.)
+- The `file://` fetch is refused by Chromium from any non-`file:` page whatever the fuse says: the fuse itself is
+  checked in step 3.
 - Fuse `GrantFileProtocolExtraPrivileges` is **off**; the operator, projector and stage pages render and a scanned
   PDF (JPEG 2000) still imports (its decoders load from `app://`).

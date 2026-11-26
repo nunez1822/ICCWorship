@@ -1,6 +1,6 @@
 /**
  * Keeping the projector (and stage window) on screen when their page crashes or freezes during a service.
- * Pure logic here (unit tested in tests/recovery.test.ts); src/main/index.ts wires it to Electron events.
+ * Pure logic here (unit tested in tests/recovery.test.ts); src/main/windowGuards.ts wires it to Electron events.
  */
 
 /**

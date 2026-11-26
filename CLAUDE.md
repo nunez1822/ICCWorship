@@ -42,7 +42,9 @@ usually operated by a volunteer during a live service, so reliability and simpli
 - `src/main/`: Electron main process.
   - `index.ts`: startup, lifecycle and last-resort error handling only. `windows.ts` (windows), `windowGuards.ts`
     (crash/freeze recovery), `ipc/` (every IPC channel), `pages.ts` (loading our pages, trusted senders),
-    `hardening.ts`, `mediaProtocol.ts`, `dialogs.ts`, `menu.ts`, `help.ts`, `appState.ts` (window refs, `notify`).
+    `hardening.ts`, `mediaProtocol.ts`, `dialogs.ts`, `menu.ts`, `help.ts`, `appState.ts` (window refs, `notify`),
+    `env.ts` (development and test switches, which a packaged app ignores), `serverControl.ts` (restarting the LAN
+    server), `machineLock.ts` (one running copy across the installed and portable ones).
   - `live.ts`: live state, the single source of truth for what's on screen.
   - `server.ts`: HTTP + WebSocket server on :7272 for `/remote` and `/stage`, PIN-protected.
   - `jsonStore.ts` / `db.ts`: JSON files with `.bak`, atomic writes and recovery of damaged files.

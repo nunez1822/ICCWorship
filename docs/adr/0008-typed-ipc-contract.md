@@ -3,7 +3,7 @@
 **Status:** Accepted (2026-11)
 
 ## Context
-About 90 IPC channels were string names typed by hand on both sides (`ipcMain.handle('x', …)` in a 1,155-line
+About 75 IPC channels were string names typed by hand on both sides (`ipcMain.handle('x', …)` in a 1,155-line
 `index.ts`, `invoke('x')` in the preload). A renamed channel or a changed argument compiled fine and failed at run
 time.
 

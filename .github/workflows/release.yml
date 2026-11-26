@@ -7,7 +7,8 @@ name: Release
 #      an SBOM and the self-update files (latest.yml, .blockmap).
 #   3. A maintainer downloads and tries the draft's files, then publishes it. Releases are immutable once published,
 #      and installed copies with automatic updates on download it.
-# Pushing a vx.y.z tag by hand still works, and "Run workflow" rebuilds the current version's tag if a run failed.
+# Pushing a vx.y.z tag by hand still works. "Run workflow" rebuilds the current version's tag (the tagged commit,
+# so it only helps when the failure was outside the code, e.g. a runner problem): see CONTRIBUTING.md → Releasing.
 on:
   push:
     branches: [main]
@@ -18,9 +19,9 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: release
-  cancel-in-progress: false
+# No workflow-wide concurrency group: GitHub keeps only one *pending* run per group and cancels the older one, so an
+# unrelated package.json change (a dependency bump) arriving while a release waits could cancel the release. Each job
+# below has its own group instead, and creating a tag twice is handled ("already exists").
 
 jobs:
   # Decide whether there is a release to build, and make sure its tag exists. A tag created here with the workflow's
@@ -28,6 +29,9 @@ jobs:
   tag:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    concurrency:
+      group: release-tag-${{ github.sha }}
+      cancel-in-progress: false
     permissions:
       contents: write # create the tag
     outputs:
@@ -50,6 +54,9 @@ jobs:
             echo "release=true" >> "$GITHUB_OUTPUT"
           elif gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" >/dev/null 2>&1; then
             if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+              # a published release can't be replaced (immutable releases): building it again would only fail at the end
+              draft=$(gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" --json isDraft -q .isDraft 2>/dev/null || echo none)
+              if [ "${draft}" = "false" ]; then echo "::error::${tag} is already published. Release a new patch version instead (pnpm release:prepare patch)."; exit 1; fi
               echo "Tag ${tag} exists: building it again"
               echo "release=true" >> "$GITHUB_OUTPUT"
             else
@@ -58,9 +65,15 @@ jobs:
             fi
           else
             if [ "${GITHUB_REF}" != "refs/heads/main" ]; then echo "::error::Releases are made from main only"; exit 1; fi
-            gh api "repos/${GITHUB_REPOSITORY}/git/refs" -f ref="refs/tags/${tag}" -f sha="${GITHUB_SHA}" >/dev/null
-            echo "Tagged ${tag} at ${GITHUB_SHA}"
-            echo "release=true" >> "$GITHUB_OUTPUT"
+            if out=$(gh api "repos/${GITHUB_REPOSITORY}/git/refs" -f ref="refs/tags/${tag}" -f sha="${GITHUB_SHA}" 2>&1); then
+              echo "Tagged ${tag} at ${GITHUB_SHA}"
+              echo "release=true" >> "$GITHUB_OUTPUT"
+            elif echo "${out}" | grep -q "Reference already exists"; then
+              echo "Another run tagged ${tag} meanwhile: it builds the release"
+              echo "release=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "::error::Could not create tag ${tag}: ${out}"; exit 1
+            fi
           fi
 
   build:
@@ -68,6 +81,9 @@ jobs:
     if: needs.tag.outputs.release == 'true'
     runs-on: windows-latest
     timeout-minutes: 40
+    concurrency:
+      group: release-build-${{ needs.tag.outputs.tag }}
+      cancel-in-progress: false
     permissions:
       contents: read
     steps:
@@ -119,6 +135,9 @@ jobs:
     needs: [tag, build]
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    concurrency:
+      group: release-publish-${{ needs.tag.outputs.tag }}
+      cancel-in-progress: false
     permissions:
       contents: write # create the draft release
       id-token: write # sign the build provenance and the SBOM attestation
@@ -170,5 +189,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # a rebuild ("Run workflow", or re-running this job) replaces its own earlier draft instead of adding a second
+          draft=$(gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" --json isDraft -q .isDraft 2>/dev/null || echo none)
+          if [ "${draft}" = "false" ]; then echo "::error::${TAG} is already published"; exit 1; fi
+          if [ "${draft}" = "true" ]; then gh release delete "${TAG}" --repo "${GITHUB_REPOSITORY}" --yes; fi
           gh release create "${TAG}" release/*.exe release/*.blockmap release/latest.yml release/*.sbom.cdx.json release/SHA256SUMS.txt \
             --draft --verify-tag --title "ICCWorship ${VERSION}" --notes-file notes.md

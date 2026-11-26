@@ -70,8 +70,8 @@ Fixtures: `sample.mp4` (5 s color bars + tone), `sample.jpg`, `sample.mp3` (4 s 
 2. Add `sample.mp4`. Remove both cards from the library (confirm).
 3. Add a file with the copy setting off (TC-MED-08 step 2), and remove that card.
 **Expected**
-- Cards disappear. The video's copy in `.e2e-data/media/` is deleted; the picture's copy **stays** (the theme still
-  shows it) and the theme background still works.
+- Cards disappear, and both copies in `.e2e-data/media/` are deleted. The theme shows the built-in gradient (as the
+  Themes page shows "—"): a theme doesn't keep a removed item's file.
 - 3: the original file on disk still exists (ICCWorship never deletes the church's own files).
 
 ### TC-MED-10 · FLAC and Opus audio files play  `P2`
@@ -95,3 +95,14 @@ Fixtures: `sample.mp4` (5 s color bars + tone), `sample.jpg`, `sample.mp3` (4 s 
 **Expected**
 - "Not enough free disk space to keep a copy of “<file>”: it links to the original file instead." The card is added
   and plays (from the original file); nothing half-copied stays in `media/`.
+
+### TC-MED-13 · Removing an item keeps the copy a plan slide or the projector still uses  `P1`
+**Steps**
+1. Add `sample.jpg`. In a plan, add an Announcement item and give one of its slides that picture (with text). Save.
+2. Media → remove the `sample.jpg` card (confirm).
+3. Add `sample.mp4`, **Show now** on it, and while it plays remove its card (confirm).
+**Expected**
+- 2: the copy stays in `.e2e-data/media/`; the announcement slide still shows the picture when it goes live.
+- 3: the video keeps playing to the end (seeking still works). Its copy stays while it is on screen; it is not
+  deleted later by itself (an unused copy stays until a later tidy-up).
+- Removing an item while **Back up now** runs doesn't fail the backup (the copy is deleted after it).

@@ -275,11 +275,17 @@ second song's item (if its timing is recorded, enter it part-way so it starts wi
    close the projector window (Settings → Screens); in Settings choose a sound output, then unplug that device.
 3. ✅ again. Click each row's button.
 **Expected**
-- 1: "Everything is ready" or warnings only, e.g. "Only one screen is connected…" on a laptop alone, "There is no
-  backup yet" on a fresh install. The plan line names the active plan and its item count.
+- 1: "Everything is ready" or warnings only, e.g. "Only one screen is connected…" on a laptop alone, "No “Back up
+  now” copy yet…" until **Back up now** has been used on this computer (automatic backups don't count: they stay on
+  the same disk). The plan line names the active plan and its item count.
 - 2→3: errors, each naming the items: "1 item points to something that was deleted: <song>", "1 item needs a file
   that isn't on this computer…: <media item>", "The projector window is closed…", "The chosen sound output … is not
   connected" (an **error** when the plan plays a video or backing track).
+- A scripture item whose Bible version isn't on this computer is an **error** ("1 item would show nothing…"), not a
+  warning; a picture behind an announcement slide's text that moved counts as a missing file; a logo file that
+  moved says the Logo button would show nothing.
 - **Open projector** opens it and the list re-checks itself; **Open plan** opens the plan editor; **Back up now** asks
-  where to save and the backup line turns ✅; **Settings** opens Settings.
+  where to save, shows the same message as Settings → Backup (also "saved WITHOUT the media library…" when it had
+  to leave it out), and the backup line turns ✅; **Settings** opens Settings.
+- With the checklist open while a video plays, it doesn't re-check by itself (the buttons stay enabled).
 - A plan dated before today says it is for a day that has passed. Running the check never changes anything on screen.

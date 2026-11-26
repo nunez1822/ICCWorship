@@ -37,9 +37,12 @@ describe('preflight', () => {
       itemProblems: [
         { title: 'Cuán grande', kind: 'missing' },
         { title: 'Video', kind: 'file' },
-        { title: 'Juan 3:16', kind: 'warning' }
+        { title: 'Juan 3:16', kind: 'warning' },
+        { title: 'Salmo 23', kind: 'blank' }
       ]
     })
+    // an item that would show nothing at all (no Bible version here) is an error, not a warning
+    expect(r.find((c) => c.id === 'blank')).toMatchObject({ level: 'error', params: { count: 1, names: 'Salmo 23' } })
     expect(r.find((c) => c.id === 'missing')).toMatchObject({ level: 'error', params: { count: 1, names: 'Cuán grande' } })
     expect(r.find((c) => c.id === 'files')?.level).toBe('error')
     expect(r.find((c) => c.id === 'warnings')?.level).toBe('warn')
@@ -58,10 +61,16 @@ describe('preflight', () => {
     expect(byId({ ...ready, planHasSound: true, sound: { chosen: 'USB Audio', connected: false } }, 'sound')?.level).toBe('error')
   })
   it('phone remote and backups', () => {
-    expect(byId({ ...ready, server: { enabled: true, running: false, error: 'EADDRINUSE', clients: 0 } }, 'phone')?.level).toBe('warn')
+    expect(byId({ ...ready, server: { enabled: true, running: false, clients: 0 } }, 'phone')?.level).toBe('warn')
     expect(byId({ ...ready, server: { enabled: false, running: false, clients: 0 } }, 'phone')).toBeUndefined()
     expect(byId({ ...ready, lastBackupAt: undefined }, 'backup')?.key).toBe('noBackup')
-    expect(byId({ ...ready, lastBackupAt: NOW - 9 * DAY }, 'backup')).toMatchObject({ level: 'warn', params: { days: 9 } })
+    expect(byId({ ...ready, lastBackupAt: NOW - 9 * DAY }, 'backup')?.level).toBe('ok')
+    // `count` (not `days`): i18next picks the plural form from it
+    expect(byId({ ...ready, lastBackupAt: NOW - 15 * DAY }, 'backup')).toMatchObject({ level: 'warn', key: 'oldBackup', params: { count: 15 } })
+  })
+  it('a missing logo file is worth a look', () => {
+    expect(byId({ ...ready, logoMissing: true }, 'logo')).toMatchObject({ level: 'warn', action: 'logo' })
+    expect(byId(ready, 'logo')).toBeUndefined()
   })
   it('read-only data comes first; a downloaded update is mentioned', () => {
     const r = preflight({ ...ready, readOnly: true, update: { version: '1.2.0' } })

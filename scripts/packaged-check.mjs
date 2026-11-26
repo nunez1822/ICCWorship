@@ -8,7 +8,7 @@
  *   pnpm build:dir && node scripts/packaged-check.mjs [path\to\ICCWorship.exe]
  */
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { FuseState, FuseV1Options, getCurrentFuseWire } from '@electron/fuses'
@@ -110,8 +110,12 @@ try {
   delete penv.ICCWORSHIP_DATA
   delete penv.ICCWORSHIP_TEST_PROFILE
   delete penv.ELECTRON_RENDERER_URL
-  const p = spawn(exe, [], { env: penv, stdio: 'ignore' })
   const root = join(exeDir, 'ICCWorship Data')
+  // an existing "ICCWorship Data" folder always means portable; without it, a PC that already has data in Documents
+  // (a developer's) would keep using that, as a church upgrading from portable 1.0 does
+  mkdirSync(root)
+  // (a copy of ICCWorship already open on this PC makes this one say so and not start: close it first)
+  const p = spawn(exe, [], { env: penv, stdio: 'ignore' })
   const want = [join(root, 'data', 'settings.json'), join(root, '.app', 'logs', 'main.log')]
   for (let i = 0; i < 60 && !want.every((f) => existsSync(f)); i++) await sleep(500)
   check(

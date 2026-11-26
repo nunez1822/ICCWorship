@@ -246,7 +246,7 @@ function Library() {
       <div className="dropzone" style={{ padding: 60 }}>
         <div style={{ fontSize: 44 }}>📥</div>
         <h3>{t('media.dropTitle')}</h3>
-        <p>{t('media.dropHelp')}</p>
+        <p>{t(s.settings.copyMediaToLibrary !== false ? 'media.dropHelp' : 'media.dropHelpLinked')}</p>
       </div>
     )
 
@@ -439,7 +439,7 @@ function PresentationModal({ pres, onClose, onReimport }: { pres: Presentation; 
           <button
             className="btn ghost"
             onClick={async () => {
-              if (!confirmDel(t('media.confirmRemove') + usedInPlansNote(s.plans, pres.id, t))) return
+              if (!confirmDel(t('media.confirmRemovePres') + usedInPlansNote(s.plans, pres.id, t))) return
               await s.remove('presentations', pres.id)
               onClose()
             }}

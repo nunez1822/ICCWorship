@@ -259,7 +259,18 @@ export function App() {
       </nav>
       {dataStatus?.readOnly && (
         <div className="readonly-banner" role="alert">
-          <span>⚠ {t(dataStatus.newerSchema ? 'data.readOnlyNewer' : dataStatus.upgradeFailed ? 'data.readOnlyUpgradeFailed' : 'data.readOnly')}</span>
+          <span>
+            ⚠{' '}
+            {t(
+              dataStatus.locked
+                ? 'data.readOnlyLocked'
+                : dataStatus.newerSchema
+                  ? 'data.readOnlyNewer'
+                  : dataStatus.upgradeFailed
+                    ? 'data.readOnlyUpgradeFailed'
+                    : 'data.readOnly'
+            )}
+          </span>
           <button
             className="btn sm"
             onClick={() => void window.api.app.openBackups().then((ok) => ok || useApp.getState().toast(t('data.openBackupsFailed'), 'err'))}

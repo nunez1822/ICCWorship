@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test'
-import { RESUME_MAX_AGE_MS, resumeOfferFrom, snapshotChanged, snapshotOf } from '@shared/session'
+import { LiveRecorder, RESUME_MAX_AGE_MS, resumeOfferFrom, snapshotChanged, snapshotOf, type LiveSnapshot } from '@shared/session'
 import { restoreWindowState } from '@shared/windowState'
 
 const NOW = 1_800_000_000_000
@@ -95,5 +95,67 @@ describe('restoreWindowState', () => {
       width: 1100,
       height: 680
     })
+  })
+})
+
+describe('LiveRecorder', () => {
+  function setup() {
+    const writes: (LiveSnapshot | undefined)[] = []
+    let timer: (() => void) | null = null
+    const r = new LiveRecorder({
+      write: (l) => writes.push(l),
+      now: () => NOW,
+      setTimer: (fn) => (timer = fn),
+      clearTimer: () => (timer = null)
+    })
+    const tick = () => {
+      const fn = timer
+      timer = null
+      fn?.()
+    }
+    return { r, writes, tick }
+  }
+  const off = { ...onScreen, slideIndex: -1 }
+
+  it('writes a new place once, after the delay, and only when it moved', () => {
+    const { r, writes, tick } = setup()
+    r.remember(onScreen)
+    r.remember({ ...onScreen, slideIndex: 5 })
+    expect(writes).toEqual([])
+    tick()
+    expect(writes.map((w) => w?.slideIndex)).toEqual([5])
+    r.remember({ ...onScreen, slideIndex: 5 }) // same place
+    tick()
+    expect(writes).toHaveLength(1)
+  })
+  it('a clear followed by a put-back within the delay leaves the place, not "nothing live"', () => {
+    const { r, writes, tick } = setup()
+    r.remember(onScreen)
+    tick()
+    r.remember(off)
+    r.remember(onScreen)
+    tick()
+    expect(writes.at(-1)?.slideIndex).toBe(4)
+  })
+  it('a clear that stays is written as nothing live', () => {
+    const { r, writes, tick } = setup()
+    r.remember(onScreen)
+    tick()
+    r.remember(off)
+    tick()
+    expect(writes.at(-1)).toBeUndefined()
+    expect(writes).toHaveLength(2)
+  })
+  it('flush writes the waiting place now; after end nothing is written', () => {
+    const { r, writes, tick } = setup()
+    r.remember(onScreen)
+    r.flush()
+    expect(writes).toHaveLength(1)
+    r.remember({ ...onScreen, slideIndex: 7 })
+    r.end()
+    tick()
+    r.remember({ ...onScreen, slideIndex: 8 })
+    r.flush()
+    expect(writes).toHaveLength(1)
   })
 })

@@ -138,7 +138,8 @@ async function logSongUsage(item: PlanItem, plan?: ServicePlan) {
  *  removed, file moved). Videos report their own load errors from the projector. */
 function checkMediaFiles(slides: Slide[], background?: Background | null, track?: string): void {
   const urls = [
-    ...slides.filter((x) => x.kind === 'image').map((x) => x.media),
+    // pictures, also one behind a slide's text (videos report their own error when they can't load)
+    ...slides.filter((x) => x.kind !== 'video').map((x) => x.media),
     background?.type === 'image' || background?.type === 'video' ? background.value : undefined,
     track
   ]
@@ -727,6 +728,8 @@ export async function offerResume(): Promise<void> {
     run: () =>
       void enqueue(async () => {
         const s = st()
+        // the toast stays up for 2 minutes: the operator may have gone live by hand meanwhile
+        if ((live()?.slideIndex ?? -1) >= 0) return s.toast(t('recovery.resumeBusy'), 'info')
         const plan = s.plans.find((p) => p.id === offer.planId)
         const index = plan ? plan.items.findIndex((i) => i.id === offer.itemId) : -1
         if (!plan || index < 0) return s.toast(t('recovery.resumeGone'), 'err')

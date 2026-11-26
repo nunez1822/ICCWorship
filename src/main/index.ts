@@ -12,7 +12,7 @@ import { autoBackup, createSafetyBackup } from './backup'
 import { dataRoot } from './paths'
 import { log, setLogDataRoot } from './log'
 import { setMainLang, t } from './i18n'
-import { checkForUpdates } from './updates'
+import { beforeQuit as updatesBeforeQuit, checkForUpdates } from './updates'
 import { cleanupOrphanTracks } from './tracks'
 import { lifecycle, notify, open, pendingNotices, send, wins } from './appState'
 import { isAbortedLoad } from './pages'
@@ -25,7 +25,8 @@ import { restartServer } from './serverControl'
 import { broadcastLive, createOperator, createOutput, forwardCommand, placeOutput } from './windows'
 import { pauseHeartbeats, resumeHeartbeats } from './windowGuards'
 import { endSession, startSession } from './session'
-import { location } from './bootstrap'
+import { isTestProfile, location } from './bootstrap'
+import { machineLock } from './machineLock'
 
 // app:// serves the app's own pages (appUrl.ts). media:// serves local media files to them: corsEnabled +
 // "Access-Control-Allow-Origin: *" are needed because PDF import fetch()es media:// from an app:// page (another
@@ -86,8 +87,22 @@ app
     setLogDataRoot(dataRoot())
     // until the settings are read (reading them could be what fails), use the PC's language
     setMainLang(app.getLocale().toLowerCase().startsWith('es') ? 'es' : 'en')
+    // the portable and the installed copy have separate profiles (and so separate single-instance locks): only one
+    // may run, or the second would open a projector window over the live one (test runs use their own profile)
+    if (!isTestProfile && (await machineLock()) === 'taken') {
+      log.warn('another copy of ICCWorship is already running: not starting')
+      dialog.showErrorBox(t('recovery.otherCopy'), t('recovery.otherCopyDetail'))
+      app.exit(0)
+      return
+    }
     log.info(`ICCWorship ${app.getVersion()} starting (Electron ${process.versions.electron}, ${process.platform} ${process.getSystemVersion()})`)
     if (location.mode === 'portable') log.info('portable: data beside the exe')
+    if (location.mode === 'portable-readonly') log.warn('portable: the data beside the exe is write-protected, opened read-only')
+    if (location.mode === 'portable-documents') {
+      // no "ICCWorship Data" folder yet, and this PC has data in Documents (portable 1.0 kept it there): keep it
+      log.info('portable: no data folder beside the exe yet, using the data in Documents')
+      pendingNotices.push('portableDocuments')
+    }
     if (location.mode === 'portable-fallback') {
       // the portable exe's folder can't be written (a locked USB stick, a CD): the data goes to Documents — say so
       log.warn('portable: the folder beside the exe is not writable, using Documents')
@@ -177,6 +192,7 @@ app.on('before-quit', () => {
   log.info('quitting')
   db().flush()
   endSession()
+  updatesBeforeQuit() // a downloaded update installs only if still wanted and nothing is on screen
   stopServer()
 })
 

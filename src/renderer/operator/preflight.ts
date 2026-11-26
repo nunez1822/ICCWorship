@@ -6,13 +6,15 @@ import { localDate } from '@shared/dates'
 import type { ItemProblem, PreflightInput } from '@shared/preflight'
 import type { PlanItem } from '@shared/types'
 import { buildItem } from '../lib/buildSlides'
+import { toMediaUrl } from '../lib/media'
 import { itemSourceMissing, playsTrack } from '../lib/planRefs'
 import { useApp } from './store'
 
-/** the media:// files an item needs on screen: pictures, videos, its background, its backing track */
+/** the media:// files an item needs on screen: pictures (also behind a slide's text), videos, its background, its
+ *  backing track */
 function filesOf(built: Awaited<ReturnType<typeof buildItem>>): string[] {
   const urls = [
-    ...built.slides.filter((x) => x.kind === 'image' || x.kind === 'video').map((x) => x.media),
+    ...built.slides.map((x) => x.media),
     built.background?.type === 'image' || built.background?.type === 'video' ? built.background.value : undefined,
     built.track?.src
   ]
@@ -48,26 +50,23 @@ export async function gatherPreflight(): Promise<PreflightInput> {
     if (item.type === 'media' && s.media.find((m) => m.id === item.refId)?.kind !== 'image') planHasSound = true
     try {
       const built = await buildItem(item, ctx)
-      if (built.warning) itemProblems.push({ title: item.title, kind: 'warning' })
+      // nothing to show at all (a notes item may be empty on purpose: it never reaches the screen)
+      if (!built.slides.length && item.type !== 'notes') itemProblems.push({ title: item.title, kind: 'blank' })
+      else if (built.warning) itemProblems.push({ title: item.title, kind: 'warning' })
       if (built.slides.some((x) => x.kind === 'video')) planHasSound = true
       for (const url of filesOf(built)) needs.push({ item, url })
     } catch {
       itemProblems.push({ title: item.title, kind: 'warning' })
     }
   }
-  if (needs.length) {
-    const status = await api.files.mediaStatus(needs.map((n) => n.url))
-    const missing = new Set(needs.filter((_n, i) => !status[i]?.exists).map((n) => n.item))
-    for (const item of missing) itemProblems.push({ title: item.title, kind: 'file' })
-  }
+  const logoUrl = s.settings?.logoPath ? toMediaUrl(s.settings.logoPath) : undefined
+  const urls = [...needs.map((n) => n.url), ...(logoUrl ? [logoUrl] : [])]
+  const status = urls.length ? await api.files.mediaStatus(urls) : []
+  const missing = new Set(needs.filter((_n, i) => !status[i]?.exists).map((n) => n.item))
+  for (const item of missing) itemProblems.push({ title: item.title, kind: 'file' })
+  const logoMissing = !!logoUrl && !status[needs.length]?.exists
 
-  const [displays, server, backups, update, out] = await Promise.all([
-    api.displays.list(),
-    api.server.info(),
-    api.backup.list(),
-    api.app.updateStatus(),
-    api.output.status()
-  ])
+  const [displays, server, update, out] = await Promise.all([api.displays.list(), api.server.info(), api.app.updateStatus(), api.output.status()])
   const st = s.settings
   const outputDisplay = displays.find((d) => d.id === st?.outputDisplayId) ?? displays.find((d) => !d.primary)
   const chosenSound = st?.audioOutputLabel || ''
@@ -82,7 +81,8 @@ export async function gatherPreflight(): Promise<PreflightInput> {
     sound: { chosen: chosenSound, connected: await soundOutputConnected(chosenSound, st?.audioOutputId) },
     planHasSound,
     server: { enabled: !!st?.serverEnabled, running: server.running, clients: server.clients },
-    lastBackupAt: backups.length ? Math.max(...backups.map((b) => b.date)) : undefined,
+    lastBackupAt: st?.lastManualBackup,
+    logoMissing,
     readOnly: !!s.dataStatus?.readOnly,
     update: update.phase === 'ready' ? { version: update.version } : undefined
   }

@@ -2,7 +2,7 @@
  * Loading the app's own pages into windows, and recognising them (only our pages may call into main).
  */
 import type { BrowserWindow } from 'electron'
-import { APP_HOST, APP_ORIGIN, APP_SCHEME } from './appUrl'
+import { APP_ORIGIN, isAppPageUrl } from './appUrl'
 import { devUrl } from './env'
 import { log } from './log'
 
@@ -27,18 +27,6 @@ export function loadPage(win: BrowserWindow, page: Page, hash = ''): void {
 }
 
 /** Only our own three pages (operator, projector, stage) may call into main. */
-const TRUSTED_PAGES = new Set(['index.html', 'output.html', 'stage.html'])
 export function isTrustedSender(frame: Electron.WebFrameMain | null | undefined): boolean {
-  if (!frame) return false
-  let u: URL
-  try {
-    u = new URL(frame.url)
-  } catch {
-    return false
-  }
-  if (!TRUSTED_PAGES.has(u.pathname.split('/').pop() || '')) return false
-  // in development: the dev server's origin
-  if (devUrl) return u.origin === new URL(devUrl).origin
-  // app://iccworship (appProtocol.ts) only serves the built pages. Not URL.origin: for a custom scheme it is "null".
-  return u.protocol === `${APP_SCHEME}:` && u.host === APP_HOST
+  return !!frame && isAppPageUrl(frame.url, devUrl)
 }

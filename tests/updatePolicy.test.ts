@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test'
-import { automaticCheckDue, installNow, isLive, mayDownload, UPDATE_CHECK_EVERY_MS, type UpdatePhase } from '@shared/updatePolicy'
+import { automaticCheckDue, installNow, installOnQuit, isLive, mayDownload, onScreen, UPDATE_CHECK_EVERY_MS, type UpdatePhase } from '@shared/updatePolicy'
 
 const NOW = 1_800_000_000_000
 const idle: UpdatePhase = { phase: 'idle' }
@@ -10,6 +10,30 @@ describe('isLive', () => {
     expect(isLive({ slideIndex: 0 })).toBe(true)
     expect(isLive({ slideIndex: -1, video: { playing: true } as never })).toBe(true)
     expect(isLive({ slideIndex: -1 })).toBe(false)
+  })
+  it('the logo, a running message, or a screen cleared mid-item (Esc) also count', () => {
+    const layers = { black: false, clearText: false, clearBackground: false, logo: true }
+    expect(isLive({ slideIndex: -1, layers })).toBe(true)
+    expect(isLive({ slideIndex: -1, message: { text: 'x', seq: 1 } }, NOW)).toBe(true)
+    expect(isLive({ slideIndex: -1, message: { text: 'x', seq: 1, until: NOW + 1000 } }, NOW)).toBe(true)
+    expect(isLive({ slideIndex: -1, message: { text: 'x', seq: 1, until: NOW - 1000 } }, NOW)).toBe(false) // ran out
+    expect(isLive({ slideIndex: -1, clearedFrom: 3 })).toBe(true)
+  })
+})
+
+describe('onScreen', () => {
+  it('is what the congregation sees: a cleared screen (Esc) is not on screen', () => {
+    expect(onScreen({ slideIndex: 2 })).toBe(true)
+    expect(onScreen({ slideIndex: -1, clearedFrom: 3 })).toBe(false)
+  })
+})
+
+describe('installOnQuit', () => {
+  it('installs at quit only when still wanted, ready, and nothing is on screen', () => {
+    expect(installOnQuit({ allowed: true, onScreen: false, phase: ready })).toBe(true)
+    expect(installOnQuit({ allowed: true, onScreen: true, phase: ready })).toBe(false) // closed mid-song
+    expect(installOnQuit({ allowed: false, onScreen: false, phase: ready })).toBe(false) // turned off after downloading
+    expect(installOnQuit({ allowed: true, onScreen: false, phase: idle })).toBe(false)
   })
 })
 

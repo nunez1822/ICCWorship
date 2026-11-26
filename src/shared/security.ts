@@ -290,7 +290,7 @@ const SETTING_CHECKS: { [K in keyof Settings]?: (v: unknown) => Settings[K] | un
   disableHwAccel: bool,
   audioOutputId: str(500),
   audioOutputLabel: str(300)
-  // lastUpdateCheck: main only
+  // lastUpdateCheck, lastManualBackup: main only
 }
 
 /** Keeps only valid, known settings from a renderer patch. Invalid values are dropped, never thrown. */

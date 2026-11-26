@@ -7,6 +7,7 @@ import { installUpdate, toastError, useApp } from '../store'
 import { Field, Seg } from '../../components/ui'
 import { fileName, IMAGE_EXT } from '../../lib/media'
 import { updateLive } from '../liveControl'
+import { backupNow } from '../backupNow'
 
 export function SettingsPage() {
   const { t } = useTranslation()
@@ -333,16 +334,7 @@ export function SettingsPage() {
               <button
                 className="btn primary"
                 onClick={async () => {
-                  const r = await window.api.backup.create()
-                  if (r?.ok) {
-                    // too much for one .zip: the media library (then the tracks too) stayed out — say which folders to copy
-                    const partial = r.tracksLeftOut ? 'settings.backupNoTracks' : r.mediaLeftOut ? 'settings.backupNoMedia' : undefined
-                    s.toast(
-                      t(partial || 'settings.backupDone', { files: r.files, size: (r.bytes / 1024 / 1024).toFixed(1) }),
-                      partial ? 'info' : 'ok',
-                      partial ? 20_000 : undefined
-                    )
-                  } else if (r) s.toast(t(`settings.backupError.${r.error}`), 'err', 15_000)
+                  await backupNow()
                   refresh()
                 }}
               >
@@ -404,6 +396,9 @@ export function SettingsPage() {
             <div className="small muted" style={{ wordBreak: 'break-all' }}>
               {t('settings.dataAt')} {info?.dataPath}
               {info?.dataMode === 'portable' && <> · {t('settings.portableData')}</>}
+              {info?.dataMode === 'portable-readonly' && <> · {t('settings.portableReadOnly')}</>}
+              {info?.dataMode === 'portable-documents' && <> · {t('settings.portableDocuments')}</>}
+              {info?.dataMode === 'portable-fallback' && <> · {t('settings.portableFallback')}</>}
             </div>
             <div className="row wrap">
               <button className="btn sm" onClick={() => void s.setSettings({ firstRunDone: false })}>
@@ -499,6 +494,9 @@ export function SettingsPage() {
               </button>
               {update === 'checking' && <span className="small muted">…</span>}
               {update && update !== 'checking' && update.ok && !update.newer && <span className="small">✓ {t('updates.upToDate')}</span>}
+              {update && update !== 'checking' && update.ok && update.newer && update.deferred === 'live' && (
+                <span className="small">{t('updates.waitingLive', { version: update.latest })}</span>
+              )}
               {/* the installed app downloads it by itself (status above) unless that is turned off: then, the release page */}
               {update && update !== 'checking' && update.ok && update.newer && !(update.selfUpdate && st.checkForUpdates && st.autoUpdate !== false) && (
                 <button className="btn sm primary" onClick={() => void window.api.app.openRelease(update.url)}>

@@ -7,6 +7,9 @@
  *
  * Arguments come from our own pages, but still validate anything that becomes a path, an id or a file write
  * (see CLAUDE.md → Trust boundaries).
+ *
+ * A handler takes only the page's arguments — no event first (registerIpc drops it). Listeners (listeners.ts) are
+ * the other way round: the event comes first. Mixing the two up shifts every argument by one.
  */
 import { app, BrowserWindow, clipboard, shell } from 'electron'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
@@ -29,7 +32,7 @@ import { log } from '../log'
 import { newPin, within } from '../pathGuard'
 import { setMainLang } from '../i18n'
 import { systemInfoText } from '../diagnostics'
-import { canSelfUpdate, checkForUpdates, installUpdate, RELEASES_URL, updatePhase } from '../updates'
+import { canSelfUpdate, checkForUpdates, installUpdate, RELEASES_URL, updatePhase, updateSettingsChanged } from '../updates'
 import { pruneTrack, saveTrack } from '../tracks'
 import { e2eQueues, isGranted, openDialog, saveDialog } from '../dialogs'
 import { E2E } from '../env'
@@ -40,7 +43,7 @@ import { createOutput, createStageWindow, listDisplays, placeOutput, restartOutp
 import { testSound } from './testSound'
 import { takeResumeOffer } from '../session'
 import { location } from '../bootstrap'
-import { copyIntoLibrary, removeMediaItem } from '../mediaLibrary'
+import { copyIntoLibrary, deleteCopyIfUnused, removeMediaItem } from '../mediaLibrary'
 
 type FileFilter = { name: string; extensions: string[] }
 
@@ -84,6 +87,9 @@ export function createHandlers() {
       if (before.serverPort !== s.serverPort || before.serverEnabled !== s.serverEnabled) await restartServer()
       if (patch.logoPath !== undefined || patch.churchName !== undefined) live.update({ logoPath: s.logoPath, churchName: s.churchName })
       if (patch.audioOutputId !== undefined || patch.audioOutputLabel !== undefined) live.update({ audioOutput: audioOutputOf(s) })
+      if (patch.checkForUpdates !== undefined || patch.autoUpdate !== undefined) updateSettingsChanged()
+      // a replaced or cleared logo's library copy (if nothing else shows it)
+      if (patch.logoPath !== undefined && before.logoPath && before.logoPath !== s.logoPath) deleteCopyIfUnused({ id: '', path: before.logoPath })
       return s
     },
 
@@ -193,7 +199,9 @@ export function createHandlers() {
     'backup:create': async () => {
       const r = await saveDialog({ defaultPath: defaultBackupName(), filters: [{ name: 'ICCWorship backup', extensions: ['zip'] }] })
       if (r.canceled || !r.filePath) return null
-      return createBackup(r.filePath)
+      const res = await createBackup(r.filePath)
+      if (res.ok) setSettings({ lastManualBackup: Date.now() }) // "Ready for Sunday?" judges the backup line on it
+      return res
     },
     'backup:restore': async (path?: string) => {
       let p: string

@@ -2,6 +2,8 @@
  * Every message the app's pages send to main without waiting for an answer (ipcRenderer.send → ipcMain.on).
  * Like handlers.ts, this object is the contract the preload is typed against. The sender check is applied by
  * registerIpc (./index.ts). Payloads are checked here: a page that misbehaves must not throw in main.
+ *
+ * A listener takes the event first, then the page's arguments (unlike handlers.ts, whose handlers get no event).
  */
 import type { RemoteCommand } from '@shared/types'
 import { validateCommand } from '@shared/security'

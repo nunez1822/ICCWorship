@@ -3,10 +3,14 @@ import { join } from 'node:path'
 import { mkdirSync } from 'node:fs'
 
 let portableRoot: string | undefined
-/** the portable exe keeps its data beside it (set once by bootstrap.ts, see portable.ts) */
-export function setPortableRoot(root: string): void {
+let locked = false
+/** the portable exe keeps its data beside it (set once by bootstrap.ts, see portable.ts); `locked`: on a
+ *  write-protected stick, so it is opened read-only */
+export function setPortableRoot(root: string, opts: { locked?: boolean } = {}): void {
   portableRoot = root
+  locked = !!opts.locked
 }
+export const dataLocked = (): boolean => locked
 
 /** Root of everything the church creates: Documents\ICCWorship (ICCWORSHIP_DATA, or beside the portable exe) */
 export function dataRoot(): string {

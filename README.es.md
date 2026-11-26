@@ -80,9 +80,12 @@ mostrar en un idioma o **en ambos a la vez**, cambiando en vivo con una sola tec
 
 1. Descargue **`ICCWorship-Setup-x.y.z.exe`** (instalador) o **`ICCWorship-Portable-x.y.z.exe`** (no necesita instalación) en la página de Releases.
    La versión **portátil** guarda todo (cantos, planes, ajustes, copias, registros) en una carpeta **`ICCWorship Data`**
-   junto al exe, así funciona desde una memoria USB y no deja nada en la computadora. Si no puede escribir en esa
-   carpeta (una memoria bloqueada), lo avisa y usa `Documentos\ICCWorship` en esa sesión.
-2. Windows SmartScreen puede advertir porque la app no tiene firma digital (los certificados cuestan dinero). Haga clic en **Más información → Ejecutar de todas formas**.
+   junto al exe, así funciona desde una memoria USB y no deja nada en la computadora. En una memoria protegida contra
+   escritura abre esos datos en solo lectura (no se guarda nada, una barra roja lo dice). ¿Ya usaba una versión
+   portátil anterior, que guardaba los datos en `Documentos\ICCWorship`? Mientras no haya una carpeta
+   `ICCWorship Data` junto al exe, sigue usando esos datos; para llevarlos con el exe, cree la carpeta y copie en ella
+   todo lo de `Documentos\ICCWorship`. Solo puede estar abierto un ICCWorship a la vez (instalado o portátil).
+2. Windows SmartScreen puede advertir porque la app todavía no tiene firma digital. Haga clic en **Más información → Ejecutar de todas formas**.
 3. **Opcional: verifique su descarga.** Cada versión incluye las sumas SHA-256 (`SHA256SUMS.txt`). En PowerShell,
    `(Get-FileHash .\ICCWorship-Setup-x.y.z.exe).Hash -eq '<suma de SHA256SUMS.txt>'` debe mostrar `True`
    (`Get-FileHash` muestra la suma en mayúsculas; la comparación no distingue mayúsculas de minúsculas). Con GitHub CLI también puede confirmar que

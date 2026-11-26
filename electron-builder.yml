@@ -10,6 +10,7 @@ files:
   - '!**/*.map'
   - '!out/renderer/.vite/**'
   - '!out/THIRD_PARTY_NOTICES.md'
+  - '!out/sbom.cdx.json' # the SBOM goes beside the release, not inside the app
 extraResources:
   - from: resources
     to: resources
