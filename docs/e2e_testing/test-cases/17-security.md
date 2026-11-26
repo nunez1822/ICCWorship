@@ -169,3 +169,26 @@ A web page a phone opens could point its own domain at the church PC (DNS rebind
    With Playwright: `browser_drop` the file onto `.slides-grid`, or on the projector window.
 **Expected**
 - The operator page (and projector) stay as they are — the window does not navigate to the PDF or show a file.
+
+### TC-SEC-16 · Logs never quote a file's text or name  `P0`
+Logs are attached to public bug reports.
+**Steps**
+1. Write `.e2e-data/broken-bible.json` containing `{"books":[[["PLACEHOLDER-VERSE-TEXT` (cut short on purpose).
+   Bible → import with abbreviation `BRK` → `queueOpenFiles([<that file>])` first.
+2. Copy `tests/fixtures/sample.mp3` to `.e2e-data/Private Person Name.pptx` and import it as a presentation.
+3. Open the log: `.e2e-data/.userdata/logs/main.log` (test runs keep their own logs).
+**Expected**
+- Both imports show an error toast; the app keeps running.
+- `main.log` has lines "bible import failed: SyntaxError" and "presentation import via … failed: …" with only a
+  short code (`exit 1`, `ENOENT`, `no-slides`, an error kind…).
+- `main.log` contains neither `PLACEHOLDER-VERSE-TEXT` nor `Private Person Name`.
+
+### TC-SEC-17 · A custom data folder doesn't move the app's profile  `P2`
+`ICCWORSHIP_DATA` is a user setting (data on another drive); only test runs get a separate profile.
+**Steps**
+1. Quit every ICCWorship. In PowerShell: `$env:ICCWORSHIP_DATA = "$env:TEMP\icc-data"; npx electron .` (after `npm run build`).
+2. Quit it, then look inside `%TEMP%\icc-data`.
+**Expected**
+- The data (`data\`, `backups\`…) is in `%TEMP%\icc-data`, but there is **no** `.userdata` folder there: logs stay in
+  `%APPDATA%\ICCWorship\logs`.
+- Starting ICCWorship normally while that copy runs just brings the running window forward (one instance only).

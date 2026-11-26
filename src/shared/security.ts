@@ -90,7 +90,9 @@ export function isSameOrigin(origin: string | undefined, host: string | undefine
 
 /* ------------------------------ remote / stage commands ------------------------------ */
 
-const MAX_TEXT = 500
+/** The longest screen or stage message a phone may send (the remote's inputs stop typing there too). */
+export const MAX_MESSAGE_LENGTH = 500
+const MAX_TEXT = MAX_MESSAGE_LENGTH
 const SIMPLE = new Set(['next', 'prev', 'nextItem', 'prevItem', 'black', 'clearText', 'logo', 'clearAll', 'clearMessage', 'videoToggle'])
 const DISPLAY_LANGS: readonly DisplayLang[] = ['es', 'en', 'both']
 

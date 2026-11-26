@@ -54,7 +54,7 @@ const wsConnect = (port, pin, opts = {}, onOpen) =>
 const app = await electron.launch({
   args: [root],
   cwd: root,
-  env: { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_WINDOWED: '1', ELECTRON_RENDERER_URL: '' }
+  env: { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_TEST_PROFILE: '1', ICCWORSHIP_WINDOWED: '1', ELECTRON_RENDERER_URL: '' }
 })
 
 /** true while the test makes requests that are SUPPOSED to fail (Chromium logs those as console errors) */

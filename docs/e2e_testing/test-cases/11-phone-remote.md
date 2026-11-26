@@ -53,3 +53,26 @@ browser (`/stage`) uses the same PIN.
 1. Phone → `http://localhost:7272/index.html`.
 **Expected**
 - 404 "Not found" — only `/`, `/remote` and `/stage` are served.
+
+### TC-REM-09 · Too many devices is not a wrong PIN  `P2`
+The server allows 32 phones and stage screens at once.
+**Steps**
+1. node, from the repo root, keep it running:
+```js
+const { WebSocket } = require('ws'); const pin = '<PIN>'
+const socks = Array.from({ length: 32 }, () => new WebSocket(`ws://localhost:7272/ws?role=stage&pin=${pin}`))
+setTimeout(() => socks.forEach((s) => s.close()), 30_000) // free the places after 30 s
+```
+2. Within those 30 s, phone → `http://localhost:7272/remote#pin=<PIN>`. 3. Wait until the 30 s have passed.
+**Expected**
+- Step 2: "Too many phones and screens are connected. Close ICCWorship on another device; this one will connect by
+  itself." / "Hay demasiados teléfonos y pantallas conectados…" — **not** "Wrong PIN", and no PIN screen.
+- Step 3: within about 10 s after the node sockets close, the phone connects on its own and shows the controls.
+
+### TC-REM-10 · A long message from the phone stops at 500 characters  `P2`
+**Steps**
+1. Messages tab → paste 600 characters into the screen message box → Show.
+2. Paste 600 characters into the stage message box → Send.
+**Expected**
+- Each box holds only the first 500 characters (typing stops there).
+- The projector shows the screen message and the stage shows the stage message — nothing vanishes silently.

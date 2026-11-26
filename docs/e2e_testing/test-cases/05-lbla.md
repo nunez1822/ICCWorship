@@ -63,3 +63,12 @@
 1. Versions → import a full Bible file (e.g. an OSIS/USFX public-domain file) with abbreviation `TL`.
 **Expected**
 - `TL` now shows "Imported", no verse counter/limit.
+
+### TC-LBLA-10 · An abbreviation that can't be used is explained  `P2`
+**Steps**
+1. Bible → new pasted version: name `Test`, abbreviation `!!!` → Create.
+2. Same name, abbreviation `!!!` → 📂 Choose file (import) → `queueOpenFiles([tests/fixtures/sample.pdf])` first.
+**Expected**
+- Both show the toast "That abbreviation can't be used. Use up to 64 letters or numbers (for example LBLA or NVI)."
+  / "Esa abreviatura no se puede usar…" — never a raw "bad-id" and never no message at all.
+- No version is created.

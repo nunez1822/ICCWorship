@@ -45,3 +45,19 @@
 ### TC-BAK-03 · Automatic daily backup  `P2`
 **Expected**
 - Backups list shows "auto-YYYY-MM-DD.zip" for today after launch.
+
+### TC-BAK-04 · Restoring a backup without a PIN keeps the phones working  `P1`
+**Pre:** TC-BAK-01; phone connected to `/remote` (TC-REM-02)
+**Steps**
+1. Copy `backup.zip` and, in the copy's `data/settings.json`, delete `"remotePin"` (an old backup from before PINs).
+2. **Restore…** → accept confirm → `queueOpenFiles([<the copy>])` queued before clicking.
+3. Settings → note the PIN. Phone → open `/remote#pin=<that PIN>`.
+**Expected**
+- Step 2: the phone connected with the old PIN is disconnected (it asks for the PIN again on reload).
+- Step 3: Settings shows a new 6-digit PIN (never an empty one) and the phone connects with it.
+
+### TC-BAK-05 · Restore follows the backup's language in the menu  `P2`
+**Steps**
+1. App in English: Back up now. 2. Settings → language Español. 3. Restore the backup from step 1.
+**Expected**
+- After the operator reloads, the app and the menu bar (press Alt: "View", "Help"…) are in English again.

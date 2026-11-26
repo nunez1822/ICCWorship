@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { Readable } from 'node:stream'
 import type { LiveState, RemoteCommand, VideoEndedCommand } from '@shared/types'
 import { parseRange, sanitizeSettingsPatch, validateCommand } from '@shared/security'
-import { COLLECTIONS, db, getSettings, isCollection, seedIfEmpty, setSettings } from './db'
+import { COLLECTIONS, db, ensurePin, getSettings, isCollection, seedIfEmpty, setSettings } from './db'
 import * as bible from './bible'
 import { live } from './live'
 import { mediaUrlToPath, serverInfo, setCommandHandler, startServer, stopServer } from './server'
@@ -14,6 +14,7 @@ import { deletePresentation, detectConverters, importImages, importPresentation,
 import { autoBackup, createBackup, defaultBackupName, listBackups, restoreBackup } from './backup'
 import { backupDir, dataRoot, resourcesDir } from './paths'
 import { decodeText } from '@shared/textDecode'
+import { loggableError } from '@shared/loggableError'
 import { log, setLogDataRoot } from './log'
 import { newPin, within } from './pathGuard'
 import { setMainLang, t } from './i18n'
@@ -393,7 +394,8 @@ function registerIpc(): void {
     try {
       return { ok: true, info: bible.importFile(r.filePaths[0], meta) }
     } catch (e) {
-      log.warn('bible import failed', e)
+      // never the raw message in the log: a parser's SyntaxError quotes the file's text (maybe a licensed Bible)
+      log.warn('bible import failed:', loggableError(e))
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
   })
@@ -483,7 +485,16 @@ function registerIpc(): void {
     } else return { ok: false, error: 'forbidden' }
     const res = await restoreBackup(p)
     log.info('backup restore', res.ok ? 'ok' : `failed: ${res.error}`)
-    if (res.ok) operator?.webContents.reload()
+    if (res.ok) {
+      // The restored settings replace the running ones: an old backup may have no PIN (the server would then
+      // refuse every device), and phones still connected with the previous PIN must be dropped. Restart the
+      // server on the restored PIN/port, and follow the restored language in the menu.
+      if (ensurePin()) log.info('restored settings had no remote PIN: made a new one')
+      setMainLang(getSettings().uiLang)
+      buildMenu()
+      await restartServer()
+      operator?.webContents.reload()
+    }
     return res
   })
   h('backup:list', () => listBackups())

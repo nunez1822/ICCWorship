@@ -43,7 +43,7 @@ expectFuse(FuseV1Options.EnableCookieEncryption, true)
 expectFuse(FuseV1Options.GrantFileProtocolExtraPrivileges, true) // pages load from file://; see electron-builder.yml
 
 const data = mkdtempSync(join(tmpdir(), 'iccworship-packaged-'))
-const env = { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_WINDOWED: '1' }
+const env = { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_TEST_PROFILE: '1', ICCWORSHIP_WINDOWED: '1' }
 delete env.ELECTRON_RENDERER_URL
 const child = spawn(exe, [`--remote-debugging-port=${port}`], { env, stdio: 'inherit' })
 let exited = null

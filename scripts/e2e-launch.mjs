@@ -35,7 +35,7 @@ if (!args.includes('--keep')) rmSync(data, { recursive: true, force: true })
 mkdirSync(data, { recursive: true })
 
 const electron = createRequire(import.meta.url)('electron')
-const env = { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_E2E: '1' }
+const env = { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_TEST_PROFILE: '1', ICCWORSHIP_E2E: '1' }
 if (!args.includes('--fullscreen')) env.ICCWORSHIP_WINDOWED = '1'
 delete env.ELECTRON_RENDERER_URL
 

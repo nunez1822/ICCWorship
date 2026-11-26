@@ -86,6 +86,9 @@ Then ask Claude to "use the iccworship-app tools to run TC-LIVE-01 … ". Stop t
   The MCP often starts on the projector tab — select the operator tab before the first click.
 - Left-nav buttons have an emoji in their accessible name ("🎬 Media"), so match them by contained text.
 - Test data lives in `.e2e-data/` — your real `Documents\ICCWorship` is never touched.
+  The launch scripts also set `ICCWORSHIP_TEST_PROFILE=1`, so the test app keeps its own Chromium profile, logs
+  (`.e2e-data/.userdata/logs/main.log`) and single-instance lock and can run next to the church's copy.
+  `ICCWORSHIP_DATA` alone (a user's custom data folder) does not do that.
 - The projector stays a small window unless you launch with `-- --fullscreen`.
 
 ## Conventions for the tester (human or AI)

@@ -48,7 +48,7 @@ function Stage() {
       />
     )
   }
-  if (!state) return <div className="stage-wait">{status === 'offline' ? t('stage.offline') : '…'}</div>
+  if (!state) return <div className="stage-wait">{status === 'offline' ? t('stage.offline') : status === 'full' ? t('stage.full') : '…'}</div>
 
   const cur = state.slideIndex >= 0 ? state.slides[state.slideIndex] : undefined
   const nextIdx = upcomingSlideIndex(state)
@@ -62,7 +62,7 @@ function Stage() {
 
   return (
     <div className="stage">
-      {status === 'offline' && <div className="stage-offline">⚠ {t('stage.offline')}</div>}
+      {(status === 'offline' || status === 'full') && <div className="stage-offline">⚠ {t(status === 'full' ? 'stage.full' : 'stage.offline')}</div>}
       <header className="stage-top">
         <div className="stage-clock">{new Date(now).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</div>
         <div className="stage-item">
@@ -136,9 +136,9 @@ function StageSlide({
   big?: boolean
 }) {
   if (!slide) return <div className="stage-empty">—</div>
-  if ((slide.kind === 'image' || slide.kind === 'video') && slide.media) {
-    return slide.kind === 'image' ? <img className="stage-img" src={safeMediaSrc(slide.media)} alt="" /> : <div className="stage-empty">🎬 {slide.group}</div>
-  }
+  // over the LAN a video slide arrives without its media (only images get a link), so test the kind alone
+  if (slide.kind === 'video') return <div className="stage-empty">🎬 {slide.group}</div>
+  if (slide.kind === 'image' && slide.media) return <img className="stage-img" src={safeMediaSrc(slide.media)} alt="" />
   if (slide.kind === 'countdown') return <div className="stage-empty">⏱ {formatClock(Math.max(0, (slide.countdownTo || 0) - Date.now()))}</div>
   const src = chords && slide.chords ? slide.chords : slide.text
   const txt = pickLangs(src, state.displayLang === 'both' ? 'both' : state.displayLang, state.bilingualOrder)
