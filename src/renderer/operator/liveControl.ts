@@ -32,7 +32,12 @@ const live = () => st().live
  * computes from fresh state (not the copy that arrives later by broadcast).
  */
 async function push(patch: Partial<LiveState>): Promise<LiveState> {
+  const before = live()?.video
   const s = await api().live.update(patch)
+  // Sound and video play in the projector window: with it closed nothing is heard. Say so whenever
+  // something starts playing (a new video / audio / backing track, or play pressed) instead of silence.
+  const v = patch.video
+  if (v?.playing && (!before || before.src !== v.src || !before.playing)) warnIfNoOutput()
   if (s) useApp.setState({ live: s })
   // a new video (or none) starts with fresh progress, so its own load error is reported
   // even when the previous video failed too (progress only arrives from the projector)
@@ -48,6 +53,11 @@ async function push(patch: Partial<LiveState>): Promise<LiveState> {
  * A failed action shows a toast (a key press or phone tap must not fail silently) and the
  * queue keeps going.
  */
+function warnIfNoOutput(): void {
+  if (st().outputOpen) return
+  st().toast(t('live.noOutput'), 'err', 10_000, { label: t('live.openOutput'), run: () => void api().output.open() })
+}
+
 export const enqueue = createActionQueue((e) => {
   console.error('live action failed', e)
   toastError(e)

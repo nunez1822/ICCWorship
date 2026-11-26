@@ -143,7 +143,11 @@ export const useApp = create<AppState>((set, get) => ({
         set({ progress: p })
         if (p?.error && !wasError) void reportMediaProblem(get().live?.video?.src || get().live?.slides[get().live?.slideIndex ?? -1]?.media, get().toast)
       })
-      api.output.onStatus((s) => set({ outputOpen: s.open }))
+      api.output.onStatus((s) => {
+        // the projector window plays all sound: closing it mid-video / mid-song stops the sound — say so
+        if (!s.open && get().outputOpen && get().live?.video?.playing) get().toast(i18n.t('live.outputClosedSound'), 'err', 10_000)
+        set({ outputOpen: s.open })
+      })
       api.db.onWriteError((e) => get().toast(i18n.t('errors.saveFailed', { what: e.name, reason: e.message }), 'err'))
       // safety net: an action that fails without its own error handling (e.g. saving a
       // file to a folder that no longer exists) must not fail silently

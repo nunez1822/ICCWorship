@@ -116,7 +116,10 @@
     "show": "Show",
     "stageMsg": "Message to the stage",
     "stagePlaceholder": "Only musicians / preacher see this",
-    "send": "Send"
+    "send": "Send",
+    "noOutput": "⚠ No sound or picture: the projector window is off. Sound and video play through the projector window.",
+    "openOutput": "Open projector",
+    "outputClosedSound": "⚠ The projector window was closed: the sound stopped. Turn the projector on to play it again."
   },
   "stageQuick": {
     "wrap": "Please wrap up",

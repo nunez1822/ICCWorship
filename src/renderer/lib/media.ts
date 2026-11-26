@@ -13,7 +13,7 @@ export function mediaUrlToPath(u?: string): string | null {
 
 export const VIDEO_EXT = ['mp4', 'm4v', 'webm', 'mov', 'mkv']
 export const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']
-export const AUDIO_EXT = ['mp3', 'wav', 'm4a', 'ogg']
+export const AUDIO_EXT = ['mp3', 'wav', 'm4a', 'ogg', 'opus', 'flac']
 
 export function kindOf(path: string): MediaKind | null {
   const ext = path.split('.').pop()?.toLowerCase() || ''

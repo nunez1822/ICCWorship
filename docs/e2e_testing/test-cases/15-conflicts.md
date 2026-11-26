@@ -143,3 +143,20 @@ keyboard together.
 **Expected**
 - Logo screen updates immediately with the new name, then the image.
 - Bilingual order flip updates the live slide immediately.
+
+### TC-CONF-18 · Video or audio goes live with the projector off  `P1`
+**Pre:** `sample.mp3` in the library
+**Steps**
+1. Top bar → **Projector on** (turns it off). 2. Media → Show now on the audio card.
+3. Click **Open projector** on the toast.
+**Expected**
+- Step 2: an error toast "⚠ No sound or picture: the projector window is off…" with an **Open projector** button (not silence).
+- Step 3: the projector window opens and the audio plays (`videoProgress.current` advances).
+
+### TC-CONF-19 · Closing the projector while sound plays says so  `P1`
+**Pre:** `sample.mp4` playing on the projector (TC-MED-02)
+**Steps**
+1. Top bar → **Projector on** (turns it off) while the video plays.
+**Expected**
+- An error toast "⚠ The projector window was closed: the sound stopped…". Turning the projector on again resumes the video.
+

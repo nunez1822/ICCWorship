@@ -35,6 +35,10 @@ All notable changes to ICCWorship are documented here. The format is based on
   and connects by itself as soon as a place is free.
 
 ### Added
+- **"No sound" is never silent any more.** All sound (videos, audio files) plays through the projector window. If a
+  video or audio item goes live while the projector window is off, a message says so with an **Open projector**
+  button, and closing the projector while something plays says that the sound stopped.
+- FLAC and Opus audio files can be added to the media library and played.
 - **Data versions.** ICCWorship now records which version wrote the data. Data from 1.0 is upgraded
   automatically after a safety backup (`before-migrate-….zip`). Data written by a **newer** version opens
   **read-only**: an older copy (say, a portable one on a USB stick) can still run the service, but changes are not

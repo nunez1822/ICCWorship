@@ -116,7 +116,10 @@
     "show": "Mostrar",
     "stageMsg": "Mensaje al escenario",
     "stagePlaceholder": "Solo lo ven los músicos / el predicador",
-    "send": "Enviar"
+    "send": "Enviar",
+    "noOutput": "⚠ Sin sonido ni imagen: la ventana del proyector está apagada. El sonido y los videos salen por la ventana del proyector.",
+    "openOutput": "Abrir proyector",
+    "outputClosedSound": "⚠ Se cerró la ventana del proyector: el sonido se detuvo. Encienda el proyector para volver a reproducirlo."
   },
   "stageQuick": {
     "wrap": "Favor de terminar",
