@@ -8,7 +8,7 @@
     "mediaMissing": "⚠ Archivo no encontrado: {{file}}",
     "mediaUnplayable": "⚠ Este video no se puede reproducir (dañado o formato no compatible).",
     "previewFailed": "⚠ No se pudo preparar la vista previa de «{{title}}». Verifique que su canto, versión de la Biblia o archivo todavía existe.",
-    "soundOutputMissing": "⚠ La salida de sonido elegida en Configuración («{{label}}») no está conectada: el sonido sale por los altavoces predeterminados."
+    "soundOutputMissing": "⚠ La salida de sonido elegida en Ajustes («{{label}}») no está conectada: el sonido sale por los altavoces predeterminados."
   },
   "common": {
     "add": "Agregar",
@@ -566,7 +566,7 @@
     },
     "backupError": {
       "no-space": "No hay suficiente espacio libre en esa unidad para la copia. No se guardó nada. Elija otra unidad (una memoria USB) o libere espacio.",
-      "too-large": "Los datos y las pistas de acompañamiento son demasiado grandes para un solo archivo de copia (más de 4 GB). No se guardó nada. Quite las pistas que ya no use e intente de nuevo.",
+      "too-large": "Aun sin las pistas de acompañamiento ni la biblioteca de medios, los datos y las presentaciones son demasiado grandes para un solo archivo de copia (más de 4 GB). No se guardó nada. Quite las presentaciones que ya no use e intente de nuevo.",
       "failed": "No se pudo guardar la copia. Revise la unidad (una memoria USB puede estar llena o desconectada) e intente de nuevo."
     },
     "restore": "Restaurar…",
@@ -692,7 +692,7 @@
     "notices": "Licencias de código abierto"
   },
   "recovery": {
-    "otherCopyDetail": "Otra copia de ICCWorship (la instalada o una portátil) ya está abierta en esta computadora. Use esa, o ciérrela antes de abrir esta.",
+    "otherCopyDetail": "Otra copia de ICCWorship (la instalada o una portátil) ya está abierta en esta computadora. Use esa, o ciérrela antes de abrir esta. Si no la ve, termine ICCWorship en el Administrador de tareas (Ctrl+Mayús+Esc) o reinicie la computadora.",
     "otherCopy": "ICCWorship ya está abierto",
     "resumeBusy": "Ahora hay otra cosa en pantalla, así que no se cambió nada.",
     "resumeOffer": "ICCWorship se cerró inesperadamente durante “{{item}}” ({{plan}}).",
@@ -755,14 +755,15 @@
     "downloading": "Descargando ICCWorship {{version}}… {{percent}} %",
     "ready": "ICCWorship {{version}} está listo. Se instala cuando cierre ICCWorship sin nada en pantalla.",
     "restartNow": "Reiniciar ahora",
-    "notWhileLive": "No mientras haya algo en pantalla. La actualización se instala cuando cierre ICCWorship.",
+    "notWhileLive": "No mientras haya algo en pantalla (la pantalla negra y el logo también cuentan). Primero limpie la pantalla con Esc, o cierre ICCWorship después del servicio: la actualización se instala entonces.",
+    "turnedOff": "Las actualizaciones están desactivadas en Ajustes → Acerca de, así que esta actualización no se instalará.",
     "notReady": "La actualización todavía no se ha descargado.",
     "installFailed": "No se pudo instalar la actualización ahora. ICCWorship sigue funcionando y lo intentará de nuevo en la próxima comprobación.",
     "downloadFailed": "No se pudo descargar la versión nueva. ICCWorship lo intentará de nuevo en la próxima comprobación."
   },
   "data": {
     "readOnlyLocked": "La carpeta “ICCWorship Data” junto al exe portátil está protegida contra escritura (¿una memoria USB bloqueada?), así que ICCWorship la abrió en solo lectura: puede hacer el servicio, pero los cambios NO se guardan. Desbloquee la memoria y reinicie para guardar cambios.",
-    "portableDocuments": "Este ICCWorship portátil usa sus datos de Documentos\\ICCWorship en esta computadora (donde los guardaban las versiones anteriores). Para llevar los datos con el exe, cree una carpeta llamada “ICCWorship Data” junto al exe y copie en ella todo lo de Documentos\\ICCWorship.",
+    "portableDocuments": "Este ICCWorship portátil usa sus datos de Documentos\\ICCWorship en esta computadora (los de la app instalada, o donde los guardaban las versiones portátiles anteriores). Para llevar los datos con el exe, cree una carpeta llamada “ICCWorship Data” junto al exe y copie en ella todo lo de Documentos\\ICCWorship.",
     "portableDocumentsAlso": "Este ICCWorship portátil usa los datos de la carpeta “ICCWorship Data” junto al exe. Esta computadora también tiene datos de ICCWorship en Documentos\\ICCWorship (de la app instalada o de una versión portátil anterior), que esta copia no muestra. Para llevar esos datos con el exe, haga una copia de seguridad de ambos y luego copie todo lo de Documentos\\ICCWorship en “ICCWorship Data”.",
     "portableFallback": "El ICCWorship portátil no puede escribir en su carpeta (una memoria USB bloqueada o una carpeta de solo lectura), así que esta vez sus datos se guardan en Documentos\\ICCWorship en esta computadora.",
     "readOnly": "No se pudieron preparar sus datos de forma segura, así que ICCWorship los abrió en solo lectura: puede dirigir el servicio, pero los cambios NO se guardan. Libere espacio en disco y reinicie.",
@@ -917,7 +918,7 @@
     "oneScreen": "Solo hay una pantalla conectada: el proyector se ve en una ventana pequeña. ¿Está conectado el proyector o el televisor?",
     "outputOnMain": "El proyector está configurado para mostrarse en la pantalla de esta computadora.",
     "outputOk": "La ventana del proyector está abierta en la segunda pantalla ({{count}} pantallas conectadas).",
-    "soundMissing": "La salida de sonido elegida “{{label}}” no está conectada: el sonido saldría por los parlantes de la computadora.",
+    "soundMissing": "La salida de sonido elegida “{{label}}” no está conectada: el sonido saldría por los altavoces de la computadora.",
     "soundDefault": "El sonido sale por la salida predeterminada de Windows.",
     "soundChosen": "El sonido sale por “{{label}}”.",
     "phoneDown": "El control desde el teléfono y la pantalla de escenario no están funcionando.",
@@ -932,6 +933,7 @@
     "actRestartOutput": "Reiniciar proyector",
     "actSettings": "Ajustes",
     "actPlan": "Abrir plan",
-    "actBackup": "Hacer copia ahora"
+    "actBackup": "Hacer copia ahora",
+    "actFailed": "No funcionó. Inténtelo de nuevo o abra Ajustes → Pantallas."
   }
 }

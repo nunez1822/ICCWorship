@@ -155,6 +155,9 @@ async function writeBackup(target: string, tracks: boolean, reserve: number, med
         const name = /^data\/([^/]+)\.json$/.exec(rel)?.[1]
         if (name && recovered.has(name)) continue // added below
         if (isTracks && !isTrackFileName(basename(f))) continue
+        // only the library's own copies (a restore takes nothing else back: a folder or Thumbs.db dropped in media/
+        // would only take room in the .zip, and could push the real library out of it)
+        if (isMedia && !isLibraryFileName(basename(f))) continue
         try {
           if (isData) {
             const data = readFileSync(f)
@@ -188,7 +191,15 @@ async function writeBackup(target: string, tracks: boolean, reserve: number, med
     const out = zip.generateNodeStream({ type: 'nodebuffer', streamFiles: true, compression: 'DEFLATE', compressionOptions: { level: 6 } }) as Readable
     // JSZip keeps a read error of a file it hasn't reached yet to itself (the backup would never finish): stop it
     for (const s of opened) s.on('error', (e) => out.destroy(e))
-    await writeStreamAtomic(target, out)
+    try {
+      await writeStreamAtomic(target, out)
+    } catch (e) {
+      // the disk filled up while writing (a quota'd share that reported the whole drive's free space, or something
+      // else writing to the stick meanwhile): the half-written .tmp is gone, so try again with less, like no room
+      const code = (e as NodeJS.ErrnoException).code
+      if (code === 'ENOSPC' || code === 'EDQUOT') throw new BackupRoomError('no-space')
+      throw e
+    }
     return { ok: true, path: target, files, bytes: statSync(target).size, writes }
   } finally {
     for (const s of opened) s.destroy() // a failed backup didn't read them all: close any still open
@@ -351,9 +362,10 @@ async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: Restor
     // tracks/ is replaced only by a backup that says it holds the tracks; media/ is only added to, from one that holds it
     if (isTracksEntry(rel) && !m.hasTracks) continue
     if (isMediaEntry(rel) && !m.hasMedia) continue
-    // a library copy is named by a unique id and never changes: one already here (same size) is the same file — not
-    // counted, unpacked or replaced (a playing video's file may be locked, and restoring on the same PC needs no room)
-    if (isMediaEntry(rel) && statSync(join(root, rel), { throwIfNoEntry: false })?.size === entry.size) continue
+    // a library copy is named by a unique id and never changes: one already here is the same file — not counted,
+    // unpacked or replaced (a playing video's file may be locked, restoring on the same PC needs no room, and a
+    // restore only ever adds to media/: one it replaced couldn't be put back if the restore then failed)
+    if (isMediaEntry(rel) && existsSync(join(root, rel))) continue
     wanted.push({ entry, rel })
   }
   // a full disk must stop the restore before anything is unpacked (the safety copy checks its own room next)

@@ -13,20 +13,25 @@ import { log } from './log'
 import { loadPage } from './pages'
 import { guardOperator, guards, guardWindow } from './windowGuards'
 import { readWindowState, rememberLive, saveWindowState } from './session'
-import { operatorWorkAreas, restoreWindowState } from '@shared/windowState'
+import { centredIn, operatorWorkAreas, restoreWindowState } from '@shared/windowState'
 
 const OPERATOR_MIN = { width: 1100, height: 680 }
+const OPERATOR_SIZE = { width: 1480, height: 920 }
 
 export function createOperator(): void {
   // the size and place it had last time, if that is still on a screen other than the projector's (else maximized, as
   // on the first run)
   const s = getSettings()
   const projector = s.outputEnabled && !process.env.ICCWORSHIP_WINDOWED ? pickOutputDisplay(s) : null
-  const state = restoreWindowState(readWindowState(), operatorWorkAreas(screen.getAllDisplays(), screen.getPrimaryDisplay().id, projector?.id), OPERATOR_MIN)
+  const areas = operatorWorkAreas(screen.getAllDisplays(), projector?.id)
+  const state = restoreWindowState(readWindowState(), areas, OPERATOR_MIN)
+  // nothing saved to restore: Electron opens it on Windows' main screen, which may be the one the projector covers
+  const primary = screen.getPrimaryDisplay().workArea
+  const onPrimary = areas.some((a) => a.x === primary.x && a.y === primary.y && a.width === primary.width && a.height === primary.height)
+  const bounds = state.bounds ?? (!onPrimary && areas[0] ? centredIn(areas[0], OPERATOR_SIZE) : undefined)
   const operator = new BrowserWindow({
-    width: 1480,
-    height: 920,
-    ...state.bounds,
+    ...OPERATOR_SIZE,
+    ...bounds,
     minWidth: OPERATOR_MIN.width,
     minHeight: OPERATOR_MIN.height,
     show: false,

@@ -42,7 +42,7 @@ import { audioOutputOf, restartServer } from '../serverControl'
 import { createOutput, createStageWindow, listDisplays, placeOutput, restartOutput } from '../windows'
 import { guards } from '../windowGuards'
 import { testSound } from './testSound'
-import { takeResumeOffer } from '../session'
+import { DOCUMENTS_ALSO_NOTICE, markNoticeSeen, takeResumeOffer } from '../session'
 import { location } from '../bootstrap'
 import { copyIntoLibrary, deleteCopyIfUnused, removeMediaItem } from '../mediaLibrary'
 import { isLibraryPath } from '@shared/mediaLibrary'
@@ -128,16 +128,22 @@ export function createHandlers() {
     // Settings → Screens → Test sound: the projector plays a short tone through the chosen output and answers
     'output:testSound': () => testSound(),
     'output:restart': () => restartOutput(),
-    'app:notices': () => pendingNotices.splice(0),
+    'app:notices': () => {
+      const notices = pendingNotices.splice(0)
+      // a once-only notice counts as shown when the page has it, not when it was found at startup
+      if (notices.includes('portableDocumentsAlso')) markNoticeSeen(DOCUMENTS_ALSO_NOTICE())
+      return notices
+    },
     /** what was on screen when the last run closed unexpectedly (once; null when there is nothing to offer) */
     'app:resumeOffer': () => takeResumeOffer(),
     'displays:list': () => listDisplays(),
     'output:open': () => createOutput(),
     'output:close': () => wins.output?.close(),
-    /** failed: the window is there but stopped after crashing, or shows the black safe page ("Restart projector") */
+    /** failed: the window is there but stopped after crashing, or shows the black safe page ("Restart projector").
+     *  (Not merely "crashed": the guard reloads a crashed page by itself, or marks it failed.) */
     'output:status': () => {
       const w = wins.output
-      return { open: !!w, failed: !!w && (!!guards.output.failed || !!guards.output.safe || w.webContents.isCrashed()) }
+      return { open: !!w, failed: !!w && (!!guards.output.failed || !!guards.output.safe) }
     },
     'output:replace': () => placeOutput(),
     'stage:open': () => createStageWindow(),

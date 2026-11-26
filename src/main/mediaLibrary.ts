@@ -64,6 +64,12 @@ export function removeMediaItem(id: string): void {
  * shows it — another item, the logo, a plan slide, or what is on the projector right now. The file is deleted once no
  * backup or restore is running (a backup streaming GBs of media would fail on a file that vanished under it).
  */
+/** the parts of the live state that show a file now (a slide, the background, a playing video, the logo layer) */
+function onScreenNow(): unknown {
+  const l = live.state
+  return { slides: l.slides, background: l.background, video: l.video, progress: l.videoProgress?.src, logoPath: l.logoPath }
+}
+
 export function deleteCopyIfUnused(owner: Pick<MediaItem, 'id' | 'path'>): void {
   const store = db()
   if (store.readOnly) return
@@ -71,7 +77,9 @@ export function deleteCopyIfUnused(owner: Pick<MediaItem, 'id' | 'path'>): void 
     libraryFileToDelete(owner, {
       media: store.list<MediaItem>('media'),
       logoPath: getSettings().logoPath,
-      elsewhere: [store.list<ServicePlan>('plans'), store.list<Presentation>('presentations'), live.state]
+      // what is on screen right now, not the live theme: themes don't keep a copy (the default theme is always in the
+      // live state, so a picture behind it would otherwise never be freed)
+      elsewhere: [store.list<ServicePlan>('plans'), store.list<Presentation>('presentations'), onScreenNow()]
     })
   if (!toDelete()) return
   afterBackups(() => {

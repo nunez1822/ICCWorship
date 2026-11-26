@@ -60,8 +60,14 @@ if (location.mode === 'portable') {
   app.setPath('userData', join(location.root, '.app'))
   app.setPath('crashDumps', join(location.root, '.app', 'Crashpad'))
 }
-// a write-protected stick: its data, read-only (prepareData); the profile and logs can't go there
-if (location.mode === 'portable-readonly') setPortableRoot(location.root, { locked: true })
+// a write-protected stick: its data, read-only (prepareData); the profile and logs can't go there, so they go to this
+// computer's %APPDATA% — in a profile of their own, never the installed app's (its "Put it back" offer and window
+// place belong to that copy: this one must not offer them, nor mark them clean when it quits)
+if (location.mode === 'portable-readonly') {
+  setPortableRoot(location.root, { locked: true })
+  app.setPath('userData', join(app.getPath('appData'), 'ICCWorship Portable'))
+  app.setPath('crashDumps', join(app.getPath('appData'), 'ICCWorship Portable', 'Crashpad'))
+}
 
 // Native crashes (GPU driver, video decoder) are written as minidumps to %APPDATA%\ICCWorship\Crashpad.
 // Nothing is ever uploaded; the user can choose to include them in Help → Export diagnostics.

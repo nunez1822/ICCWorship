@@ -260,8 +260,8 @@
 - Steps 1 and 3 each show the toast "⚠ The sound output chosen in Settings (“<name>”) isn't connected…" — the
   second loss is never silent. The sound plays through the default speakers both times.
 
-
 ### TC-SET-15 · The installed app downloads an update and installs it only when closed  `P0`
+**Pre:** the installed app (not portable), an older release installed while a newer one is published
 **Automated:** `pnpm smoke` runs the download part against a local test feed ("update found, downloaded and checked
 (SHA-512)…", "update never installs while something is on screen"). **Manual** for a real release:
 **Steps**
@@ -271,27 +271,38 @@
    service for 2 hours) and Check now again. Quit, relaunch with nothing on screen, Check now again; wait.
 3. Put a song live and click **Restart now** on the toast; press Esc and click it again.
 4. With an update downloaded again (reinstall the old release, steps 1–2): put a song live and **close the window**
-   (or Quit in the "window crashed" question); relaunch.
-5. With an update downloaded: untick "Download new versions…", then quit with nothing on screen.
+   (or Quit in the "window crashed" question); relaunch. Then, with an update downloaded: put a song live, press
+   **Esc**, crash the operator page twice (TC-RES-*) and choose **Quit** in the "window crashed" question; relaunch.
+5. With an update downloaded: untick "Download new versions…", click **Restart now** on a still-visible "is ready"
+   toast, then quit with nothing on screen.
 6. Untick it while "Downloading… n%" shows; separately, put a song live while it downloads.
 **Expected**
 - 2: while live, and after Esc, Check now says "ICCWorship x.y.z is available. It downloads later, after the
   service." and nothing downloads. After the relaunch, "Downloading ICCWorship x.y.z… n%", then a toast
   "ICCWorship x.y.z is ready. It installs when you close ICCWorship with nothing on screen." with **Restart now**.
-  (Left running after Esc, the automatic check downloads it once the screen has been cleared for 2 hours.)
-- 3: while live, "Not while something is on screen…"; after Esc (nothing on screen) the app closes, installs silently
-  and opens the new version with all data. Quitting normally with nothing on screen installs it too. If the installer
+  (Left running after Esc, it downloads at the first automatic check (every 6 h) after the screen has been cleared
+  for 2 hours.)
+- 3: while live, "Not while something is on screen (the black screen and the logo count too). Clear the screen with
+  Esc first, or close ICCWorship after the service: the update installs then."; the toast's button closes the toast
+  when clicked (open Settings → About for **Restart now** again). After Esc (nothing on screen) the app closes,
+  installs silently and opens the new version with all data. A double click on **Restart now** starts only one
+  installer. Quitting normally with nothing on screen installs it too. If the installer
   can't start, a toast says "The update could not be installed now…" and the app keeps running.
-- 4: **nothing installs**: the old version starts again at once (`main.log`: `update x.y.z not installed at this
+- 4: **nothing installs**, also for Quit after a crash with the screen cleared by Esc (the volunteer is about to start
+  it again mid-service): the old version starts again at once (`main.log`: `update x.y.z not installed at this
   quit`). It installs at a later quit with nothing on screen.
-- 5: unticking hides the "is ready" line and its **Restart now**; nothing installs; the old version is still there.
+- 5: unticking hides the "is ready" line and its **Restart now** in Settings; **Restart now** on the old toast says
+  "Updates are turned off in Settings → About, so this update won't be installed."; nothing installs; the old version
+  is still there.
 - 6: the download stops (`update download stopped: updates turned off` / `something went live`); with updates still
   on, the next automatic check after the service (or Check now with nothing live) starts it again — the same day, not
   a day later.
 - Unticking "Download new versions…" makes Check now show the "is available" button (download page) instead.
 - `main.log` has `update check: latest x.y.z (newer)`, `downloading update x.y.z`, `update x.y.z downloaded…` and no
-  web page text or URLs (updater errors are logged as short `ERR_UPDATER_…` or `net::ERR_…` codes; a download that
-  can't be differential logs `downloading the whole installer`, not an error).
+  web page text, URLs, file paths (they hold the Windows user name: `<path>`) or the updater's id (`<id>`) (updater
+  errors are logged as short `ERR_UPDATER_…` or `net::ERR_…` codes; a download that can't be differential logs
+  `downloading the whole installer`, not an error).
+
 ### TC-BAK-15 · A manual backup carries the backing tracks; restoring it brings them back  `P1`
 **Pre:** a song with a backing track (TC-SONG-12)
 **Steps**
@@ -343,12 +354,16 @@
 - After restoring the newest backup, the song plays its track again (and `keepTracks` is gone from `meta.json`).
 
 ### TC-BAK-19 · Back up now says when it can't save  `P1`
+**Pre:** backing tracks in `tracks/`
 **Steps**
-1. `queueSaveFile` a path on a drive with less free space than the data and tracks (a nearly full USB stick), or a
+1. `queueSaveFile` a path on a drive with less free space than **the data alone** (a nearly full USB stick), or a
    folder that can't be written → **Back up now**.
+2. A drive with room for the data but not for the tracks (and the media library) → **Back up now**.
 **Expected**
-- A red toast: "Not enough free space on that drive for the backup. Nothing was saved…" (or "The backup could not be
-  saved. Check the drive…" for a write error). No `.zip` and no `.zip.tmp` is left at that path. Never silent.
+- 1: a red toast: "Not enough free space on that drive for the backup. Nothing was saved…" (or "The backup could not
+  be saved. Check the drive…" for a write error). No `.zip` and no `.zip.tmp` is left at that path. Never silent.
+- 2: the backup is saved with less, and says so: "Backup saved WITHOUT the backing tracks (…): there isn't room for
+  them on that drive…" (or the media library / both versions; see TC-BAK-25).
 
 ### TC-BAK-20 · A big track library backs up and restores without freezing  `P2` (manual)
 **Pre:** 100+ songs with backing tracks (≈ 600 MB in `tracks/`)
@@ -368,8 +383,12 @@
 **Steps**
 1. **Back up now**. 2. Restore a manual backup that holds tracks.
 **Expected**
-- Step 1: a blue toast "Backup saved WITHOUT the backing tracks (…): together they are over 4 GB… Copy the folder
-  Documents\ICCWorship\tracks to the same drive too." The zip's manifest says `"hasTracks": false`.
+- Step 1: a blue toast "Backup saved WITHOUT the backing tracks (<n> files, <size> MB): with them it would be over
+  4 GB, too much for one backup file. Copy the tracks folder (in the data folder) to the same drive too." The zip's
+  manifest says `"hasTracks": false`. (With the media library also too big, it is left out first; see TC-BAK-25.)
+- If even the data and presentations alone are over 4 GB: "Even without the backing tracks and the media library, the
+  data and presentations are too large for one backup file (over 4 GB). Nothing was saved. Remove presentations you no
+  longer use and try again."
 - Step 2: the restore works; its safety copy is a data-only `before-restore-…` zip, the backup's tracks are added
   and none of the current tracks are removed.
 - If that restore fails while replacing files (hold a data file open in another program so it can't be replaced):
@@ -406,6 +425,7 @@ presentations)
   restore reads the whole list anyway.)
 
 ### TC-BAK-24 · The portable version keeps everything beside its exe  `P1` (packaged)
+**Pre:** `pnpm build:win`; a USB stick; for steps 5, 7 and 8 a PC with data in `Documents\ICCWorship`
 **Steps**
 1. `pnpm build:win`. Copy `dist/ICCWorship-Portable-<version>.exe` into an empty folder (or a USB stick) and run it.
 2. Add a song; Settings → About; quit.
@@ -419,40 +439,53 @@ presentations)
    and the other way round.
 7. On that PC (data in `Documents\ICCWorship`), run the exe from step 1's folder (it has its own `ICCWorship Data`);
    quit and run it again.
+8. Take the same stick to a second PC that also has data in `Documents\ICCWorship`, and run the exe there.
 **Expected**
 - An `ICCWorship Data` folder appears beside the exe with `data\`, `backups\` and `.app\logs\main.log`; nothing new in
   `Documents\ICCWorship` or `%APPDATA%\ICCWorship`.
 - About shows that folder as the data folder, marked "portable".
 - 3: the song from step 2 is there; a red bar says the folder is write-protected and nothing is saved; About says
-  "portable, read-only…". Nothing is written to the stick.
+  "portable, read-only…". Nothing is written to the stick. Its profile and logs go to this PC's
+  `%APPDATA%\ICCWorship Portable` (logs in `…\logs\main.log`), never the installed app's `%APPDATA%\ICCWorship`: it
+  doesn't offer the installed app's "Put it back" item, and quitting it doesn't clear that offer.
 - 4: a toast says the portable ICCWorship can't write to its folder and uses `Documents\ICCWorship` this time;
   About says so too ("portable, but the folder beside the exe can't be written…"), and no empty `ICCWorship Data`
   folder is left behind.
-- 5: it opens the data in `Documents\ICCWorship` (no sample songs, the same PIN); a toast says how to move it beside
-  the exe; About says "portable, using Documents\ICCWorship…". Creating `ICCWorship Data` beside the exe makes the
+- 5: it opens the data in `Documents\ICCWorship` (no sample songs, the same PIN); a toast "This portable ICCWorship is
+  using your data in Documents\ICCWorship on this computer (the installed app’s, or where earlier portable versions
+  kept it). To carry the data with the exe instead…" says how to move it beside the exe; About says "portable, using Documents\ICCWorship…". Creating `ICCWorship Data` beside the exe makes the
   next start portable. (In a folder it can't write to, as in step 4, it uses Documents with step 4's toast instead:
   it never suggests creating a folder it couldn't.)
-- 6: a message "ICCWorship is already running" / "ICCWorship ya está abierto"; the second copy doesn't start (no
+- 6: a message "ICCWorship is already running" / "ICCWorship ya está abierto", whose text ends "If you can't see it,
+  end ICCWorship in Task Manager (Ctrl+Shift+Esc) or restart the computer."; the second copy doesn't start (no
   second projector window). A portable copy that uses Documents or the installed copy's profile (steps 3–5) instead
   brings the open window to the front and doesn't start either.
 - 7: it uses its own `ICCWorship Data`, and a toast says this computer also has data in `Documents\ICCWorship` that
   this copy doesn't show. The second run doesn't say it again.
+- 8: the toast shows again on the second PC (it is said once per computer, not once per stick); a second run there
+  doesn't repeat it.
 - The installed app started from another program's portable exe (which passes on `PORTABLE_EXECUTABLE_DIR`) still
   uses `Documents\ICCWorship`: only ICCWorship's own portable launcher counts.
 - `pnpm packaged-check` covers the first expectation automatically ("portable: data, settings and logs are kept
   beside the exe").
 
 ### TC-BAK-25 · The media library is in "Back up now" and comes back on another computer  `P0`
+**Pre:** default; the copy setting on
 **Steps**
-1. Add `sample.mp4` and `sample.jpg` to Media (copied into `.e2e-data/media/`); choose `sample.png` as the logo.
-   **Back up now**.
+1. Add `sample.mp4` and `sample.jpg` to Media (copied into `.e2e-data/media/`); choose `sample.png` as the logo. Put a
+   `Thumbs.db` file and a folder `old videos\` with a file in it into `.e2e-data/media/` by hand. **Back up now**.
 2. Delete everything in `.e2e-data/media/`. **Restore** that backup.
 3. Make the media folder over 4 GB (manual: big videos), **Back up now**.
 4. Back up to a stick smaller than the media library.
+5. Replace `.e2e-data/media/<id>.jpg` with a different picture of another size (same name), then restore step 1's
+   backup.
+6. (Optional, hard to provoke by hand) Back up to a drive that fills up while the backup is being written (a quota'd
+   network share that reports the whole drive's free space, or copy a big file to the stick at the same time).
 **Expected**
 - `pnpm smoke` covers 1–2 ("the media library is in the backup and comes back on restore").
 - 1: the .zip holds `media/<id>.mp4`, `media/<id>.jpg`, `media/<id>.png` (stored, not recompressed) and its
-  `iccworship-backup.json` says `"hasMedia": true`.
+  `iccworship-backup.json` says `"hasMedia": true`. `Thumbs.db` and `old videos\` are not in it (only the library's
+  own `<id>.<ext>` copies are; they don't count toward the room or the 4 GB either).
 - 2: the files are back; the video plays, the image shows, the logo shows. A restore never deletes files from
   `media/` that the backup doesn't have.
 - Automatic backups (`auto-…zip`) never contain `media/`.
@@ -465,4 +498,7 @@ presentations)
   even for the data and tracks → saved without them too; only a stick too small for the data itself fails.
 - Restoring a backup on the same PC (media already in `media/`) needs no room for the media again, and doesn't
   touch those files (a video playing meanwhile keeps playing).
+- 5: the restore keeps the picture already in `media/` (a restore only ever adds to `media/`, whatever the size of a
+  file already there).
+- 6: the backup falls back exactly as with no room (step 4's messages), and no `.zip.tmp` is left behind.
 

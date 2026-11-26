@@ -44,7 +44,8 @@ All notable changes to ICCWorship are documented here. The format is based on
 - **The media library keeps its own copy** of the pictures, videos and sound you add, and of the logo, in
   `Documents\ICCWorship\media` (like EasyWorship and ProPresenter). Moving or deleting the original file no longer
   breaks a slide or a background, and **Back up now** includes them, so a restore on a new computer brings them
-  back. Deleting an item from the library removes its copy, unless a plan slide, the logo or the screen still uses it
+  back. Deleting an item from the library removes its copy, unless a plan slide, the logo or a slide on screen still
+  uses it
   (replacing the logo removes the old one's copy the same way). Turn it off in
   Settings → Backup for a very large video library on another drive (items then link to the original file, as
   before). A backup too big for one file, or for the USB stick, leaves the media out (then the tracks) and says
@@ -72,10 +73,11 @@ All notable changes to ICCWorship are documented here. The format is based on
 - **The portable version is truly portable now.** `ICCWorship-Portable-x.y.z.exe` keeps the data, settings,
   backups and logs in an `ICCWorship Data` folder beside the exe, so it runs from a USB stick and leaves nothing on
   the computer. (Before, it used `Documents\ICCWorship` on whichever PC it ran on.)
-  *Upgrading from portable 1.0:* until there is an `ICCWorship Data` folder beside the exe, it keeps using the data in
-  `Documents\ICCWorship` and says how to move it. On a write-protected stick it opens the stick's data read-only
-  (a red bar says nothing is saved); with no data and nowhere to write, it uses Documents and says so. When this
-  computer also has data in Documents that the portable copy doesn't show, it says so once.
+  *Already have data in `Documents\ICCWorship`* (the installed app, or portable 1.0)? Until there is an
+  `ICCWorship Data` folder beside the exe, the portable copy keeps using that data and says how to move it. On a
+  write-protected stick it opens the stick's data read-only (a red bar says nothing is saved); with no data and
+  nowhere to write, it uses Documents and says so. When a computer also has data in Documents that the portable copy
+  doesn't show, it says so once on that computer.
 - **Only one ICCWorship runs at a time**, also across the installed and a portable copy: opening a second one says
   the other is already open, instead of starting a second projector window over the live one.
 - The main window opens at the size and place it had last time (maximized the first time), never on a screen that
@@ -135,7 +137,7 @@ All notable changes to ICCWorship are documented here. The format is based on
 - A QR code for the stage display in Settings, next to the phone remote's.
 - Security policy, privacy statement, code of conduct, support guide, issue and pull-request templates.
 - Continuous integration on Windows (type check, unit tests, build, smoke test) for every pull request.
-- ESLint and Prettier, checked in CI, so every contributor's code looks the same.
+- Formatting and lint checks in CI, so every contributor's code looks the same (now Oxfmt and Oxlint, see Changed).
 - Releases are built by GitHub Actions, with SHA-256 checksums and signed build provenance; see "Verify your
   download" in the README.
 - The app now includes the licences of the open-source software it is built with (`THIRD_PARTY_NOTICES.md`
@@ -154,9 +156,9 @@ All notable changes to ICCWorship are documented here. The format is based on
   are added to an empty data folder (data lost or half synced), or when the song list had to be recovered from an
   older copy or was missing, are never cleaned up until a backup is restored, even after the list is saved again.
   Backups and restores stream the files, so a large track library never has to fit in memory; they check the free
-  disk space first, and **Back up now** says when the drive is full instead of failing silently. Over 4 GB of tracks,
-  Back up now saves the data without them and says to copy the tracks folder too. Only the newest 2 safety copies
-  that hold all the tracks are kept.
+  disk space first, and **Back up now** says when the drive is full instead of failing silently. Too big for one
+  backup file (over 4 GB) or for the drive, Back up now leaves the media library out first, then the tracks, and says
+  which folders to copy (see Added). Only the newest 2 safety copies that hold all the tracks are kept.
 - Contributors: development now uses **pnpm** and **Vite+** (`vp`): one `pnpm check` runs formatting (Oxfmt), lint
   (Oxlint, type-aware) and type checks, replacing npm, ESLint, Prettier and `tsc`. A pre-commit hook fixes formatting.
   See CONTRIBUTING.md.
@@ -165,6 +167,8 @@ All notable changes to ICCWorship are documented here. The format is based on
 - The untested macOS and Linux build targets. ICCWorship is a Windows app.
 
 ### Fixed
+- **Dialogs take the keyboard focus**, so Enter or Space no longer also presses a button behind them, and their close
+  button is read out in the app's language.
 - **A frozen ICCWorship window now says so.** If the main window stops responding (it hangs rather than crashes), a
   message asks **Restart the window** or **Keep waiting** — the projector, the music and the phone remote keep
   running, and the question goes away by itself if the window recovers. Before, it stayed frozen with no way out.
@@ -223,7 +227,7 @@ All notable changes to ICCWorship are documented here. The format is based on
   the new preview is being prepared. Clicking one of those thumbnails could send the new item live at the
   wrong slide.
 - If a preview can't be prepared, the operator now sees a message instead of a stale or empty preview.
-- The README now says Node.js 22.12 or newer is needed to build (Electron 45 requires it).
+- The README now says Node.js 22.22.1 or newer (on Node 22) is needed to build.
 - The README now explains where the portable version keeps its data (see Added).
 
 ## [1.0.0] - 2026-11-24

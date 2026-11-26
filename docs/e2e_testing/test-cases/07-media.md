@@ -12,6 +12,8 @@ Fixtures: `sample.mp4` (5 s color bars + tone), `sample.jpg`, `sample.mp3` (4 s 
 - While adding: "Copying into the library: <file>". `.e2e-data/media/` now holds three `<id>.<ext>` copies, and
   `db.list('media')` paths are `media/<id>.<ext>` with `source` = the original file.
 - Adding the same three files again only says they are already in the library (no new copies).
+- If adding a file fails partway (e.g. a broken file whose thumbnail can't be made), an error toast says so and the
+  "Working… <file>" pill goes away (it never stays on screen).
 
 ### TC-MED-02 · Play an MP4 on the projector  `P0` 📸
 **Steps**
@@ -65,14 +67,18 @@ Fixtures: `sample.mp4` (5 s color bars + tone), `sample.jpg`, `sample.mp3` (4 s 
 - Deleting a file inside `.e2e-data/media/` shows "⚠ Missing" for its card the same way.
 
 ### TC-MED-09 · Remove from library  `P1`
+**Pre:** default; the copy setting on
 **Steps**
-1. Add `sample.jpg`; Themes → use it as a theme background (Media → Use as background, then save the theme).
+1. Add `sample.jpg`. Themes → pick it as the **default** theme's background and save; then Media → select it →
+   **Use as background now**.
 2. Add `sample.mp4`. Remove both cards from the library (confirm).
 3. Add a file with the copy setting off (TC-MED-08 step 2), and remove that card.
 **Expected**
-- Cards disappear, and both copies in `.e2e-data/media/` are deleted. The theme shows the built-in gradient (as the
-  Themes page shows "—"): a theme doesn't keep a removed item's file. The picture that was the background on screen
-  (Use as background) is replaced on the projector by the theme's background first, so its copy is deleted too.
+- Cards disappear, and both copies in `.e2e-data/media/` are deleted, also while that default theme is the live one
+  (the live theme doesn't keep a copy). The theme shows the built-in gradient (as the Themes page shows "—"): a theme
+  doesn't keep a removed item's file. The picture that was the background on screen (Use as background now) is
+  replaced on the projector by the theme's background first, so its copy is deleted too.
+- A plan slide or something really on screen still keeps its copy (TC-MED-13).
 - 3: the original file on disk still exists (ICCWorship never deletes the church's own files).
 
 ### TC-MED-10 · FLAC and Opus audio files play  `P2`

@@ -566,7 +566,7 @@
     },
     "backupError": {
       "no-space": "Not enough free space on that drive for the backup. Nothing was saved. Pick another drive (a USB stick) or free up space.",
-      "too-large": "The data and backing tracks are too large for one backup file (over 4 GB). Nothing was saved. Remove backing tracks you no longer use and try again.",
+      "too-large": "Even without the backing tracks and the media library, the data and presentations are too large for one backup file (over 4 GB). Nothing was saved. Remove presentations you no longer use and try again.",
       "failed": "The backup could not be saved. Check the drive (a USB stick may be full or removed) and try again."
     },
     "restore": "Restore…",
@@ -692,7 +692,7 @@
     "notices": "Open-source licences"
   },
   "recovery": {
-    "otherCopyDetail": "Another copy of ICCWorship (the installed one or a portable one) is already open on this computer. Use that one, or close it before starting this one.",
+    "otherCopyDetail": "Another copy of ICCWorship (the installed one or a portable one) is already open on this computer. Use that one, or close it before starting this one. If you can't see it, end ICCWorship in Task Manager (Ctrl+Shift+Esc) or restart the computer.",
     "otherCopy": "ICCWorship is already running",
     "resumeBusy": "Something else is on screen now, so nothing was changed.",
     "resumeOffer": "ICCWorship closed unexpectedly during “{{item}}” ({{plan}}).",
@@ -755,14 +755,15 @@
     "downloading": "Downloading ICCWorship {{version}}… {{percent}}%",
     "ready": "ICCWorship {{version}} is ready. It installs when you close ICCWorship with nothing on screen.",
     "restartNow": "Restart now",
-    "notWhileLive": "Not while something is on screen. The update installs when you close ICCWorship.",
+    "notWhileLive": "Not while something is on screen (the black screen and the logo count too). Clear the screen with Esc first, or close ICCWorship after the service: the update installs then.",
+    "turnedOff": "Updates are turned off in Settings → About, so this update won't be installed.",
     "notReady": "The update is not downloaded yet.",
     "installFailed": "The update could not be installed now. ICCWorship keeps running and tries again at the next check.",
     "downloadFailed": "The new version could not be downloaded. ICCWorship will try again at the next check."
   },
   "data": {
     "readOnlyLocked": "The “ICCWorship Data” folder beside the portable exe is write-protected (a locked USB stick?), so ICCWorship opened it read-only: you can run the service, but changes are NOT saved. Unlock the stick and restart to save changes.",
-    "portableDocuments": "This portable ICCWorship is using your data in Documents\\ICCWorship on this computer (where earlier versions kept it). To carry the data with the exe instead, create a folder named “ICCWorship Data” beside the exe and copy everything from Documents\\ICCWorship into it.",
+    "portableDocuments": "This portable ICCWorship is using your data in Documents\\ICCWorship on this computer (the installed app’s, or where earlier portable versions kept it). To carry the data with the exe instead, create a folder named “ICCWorship Data” beside the exe and copy everything from Documents\\ICCWorship into it.",
     "portableDocumentsAlso": "This portable ICCWorship uses the data in the “ICCWorship Data” folder beside the exe. This computer also has ICCWorship data in Documents\\ICCWorship (from the installed app or an earlier portable version), which this copy doesn’t show. To carry that data with the exe instead, back up both, then copy everything from Documents\\ICCWorship into “ICCWorship Data”.",
     "portableFallback": "The portable ICCWorship can't write to the folder it is in (a locked USB stick or a read-only folder), so this time your data is kept in Documents\\ICCWorship on this computer.",
     "readOnly": "Your data could not be safely prepared, so ICCWorship opened it read-only: you can run the service, but changes are NOT saved. Free some disk space and restart.",
@@ -932,6 +933,7 @@
     "actRestartOutput": "Restart projector",
     "actSettings": "Settings",
     "actPlan": "Open plan",
-    "actBackup": "Back up now"
+    "actBackup": "Back up now",
+    "actFailed": "That didn't work. Try again, or open Settings → Screens."
   }
 }

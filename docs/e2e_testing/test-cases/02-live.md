@@ -269,6 +269,7 @@ second song's item (if its timing is recorded, enter it part-way so it starts wi
 - Step 2: item 1 comes back on its last slide; the intro's music fades out. The phone remote's Prev does the same.
 
 ### TC-LIVE-33 · "Ready for Sunday?" checks the plan, screens, sound, phone remote and backups  `P1`
+**Pre:** a plan with a song, a video media item and a header (section label, no slides) as the active plan
 **Steps**
 1. Live page → ✅ (next to ✏️). Read the list; close it.
 2. Break things: delete a song the active plan uses; rename the video file a media item in the plan points to (its
@@ -277,6 +278,10 @@ second song's item (if its timing is recorded, enter it part-way so it starts wi
 3. ✅ again. Click each row's button.
 4. Close the checklist, Settings → Backup → **Back up now**, then ✅ again.
 5. Make the projector give up (crash its page repeatedly, TC-RES-*), so it shows black (safe mode) or nothing; ✅.
+6. Give the header (section label) its own picture background in the plan editor, then rename that picture's file
+   (its library copy in `media/`); ✅.
+7. With the checklist open, press Tab repeatedly, then Shift+Tab; close it with Esc.
+8. Date the active plan a few days ago (Spanish UI once, English once); ✅.
 **Expected**
 - 1: "Everything is ready" or warnings only, e.g. "Only one screen is connected…" on a laptop alone, "No “Back up
   now” copy yet…" until **Back up now** has been used on this computer (automatic backups don't count: they stay on
@@ -287,12 +292,20 @@ second song's item (if its timing is recorded, enter it part-way so it starts wi
 - A scripture item whose Bible version isn't on this computer is an **error** ("1 item would show nothing…"), not a
   warning; a picture behind an announcement slide's text that moved counts as a missing file; a logo file that
   moved says the Logo button would show nothing. A header row with slides of its own (a welcome video) is checked
-  like any item; a header without slides (a section label) isn't counted.
+  like any item; a header without slides (a section label) isn't counted, but its own background file is checked.
+- 6: "1 item needs a file that isn't on this computer…: <header title>" (the section label shows a title card on that
+  picture when it comes up).
 - 4: the backup line is ✅ right away (a backup from Settings counts too, without restarting).
 - 5: "The projector window stopped after failing again and again…" (an error) with **Restart projector**, which
-  restarts it and re-checks.
+  restarts it and re-checks. If opening or restarting the projector fails: "That didn't work. Try again, or open
+  Settings → Screens." (a toast, never nothing).
 - **Open projector** opens it and the list re-checks itself; **Open plan** opens the plan editor; **Back up now** asks
   where to save, shows the same message as Settings → Backup (also "saved WITHOUT the media library…" when it had
-  to leave it out), and the backup line turns ✅; **Settings** opens Settings.
+  to leave it out), and the backup line turns ✅; **Settings** opens Settings at the section that fixes it: **Screens**
+  for the screens, the sound output and the logo, **Phone remote & stage display** for the phone line.
+- 7: Tab and Shift+Tab move only between the checklist's own buttons (never the plan or the buttons behind it); after
+  Esc the focus is back on ✅.
 - With the checklist open while a video plays, it doesn't re-check by itself (the buttons stay enabled).
-- A plan dated before today says it is for a day that has passed. Running the check never changes anything on screen.
+- 8: A plan dated before today says it is for a day that has passed, with the date written out in the app's language
+  ("The plan “…” is for Sunday, November 22, 2026, a day that has passed…" / "…es para el domingo, 22 de noviembre de
+  2026…"), not `2026-11-22`. Running the check never changes anything on screen.

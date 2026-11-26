@@ -27,7 +27,7 @@ import { registerIpc } from './ipc'
 import { restartServer } from './serverControl'
 import { broadcastLive, createOperator, createOutput, forwardCommand, placeOutput } from './windows'
 import { pauseHeartbeats, resumeHeartbeats } from './windowGuards'
-import { endSession, firstTimeHere, startSession } from './session'
+import { DOCUMENTS_ALSO_NOTICE, endSession, noticeSeen, startSession } from './session'
 import { isTestProfile, location } from './bootstrap'
 import { machineLock } from './machineLock'
 
@@ -100,7 +100,7 @@ app
     }
     log.info(`ICCWorship ${app.getVersion()} starting (Electron ${process.versions.electron}, ${process.platform} ${process.getSystemVersion()})`)
     if (location.mode === 'portable') log.info('portable: data beside the exe')
-    if (location.mode === 'portable' && location.documentsAlso && firstTimeHere('documents-data-noticed')) {
+    if (location.mode === 'portable' && location.documentsAlso && !noticeSeen(DOCUMENTS_ALSO_NOTICE())) {
       // this PC also has data in Documents (the installed copy's, or portable 1.0's) that this copy doesn't show:
       // say so once, so a church never thinks its songs are gone
       log.info('portable: this computer also has data in Documents')

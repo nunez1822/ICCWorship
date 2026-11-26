@@ -58,40 +58,44 @@ export function MediaPage() {
     const copy = s.settings.copyMediaToLibrary !== false
     let n = 0
     let already = 0
-    for (const p of paths) {
-      const kind = kindOf(p)
-      if (kind && known.has(p.toLowerCase())) already++
-      if (!kind || known.has(p.toLowerCase())) continue
-      // the library keeps its own copy (backups and a new computer then have it, see @shared/mediaLibrary);
-      // if it can't (no room), the item links to the file where it is, as before — and says so
-      let stored = p
-      if (copy) {
-        setBusy(`${t('media.copying')} ${fileName(p)}`)
-        // (read-only data refuses the copy: the item links to the file, like a copy that didn't fit)
-        const r = await window.api.media.copyIn(p).catch(() => ({ ok: false as const, error: 'failed' as const }))
-        if (r.ok) stored = r.path
-        else s.toast(t(r.error === 'no-space' ? 'media.copyNoSpace' : 'media.copyFailed', { name: fileName(p) }), 'err', 10_000)
+    // (a failed save stops the batch: the busy pill must still go away)
+    try {
+      for (const p of paths) {
+        const kind = kindOf(p)
+        if (kind && known.has(p.toLowerCase())) already++
+        if (!kind || known.has(p.toLowerCase())) continue
+        // the library keeps its own copy (backups and a new computer then have it, see @shared/mediaLibrary);
+        // if it can't (no room), the item links to the file where it is, as before — and says so
+        let stored = p
+        if (copy) {
+          setBusy(`${t('media.copying')} ${fileName(p)}`)
+          // (read-only data refuses the copy: the item links to the file, like a copy that didn't fit)
+          const r = await window.api.media.copyIn(p).catch(() => ({ ok: false as const, error: 'failed' as const }))
+          if (r.ok) stored = r.path
+          else s.toast(t(r.error === 'no-space' ? 'media.copyNoSpace' : 'media.copyFailed', { name: fileName(p) }), 'err', 10_000)
+        }
+        setBusy(`${t('common.working')} ${fileName(p)}`)
+        try {
+          const thumb = await makeThumb(stored, kind)
+          await s.save('media', {
+            id: uid(),
+            name: fileName(p).replace(/\.[^.]+$/, ''),
+            path: stored,
+            source: stored !== p ? p : undefined,
+            kind,
+            thumb,
+            addedAt: Date.now()
+          } satisfies MediaItem)
+        } catch (e) {
+          if (stored !== p) void window.api.media.discardCopy(stored) // no item points to the copy
+          throw e
+        }
+        known.add(p.toLowerCase())
+        n++
       }
-      setBusy(`${t('common.working')} ${fileName(p)}`)
-      try {
-        const thumb = await makeThumb(stored, kind)
-        await s.save('media', {
-          id: uid(),
-          name: fileName(p).replace(/\.[^.]+$/, ''),
-          path: stored,
-          source: stored !== p ? p : undefined,
-          kind,
-          thumb,
-          addedAt: Date.now()
-        } satisfies MediaItem)
-      } catch (e) {
-        if (stored !== p) void window.api.media.discardCopy(stored) // no item points to the copy
-        throw e
-      }
-      known.add(p.toLowerCase())
-      n++
+    } finally {
+      setBusy(null)
     }
-    setBusy(null)
     if (n) s.toast(t('media.added', { count: n }))
     if (already) s.toast(t('media.alreadyIn', { count: already }), 'info')
   }

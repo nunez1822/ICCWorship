@@ -319,7 +319,14 @@ export function App() {
           <div key={x.id} className={`toast ${x.kind}`}>
             {x.text}
             {x.action && (
-              <button className="btn sm toast-action" onClick={x.action.run}>
+              <button
+                className="btn sm toast-action"
+                onClick={() => {
+                  // a toast's button is used once ("Put it back" clicked again later would put an old slide back)
+                  useApp.getState().dismissToast(x.id)
+                  x.action?.run()
+                }}
+              >
                 {x.action.label}
               </button>
             )}

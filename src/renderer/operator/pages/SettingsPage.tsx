@@ -39,6 +39,11 @@ export function SettingsPage() {
     void window.api.server.info().then(setServer)
     void window.api.backup.list().then(setBackups)
   }
+  // opened from a "Ready for Sunday?" button: start at the section that fixes the problem
+  const focusSection = s.focus?.page === 'settings' ? s.focus.id : undefined
+  useEffect(() => {
+    if (focusSection) document.getElementById(`settings-${focusSection}`)?.scrollIntoView({ block: 'start' })
+  }, [focusSection])
   useEffect(() => {
     refresh()
     void window.api.app.info().then(setInfo)
@@ -105,7 +110,7 @@ export function SettingsPage() {
             </Field>
           </div>
 
-          <div className="card col">
+          <div className="card col" id="settings-screens">
             <h2>🖥️ {t('settings.screens')}</h2>
             <div className="small muted">{t('settings.screensHelp')}</div>
             {displays.map((d) => (
@@ -242,7 +247,7 @@ export function SettingsPage() {
         </div>
 
         <div className="col">
-          <div className="card col">
+          <div className="card col" id="settings-remote">
             <h2>📱 {t('settings.remote')}</h2>
             <div className="small muted">{t('settings.remoteHelp')}</div>
             <label className="check">

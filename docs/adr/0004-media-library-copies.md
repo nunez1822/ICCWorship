@@ -19,10 +19,13 @@ converted slides (`src/shared/mediaLibrary.ts`, `src/main/mediaLibrary.ts`).
   copy and where (the same drive for a file over 4 GB, a drive with more room when the stick is full). Automatic
   backups and safety copies never include media.
 - **A restore only adds to `media/`**: files are named by unique ids, and the church's library can be far bigger
-  than any safety copy. A file already there with the same size is the same file and is skipped. A failed restore
-  removes what it added.
+  than any safety copy. A file already there is never replaced (its name is a unique id; a replaced one couldn't be
+  put back if the restore failed). A failed restore removes what it added. Only library copies (`<id>.<ext>`) go into
+  a backup: anything else dropped into `media/` would only take room, and a restore wouldn't take it back. A drive
+  that fills up while the backup is written is treated like one with no room: it tries again with less.
 - Deleting an item (or replacing the logo) removes its copy unless another item, the logo, a plan slide (announcement
-  pictures keep the file's URL), a presentation, or what is on the projector right now still uses it (also by its
+  pictures keep the file's URL), a presentation, or what is on the projector right now (a slide, the background, a
+  playing video, the logo; not the live theme, which is always in the live state) still uses it (also by its
   full path, if someone linked to the file inside the data folder) — after any running backup. Removing the
   picture that is the background on screen switches the screen to the theme's background first, so its copy goes
   too. A copy whose item (or logo) then couldn't be saved is removed again. A

@@ -288,6 +288,7 @@ projector first — earlier crashes in the last minute count toward the limit.
   freeze: no question appears.
 
 ### TC-RES-34 · ICCWorship closes unexpectedly mid-service: the item is offered back  `P0`
+**Pre:** an active plan with at least two items, the second with two slides or more
 **Steps**
 1. Go live on the 2nd item of the active plan and move to its 2nd slide. Wait 2 s.
 2. Kill the app (no normal quit): from a Node script, `taskkill /T /F /PID <main pid>` (or end it in Task Manager).
@@ -295,15 +296,17 @@ projector first — earlier crashes in the last minute count toward the limit.
 **Expected**
 - The projector starts black (nothing goes on screen by itself).
 - A toast says ICCWorship closed unexpectedly during "<item>" (<plan>), with **▶ Put it back (slide 2)**.
-- Clicking it puts that item live on slide 2 and selects that plan.
+- Clicking it puts that item live on slide 2 and selects that plan, and the toast goes away at once (it can't be
+  clicked a second time: a later click would put the old slide back over whatever is live then).
 - Quit normally. Before launching again, `.e2e-data/.userdata/session.json` has `"clean":true` (the next launch
   rewrites it to `false` while it runs). Launch again: no such toast.
 - Esc variant: go live, press **Esc** (Clear all), then kill the app → the toast is offered too (Space would have
   brought that slide back), and **Put it back** shows the slide Esc cleared.
 - Second-crash variant: after the toast appears, kill the app again without answering → the next launch offers it
   again.
-- Went live by hand variant: while the toast is up, go live on another item, then click **Put it back** → it says
-  something else is on screen and changes nothing.
+- Went live by hand variant: while the toast is up, go live on another item, then click **Put it back** → "Something
+  else is on screen now, so nothing was changed." and nothing changes. The same while only a song's backing-track
+  intro plays (no text yet), while the **Logo** is up, or while a projector message shows.
 - Variants: a Show-now item (from Bible/Songs), or nothing live and nothing cleared mid-item → no toast. An offer more
   than 6 hours old → no toast. The item was deleted from the plan in between → clicking says it is no longer in the
   plan.
@@ -312,19 +315,26 @@ projector first — earlier crashes in the last minute count toward the limit.
   sermon), the item is offered back. A screen cleared more than 2 hours before the shutdown counts as a normal quit.
 
 ### TC-RES-35 · The operator window opens where it was left  `P2`
+**Pre:** default (steps 4–5: two screens)
 **Steps**
 1. Un-maximize the operator window, move and resize it. Quit normally; launch with `--keep`.
 2. Maximize it; quit; launch again.
 3. Edit `.e2e-data/.userdata/window-state.json` so `bounds.x` is far off any screen (e.g. `9000`); launch again.
-4. (Two screens, run without `ICCWORSHIP_WINDOWED`.) With the projector off, move the operator window onto the second
-   screen and quit. Turn the projector on in Settings (it uses that second screen), quit, launch again.
+4. (Two screens, `pnpm e2e:launch --keep -- --fullscreen`, so the projector really goes full screen.) With the
+   projector off, move the operator window onto the second screen and quit. Turn the projector on in Settings (it
+   uses that second screen), quit, launch again.
+5. (Two screens, the same launch.) In Windows' display settings make the projector the **main display**, choose it as
+   the projector in Settings, delete `.e2e-data/.userdata/window-state.json`, and launch again.
 **Expected**
 - 1: it opens at the same size and place. 2: it opens maximized.
 - 3: it opens on a visible screen (never off-screen or on an unplugged projector).
 - 4: it opens on the main screen, never under the full-screen projector window on the projector's screen.
+- 5: it opens on the other screen (centred there, nothing saved), not on Windows' main screen under the projector.
+  With only one screen, shared by both, it opens on that screen.
 - The first run ever (no `window-state.json`) opens maximized, as before.
 
 ### TC-RES-36 · The offer is kept or replaced correctly after a crash  `P1`
+**Pre:** an active plan with items
 **Steps**
 1. Go live on a plan item, kill the app, launch with `--keep`. Ignore the "closed unexpectedly" toast.
 2. From Bible, **Show now** a verse (a Show-now item, not in the plan). Wait 2 s. Kill the app; launch again.
@@ -332,8 +342,29 @@ projector first — earlier crashes in the last minute count toward the limit.
    the gotchas in CLAUDE.md), so the "the window crashed again" box appears; queue `queueMessageBox(1)` (**Quit**)
    before the second crash. Launch again.
 4. With nothing on screen, change the display language (Live page) only, then kill the app; launch again.
+5. Go live on a plan item, kill the app. Launch again with the operator page set to crash twice before it has
+   loaded (CDP `Page.crash` as soon as the page target appears, twice), with `queueMessageBox(1)` (**Quit**) queued:
+   the "closed unexpectedly" toast never had time to appear. Launch again.
+6. Go live on a plan item, kill the app. Launch again, and before the operator page shows the toast, emit Electron's
+   `session-end` on the operator window (Windows shutting down). Launch again.
+7. Go live on a plan item, kill the app. Launch again, let the toast appear and ignore it (nothing goes live), then
+   emit `session-end`. Launch again.
 **Expected**
 - 2: no toast. The verse on screen replaced the old offer, so the item from step 1 is not offered hours later.
 - 3: the toast offers the item that was on screen: quitting after the operator window crashed mid-service is still an
   interrupted service.
 - 4 (after an offer is showing): the offer survives (a change that shows nothing doesn't replace it).
+- 5: the toast offers the item from step 5's first run: Quit after a crash, before the offer was answered, keeps it.
+- 6: the toast offers it: a shutdown before the offer was even seen keeps it for the next start.
+- 7: no toast: an offer that was shown and left alone is not kept after a shutdown with nothing on screen.
+
+### TC-RES-37 · A damaged built-in Bible doesn't hide the other Bibles  `P1`
+**Pre:** an imported Bible in `.e2e-data/data/bibles/` (TC-BIB-*); a copy of `resources/bibles/rv1909.json` kept aside
+**Steps**
+1. Quit. Cut `resources/bibles/rv1909.json` short (delete its second half, so it is no longer valid JSON).
+2. `pnpm e2e:launch --keep`. Bible → look up John 3:16 in KJV, then in the imported version, then in RV1909.
+3. Put the original `rv1909.json` back.
+**Expected**
+- 2: KJV and the imported Bible show the verse; RV1909 is simply not available (no crash, no frozen page, every other
+  lookup that session still works).
+- `main.log` has `unreadable built-in bible skipped: rv1909 SyntaxError` and no verse text.

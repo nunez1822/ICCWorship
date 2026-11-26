@@ -13,6 +13,7 @@ import type {
 } from '@shared/types'
 import { slidesTimingKey, songName, songToSlides, timedSlideAt, uid } from '@shared/slides'
 import { localDate } from '@shared/dates'
+import { onScreen } from '@shared/updatePolicy'
 import { buildItem, themeBackground } from '../lib/buildSlides'
 import { createActionQueue } from '../lib/actionQueue'
 import { afterRecovery, useApp, t, toastError } from './store'
@@ -721,15 +722,22 @@ export function handleCommand(cmd: RemoteCommand | VideoEndedCommand): void {
 export async function offerResume(): Promise<void> {
   const offer = await window.api.app.resumeOffer()
   if (!offer) return
-  const l = live()
-  if (l && l.slideIndex >= 0) return // something is already on screen again
+  // something is already on screen again: a slide, a backing track's intro, the logo, a message
+  const busy = () => {
+    const l = live()
+    return !!l && onScreen(l)
+  }
+  if (busy()) return
+  let used = false
   st().toast(t('recovery.resumeOffer', { item: offer.itemTitle || '?', plan: offer.planTitle || '?' }), 'info', 120_000, {
     label: t('recovery.resume', { slide: offer.slideIndex + 1 }),
     run: () =>
       void enqueue(async () => {
+        if (used) return // once only
+        used = true
         const s = st()
         // the toast stays up for 2 minutes: the operator may have gone live by hand meanwhile
-        if ((live()?.slideIndex ?? -1) >= 0) return s.toast(t('recovery.resumeBusy'), 'info')
+        if (busy()) return s.toast(t('recovery.resumeBusy'), 'info')
         const plan = s.plans.find((p) => p.id === offer.planId)
         const index = plan ? plan.items.findIndex((i) => i.id === offer.itemId) : -1
         if (!plan || index < 0) return s.toast(t('recovery.resumeGone'), 'err')

@@ -36,7 +36,7 @@ usually operated by a volunteer during a live service, so reliability and simpli
   Media inside the data folder is referenced data-relative (`dataMediaUrl`) and resolved with `mediaFile()`. Added
   pictures/videos/sound and the logo are copied into `<data>/media/` (`src/shared/mediaLibrary.ts`, `media:copyIn`);
   `MediaItem.path` is then `media/<id>.<ext>`, so never treat it as an absolute path (use `toMediaUrl` + `mediaStatus`).
-- **Logging:** use `log` from `src/main/log.ts` (`%APPDATA%\ICCWorship\logs`; portable exe: `ICCWorship Data\.app\logs`;
+- **Logging:** use `log` from `src/main/log.ts` (`%APPDATA%\ICCWorship\logs`; portable exe: `ICCWorship Data\.app\logs`, or `%APPDATA%\ICCWorship Portable\logs` from a write-protected stick;
   test runs: `<ICCWORSHIP_DATA>/.userdata/logs`). Log ids, counts, error codes and short messages, **never** lyrics,
   people, prayer requests, request URLs or payloads. Logs are attached to public bug reports.
 
@@ -50,7 +50,9 @@ usually operated by a volunteer during a live service, so reliability and simpli
   - `live.ts`: live state, the single source of truth for what's on screen.
   - `server.ts`: HTTP + WebSocket server on :7272 for `/remote` and `/stage`, PIN-protected.
   - `jsonStore.ts` / `db.ts`: JSON files with `.bak`, atomic writes and recovery of damaged files.
-  - `backup.ts` / `restorePath.ts`, `bible.ts`, `presentations.ts`.
+  - `backup.ts` / `restorePath.ts`, `bible.ts`, `presentations.ts`, `mediaLibrary.ts` / `mediaPath.ts` (library copies,
+    media paths), `updates.ts` (self-update), `session.ts` ("Put it back" after a crash, window place),
+    `bootstrap.ts` / `portable.ts` (where the data and profile live; imported first), `diagnostics.ts`.
 - `src/preload/index.ts`: the typed `window.api` bridge. Every main-process feature is exposed here.
 - `src/renderer/`: one entry per window.
   - `operator/`: the main window. Pages live in `operator/pages/`; `liveControl.ts` builds slides and pushes
@@ -61,7 +63,8 @@ usually operated by a volunteer during a live service, so reliability and simpli
   - `lib/`, `components/`: shared UI code.
 - `src/shared/`: pure logic (types, slides, scripture references, song import, dates). **Pure logic goes here, with
   a unit test in `tests/`.**
-- Data lives in `Documents\ICCWorship` (`ICCWORSHIP_DATA` overrides it; e2e runs use `.e2e-data/`).
+- Data lives in `Documents\ICCWorship` (`ICCWORSHIP_DATA` overrides it; e2e runs use `.e2e-data/`; the portable exe uses
+  `ICCWorship Data` beside it, see `portable.ts`).
 - Node.js 22.22.1+ is required (Electron 45, Vitest 5 and the `vp staged` hook); see `.node-version` (Vite+ reads it first; it must stay on 22, the range in `engines` alone would pick a newer major). pnpm is the package manager
   (version pinned in `package.json#packageManager`).
 

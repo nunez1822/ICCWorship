@@ -21,6 +21,13 @@ describe('appFile (app://iccworship → built pages)', () => {
     expect(appFile(`${APP_ORIGIN}/..%2f..%2f..%2fdata%2fsettings.json`, root)).toBeNull()
     expect(appFile(`${APP_ORIGIN}/`, root)).toBeNull()
   })
+  it('keeps UNC and device paths inside the folder (path.join folds the leading separators)', () => {
+    expect(appFile(`${APP_ORIGIN}/%5c%5cserver%5cshare%5cx.js`, root)).toBe(join(root, 'server', 'share', 'x.js'))
+    expect(appFile(`${APP_ORIGIN}/%2f%2fserver%2fshare%2fx.js`, root)).toBe(join(root, 'server', 'share', 'x.js'))
+    expect(appFile(`${APP_ORIGIN}/%5c%5c%3f%5cC%5cx.js`, root)).toBe(join(root, '?', 'C', 'x.js'))
+    // a climb that comes back inside the folder is still inside it
+    expect(appFile(`${APP_ORIGIN}/assets/%2e%2e%5c%2e%2e%5crenderer%5cindex.html`, root)).toBe(join(root, 'index.html'))
+  })
   it('refuses a NUL byte or a colon (drive letters, alternate data streams)', () => {
     expect(appFile(`${APP_ORIGIN}/index.html%00.js`, root)).toBeNull()
     expect(appFile(`${APP_ORIGIN}/C:%5cWindows%5cwin.ini`, root)).toBeNull()

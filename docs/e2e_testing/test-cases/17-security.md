@@ -263,3 +263,19 @@ An error's message can quote what a page was reading (a SyntaxError quotes the J
   checked in step 3.
 - Fuse `GrantFileProtocolExtraPrivileges` is **off**; the operator, projector and stage pages render and a scanned
   PDF (JPEG 2000) still imports (its decoders load from `app://`).
+
+### TC-SEC-23 · The media library's copy and discard calls never reach other files  `P0`
+**Pre:** a picture added to Media with the copy setting on (its copy `media/<id>.jpg` in `.e2e-data/`)
+**Steps**
+1. In the operator page: `await window.api.media.discardCopy('media/../data/settings.json')`,
+   `await window.api.media.discardCopy('C:\Windows\win.ini')`, `await window.api.media.discardCopy('media/sub/x.jpg')`,
+   `await window.api.media.discardCopy('data/songs.json')`.
+2. `await window.api.media.discardCopy((await window.api.db.list('media'))[0].path)` (the copy an item still uses).
+3. `await window.api.media.copyIn('relative.jpg')`,
+   `await window.api.media.copyIn('<absolute path of .e2e-data>/data/settings.json')`.
+**Expected**
+- 1: nothing is deleted anywhere (`data/settings.json`, `data/songs.json` still there): only a `media/<id>.<media
+  ext>` path directly in `media/` is ever considered.
+- 2: the copy stays in `media/` (an item still uses it), and the picture still shows.
+- 3: both return `{ ok: false, error: 'bad-file' }` (a relative path, or a file that isn't a picture, video or sound);
+  nothing new appears in `media/`.

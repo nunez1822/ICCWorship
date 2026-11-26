@@ -58,8 +58,8 @@ export const mayDownload = (o: { selfUpdate: boolean; autoUpdate: boolean; live:
  * "Restart now" on a downloaded update. It is an explicit click, so only what is on screen right now stops it (a
  * screen cleared with Esc doesn't), and updates turned off after the download keep it from installing here too.
  */
-export function installNow(o: { allowed: boolean; onScreen: boolean; phase: UpdatePhase }): 'install' | 'live' | 'not-ready' {
+export function installNow(o: { allowed: boolean; onScreen: boolean; phase: UpdatePhase }): 'install' | 'live' | 'not-ready' | 'off' {
   if (o.phase.phase !== 'ready') return 'not-ready'
   if (o.onScreen) return 'live'
-  return o.allowed ? 'install' : 'not-ready'
+  return o.allowed ? 'install' : 'off'
 }

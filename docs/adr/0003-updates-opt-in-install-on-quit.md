@@ -12,7 +12,8 @@ mid-service, and many churches don't want software changing under them on a Sund
 - With it on, the **installed** app (NSIS) also downloads the new version with `electron-updater` (on by default under
   the check, can be unticked) and **installs it when ICCWorship closes**, or on "Restart now".
 - **Nothing starts while a service may be running** (something on screen, or a screen cleared mid-item with Esc
-  less than 2 hours after something was last on screen): no automatic check, no download start
+  less than 2 hours after something was last on screen, timed on the monotonic clock so Windows correcting the time
+  doesn't end it; a timed message counts until it ran out): no automatic check, no download start
   (`src/shared/updatePolicy.ts`). Esc keeps its place until something else goes live, hence the time limit: a
   service ended with Esc on a laptop left open must not block updates until a restart. A manual "Check now" still
   asks, and says the download waits. A download that waited, or was cancelled because a service started, is tried
@@ -20,11 +21,13 @@ mid-service, and many churches don't want software changing under them on a Sund
   cancelled download from the beginning.
 - **"Restart now"** is an explicit click: it installs unless something is on screen right now (a screen cleared with
   Esc doesn't stop it), checked again just before the installer starts. If the installer doesn't start, the operator
-  is told and the app keeps running.
+  is told and the app keeps running. A second click while it starts does nothing more; with updates turned off it
+  says so.
 - **The install at quit is decided at quit** (`beforeQuit()` in `src/main/updates.ts`; electron-updater reads
   `autoInstallOnAppQuit` then): only if both settings are still on and nothing is on screen. Closing the app mid-song
-  (or answering Quit to "the window crashed") never installs; a service usually ends with Esc and then closing the
-  app, which does. Turning either setting off cancels a download too, and hides a downloaded one ("is ready",
+  never installs, nor does answering Quit to "the window crashed" mid-service, even with the screen cleared by Esc (the
+  volunteer reopens the app at once, and the silent install doesn't reopen it); a service usually ends with Esc and
+  then closing the app, which does. Turning either setting off cancels a download too, and hides a downloaded one ("is ready",
   "Restart now") until updates are on again.
 - **No tracking id:** electron-updater sends a random per-install id (kept in `userData/.updaterId`) with every
   request, for staged rollouts. We send zeros instead (`requestHeaders`), so GitHub can't link one computer's checks.

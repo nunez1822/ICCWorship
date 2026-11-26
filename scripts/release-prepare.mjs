@@ -67,8 +67,15 @@ try {
   fail('the GitHub CLI is not signed in: run `gh auth login` first')
 }
 
-let pushed = false
 let branched = false
+/** does origin have the release branch? (asked, not assumed: a push can reach origin and still fail on the way back) */
+function onOrigin() {
+  try {
+    return !!run('git', 'ls-remote', '--heads', 'origin', branch)
+  } catch {
+    return undefined // can't tell
+  }
+}
 /** something failed half-way: back to main, without the half-made release branch */
 function undo(e) {
   console.error(`✗ ${e instanceof Error ? e.message.split('\n')[0] : e}`)
@@ -82,7 +89,9 @@ function undo(e) {
   } catch {
     console.error(`  could not switch back to main by itself: run git switch main${branched ? ` && git branch -D ${branch}` : ''}`)
   }
-  if (pushed) console.error(`  ${branch} was already pushed: open its PR on GitHub, or delete it (git push origin --delete ${branch})`)
+  const remote = onOrigin()
+  if (remote) console.error(`  ${branch} is on origin: open its PR on GitHub, or delete it (git push origin --delete ${branch})`)
+  else if (remote === undefined) console.error(`  check whether origin has ${branch} (git ls-remote --heads origin ${branch}) and delete it if so`)
   process.exit(1)
 }
 
@@ -94,7 +103,6 @@ try {
   run('git', 'add', 'package.json', 'CHANGELOG.md')
   run('git', 'commit', '-m', `Release ${version}`)
   run('git', 'push', '-u', 'origin', branch)
-  pushed = true
 } catch (e) {
   undo(e)
 }
@@ -113,7 +121,8 @@ try {
   const url = execFileSync('gh', ['pr', 'create', '--base', 'main', '--head', branch, '--title', `Release ${version}`, '--body-file', '-'], {
     cwd: root,
     input: body,
-    encoding: 'utf8'
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'pipe'] // gh's error is printed once, by undo()
   }).trim()
   console.log(`✓ release PR: ${url}`)
 } catch (e) {

@@ -10,12 +10,21 @@ import { getSettings, getTheme } from './db'
  */
 class LiveStore extends EventEmitter {
   state: LiveState
-  /** when something was last on screen this run (epoch ms) */
-  lastOnScreenAt: number | undefined
+  /** when something was last on screen this run, on the monotonic clock (Windows setting the wall clock forward
+   *  2 hours during a cleared sermon must not end the service) */
+  private lastOnScreenMono: number | undefined
+
+  /** when something was last on screen (epoch ms, measured on the monotonic clock); a timed message counts until it
+   *  ran out, even though nothing updated the live state then */
+  lastOnScreenAt(now = Date.now()): number | undefined {
+    const seen = this.lastOnScreenMono === undefined ? undefined : now - (performance.now() - this.lastOnScreenMono)
+    const until = this.state.message?.until
+    return until !== undefined && until <= now && (seen === undefined || until > seen) ? until : seen
+  }
 
   /** a service may be running (see isLive): updates wait, and a Windows shutdown now is an interrupted service */
   serviceRunning(now = Date.now()): boolean {
-    return isLive(this.state, now, this.lastOnScreenAt)
+    return isLive(this.state, now, this.lastOnScreenAt(now))
   }
 
   constructor() {
@@ -49,7 +58,7 @@ class LiveStore extends EventEmitter {
     const was = onScreen(this.state)
     this.state = { ...this.state, ...patch, seq: this.state.seq + 1 }
     // on screen until now (a video that played for 40 minutes, then Esc), or from now
-    if (was || onScreen(this.state)) this.lastOnScreenAt = Date.now()
+    if (was || onScreen(this.state)) this.lastOnScreenMono = performance.now()
     this.emit('change', this.state)
     return this.state
   }

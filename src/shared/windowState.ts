@@ -12,10 +12,20 @@ const MIN_VISIBLE = { width: 160, height: 80 }
 /**
  * The screens the operator window may open on. Never the projector's: the projector window covers it full screen and
  * always on top, so the operator window would be hidden behind it — or, if it ever showed, seen by the congregation.
- * (A monitor used at the office during the week is often Sunday's projector, at the same coordinates.)
+ * (A monitor used at the office during the week is often Sunday's projector, at the same coordinates.) The projector
+ * set as Windows' main screen too: only a single screen, shared by both, is ever used for the operator window.
  */
-export function operatorWorkAreas(displays: { id: number; workArea: Rect }[], primaryId: number, projectorId: number | undefined): Rect[] {
-  return displays.filter((d) => d.id === primaryId || d.id !== projectorId).map((d) => d.workArea)
+export function operatorWorkAreas(displays: { id: number; workArea: Rect }[], projectorId: number | undefined): Rect[] {
+  const others = displays.filter((d) => d.id !== projectorId)
+  return (others.length ? others : displays).map((d) => d.workArea)
+}
+
+/** the window's default size, centred on a screen and fitted to it (no saved place, and Windows' main screen is the
+ *  projector's: Electron would put it there) */
+export function centredIn(area: Rect, size: { width: number; height: number }): Rect {
+  const width = Math.min(size.width, area.width)
+  const height = Math.min(size.height, area.height)
+  return { x: Math.round(area.x + (area.width - width) / 2), y: Math.round(area.y + (area.height - height) / 2), width, height }
 }
 
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)

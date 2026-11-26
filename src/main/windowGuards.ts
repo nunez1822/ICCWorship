@@ -11,7 +11,7 @@ import { t } from './i18n'
 import { live } from './live'
 import { log } from './log'
 import { loadPage } from './pages'
-import { endSession, flushSession, quitKeepingOffer } from './session'
+import { endSession, flushSession, holdsLastRunOffer, lastRunOfferUnseen, quitKeepingOffer } from './session'
 
 export type Guarded = 'output' | 'stage'
 const winOf = (kind: Guarded) => (kind === 'output' ? wins.output : wins.stage)
@@ -163,6 +163,7 @@ export function guardOperator(win: BrowserWindow): void {
   win.webContents.on('did-finish-load', () => {
     clearTimeout(operatorStable)
     operatorStable = setTimeout(() => operatorBudget.reset(), 60_000)
+    operatorBusy = false // a new page has no confirm() open (a reload while one was open never said it closed)
   })
   win.on('closed', () => {
     clearTimeout(operatorStable)
@@ -173,6 +174,7 @@ export function guardOperator(win: BrowserWindow): void {
     clearTimeout(operatorStable)
     operatorBeat.stop() // the new page starts watching again with its first beat
     frozenAsk?.abort()
+    operatorBusy = false // its confirm() went with it
     if (d.reason === 'clean-exit' || lifecycle.quitting || win.isDestroyed()) return
     db().flush()
     if (restartingFrozen) {
@@ -201,7 +203,8 @@ export function guardOperator(win: BrowserWindow): void {
       loadPage(win, 'index')
     } else {
       // quitting after a crash mid-service is still an interrupted service: offer the place back at the next start
-      if (live.serviceRunning()) quitKeepingOffer()
+      // (also the last run's offer if this run crashed before it was answered)
+      if (live.serviceRunning() || holdsLastRunOffer()) quitKeepingOffer()
       app.quit()
     }
   })
@@ -217,7 +220,7 @@ export function guardOperator(win: BrowserWindow): void {
     log.info('Windows session ending: saving')
     db().flush()
     if (live.serviceRunning()) flushSession()
-    else endSession()
+    else if (!lastRunOfferUnseen()) endSession() // (an offer from the last run not shown yet stays for the next start)
   })
 }
 

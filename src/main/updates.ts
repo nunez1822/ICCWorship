@@ -21,6 +21,7 @@ import { loggableError } from '@shared/loggableError'
 import { automaticCheckDue, installNow, installOnQuit, mayDownload, onScreen, type UpdatePhase } from '@shared/updatePolicy'
 import { lifecycle, notify } from './appState'
 import { isPortableExe } from './bootstrap'
+import { quittingAfterCrash } from './session'
 import { getSettings, setSettings } from './db'
 import { live } from './live'
 import { log } from './log'
@@ -59,6 +60,9 @@ const firstLine = (m: unknown) =>
   String(m)
     .split(/\r?\n/)[0]
     .replace(/https?:\/\/\S+/g, '<url>')
+    // nor file paths (they carry the Windows user name) or the per-install id electron-updater warns about
+    .replace(/(?:[A-Za-z]:[\\/]|\\\\)[^"'`]*/g, '<path>') // (to the closing quote: user names can have spaces)
+    .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '<id>')
     .slice(0, 120)
 
 // Test hook (smoke.mjs; ignored by a packaged app, like every development switch): an update feed on this computer, so
@@ -191,7 +195,9 @@ export function updateSettingsChanged(): void {
 /** ICCWorship is closing: install the downloaded update only if still wanted and nothing is on screen */
 export function beforeQuit(): void {
   if (!updater || TEST_FEED) return
-  const install = installOnQuit({ allowed: autoUpdateOn(), onScreen: onScreen(live.state), phase })
+  // Quit after the operator window crashed mid-service: the volunteer restarts ICCWorship at once, and a silent
+  // install (which doesn't reopen the app) would kill it or leave it half replaced in the middle of the service
+  const install = installOnQuit({ allowed: autoUpdateOn(), onScreen: onScreen(live.state) || quittingAfterCrash(), phase })
   updater.autoInstallOnAppQuit = install
   if (phase.phase === 'ready' && !install) log.info(`update ${phase.version} not installed at this quit (turned off or something on screen)`)
 }
@@ -239,10 +245,13 @@ async function checkWithApi(): Promise<Extract<UpdateResult, { ok: true }>> {
   return { ok: true, latest, newer, url, selfUpdate: false }
 }
 
+let installing = false
 /** "Restart now": install the downloaded update (never while something is on screen) */
-export function installUpdate(): { ok: boolean; error?: 'live' | 'not-ready' } {
+export function installUpdate(): { ok: boolean; error?: 'live' | 'not-ready' | 'off' } {
+  if (installing) return { ok: true } // a second click: the first one is already on its way
   const decision = installNow({ allowed: autoUpdateOn(), onScreen: onScreen(live.state), phase })
-  if (decision !== 'install' || !updater) return { ok: false, error: decision === 'live' ? 'live' : 'not-ready' }
+  if (decision !== 'install' || !updater) return { ok: false, error: decision === 'install' ? 'not-ready' : decision }
+  installing = true
   log.info(`installing update ${phase.phase === 'ready' ? phase.version : ''} now`)
   if (TEST_FEED) return { ok: true } // a test feed's "installer" is never run
   const u = updater
@@ -251,6 +260,7 @@ export function installUpdate(): { ok: boolean; error?: 'live' | 'not-ready' } {
   setTimeout(() => {
     // the phone remote may have put something on screen meanwhile
     if (onScreen(live.state)) {
+      installing = false
       log.info('update not installed: something went on screen')
       notify({ type: 'updateInstallFailed', reason: 'live' })
       return
@@ -260,6 +270,7 @@ export function installUpdate(): { ok: boolean; error?: 'live' | 'not-ready' } {
     // file is gone, or the installer couldn't start): say so instead of nothing happening
     setTimeout(() => {
       if (lifecycle.quitting) return
+      installing = false
       log.warn('update installer did not start')
       phase = { phase: 'failed', version: phase.phase === 'ready' ? phase.version : '' }
       notify({ type: 'updateInstallFailed', reason: 'failed' })

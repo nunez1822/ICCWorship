@@ -8,6 +8,18 @@ import { useApp } from './store'
 
 const ICON = { ok: '✅', warn: '⚠️', error: '❌' } as const
 
+/** a plan's `YYYY-MM-DD` date reads as a date in the app's language ("domingo, 22 de noviembre de 2026") */
+function readable(params: Check['params'], lang: string | undefined) {
+  const date = params?.date
+  if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return params ?? {}
+  const [y, m, d] = date.split('-').map(Number)
+  try {
+    return { ...params, date: new Date(y, m - 1, d).toLocaleDateString(lang || undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) }
+  } catch {
+    return params ?? {}
+  }
+}
+
 /** "Ready for Sunday?" (Live page → ✅): the pre-service checklist, with a button to fix each problem. */
 export function ReadyCheck({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
@@ -47,8 +59,18 @@ export function ReadyCheck({ onClose }: { onClose: () => void }) {
 
   const act = async (a: CheckAction) => {
     if (a === 'openOutput' || a === 'restartOutput') {
-      await (a === 'openOutput' ? window.api.output.open() : window.api.output.restart())
-      return void setTimeout(() => void run(), 800)
+      const at = runId.current
+      setBusy(true)
+      try {
+        await (a === 'openOutput' ? window.api.output.open() : window.api.output.restart())
+      } catch (e) {
+        window.api.app.log('warn', `ready check ${a} failed: ${e instanceof Error ? e.name : 'error'}`)
+        useApp.getState().toast(t('ready.actFailed'), 'err')
+      }
+      // give the projector a moment to load, then look again (unless the list was closed or re-run meanwhile)
+      return void setTimeout(() => {
+        if (runId.current === at) void run()
+      }, 800)
     }
     if (a === 'backupNow') {
       // the same messages as Settings → Backup (also when the media library or the tracks had to stay out)
@@ -57,7 +79,8 @@ export function ReadyCheck({ onClose }: { onClose: () => void }) {
     }
     onClose()
     if (a === 'plans') s.setPage('plans', s.activePlanId)
-    else s.setPage('settings')
+    // Settings opens at the section that fixes it (the sound output and the logo are under Screens)
+    else s.setPage('settings', a === 'phone' ? 'remote' : 'screens')
   }
 
   const ACTION_LABEL: Record<CheckAction, string> = {
@@ -100,7 +123,7 @@ export function ReadyCheck({ onClose }: { onClose: () => void }) {
               <span className="ico" aria-hidden>
                 {ICON[c.level]}
               </span>
-              <span className="txt">{t(`ready.${c.key}`, c.params ?? {})}</span>
+              <span className="txt">{t(`ready.${c.key}`, readable(c.params, s.settings?.uiLang))}</span>
               {c.action && c.level !== 'ok' && (
                 <button className="btn sm" disabled={busy} onClick={() => void act(c.action!)}>
                   {ACTION_LABEL[c.action]}

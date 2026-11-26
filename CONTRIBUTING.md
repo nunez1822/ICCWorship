@@ -10,7 +10,9 @@ reported privately (see [SECURITY.md](SECURITY.md)).
 - **Report bugs**: use the bug-report form. Say what you did, what you expected, what happened, and your
   Windows version. Never include names, phone numbers or prayer requests; issues are public.
 - **Translate**: all UI text is in `src/renderer/i18n/en.json` and `es.json`. To add a language, add a new JSON
-  file with the same keys and register it in `src/renderer/i18n/index.ts`.
+  file with the same keys and register it in `src/renderer/i18n/index.ts`. The interface language (`uiLang`) still
+  shares the content type `Lang`, so it first needs its own type in `src/shared/types.ts`, `src/shared/security.ts`
+  and `src/main/i18n.ts`: see [ADR 0006](docs/adr/0006-content-languages.md).
 - **Public-domain songs**: bilingual hymns are especially welcome. Only add lyrics that are in the public domain.
 - **Code**: fix a bug or build a feature from the issues. Issues labelled `good first issue` are a good start.
   Where the project is heading is in [docs/ROADMAP.md](docs/ROADMAP.md); read the
@@ -94,9 +96,11 @@ Commit messages and PRs can be in English or Spanish; both are fine.
    **draft** release with: both exes, `SHA256SUMS.txt`, build provenance, an SBOM (`.sbom.cdx.json`, attested too)
    and the self-update files (`latest.yml`, `.blockmap`).
 
-   A merge that changes `package.json` without changing the version (a dependency bump) releases nothing.
+   A merge that changes `package.json` without changing the version (a dependency bump) releases nothing. A new
+   version with no `## [X.Y.Z]` section in CHANGELOG.md stops before it is tagged.
 
-   **If the run fails:** **Re-run jobs** on that run, or **Run workflow** (Actions → Release), rebuilds the *tagged
+   **If the run fails:** **Re-run jobs** on that run, or **Run workflow** (Actions → Release, from `main`, never from a
+   tag), rebuilds the *tagged
    commit*, so it only helps when the failure had nothing to do with the code (a runner or network problem). When the code or the workflow needs a fix,
    merge the fix to `main`, delete the unpublished tag (`git push origin :refs/tags/vX.Y.Z`, and delete its draft
    release if there is one), then **Run workflow** on `main`: it tags `main` as it is now and builds that. Never

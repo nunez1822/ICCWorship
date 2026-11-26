@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test'
 import { LiveRecorder, RESUME_MAX_AGE_MS, resumeOfferFrom, snapshotChanged, snapshotOf, type LiveSnapshot } from '@shared/session'
-import { operatorWorkAreas, restoreWindowState } from '@shared/windowState'
+import { centredIn, operatorWorkAreas, restoreWindowState } from '@shared/windowState'
 
 const NOW = 1_800_000_000_000
 const onScreen = { planId: 'p1', itemId: 'i3', itemIndex: 2, slideIndex: 4, itemTitle: 'Cuán grande es Él', planTitle: 'Domingo', clearedFrom: undefined }
@@ -83,11 +83,18 @@ describe('restoreWindowState', () => {
       { id: 1, workArea: laptop },
       { id: 2, workArea: projector }
     ]
-    const areas = operatorWorkAreas(displays, 1, 2)
+    const areas = operatorWorkAreas(displays, 2)
     expect(areas).toEqual([laptop])
     expect(restoreWindowState({ bounds: { x: 2000, y: 10, width: 1200, height: 700 }, maximized: false }, areas, min)).toEqual({ maximized: false })
-    expect(operatorWorkAreas(displays, 1, undefined)).toEqual([laptop, projector]) // projector off: both screens
-    expect(operatorWorkAreas(displays, 1, 1)).toEqual([laptop, projector]) // projector chosen on the main screen
+    expect(operatorWorkAreas(displays, undefined)).toEqual([laptop, projector]) // projector off: both screens
+    // the projector set as Windows' main screen: the operator window goes on the other one
+    expect(operatorWorkAreas(displays, 1)).toEqual([projector])
+    // one screen shared by both (a rehearsal on the laptop alone): that screen
+    expect(operatorWorkAreas([displays[0]], 1)).toEqual([laptop])
+  })
+  it('opens centred on an allowed screen when nothing was saved, fitted to it', () => {
+    expect(centredIn({ x: 1920, y: 0, width: 1920, height: 1040 }, { width: 1480, height: 920 })).toEqual({ x: 2140, y: 60, width: 1480, height: 920 })
+    expect(centredIn({ x: 0, y: 0, width: 1280, height: 680 }, { width: 1480, height: 920 })).toEqual({ x: 0, y: 0, width: 1280, height: 680 })
   })
   it('never restores onto a screen that is gone (the projector, unplugged)', () => {
     expect(restoreWindowState({ bounds: { x: 2000, y: 10, width: 1200, height: 700 }, maximized: false }, [laptop], min)).toEqual({ maximized: false })
@@ -198,6 +205,24 @@ describe('LiveRecorder', () => {
       r.remember(onScreen)
       tick()
       expect(writes.map((w) => w?.itemId)).toEqual(['i3'])
+    })
+    it('is still held until something replaces it (a Quit after a crash then keeps it)', () => {
+      const { r, tick } = setup()
+      expect(r.holdsLastRunOffer).toBe(false)
+      r.seed(lastRun)
+      r.remember({ ...onScreen, slideIndex: -1 }) // a theme change: still held
+      tick()
+      expect(r.holdsLastRunOffer).toBe(true)
+      r.remember(onScreen) // waiting to replace it: no longer the last run's
+      expect(r.holdsLastRunOffer).toBe(false)
+      tick()
+      expect(r.holdsLastRunOffer).toBe(false)
+    })
+    it('is not held after a normal end', () => {
+      const { r } = setup()
+      r.seed(lastRun)
+      r.end()
+      expect(r.holdsLastRunOffer).toBe(false)
     })
     it('once replaced, a Show-now item on screen is still "nothing to offer"', () => {
       const { r, writes, tick } = setup()

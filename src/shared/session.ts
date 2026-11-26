@@ -102,6 +102,11 @@ export class LiveRecorder {
     this.fromLastRun = !!offer
   }
 
+  /** session.json still holds the last run's offer and nothing has replaced it (it may never have been shown) */
+  get holdsLastRunOffer(): boolean {
+    return this.fromLastRun && !this.pending && !this.ended
+  }
+
   /** the live state changed */
   remember(l: Parameters<typeof snapshotOf>[0] & Partial<Pick<LiveState, 'video' | 'layers' | 'message'>>): void {
     if (this.ended) return

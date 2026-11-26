@@ -35,16 +35,26 @@ function loadJson<T>(p: string): T {
 function loadAll(): void {
   if (loaded) return
   loaded = true
+  // one damaged file (cut short by antivirus, a disk error) must not hide the others for the whole session
   for (const id of BUILTIN) {
     const p = join(resourcesDir(), 'bibles', `${id}.json`)
-    if (existsSync(p)) {
+    if (!existsSync(p)) continue
+    try {
       full.set(id, loadJson<FullBible>(p))
       fullSource.set(id, 'builtin')
+    } catch (e) {
+      log.warn('unreadable built-in bible skipped:', id, e instanceof Error ? e.name : 'error')
     }
   }
   // listed only if it exists: creating it here fails on a write-protected stick (portable, read-only)
   const dir = join(dataRoot(), 'data', 'bibles')
-  for (const f of existsSync(dir) ? readdirSync(dir) : []) {
+  let files: string[] = []
+  try {
+    files = existsSync(dir) ? readdirSync(dir) : []
+  } catch (e) {
+    log.warn('bibles folder could not be listed:', (e as NodeJS.ErrnoException).code || 'error')
+  }
+  for (const f of files) {
     if (!f.endsWith('.json')) continue
     try {
       const data = loadJson<FullBible | PartialBible>(join(dir, f))

@@ -8,9 +8,9 @@
  *   pnpm build:dir && node scripts/packaged-check.mjs [path\to\ICCWorship.exe]
  */
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { extname, join, relative, resolve } from 'node:path'
 import { FuseState, FuseV1Options, getCurrentFuseWire } from '@electron/fuses'
 import { chromium } from 'playwright-core'
 
@@ -40,6 +40,21 @@ expectFuse(FuseV1Options.EnableEmbeddedAsarIntegrityValidation, true)
 expectFuse(FuseV1Options.OnlyLoadAppFromAsar, true)
 expectFuse(FuseV1Options.EnableCookieEncryption, true)
 expectFuse(FuseV1Options.GrantFileProtocolExtraPrivileges, false) // pages load from app://iccworship (src/main/appUrl.ts)
+
+// Every built page file must have a type app://iccworship serves (APP_TYPES in src/main/appUrl.ts): a new kind of
+// asset (a .webp imported by a page, say) would otherwise be "not found" in every window, and nothing else would
+// notice before Sunday. The licence texts beside pdf.js's wasm and Vite's own .vite folder are never fetched.
+{
+  const src = readFileSync(join(root, 'src', 'main', 'appUrl.ts'), 'utf8')
+  const block = /APP_TYPES[^{]*\{([^}]*)\}/.exec(src)?.[1] ?? ''
+  const types = new Set([...block.matchAll(/'(\.[a-z0-9]+)'\s*:/g)].map((m) => m[1]))
+  const pages = join(root, 'out', 'renderer')
+  const unserved = readdirSync(pages, { recursive: true, withFileTypes: true })
+    .filter((f) => f.isFile())
+    .map((f) => relative(pages, join(f.parentPath, f.name)))
+    .filter((f) => !f.startsWith('.vite') && !/(^|[\\/])LICENSE[^\\/]*$/.test(f) && !types.has(extname(f).toLowerCase()))
+  check(types.size > 0 && unserved.length === 0, `every built page file has an app:// type${unserved.length ? ` (not: ${unserved.join(', ')})` : ''}`)
+}
 
 const data = mkdtempSync(join(tmpdir(), 'iccworship-packaged-'))
 const env = { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_TEST_PROFILE: '1', ICCWORSHIP_WINDOWED: '1' }
@@ -107,7 +122,7 @@ try {
 {
   const exeDir = mkdtempSync(join(tmpdir(), 'iccworship-portable-'))
   // (the launcher also names the app it unpacked: only ICCWorship's own portable launcher counts)
-  const penv = { ...process.env, PORTABLE_EXECUTABLE_DIR: exeDir, PORTABLE_EXECUTABLE_APP_FILENAME: 'ICCWorship', ICCWORSHIP_WINDOWED: '1' }
+  const penv = { ...process.env, PORTABLE_EXECUTABLE_DIR: exeDir, PORTABLE_EXECUTABLE_APP_FILENAME: 'iccworship', ICCWORSHIP_WINDOWED: '1' }
   delete penv.ICCWORSHIP_DATA
   delete penv.ICCWORSHIP_TEST_PROFILE
   delete penv.ELECTRON_RENDERER_URL

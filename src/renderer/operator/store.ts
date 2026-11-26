@@ -49,6 +49,8 @@ interface AppState {
   setActivePlan: (id?: string) => void
   selectItem: (id?: string) => void
   toast: (text: string, kind?: Toast['kind'], ms?: number, action?: Toast['action']) => void
+  /** closes a toast now (its button was used) */
+  dismissToast: (id: number) => void
   /** readOnly: the data was written by a newer ICCWorship; nothing is saved this session */
   dataStatus?: { readOnly: boolean; newerSchema?: number; upgradeFailed?: boolean; locked?: boolean }
 }
@@ -282,6 +284,13 @@ export const useApp = create<AppState>((set, get) => ({
     const id = ++toastId
     set((s) => ({ toasts: [...s.toasts, { id, text, kind, action }] }))
     hide(id, duration)
+  },
+
+  dismissToast(id) {
+    const prev = toastTimers.get(id)
+    if (prev) clearTimeout(prev.timer)
+    toastTimers.delete(id)
+    set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
   }
 }))
 
@@ -324,5 +333,5 @@ export const t = (key: string, opts?: Record<string, unknown>): string => i18n.t
 /** "Restart now" on a downloaded update: main refuses while something is on screen (it installs at close anyway) */
 export async function installUpdate(toast: AppState['toast']): Promise<void> {
   const r = await window.api.app.installUpdate()
-  if (!r.ok) toast(i18n.t(r.error === 'live' ? 'updates.notWhileLive' : 'updates.notReady'), 'err', 10_000)
+  if (!r.ok) toast(i18n.t(r.error === 'live' ? 'updates.notWhileLive' : r.error === 'off' ? 'updates.turnedOff' : 'updates.notReady'), 'err', 10_000)
 }

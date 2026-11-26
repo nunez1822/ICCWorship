@@ -85,6 +85,6 @@ describe('installNow', () => {
     expect(installNow({ allowed: true, onScreen: false, phase: ready })).toBe('install')
     expect(installNow({ allowed: true, onScreen: true, phase: ready })).toBe('live')
     expect(installNow({ allowed: true, onScreen: false, phase: idle })).toBe('not-ready')
-    expect(installNow({ allowed: false, onScreen: false, phase: ready })).toBe('not-ready') // turned off after downloading
+    expect(installNow({ allowed: false, onScreen: false, phase: ready })).toBe('off') // turned off after downloading
   })
 })

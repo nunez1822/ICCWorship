@@ -42,36 +42,59 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: v
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           BEFORE: ${{ github.event.before }}
         run: |
           version=$(node -p "require('./package.json').version")
-          # a plain x.y.z (no leading zeros): it goes into the tag, file names and electron-updater's version compare
-          if ! printf '%s' "${version}" | grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'; then echo "::error::package.json version ${version} is not x.y.z"; exit 1; fi
+          # a plain x.y.z (no leading zeros): it goes into the tag, file names, $GITHUB_OUTPUT and electron-updater's
+          # version compare. [[ =~ ]] matches the whole string (grep would pass a value with a second line)
+          if ! [[ "${version}" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then echo "::error::package.json version is not x.y.z"; exit 1; fi
           tag="v${version}"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          # the release notes come from CHANGELOG.md's section for this version: check it now, before tagging, not
+          # after a 40-minute build (the publish job reads it the same way)
+          notes_ok() {
+            awk -v v="${version}" '
+              index($0, "## [" v "]") == 1 { on = 1; next }
+              on && index($0, "## [") == 1 { exit }
+              on && NF { found = 1 }
+              END { exit !found }
+            ' CHANGELOG.md
+          }
+          release() {
+            if ! notes_ok; then echo "::error::CHANGELOG.md has no section for ${version} (pnpm release:prepare writes it)"; exit 1; fi
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          }
           # "Run workflow", or "Re-run all jobs" on a release run whose first attempt already made the tag
           rebuild=false
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] || [ "${GITHUB_RUN_ATTEMPT:-1}" -gt 1 ]; then rebuild=true; fi
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            # "Run workflow" started from a tag would run that tag's old copy of this file and skip the checks below
+            if [ "${GITHUB_EVENT_NAME}" != "push" ]; then echo "::error::Run this workflow from main (Use workflow from: main), not from a tag"; exit 1; fi
             # a maintainer pushed the tag by hand: it must name this version
             if [ "${GITHUB_REF_NAME}" != "${tag}" ]; then echo "::error::Tag ${GITHUB_REF_NAME} does not match package.json version ${version}"; exit 1; fi
-            echo "release=true" >> "$GITHUB_OUTPUT"
+            release
             exit 0
           fi
           if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
             # only a push that changed the version releases: a dependency bump merged while the release's own run waits
             # (or after its tag job failed) must not tag ITS commit with the release's version
-            prev=""
             if [ -n "${BEFORE}" ] && [ "${BEFORE}" != "0000000000000000000000000000000000000000" ]; then
-              prev=$(gh api -H "Accept: application/vnd.github.raw+json" "repos/${GITHUB_REPOSITORY}/contents/package.json?ref=${BEFORE}" 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version" 2>/dev/null || true)
-            fi
-            if [ "${prev}" = "${version}" ]; then
-              echo "package.json changed but not its version (${version}): nothing to release"
-              echo "release=false" >> "$GITHUB_OUTPUT"
-              exit 0
+              # a failed lookup must not count as "the version changed": stop, and a re-run tries again
+              if ! raw=$(gh api -H "Accept: application/vnd.github.raw+json" "repos/${GITHUB_REPOSITORY}/contents/package.json?ref=${BEFORE}"); then
+                echo "::error::Could not read package.json before this push (${BEFORE}). Re-run this job."; exit 1
+              fi
+              if ! prev=$(printf '%s' "${raw}" | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version"); then
+                echo "::error::Could not read the version in package.json before this push (${BEFORE})"; exit 1
+              fi
+              if [ "${prev}" = "${version}" ]; then
+                echo "package.json changed but not its version (${version}): nothing to release"
+                echo "release=false" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
             fi
           fi
           if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" >/dev/null 2>&1; then
@@ -80,16 +103,17 @@ jobs:
               draft=$(gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" --json isDraft -q .isDraft 2>/dev/null || echo none)
               if [ "${draft}" = "false" ]; then echo "::error::${tag} is already published. Release a new patch version instead (pnpm release:prepare patch)."; exit 1; fi
               echo "Tag ${tag} exists: building it again"
-              echo "release=true" >> "$GITHUB_OUTPUT"
+              release
             else
               echo "Version ${version} is already tagged: nothing to release (package.json changed for another reason)"
               echo "release=false" >> "$GITHUB_OUTPUT"
             fi
           else
             if [ "${GITHUB_REF}" != "refs/heads/main" ]; then echo "::error::Releases are made from main only"; exit 1; fi
+            if ! notes_ok; then echo "::error::CHANGELOG.md has no section for ${version} (pnpm release:prepare writes it)"; exit 1; fi
             if out=$(gh api "repos/${GITHUB_REPOSITORY}/git/refs" -f ref="refs/tags/${tag}" -f sha="${GITHUB_SHA}" 2>&1); then
               echo "Tagged ${tag} at ${GITHUB_SHA}"
-              echo "release=true" >> "$GITHUB_OUTPUT"
+              release
             elif echo "${out}" | grep -q "Reference already exists"; then
               echo "Another run tagged ${tag} meanwhile: it builds the release"
               echo "release=false" >> "$GITHUB_OUTPUT"

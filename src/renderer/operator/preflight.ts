@@ -44,7 +44,16 @@ export async function gatherPreflight(): Promise<PreflightInput> {
   const needs: { item: PlanItem; url: string }[] = []
   let planHasSound = false
   for (const item of plan?.items || []) {
-    if (isSectionLabel(item)) continue
+    if (isSectionLabel(item)) {
+      // not counted and never "blank", but it still goes live as a title card, on its own picture or video if it
+      // has one: that file must be there
+      try {
+        for (const url of filesOf(await buildItem(item, ctx))) needs.push({ item, url })
+      } catch {
+        itemProblems.push({ title: item.title, kind: 'warning' })
+      }
+      continue
+    }
     if (itemSourceMissing(item, s)) {
       itemProblems.push({ title: item.title, kind: 'missing' })
       continue
@@ -64,11 +73,14 @@ export async function gatherPreflight(): Promise<PreflightInput> {
     }
   }
   const logoUrl = s.settings?.logoPath ? toMediaUrl(s.settings.logoPath) : undefined
-  const urls = [...needs.map((n) => n.url), ...(logoUrl ? [logoUrl] : [])]
+  // each file is looked up once (a theme video behind 40 items is one lookup, not 40: every lookup touches the disk
+  // in main, and a file on an unreachable network share can take seconds)
+  const urls = [...new Set([...needs.map((n) => n.url), ...(logoUrl ? [logoUrl] : [])])]
   const status = urls.length ? await api.files.mediaStatus(urls) : []
-  const missing = new Set(needs.filter((_n, i) => !status[i]?.exists).map((n) => n.item))
+  const exists = new Map(urls.map((u, i) => [u, !!status[i]?.exists]))
+  const missing = new Set(needs.filter((n) => !exists.get(n.url)).map((n) => n.item))
   for (const item of missing) itemProblems.push({ title: item.title, kind: 'file' })
-  const logoMissing = !!logoUrl && !status[needs.length]?.exists
+  const logoMissing = !!logoUrl && !exists.get(logoUrl)
 
   const [displays, server, update, out] = await Promise.all([api.displays.list(), api.server.info(), api.app.updateStatus(), api.output.status()])
   const st = s.settings

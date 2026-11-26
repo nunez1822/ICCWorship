@@ -3,10 +3,12 @@
  * data, so backups and restores don't carry them):
  *   session.json      — did the last run quit normally, and what was on screen (see @shared/session)
  *   window-state.json — the operator window's size and place (see @shared/windowState)
- *   <name>.json       — a notice already shown once on this PC (firstTimeHere)
+ *   <name>.json       — a notice already shown once (noticeSeen / markNoticeSeen)
  */
 import { app } from 'electron'
+import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
+import { hostname, userInfo } from 'node:os'
 import { join } from 'node:path'
 import type { LiveState } from '@shared/types'
 import { LiveRecorder, resumeOfferFrom, type LiveSnapshot, type SessionFile } from '@shared/session'
@@ -24,12 +26,17 @@ function readJson(name: string): unknown {
   }
 }
 
+/** files whose last write failed: logged once until a write works again (session.json is tried every second while
+ *  the live place moves, and a full disk would otherwise fill the log for the whole service) */
+const failing = new Set<string>()
 function writeJson(name: string, value: unknown): boolean {
   try {
     writeFileAtomic(file(name), JSON.stringify(value))
+    if (failing.delete(name)) log.info(`${name} saved again`)
     return true
   } catch (e) {
-    log.warn(`could not save ${name}:`, (e as NodeJS.ErrnoException).code || 'error')
+    if (!failing.has(name)) log.warn(`could not save ${name}:`, (e as NodeJS.ErrnoException).code || 'error')
+    failing.add(name)
     return false
   }
 }
@@ -67,6 +74,15 @@ export const rememberLive = (l: LiveState): void => recorder.remember(l)
 /** Windows is shutting down mid-service: an interrupted service, offered back at the next start. */
 export const flushSession = (): void => recorder.flush()
 
+/**
+ * The file still holds the last run's unanswered offer (this run crashed or is shutting down before the operator
+ * answered it, or before the page even asked): quitting now must keep it, like a second crash does.
+ */
+export const holdsLastRunOffer = (): boolean => recorder.holdsLastRunOffer
+
+/** …and the operator hasn't even seen it yet (an offer seen and left alone all day isn't kept past a shutdown) */
+export const lastRunOfferUnseen = (): boolean => offer !== null && recorder.holdsLastRunOffer
+
 let keepOffer = false
 /**
  * The volunteer chose Quit after the operator window crashed mid-service: like a crash, the place is offered back at
@@ -76,6 +92,8 @@ export function quitKeepingOffer(): void {
   recorder.flush()
   keepOffer = true
 }
+/** this quit is the volunteer's Quit after a crash mid-service (an update must not install now) */
+export const quittingAfterCrash = (): boolean => keepOffer
 
 /** A normal quit: nothing to resume next time. */
 export function endSession(): void {
@@ -85,11 +103,24 @@ export function endSession(): void {
 }
 
 /* ---------------- once-only notices ---------------- */
-/** true the first time it is asked with this profile (a marker file in userData); false after that */
-export function firstTimeHere(name: string): boolean {
-  if (existsSync(file(`${name}.json`))) return false
-  writeJson(`${name}.json`, { at: Date.now() }) // (if it can't be written, the notice simply shows again next time)
-  return true
+/** a marker name for this computer and Windows user: the portable copy's profile travels on the stick, and a notice
+ *  about this PC must be shown again on the next PC (a hash: no computer or user name in the file name) */
+export function onThisPc(name: string): string {
+  let user = ''
+  try {
+    user = userInfo().username
+  } catch {
+    // (no user name: the computer name alone)
+  }
+  return `${name}-${createHash('sha256').update(`${hostname()}|${user}`).digest('hex').slice(0, 12)}`
+}
+/** "this PC also has data in Documents" (portable copy): once per computer, not once per stick */
+export const DOCUMENTS_ALSO_NOTICE = (): string => onThisPc('documents-data-noticed')
+/** the notice was already shown with this profile (a marker file in userData) */
+export const noticeSeen = (name: string): boolean => existsSync(file(`${name}.json`))
+/** written when the page receives the notice (if it can't be written, the notice simply shows again next time) */
+export function markNoticeSeen(name: string): void {
+  writeJson(`${name}.json`, { at: Date.now() })
 }
 
 /* ---------------- operator window size and place ---------------- */

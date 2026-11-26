@@ -16,7 +16,9 @@ type Env = Record<string, string | undefined>
  * The folder the portable exe is in, when this is ICCWorship's own portable exe. electron-builder's launcher sets
  * PORTABLE_EXECUTABLE_DIR, and every program started from ANY electron-builder portable app inherits it: the
  * installed ICCWorship opened from another portable tool must not take that tool's folder for its own. The launcher
- * also names the app it unpacked (PORTABLE_EXECUTABLE_APP_FILENAME): only our own name counts.
+ * also names the app it unpacked (PORTABLE_EXECUTABLE_APP_FILENAME, the sanitized npm package name "iccworship"):
+ * only our own name counts. It is compared with the unpacked exe's name (productName, "ICCWorship.exe") ignoring
+ * case, so package.json's name and productName must agree (tests/portable.test.ts checks it).
  */
 export function portableExeDir(env: Env, execPath: string): string | undefined {
   const dir = env.PORTABLE_EXECUTABLE_DIR

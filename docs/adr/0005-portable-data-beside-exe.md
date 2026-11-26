@@ -13,9 +13,11 @@ from any electron-builder portable app inherits the first), the app keeps the da
 and crash dumps in an `ICCWorship Data` folder beside the exe (`src/main/portable.ts`, `bootstrap.ts`).
 `ICCWORSHIP_DATA` still wins; the installed app is unchanged. An existing `ICCWorship Data` folder always wins:
 - writable → portable. If this PC also has data in `Documents\ICCWorship` (the installed app's, or portable 1.0's),
-  a notice says so once, so a church never thinks its songs are gone;
+  a notice says so once per computer (the profile travels on the stick, so the marker is named per PC), so a church
+  never thinks its songs are gone;
 - write-protected but holding data (a locked stick) → that data, **read-only** (a red bar says nothing is saved; the
-  profile and logs go to this PC's `%APPDATA%`), never another computer's library on a Sunday;
+  profile and logs go to this PC's `%APPDATA%\ICCWorship Portable`, a profile of its own, so it never offers or
+  clears the installed app's "Put it back"), never another computer's library on a Sunday;
 - neither → `Documents` for that session, with a notice.
 
 With no such folder yet:
