@@ -281,7 +281,9 @@
   service." and nothing downloads. After the relaunch, "Downloading ICCWorship x.y.z… n%", then a toast
   "ICCWorship x.y.z is ready. It installs when you close ICCWorship with nothing on screen." with **Restart now**.
   (Left running after Esc, it downloads at the first automatic check (every 6 h) after the screen has been cleared
-  for 2 hours.)
+  for 2 hours. The 2 hours don't depend on the clock: changing Windows' time doesn't shorten them, and time the
+  laptop spent asleep counts — put it to sleep for over 2 hours after Esc, wake it, and the next automatic check
+  downloads.)
 - 3: while live, "Not while something is on screen (the black screen and the logo count too). Clear the screen with
   Esc first, or close ICCWorship after the service: the update installs then."; the toast's button closes the toast
   when clicked (open Settings → About for **Restart now** again). After Esc (nothing on screen) the app closes,

@@ -42,6 +42,11 @@ Changes that would have been breaking or hard to migrate once churches depend on
 - **More interface languages** through a translation platform (Weblate hosts OSS for free) once strings settle.
 - **Accessibility pass** of the operator UI: keyboard-only operation, screen-reader names, contrast in the light theme.
 - **A user guide** (GitHub Pages, bilingual, screenshots from `pnpm smoke`), linked from Help.
+- **Install updates side by side**, as Squirrel (Slack, Teams) and VS Code do: today the NSIS installer replaces the
+  app in place after it closes, so opening ICCWorship again during those seconds can find it half replaced (or be
+  closed by the installer). An install into a new folder with an atomic switch, or at least a "finishing an update"
+  check at start-up (the installer holds a mutex named after the app's GUID), would close that window.
+  [ADR 0003](adr/0003-updates-opt-in-install-on-quit.md) would be superseded.
 - **Fuzz tests** for the importers that read files from strangers (OpenLyrics, ChordPro, OSIS/USFX, PowerPoint text,
   backup zips).
 - **Planning features** churches ask for once they use it: rehearsal mode (a second PC following the plan without

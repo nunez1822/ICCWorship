@@ -13,7 +13,7 @@ mid-service, and many churches don't want software changing under them on a Sund
   the check, can be unticked) and **installs it when ICCWorship closes**, or on "Restart now".
 - **Nothing starts while a service may be running** (something on screen, or a screen cleared mid-item with Esc
   less than 2 hours after something was last on screen, timed on the monotonic clock so Windows correcting the time
-  doesn't end it; a timed message counts until it ran out): no automatic check, no download start
+  doesn't end it, with sleep added back at wake-up as Chromium does; a timed message counts until it ran out): no automatic check, no download start
   (`src/shared/updatePolicy.ts`). Esc keeps its place until something else goes live, hence the time limit: a
   service ended with Esc on a laptop left open must not block updates until a restart. A manual "Check now" still
   asks, and says the download waits. A download that waited, or was cancelled because a service started, is tried

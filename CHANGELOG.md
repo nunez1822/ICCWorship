@@ -48,13 +48,14 @@ All notable changes to ICCWorship are documented here. The format is based on
   uses it
   (replacing the logo removes the old one's copy the same way). Turn it off in
   Settings → Backup for a very large video library on another drive (items then link to the original file, as
-  before). A backup too big for one file, or for the USB stick, leaves the media out (then the tracks) and says
-  which folders to copy, and where.
+  before). A backup too big for one file, or for the USB stick (also one that fills up while it is written), leaves
+  the media out (then the tracks) and says which folders to copy, and where.
   Restoring a backup on the same computer doesn't unpack media files that are already there.
 - **"Ready for Sunday?"** (Live page → ✅): one click before the service checks the plan (deleted songs or media,
   video and picture files that moved, Bible versions), the projector window and second screen, the sound output,
   the phone remote and stage display, the logo file, and how recent the last **Back up now** copy is (the automatic
-  backups stay on the same computer) — each problem with a button to fix it. A projector window that gave up after
+  backups stay on the same computer) — each problem with a button to fix it (the Settings buttons open the section
+  that fixes it). A section header's own picture or video is checked too. A projector window that gave up after
   repeated crashes (or shows only black) is caught too, with **Restart projector**.
 - Each release also includes a **software bill of materials** (`ICCWorship-x.y.z.sbom.cdx.json`, CycloneDX) listing
   every third-party package inside the app, with a GitHub attestation like the installers'.
@@ -62,14 +63,15 @@ All notable changes to ICCWorship are documented here. The format is based on
   installed ICCWorship also downloads a new version by itself — it never starts while a service may be running, and
   a download running when one starts is stopped (it is tried again after the service) — and installs it when you
   close the app with nothing on screen, or right away with **Restart now** when nothing is on screen. Closing it
-  mid-song never installs. Untick "Download new versions…" (or the check) to only be told: that also stops a
+  mid-song, or choosing Quit after the window crashed mid-service, never installs. Untick "Download new versions…" (or the check) to only be told: that also stops a
   download and keeps a downloaded one from installing. The download is checked against the release's SHA-512, and
   no id for your computer is sent. The portable version only tells you.
 - **Put it back after a crash.** If ICCWorship closes unexpectedly (a crash, a power cut, Windows restarting for an
   update) during a plan item, the next start offers it back: one click on **▶ Put it back** shows that item again on
-  the slide it was on (or the one Esc cleared). Nothing goes on screen by itself, it does nothing if something else is
-  live by then, and a normal quit — or shutting Windows down with no service running — leaves nothing to offer.
-  Choosing Quit after the window crashed mid-service offers it back too.
+  the slide it was on (or the one Esc cleared). Nothing goes on screen by itself, the button works once, it does
+  nothing if anything else is showing by then (a slide, a song's intro, the logo, a message), and a normal quit — or
+  shutting Windows down with no service running — leaves nothing to offer. Choosing Quit after the window crashed
+  mid-service offers it back too, and an offer not answered yet is kept through another crash or a shutdown.
 - **The portable version is truly portable now.** `ICCWorship-Portable-x.y.z.exe` keeps the data, settings,
   backups and logs in an `ICCWorship Data` folder beside the exe, so it runs from a USB stick and leaves nothing on
   the computer. (Before, it used `Documents\ICCWorship` on whichever PC it ran on.)

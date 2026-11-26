@@ -165,10 +165,12 @@ app
       log.info('system suspending: saving')
       db().flush()
       pauseHeartbeats()
+      live.suspended()
     })
     powerMonitor.on('resume', () => {
       log.info('system resumed')
       resumeHeartbeats()
+      live.resumed()
     })
 
     // optional update check (off by default; never during a service), a minute after start and then daily. The

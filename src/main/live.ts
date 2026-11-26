@@ -27,6 +27,22 @@ class LiveStore extends EventEmitter {
     return isLive(this.state, now, this.lastOnScreenAt(now))
   }
 
+  /* Sleep counts as time passed (a laptop closed for the night after a cleared sermon ended that service), but the
+   * monotonic clock may not run while Windows sleeps. As Chromium does, the power events fill the gap: at wake-up,
+   * the sleep the monotonic clock missed (measured on the wall clock) is added. Never subtracted, so a clock that did
+   * run, or a wall clock set back meanwhile, changes nothing. */
+  private suspendedAt: { wall: number; mono: number } | undefined
+  suspended(): void {
+    this.suspendedAt = { wall: Date.now(), mono: performance.now() }
+  }
+  resumed(): void {
+    const at = this.suspendedAt
+    this.suspendedAt = undefined
+    if (!at || this.lastOnScreenMono === undefined) return
+    const missed = Date.now() - at.wall - (performance.now() - at.mono)
+    if (missed > 0) this.lastOnScreenMono -= missed
+  }
+
   constructor() {
     super()
     this.state = {
