@@ -12,7 +12,10 @@ import {
   restoredMeta,
   safetyBackupsToDelete,
   staleBackupTemps,
-  trackMirrorPlan
+  staleTrackTemps,
+  trackMirrorPlan,
+  backupRoom,
+  MAX_BACKUP_BYTES
 } from '../src/shared/backupCore'
 import { checkSchema, MIGRATIONS, runMigrations, SCHEMA_VERSION, type Migration } from '@shared/migrations'
 
@@ -71,6 +74,38 @@ describe('safety backups', () => {
     ]
     expect(safetyBackupsToDelete(files).sort()).toEqual(['before-restore-0.zip', 'before-restore-1.zip', 'before-restore-2.zip'])
   })
+  it('keeps only the newest 2 that hold every backing track (they can be GBs)', () => {
+    const files = [
+      { name: 'before-restore-tracks-a.zip', mtime: 1 },
+      { name: 'before-restore-tracks-b.zip', mtime: 2 },
+      { name: 'before-restore-x.zip', mtime: 3 },
+      { name: 'before-restore-tracks-c.zip', mtime: 4 },
+      { name: 'before-migrate-1.zip', mtime: 5 }
+    ]
+    expect(safetyBackupsToDelete(files)).toEqual(['before-restore-tracks-a.zip'])
+    // they still count among the newest 5 before a restore
+    const many = Array.from({ length: 6 }, (_, i) => ({ name: `before-restore-${i}.zip`, mtime: i + 10 }))
+    expect(safetyBackupsToDelete([...files, ...many]).sort()).toEqual([
+      'before-restore-0.zip',
+      'before-restore-tracks-a.zip',
+      'before-restore-tracks-b.zip',
+      'before-restore-tracks-c.zip',
+      'before-restore-x.zip'
+    ])
+  })
+})
+
+describe('room for a backup', () => {
+  const MB = 1024 * 1024
+  it('needs the files plus the reserve free on that disk', () => {
+    expect(backupRoom(100 * MB, 500 * MB, 300 * MB)).toBe('ok')
+    expect(backupRoom(100 * MB, 399 * MB, 300 * MB)).toBe('no-space')
+    expect(backupRoom(100 * MB, 101 * MB, 0)).toBe('ok')
+  })
+  it('refuses what no .zip can hold (no Zip64), whatever the free space', () => {
+    expect(backupRoom(MAX_BACKUP_BYTES + 1, Infinity, 0)).toBe('too-large')
+    expect(MAX_BACKUP_BYTES).toBeLessThan(2 ** 32)
+  })
 })
 
 describe('restoring settings from another PC', () => {
@@ -93,16 +128,40 @@ describe('restoring settings from another PC', () => {
 
 describe('backing tracks kept beside the backups', () => {
   it('copies new tracks once, and retires the ones the church deleted', () => {
-    expect(trackMirrorPlan(['a-1.ogg', 'b-2.ogg', 'junk.txt'], ['a-1.ogg', 'c-3.ogg'], [], '2026-11-26')).toEqual({
+    expect(trackMirrorPlan(['a-1.ogg', 'b-2.ogg', 'junk.txt'], ['a-1.ogg', 'c-3.ogg'], [], '2026-11-26', new Set(['a-1.ogg', 'b-2.ogg']))).toEqual({
       copy: ['b-2.ogg'],
       retire: ['c-3.ogg'],
       dropDirs: []
     })
   })
+  it('never retires the copy of a track a song still uses, even when tracks/ lost the file', () => {
+    // antivirus, a sync problem or a tidy-up removed d-4.ogg from tracks/: the copy here is the only one left
+    const plan = trackMirrorPlan(['a-1.ogg'], ['a-1.ogg', 'c-3.ogg', 'd-4.ogg'], [], '2026-11-26', new Set(['a-1.ogg', 'd-4.ogg']))
+    expect(plan.retire).toEqual(['c-3.ogg'])
+  })
+  it('retires nothing when the songs list may be incomplete (damaged, recovered, just seeded)', () => {
+    expect(trackMirrorPlan([], ['a-1.ogg', 'c-3.ogg'], [], '2026-11-26', null).retire).toEqual([])
+    // still copies new tracks and drops old gone- folders
+    const plan = trackMirrorPlan(['b-2.ogg'], [], ['gone-2026-11-01'], '2026-11-26', null)
+    expect(plan.copy).toEqual(['b-2.ogg'])
+    expect(plan.dropDirs).toEqual(['gone-2026-11-01'])
+  })
+  it('finds the half-written track copies a power cut left behind (a day old), never one being written', () => {
+    const now = Date.UTC(2026, 10, 26)
+    const day = 24 * 60 * 60_000
+    const files = [
+      { name: 'a-1.ogg.tmp', mtime: now - 2 * day },
+      { name: 'b-2.ogg.tmp', mtime: now - 60_000 },
+      { name: 'c-3.ogg', mtime: now - 9 * day },
+      { name: 'notes.txt.tmp', mtime: now - 9 * day },
+      { name: 'D-4.OGG.TMP', mtime: now - 9 * day }
+    ]
+    expect(staleTrackTemps(files, now)).toEqual(['a-1.ogg.tmp'])
+  })
   it('keeps a deleted track 15 days (automatic backups go back 14), then lets it go', () => {
     const dirs = ['gone-2026-11-10', 'gone-2026-11-11', 'gone-2026-11-26', 'other', 'gone-junk']
-    expect(trackMirrorPlan([], [], dirs, '2026-11-26').dropDirs).toEqual(['gone-2026-11-10'])
-    expect(trackMirrorPlan([], [], ['gone-2026-02-10'], '2026-03-01').dropDirs).toEqual(['gone-2026-02-10'])
+    expect(trackMirrorPlan([], [], dirs, '2026-11-26', new Set()).dropDirs).toEqual(['gone-2026-11-10'])
+    expect(trackMirrorPlan([], [], ['gone-2026-02-10'], '2026-03-01', new Set()).dropDirs).toEqual(['gone-2026-02-10'])
   })
 })
 

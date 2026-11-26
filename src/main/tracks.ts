@@ -10,7 +10,7 @@ import { join } from 'node:path'
 import type { Song } from '@shared/types'
 import { isSafeId } from '@shared/security'
 import { isOggBytes, MAX_TRACK_BYTES, orphanTrackFiles, referencedTrackFiles, trackFileName, trackFileOfUrl, unusedTrackFiles } from '@shared/tracks'
-import { assertWritable, db } from './db'
+import { assertWritable, db, songsSeededThisRun } from './db'
 import { dataRoot } from './paths'
 import { within } from './pathGuard'
 import { dataMediaUrl } from './mediaPath'
@@ -108,15 +108,22 @@ live.on('change', () => {
 })
 
 /**
- * At start-up: remove track files no song uses, older than a week. Only when the songs list was read healthy from
- * its own file (a damaged list, or one recovered from its .bak, could be missing songs — their tracks must stay).
+ * Can the songs list be trusted to hold every song the church has? Only when it was read healthy from its own file (a
+ * damaged list, or one recovered from its .bak, could be missing songs), isn't empty, and isn't the sample songs this
+ * start-up just seeded (data/ lost or half synced while tracks/ is still there). Anything that deletes or retires a
+ * backing track because no song uses it must check this first.
  */
+export function songsListIsComplete(): boolean {
+  const store = db()
+  return store.isHealthy('songs') && store.list<Song>('songs').length > 0 && !songsSeededThisRun()
+}
+
+/** At start-up: remove track files no song uses, older than a week — only when the songs list is complete. */
 export function cleanupOrphanTracks(): void {
   try {
     const store = db()
-    if (store.readOnly) return
+    if (store.readOnly || !songsListIsComplete()) return
     const songs = store.list<Song>('songs')
-    if (!store.isHealthy('songs') || !songs.length) return
     const dir = tracksDir()
     const files = listTrackFiles().flatMap((name) => {
       try {

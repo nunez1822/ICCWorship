@@ -137,7 +137,12 @@ const api = {
     onStatus: (cb: (s: { ok: boolean; error?: string }) => void) => on('server:status', cb)
   },
   backup: {
-    create: (): Promise<{ ok: boolean; path: string; files: number; bytes: number } | null> => invoke('backup:create'),
+    create: (): Promise<
+      | { ok: true; path: string; files: number; bytes: number }
+      /** nothing was saved: no room on that drive, more than one .zip can hold, or the write failed */
+      | { ok: false; error: 'no-space' | 'too-large' | 'failed' }
+      | null
+    > => invoke('backup:create'),
     restore: (
       path?: string
     ): Promise<{
@@ -148,6 +153,8 @@ const api = {
         | 'newer-schema'
         | 'damaged-backup'
         | 'restore-failed'
+        | 'no-space'
+        | 'not-started'
         | 'restore-failed-mixed'
         | 'read-only'
         | 'read-only-unprepared'

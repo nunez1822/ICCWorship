@@ -102,6 +102,13 @@ All notable changes to ICCWorship are documented here. The format is based on
 - Backups and backing tracks: **Back up now** includes the backing tracks (take it to another PC). Automatic backups
   leave them out — each track is kept once in `backups\tracks\` instead of in every hourly copy — and restoring an
   automatic backup never deletes tracks (missing ones come back from `backups\tracks\`).
+  A track that disappears from `tracks\` while a song still uses it (antivirus, a sync problem, tidying folders)
+  comes back from `backups\tracks\` at the next start or hourly backup, and its copy there is never thrown away.
+  Unused tracks are only cleaned up when the song list is known to be complete (never right after the sample songs
+  were added to an empty data folder). Backups and restores stream the files, so a large track library never has to
+  fit in memory; they check the free disk space first, and **Back up now** says when the drive is full or a backup
+  would be too large (over 4 GB) instead of failing silently. Only the newest 2 safety copies that hold all the
+  tracks are kept.
 - Contributors: development now uses **pnpm** and **Vite+** (`vp`): one `pnpm check` runs formatting (Oxfmt), lint
   (Oxlint, type-aware) and type checks, replacing npm, ESLint, Prettier and `tsc`. A pre-commit hook fixes formatting.
   See CONTRIBUTING.md.

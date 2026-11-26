@@ -100,6 +100,16 @@ export function ensurePin(): boolean {
   return true
 }
 
+/** this run wrote the sample songs (see songsSeededThisRun) */
+let seededSongs = false
+
+/**
+ * Did this start-up write the sample songs into an empty songs list? Then the list says nothing about the church's
+ * real library (data/ may have been lost or only partly synced while tracks/ is still there): anything that
+ * deletes files by what the songs use (unused backing tracks) must leave them alone for this run.
+ */
+export const songsSeededThisRun = (): boolean => seededSongs
+
 /** First launch: seed sample songs, themes, teams and a Sunday template so the app is useful immediately. */
 export function seedIfEmpty(): void {
   const s = db()
@@ -114,7 +124,10 @@ export function seedIfEmpty(): void {
     if (JSON.stringify(next) !== JSON.stringify(themes)) s.write('themes', next)
     return
   }
-  if (!s.list('songs').length) s.write('songs', SAMPLE_SONGS)
+  if (!s.list('songs').length) {
+    s.write('songs', SAMPLE_SONGS)
+    seededSongs = true
+  }
   s.write('themes', DEFAULT_THEMES)
   if (!s.list('teams').length) s.write('teams', DEFAULT_TEAMS)
   if (!s.list('plans').length) s.write('plans', [sampleTemplate()])

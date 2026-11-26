@@ -1003,7 +1003,7 @@ app
         }`
       )
     seedIfEmpty()
-    cleanupOrphanTracks() // backing tracks no song uses any more (only when the songs list was read healthy)
+    cleanupOrphanTracks() // backing tracks no song uses any more (only when the songs list is complete: not just seeded)
     setMainLang(getSettings().uiLang)
     buildMenu()
     live.init()

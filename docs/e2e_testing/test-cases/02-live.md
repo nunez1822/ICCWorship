@@ -239,3 +239,11 @@ second song's item (if its timing is recorded, enter it part-way so it starts wi
 **Expected**
 - The music starts again from 0:00 (`videoProgress.current` < 2 shortly after), under slide 1 or the intro — it
   doesn't carry on from about 0:08. (Esc, then `Space` instead still continues near 0:08, as in TC-LIVE-16.)
+
+### TC-LIVE-30 · The "Music still playing" hint goes away when the outro's music ends  `P2`
+**Pre:** TC-LIVE-19 step 1 (the outro playing), the item without "Go to the next item when finished"
+**Steps**
+1. Let the track play to its end (or press `P` to pause it).
+**Expected**
+- While it plays, the Live page says "🎵 Music still playing — Space = next item". Once
+  `live.get().video.playing === false`, that line is gone (the room is silent), as the top bar goes back to "Off air".

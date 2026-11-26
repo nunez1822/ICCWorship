@@ -61,7 +61,8 @@
 - Operator reloads; the deleted song is back and "Después de la copia" is **gone** (replace, not merge).
 - The PIN is unchanged, and a phone on `/remote` before the restore stays connected (the server is not restarted).
   The sound output chosen in Settings → Screens is unchanged too.
-  A safety zip "before-restore-…" appears in the backups list.
+  A safety zip "before-restore-…" appears in the backups list ("before-restore-tracks-…" when the backup holds
+  backing tracks: then the safety copy holds the current tracks too).
 - The projector and stage windows were not reloaded (what was live stays on screen).
 
 ### TC-BAK-03 · Automatic backups  `P2`
@@ -281,3 +282,43 @@
 - Restoring an automatic backup never deletes tracks that exist now (tracks/ is left as it is).
 - The copies never freeze the app: during the hourly backup slides, the phone remote and the projector keep
   responding. A copy that is cut off leaves only a `….ogg.tmp` (never a half `….ogg`) in `backups/tracks/` or `tracks/`.
+
+### TC-BAK-17 · A track a song still uses is never thrown away from backups/tracks  `P1`
+**Pre:** TC-BAK-16 (the track has a copy in `.e2e-data/backups/tracks/`)
+**Steps**
+1. Quit. Move the song's track file out of `.e2e-data/tracks/` (as antivirus or a sync tool might).
+2. Relaunch with `--keep` (delete today's `auto-….zip` first so the start-up backup runs).
+**Expected**
+- The track file is back in `.e2e-data/tracks/`, the song plays its track, and the log says
+  `backing tracks brought back from backups/tracks: 1`.
+- The copy stays in `.e2e-data/backups/tracks/` (never moved to a `gone-<day>` folder while a song uses it).
+
+### TC-BAK-18 · Sample songs seeded into an empty data folder never cost the church its tracks  `P0`
+**Pre:** a song with a backing track whose file is more than 7 days old (set its modified date back), with a copy in
+`.e2e-data/backups/tracks/`
+**Steps**
+1. Quit. Delete `.e2e-data/data/` (as if it were lost or only partly synced), keep `tracks/` and `backups/`.
+2. Relaunch with `--keep`.
+**Expected**
+- The sample songs appear (a first run). The track file is **still** in `.e2e-data/tracks/` (the log has no
+  "removed unused backing tracks"), and its copy is still directly in `.e2e-data/backups/tracks/` (not in `gone-…`).
+- After restoring the newest backup, the song plays its track again.
+
+### TC-BAK-19 · Back up now says when it can't save  `P1`
+**Steps**
+1. `queueSaveFile` a path on a drive with less free space than the data and tracks (a nearly full USB stick), or a
+   folder that can't be written → **Back up now**.
+**Expected**
+- A red toast: "Not enough free space on that drive for the backup. Nothing was saved…" (or "The backup could not be
+  saved. Check the drive…" for a write error). No `.zip` and no `.zip.tmp` is left at that path. Never silent.
+
+### TC-BAK-20 · A big track library backs up and restores without freezing  `P2` (manual)
+**Pre:** 100+ songs with backing tracks (≈ 600 MB in `tracks/`)
+**Steps**
+1. **Back up now**, then restore that backup. Watch the memory of ICCWorship in Task Manager.
+**Expected**
+- Both finish; the app's memory doesn't grow by the size of the library (the files are streamed, never all in memory).
+  Slides, the phone remote and the projector keep responding.
+- A restore when the disk doesn't have room to unpack the backup and keep a safety copy says "There isn't enough
+  free disk space to restore this backup safely… Nothing was changed." and changes nothing.
+- At most 2 `before-restore-tracks-…` safety zips are kept in the backups list.

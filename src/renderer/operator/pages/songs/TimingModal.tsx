@@ -204,10 +204,10 @@ export function TimingModal({ song, edit, onClose }: { song: Song; edit: boolean
                         aria-label={t('timing.startsAt', { n: i + 1 })}
                         onChange={(e) => setTime(i, +e.target.value)}
                       />
-                      <button className="btn sm ghost" onClick={() => setTime(i, marks[i] - 0.5)} aria-label="−0.5 s">
+                      <button className="btn sm ghost" onClick={() => setTime(i, marks[i] - 0.5)} aria-label={t('timing.earlier')} title={t('timing.earlier')}>
                         −½
                       </button>
-                      <button className="btn sm ghost" onClick={() => setTime(i, marks[i] + 0.5)} aria-label="+0.5 s">
+                      <button className="btn sm ghost" onClick={() => setTime(i, marks[i] + 0.5)} aria-label={t('timing.later')} title={t('timing.later')}>
                         +½
                       </button>
                       <button className="btn sm ghost" onClick={() => playFrom(marks[i])} title={t('timing.listenHere')}>

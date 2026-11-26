@@ -403,7 +403,8 @@ function Controls() {
               {t('timing.introHint', { time: formatClock(Math.max(0, l.intro.firstAt - (progress?.current || 0)) * 1000) })}
             </div>
           )}
-          {l.video.track && l.outro && (
+          {/* only while the music really plays (as the top bar): a finished or paused track leaves the room silent */}
+          {l.video.track && l.outro && l.video.playing && (
             <div className="small" role="status" style={{ color: 'var(--gold, var(--warn))', marginBottom: 6 }}>
               {t('track.musicStill')}
             </div>
