@@ -184,8 +184,9 @@ Logs are attached to public bug reports.
 2. Copy `tests/fixtures/sample.mp3` to `.e2e-data/Private Person Name.pptx` and import it as a presentation.
 3. Open the log: `.e2e-data/.userdata/logs/main.log` (test runs keep their own logs).
 **Expected**
-- Both imports show an error toast; the app keeps running.
-- `main.log` has lines "bible import failed: SyntaxError" and "presentation import via … failed: …" with only a
+- Both imports show an error toast; the app keeps running. The Bible one reads "That Bible file is damaged or
+  incomplete…" / "Ese archivo de Biblia está dañado…", never a parser message.
+- `main.log` has lines "bible import failed: damaged" and "presentation import via … failed: …" with only a
   short code (`exit 1`, `ENOENT`, `no-slides`, an error kind…).
 - `main.log` contains neither `PLACEHOLDER-VERSE-TEXT` nor `Private Person Name`.
 - After a phone and a stage screen have connected (and one wrong PIN was tried), `main.log` has lines like

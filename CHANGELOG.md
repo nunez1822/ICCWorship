@@ -79,6 +79,7 @@ All notable changes to ICCWorship are documented here. The format is based on
 - **Copy system info** (Settings → About) now waits for the copy to finish and shows an error if it fails, instead of
   always saying "copied".
 - An unexpected error now shows the generic error message instead of "[object Object]".
+- Importing a damaged JSON Bible now says the file is damaged or incomplete, instead of a technical parser message.
 - **Restoring a backup now replaces the data** instead of mixing it with the current data (songs added after the
   backup no longer survived a restore). The backup is fully checked before anything is touched (Bible files
   included), a damaged backup changes nothing, and if replacing fails half-way the previous data is put back.
