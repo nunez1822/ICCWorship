@@ -35,6 +35,12 @@ npm run format     # Prettier formats the code; CI checks it
 npm run build && npm run smoke   # end-to-end check with screenshots (smoke-shots/)
 ```
 
+**TypeScript 7.** `npm run typecheck` uses TypeScript 7 (`tsc`, installed as `@typescript/native`). TypeScript 7
+has no JavaScript API yet, so the package named `typescript` is Microsoft's TypeScript 6 compatibility package
+(`@typescript/typescript6`, command `tsc6`): ESLint's TypeScript plugin needs it. Keep both until typescript-eslint
+supports TypeScript 7 (expected with TypeScript 7.1); `tsconfig.json` must not use `baseUrl` (removed in 7.0). In
+VS Code, install the `TypeScriptTeam.native-preview` extension to get TypeScript 7 in the editor.
+
 The whole codebase was reformatted with Prettier once. To keep `git blame` useful, run
 `git config blame.ignoreRevsFile .git-blame-ignore-revs` once in your clone.
 
