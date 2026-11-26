@@ -5,7 +5,8 @@
     "dataRecovered": "⚠ El archivo de {{what}} estaba dañado y se restauró desde su copia de respaldo. La copia dañada se guardó: {{file}}",
     "dataUnreadable": "⚠ El archivo de {{what}} está dañado y no se pudo leer. Se guardó como {{file}} — restaure una copia en Ajustes → Copia de seguridad.",
     "mediaMissing": "⚠ Archivo no encontrado: {{file}}",
-    "mediaUnplayable": "⚠ Este video no se puede reproducir (dañado o formato no compatible)."
+    "mediaUnplayable": "⚠ Este video no se puede reproducir (dañado o formato no compatible).",
+    "previewFailed": "⚠ No se pudo preparar la vista previa de «{{title}}». Verifique que su canto, versión de la Biblia o archivo todavía existe."
   },
   "common": {
     "add": "Agregar",
@@ -319,7 +320,8 @@
     "importErr": {
       "empty": "No se encontró texto bíblico en ese archivo. Use una Biblia completa en XML OSIS o USFX, o una Biblia JSON de ICCWorship.",
       "unsupported": "Ese archivo no tiene un formato de Biblia que ICCWorship pueda leer (OSIS, USFX o JSON de ICCWorship).",
-      "id-taken": "Esa abreviatura pertenece a una Biblia incluida. Elija otra abreviatura."
+      "id-taken": "Esa abreviatura pertenece a una Biblia incluida. Elija otra abreviatura.",
+      "bad-id": "Esa abreviatura no se puede usar. Use hasta 64 letras o números (por ejemplo LBLA o NVI)."
     },
     "imported": "“{{name}}” importada",
     "results_one": "{{count}} resultado",
@@ -545,7 +547,8 @@
     "newPin": "PIN nuevo (desconecta teléfonos y pantallas de escenario)",
     "portHelp": "Presione Enter para aplicar. Use un número de 1024 a 65535.",
     "restartOutput": "Reiniciar proyector",
-    "restartOutputHelp": "Recarga la ventana del proyector (y sale del modo negro \"seguro\" después de errores repetidos)"
+    "restartOutputHelp": "Recarga la ventana del proyector (y sale del modo negro \"seguro\" después de errores repetidos)",
+    "portInvalid": "No se puede usar el puerto {{port}}. Use un número de 1024 a 65535; el puerto sigue siendo {{current}}."
   },
   "help": {
     "title": "Atajos de teclado",
@@ -583,6 +586,7 @@
     "locked": "Demasiados PIN incorrectos — espere {{seconds}} s e intente de nuevo",
     "connect": "Conectar",
     "offline": "Reconectando…",
+    "full": "Hay demasiados teléfonos y pantallas conectados. Cierre ICCWorship en otro dispositivo; este se conectará solo.",
     "black": "Negro",
     "video": "Video",
     "slides": "Diapositivas",
@@ -593,6 +597,7 @@
   },
   "stage": {
     "offline": "Conectando con ICCWorship…",
+    "full": "Hay demasiados teléfonos y pantallas conectados. Cierre ICCWorship en otro dispositivo; esta pantalla se conectará sola.",
     "now": "Ahora",
     "videoLeft": "Resta del video",
     "item": "Elemento",

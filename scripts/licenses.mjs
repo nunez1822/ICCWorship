@@ -37,7 +37,8 @@ function licenseText(dir) {
 
 const lock = JSON.parse(readFileSync(join(root, 'package-lock.json'), 'utf8'))
 for (const [path, pkg] of Object.entries(lock.packages)) {
-  if (!path || pkg.dev || pkg.devOptional || pkg.link) continue
+  // devOptional = dev dependency AND optional dependency of a production package: it is installed and shipped
+  if (!path || pkg.dev || pkg.link) continue
   const name = pkg.name || path.slice(path.lastIndexOf('node_modules/') + 'node_modules/'.length)
   add({ name, version: pkg.version || '0.0.0', identifier: pkg.license, text: licenseText(join(root, path)) })
 }
@@ -49,7 +50,7 @@ let md = `# Third-party notices
 
 ICCWorship is MIT-licensed (see LICENSE). It includes the following third-party software and content,
 used under their own licences. Electron and Chromium licences are in LICENSE.electron.txt and
-LICENSES.chromium.html next to the program.
+LICENSES.chromium.html, in the same folder as this file and ICCWorship.exe.
 
 `
 const notice = join(root, 'NOTICE.md')

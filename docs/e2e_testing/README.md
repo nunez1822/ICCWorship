@@ -63,9 +63,11 @@ npm run e2e:launch          # fresh test data each time; add -- --keep to reuse 
 ```
 
 To test **the installed-style build** (asar packaging, Electron fuses) instead of the dev build, run
-`npm run build:dir` and then `npm run e2e:launch -- --packaged`. Packaged builds ignore the `window.api.e2e`
-dialog hooks, so only cases without native file dialogs can run against it. For a quick automated check that the
-packaged app starts and its windows render, run `npm run packaged-check` (CI runs it too).
+`npm run build:dir` and then `npm run e2e:launch -- --packaged`. A packaged app ignores `ICCWORSHIP_E2E` (a
+security measure), so the `window.api.e2e` dialog hooks don't exist there and only cases without native file
+dialogs can run against it. Stop it with Ctrl+C (the launcher ends the whole
+process tree) or `taskkill /F /T /IM ICCWorship.exe`. For a quick automated check that the packaged app starts, its
+windows render and its fuses are set, run `npm run packaged-check` (CI runs it too).
 
 Then ask Claude to "use the iccworship-app tools to run TC-LIVE-01 … ". Stop the app with Ctrl+C.
 
@@ -84,6 +86,9 @@ Then ask Claude to "use the iccworship-app tools to run TC-LIVE-01 … ". Stop t
   The MCP often starts on the projector tab — select the operator tab before the first click.
 - Left-nav buttons have an emoji in their accessible name ("🎬 Media"), so match them by contained text.
 - Test data lives in `.e2e-data/` — your real `Documents\ICCWorship` is never touched.
+  The launch scripts also set `ICCWORSHIP_TEST_PROFILE=1`, so the test app keeps its own Chromium profile, logs
+  (`.e2e-data/.userdata/logs/main.log`) and single-instance lock and can run next to the church's copy.
+  `ICCWORSHIP_DATA` alone (a user's custom data folder) does not do that.
 - The projector stays a small window unless you launch with `-- --fullscreen`.
 
 ## Conventions for the tester (human or AI)

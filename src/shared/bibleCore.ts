@@ -338,3 +338,6 @@ export function importBibleText(content: string, meta: { id: string; name: strin
   }
   throw new Error('unsupported')
 }
+
+/** The short error codes that creating or importing a Bible throws; the operator UI has `bible.importErr.<code>` for each. */
+export const BIBLE_ERRORS: readonly string[] = ['empty', 'unsupported', 'id-taken', 'bad-id']

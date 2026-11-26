@@ -7,11 +7,13 @@ import { app, crashReporter } from 'electron'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-// Test runs (smoke, e2e, packaged-check) point ICCWORSHIP_DATA at a throw-away folder. Give them their own
-// Chromium profile, logs, crash dumps and single-instance lock too, so a test never collides with — or reads
-// the logs of — the copy of ICCWorship the church actually uses.
+// Test runs (smoke, e2e, packaged-check) set ICCWORSHIP_TEST_PROFILE as well as pointing ICCWORSHIP_DATA at a
+// throw-away folder. Give them their own Chromium profile, logs, crash dumps and single-instance lock too, so a test
+// never collides with — or reads the logs of — the copy of ICCWorship the church actually uses. ICCWORSHIP_DATA on
+// its own is a user setting (data on another drive or a synced folder) and must not move the profile, the logs or
+// the lock: that would lose localStorage and allow a second running copy.
 const testData = process.env.ICCWORSHIP_DATA
-if (testData) {
+if (testData && process.env.ICCWORSHIP_TEST_PROFILE === '1') {
   app.setPath('userData', join(testData, '.userdata'))
   app.setPath('crashDumps', join(testData, '.userdata', 'Crashpad'))
 }

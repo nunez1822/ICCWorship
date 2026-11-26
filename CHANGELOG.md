@@ -26,6 +26,13 @@ All notable changes to ICCWorship are documented here. The format is based on
 - Developer and test switches (environment variables) are ignored by the installed app.
 - Phones and stage screens only load slide images from the app's own links, and imported song and Bible text
   is cleaned of markup more thoroughly (findings of GitHub's CodeQL scan).
+- Logs no longer copy error messages that can contain a file's text or name (a damaged Bible file, a
+  presentation that failed to convert, a media file): they record only short error codes.
+- Logs no longer record the IP addresses of phones and stage screens that connect.
+- `npm run dev` (contributors only): the phone/stage server forwards only the stage and remote pages' own files to
+  the development server, so other files in the project folder (including test data) can't be read from the Wi-Fi.
+- At most 32 phones and stage screens can be connected at once. One more is told so, instead of "Wrong PIN",
+  and connects by itself as soon as a place is free.
 
 ### Added
 - **The projector and stage windows recover by themselves.** If their page crashes or freezes, it restarts in a
@@ -48,7 +55,7 @@ All notable changes to ICCWorship are documented here. The format is based on
 - Releases are built by GitHub Actions, with SHA-256 checksums and signed build provenance; see "Verify your
   download" in the README.
 - The app now includes the licences of the open-source software it is built with (`THIRD_PARTY_NOTICES.md`
-  in the install folder).
+  in the install folder, next to `ICCWorship.exe`).
 
 ### Removed
 - The untested macOS and Linux build targets. ICCWorship is a Windows app.
@@ -59,9 +66,30 @@ All notable changes to ICCWorship are documented here. The format is based on
 - PDFs with JPEG 2000 or JBIG2 images (most scanned PDFs) imported with blank pages; they now show the images.
 - `npm run dev` showed blank windows ("Invalid hook call"): Vite loaded two copies of React in development.
 - Typing a new port in Settings → Remote no longer restarts the server on every keystroke; it applies on Enter.
-- Creating a pasted Bible version whose abbreviation has no letters or digits no longer writes a file named ".json".
-- The "next item" preview on the Live page and the item preview in the plan editor now update when settings,
-  songs, themes or media change, instead of showing the old version until another item is picked.
+- Creating or importing a Bible version whose abbreviation can't be used (no letters or digits, or too long) no
+  longer writes a file named ".json"; it now says why instead.
+- After restoring a backup, phones and stage screens use the restored PIN right away (phones still connected with
+  the old PIN are disconnected). A backup made before PINs existed gets a new PIN, and the menu bar follows the
+  restored language.
+- A phone that opens the PC by a name the server doesn't answer (for example with a router's own suffix such as
+  `.fritz.box`) now sees a hint in English and Spanish to use the address or QR code from Settings, instead of a
+  bare "Forbidden".
+- A port outside 1024–65535 in Settings now shows a message instead of silently snapping back. The church name,
+  CCLI number and message templates stop at their maximum length instead of ignoring longer text, and a failed
+  settings change or new PIN now shows an error.
+- Slide images that phones stop downloading half-way (a new slide, a reload, weak Wi-Fi) no longer leave a file
+  open in the app each time, which over a long service could make media stop loading.
+- The phone remote's message boxes stop at 500 characters, the most a message can have. A longer message used
+  to disappear without reaching the screen.
+- The Live page's preview of a selected item that isn't live yet now updates when the default theme or the CCLI
+  license number changes, and the plan editor's item preview updates when songs, media, themes, Bible versions,
+  the default theme or the CCLI license number change.
+  Switching the screen language (EN / ES / Both) no longer rebuilds either preview, so a previewed countdown
+  keeps its time.
+- Selecting another item on the Live page no longer shows the previous item's slides under the new title while
+  the new preview is being prepared. Clicking one of those thumbnails could send the new item live at the
+  wrong slide.
+- If a preview can't be prepared, the operator now sees a message instead of a stale or empty preview.
 - The README now says Node.js 22.12 or newer is needed to build (Electron 45 requires it).
 - The README now explains that the portable version keeps its data in the PC's `Documents\ICCWorship` folder.
 

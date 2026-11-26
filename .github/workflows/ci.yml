@@ -37,7 +37,7 @@ jobs:
       - run: npm test
       - run: npm run build
 
-  # Builds the installed-style app (asar, fuses) and checks it starts. Not required: it is slower, and it guards
+  # Builds the installed-style app (asar, fuses), checks its fuses and that it starts. Not required: it is slower, and it guards
   # packaging changes rather than everyday code.
   packaged:
     runs-on: windows-latest

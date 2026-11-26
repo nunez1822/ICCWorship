@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { BilingualOrder, Lang } from '@shared/types'
 import { uid } from '@shared/slides'
-import { useApp } from '../store'
+import { SETTING_LIMITS } from '@shared/security'
+import { toastError, useApp } from '../store'
 import { Field, Seg } from '../../components/ui'
 import { IMAGE_EXT } from '../../lib/media'
 import { updateLive } from '../liveControl'
@@ -23,7 +24,12 @@ export function SettingsPage() {
     if (portDraft === null) return
     const n = Number(portDraft)
     setPortDraft(null)
-    if (Number.isInteger(n) && n >= 1024 && n <= 65535 && n !== st.serverPort) void s.setSettings({ serverPort: n }).then(refresh)
+    if (n === st.serverPort) return
+    if (!Number.isInteger(n) || n < SETTING_LIMITS.portMin || n > SETTING_LIMITS.portMax) {
+      // the field goes back to the port in use: say why instead of silently ignoring the number
+      return s.toast(t('settings.portInvalid', { port: portDraft.trim() || '—', current: st.serverPort }), 'err', 8000)
+    }
+    void s.setSettings({ serverPort: n }).then(refresh)
   }
 
   const refresh = () => {
@@ -52,7 +58,12 @@ export function SettingsPage() {
           <div className="card col">
             <h2>⛪ {t('settings.general')}</h2>
             <Field label={t('settings.churchName')}>
-              <input className="input" value={st.churchName} onChange={(e) => void s.setSettings({ churchName: e.target.value })} />
+              <input
+                className="input"
+                value={st.churchName}
+                maxLength={SETTING_LIMITS.churchName}
+                onChange={(e) => void s.setSettings({ churchName: e.target.value })}
+              />
             </Field>
             <div className="row wrap">
               <Field label={t('settings.appLanguage')}>
@@ -80,6 +91,7 @@ export function SettingsPage() {
               <input
                 className="input"
                 value={st.ccliLicense || ''}
+                maxLength={SETTING_LIMITS.ccliLicense}
                 onChange={(e) => void s.setSettings({ ccliLicense: e.target.value })}
                 placeholder="1234567"
               />
@@ -178,6 +190,7 @@ export function SettingsPage() {
                   className="input"
                   style={{ flex: 1 }}
                   value={m.es}
+                  maxLength={SETTING_LIMITS.messageTemplate}
                   placeholder="Español"
                   onChange={(e) => void s.setSettings({ messageTemplates: st.messageTemplates.map((x, j) => (j === i ? { ...x, es: e.target.value } : x)) })}
                 />
@@ -185,6 +198,7 @@ export function SettingsPage() {
                   className="input"
                   style={{ flex: 1 }}
                   value={m.en}
+                  maxLength={SETTING_LIMITS.messageTemplate}
                   placeholder="English"
                   onChange={(e) => void s.setSettings({ messageTemplates: st.messageTemplates.map((x, j) => (j === i ? { ...x, en: e.target.value } : x)) })}
                 />
@@ -267,6 +281,7 @@ export function SettingsPage() {
                           .newPin()
                           .then((ns) => useApp.setState({ settings: ns }))
                           .then(refresh)
+                          .catch(toastError)
                       }
                     >
                       ↻
@@ -282,8 +297,8 @@ export function SettingsPage() {
               <input
                 className="input"
                 type="number"
-                min={1024}
-                max={65535}
+                min={SETTING_LIMITS.portMin}
+                max={SETTING_LIMITS.portMax}
                 style={{ width: 120 }}
                 value={portDraft ?? st.serverPort}
                 onChange={(e) => setPortDraft(e.target.value)}

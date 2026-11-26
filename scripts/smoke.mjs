@@ -54,7 +54,7 @@ const wsConnect = (port, pin, opts = {}, onOpen) =>
 const app = await electron.launch({
   args: [root],
   cwd: root,
-  env: { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_WINDOWED: '1', ELECTRON_RENDERER_URL: '' }
+  env: { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_TEST_PROFILE: '1', ICCWORSHIP_WINDOWED: '1', ELECTRON_RENDERER_URL: '' }
 })
 
 /** true while the test makes requests that are SUPPOSED to fail (Chromium logs those as console errors) */
@@ -83,6 +83,23 @@ async function windowByUrl(part) {
     await sleep(250)
   }
   throw new Error('window not found: ' + part)
+}
+
+/** Evaluate in a window that may be reloading: retry until its new page answers (slow CI runners). */
+async function evaluateWhenReady(part, fn, arg) {
+  let last
+  for (let i = 0; i < 60; i++) {
+    try {
+      const w = await windowByUrl(part)
+      await w.waitForLoadState('domcontentloaded')
+      return await w.evaluate(fn, arg)
+    } catch (e) {
+      if (!/context was destroyed|navigat|Target .*closed/i.test(String(e?.message))) throw e
+      last = e
+      await sleep(250)
+    }
+  }
+  throw last
 }
 
 try {
@@ -404,9 +421,8 @@ try {
   )
   await sleep(400)
   const restored = await op.evaluate((p) => window.api.backup.restore(p), backupPath)
-  await sleep(2500)
-  const op2 = await windowByUrl('index.html')
-  const songsAfter = (await op2.evaluate(() => window.api.db.list('songs'))).length
+  // restore reloads the operator window: wait for the reloaded page instead of guessing how long that takes
+  const songsAfter = (await evaluateWhenReady('index.html', () => window.api.db.list('songs'))).length
   console.log('backup/restore:', JSON.stringify({ files: made?.files, ok: restored?.ok, songsBefore, songsAfter }), songsAfter === songsBefore ? '✓' : '✗')
   if (songsAfter !== songsBefore) errors.push('restore did not bring back the backed-up data')
 

@@ -22,20 +22,58 @@ export type RangeResult = { kind: 'full' } | { kind: 'partial'; start: number; e
  * A syntactically valid range that doesn't fit the file is "unsatisfiable" (HTTP 416).
  */
 export function parseRange(header: string | null | undefined, size: number): RangeResult {
-  if (!header) return { kind: 'full' }
-  const m = /^\s*bytes\s*=\s*(\d*)\s*-\s*(\d*)\s*$/i.exec(header)
-  if (!m || (m[1] === '' && m[2] === '')) return { kind: 'full' }
+  if (!header || header.length > 200) return { kind: 'full' }
+  // Split by hand rather than with one regex: optional spaces around optional digits (\s*(\d*)\s*) backtrack
+  // polynomially on a long run of spaces, and this header comes from anyone on the Wi-Fi.
+  const eq = header.indexOf('=')
+  if (eq < 0 || header.slice(0, eq).trim().toLowerCase() !== 'bytes') return { kind: 'full' }
+  const spec = header.slice(eq + 1)
+  const dash = spec.indexOf('-')
+  if (dash < 0) return { kind: 'full' }
+  const first = spec.slice(0, dash).trim()
+  const last = spec.slice(dash + 1).trim()
+  if (!/^\d*$/.test(first) || !/^\d*$/.test(last) || (first === '' && last === '')) return { kind: 'full' }
   if (size <= 0) return { kind: 'unsatisfiable' }
-  if (m[1] === '') {
+  if (first === '') {
     // suffix range: the last N bytes
-    const n = Number(m[2])
+    const n = Number(last)
     if (!Number.isSafeInteger(n) || n <= 0) return { kind: 'unsatisfiable' }
     return { kind: 'partial', start: Math.max(0, size - n), end: size - 1 }
   }
-  const start = Number(m[1])
-  const end = m[2] === '' ? size - 1 : Math.min(Number(m[2]), size - 1)
+  const start = Number(first)
+  const end = last === '' ? size - 1 : Math.min(Number(last), size - 1)
   if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start >= size || start > end) return { kind: 'unsatisfiable' }
   return { kind: 'partial', start, end }
+}
+
+/* ------------------------------ dev server proxy ------------------------------ */
+
+/** What the stage and remote pages load from the Vite dev server (src/renderer is its root). */
+const DEV_PREFIXES = [
+  '/stage.html',
+  '/remote.html',
+  '/stage/',
+  '/remote/',
+  '/lib/',
+  '/components/',
+  '/i18n/',
+  '/styles/',
+  '/@vite/',
+  '/@id/',
+  '/@react-refresh',
+  '/node_modules/'
+]
+
+/**
+ * Development only (`npm run dev`): may the LAN server forward this path to the Vite dev server? Vite answers for
+ * every file in the workspace (`/@fs/<any path>`, the operator pages, `.e2e-data`), so only the stage/remote pages,
+ * their own folders, Vite's client and the shared code (`/@fs/…/src/shared/`, `/@fs/…/node_modules/`) pass.
+ * Compared case-sensitively (Windows would serve `/OPERATOR/…` too), and escapes like `%2f` or `..` never pass.
+ */
+export function isDevProxyPath(path: string): boolean {
+  if (/%2e|%2f|%5c|\\|\/\.\.?(\/|$)/i.test(path)) return false
+  if (path.startsWith('/@fs/')) return /\/src\/shared\/[^/]+\.ts$|\/node_modules\//.test(path) && !path.includes('/.e2e-data/')
+  return DEV_PREFIXES.some((p) => path === p || (p.endsWith('/') && path.startsWith(p)))
 }
 
 /* ------------------------------ Host / Origin (DNS rebinding) ------------------------------ */
@@ -82,7 +120,9 @@ export function isSameOrigin(origin: string | undefined, host: string | undefine
 
 /* ------------------------------ remote / stage commands ------------------------------ */
 
-const MAX_TEXT = 500
+/** The longest screen or stage message a phone may send (the remote's inputs stop typing there too). */
+export const MAX_MESSAGE_LENGTH = 500
+const MAX_TEXT = MAX_MESSAGE_LENGTH
 const SIMPLE = new Set(['next', 'prev', 'nextItem', 'prevItem', 'black', 'clearText', 'logo', 'clearAll', 'clearMessage', 'videoToggle'])
 const DISPLAY_LANGS: readonly DisplayLang[] = ['es', 'en', 'both']
 
@@ -170,6 +210,9 @@ export function pickPublicState(s: LiveState, mediaUrl: (u: string | undefined) 
 
 /* ------------------------------ settings from the renderer ------------------------------ */
 
+/** Limits the settings checks below enforce; the Settings page uses the same numbers so typing stops there. */
+export const SETTING_LIMITS = { churchName: 200, ccliLicense: 100, messageTemplate: 500, portMin: 1024, portMax: 65535 } as const
+
 const LANGS: readonly Lang[] = ['es', 'en']
 const ORDERS: readonly BilingualOrder[] = ['es-first', 'en-first']
 const str = (max: number) => (v: unknown) => (typeof v === 'string' && v.length <= max ? v : undefined)
@@ -187,19 +230,24 @@ const SETTING_CHECKS: { [K in keyof Settings]?: (v: unknown) => Settings[K] | un
   uiLang: oneOf(LANGS),
   displayLang: oneOf(DISPLAY_LANGS),
   bilingualOrder: oneOf(ORDERS),
-  churchName: str(200),
-  ccliLicense: str(100),
+  churchName: str(SETTING_LIMITS.churchName),
+  ccliLicense: str(SETTING_LIMITS.ccliLicense),
   outputDisplayId: (v) => (Number.isSafeInteger(v) ? (v as number) : undefined),
   outputEnabled: bool,
   defaultThemeId: str(200),
   logoPath: str(2000),
   serverEnabled: bool,
-  serverPort: (v) => (Number.isSafeInteger(v) && (v as number) >= 1024 && (v as number) <= 65535 ? (v as number) : undefined),
+  serverPort: (v) =>
+    Number.isSafeInteger(v) && (v as number) >= SETTING_LIMITS.portMin && (v as number) <= SETTING_LIMITS.portMax ? (v as number) : undefined,
   bibleEn: str(200),
   bibleEs: str(200),
   messageTemplates: (v) =>
     Array.isArray(v) && v.length <= 100 && v.every((m) => m && typeof m.id === 'string' && typeof m.en === 'string' && typeof m.es === 'string')
-      ? (v as Settings['messageTemplates']).map((m) => ({ id: m.id.slice(0, 100), en: m.en.slice(0, 500), es: m.es.slice(0, 500) }))
+      ? (v as Settings['messageTemplates']).map((m) => ({
+          id: m.id.slice(0, 100),
+          en: m.en.slice(0, SETTING_LIMITS.messageTemplate),
+          es: m.es.slice(0, SETTING_LIMITS.messageTemplate)
+        }))
       : undefined,
   messageSeconds: (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(3600, Math.max(5, Math.round(v))) : undefined),
   operatorTheme: oneOf(['dark', 'light'] as const),

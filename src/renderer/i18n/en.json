@@ -5,7 +5,8 @@
     "dataRecovered": "⚠ The {{what}} file was damaged and was restored from its backup. The damaged copy was kept: {{file}}",
     "dataUnreadable": "⚠ The {{what}} file is damaged and could not be read. It was kept as {{file}} — restore a backup in Settings → Backup.",
     "mediaMissing": "⚠ File not found: {{file}}",
-    "mediaUnplayable": "⚠ This video can't be played (damaged or unsupported format)."
+    "mediaUnplayable": "⚠ This video can't be played (damaged or unsupported format).",
+    "previewFailed": "⚠ Could not prepare the preview of “{{title}}”. Check that its song, Bible version or file still exists."
   },
   "common": {
     "add": "Add",
@@ -319,7 +320,8 @@
     "importErr": {
       "empty": "No Bible text was found in that file. Use a complete OSIS or USFX XML Bible, or an ICCWorship JSON Bible.",
       "unsupported": "That file isn't a Bible format ICCWorship can read (OSIS, USFX or ICCWorship JSON).",
-      "id-taken": "That abbreviation belongs to a built-in Bible. Choose another abbreviation."
+      "id-taken": "That abbreviation belongs to a built-in Bible. Choose another abbreviation.",
+      "bad-id": "That abbreviation can't be used. Use up to 64 letters or numbers (for example LBLA or NVI)."
     },
     "imported": "“{{name}}” imported",
     "results_one": "{{count}} result",
@@ -545,7 +547,8 @@
     "newPin": "New PIN (disconnects phones and stage screens)",
     "portHelp": "Press Enter to apply. Use a number from 1024 to 65535.",
     "restartOutput": "Restart projector",
-    "restartOutputHelp": "Reloads the projector window (and leaves the black \"safe\" mode after repeated errors)"
+    "restartOutputHelp": "Reloads the projector window (and leaves the black \"safe\" mode after repeated errors)",
+    "portInvalid": "Port {{port}} can't be used. Use a number from 1024 to 65535; the port stays {{current}}."
   },
   "help": {
     "title": "Keyboard shortcuts",
@@ -583,6 +586,7 @@
     "locked": "Too many wrong PINs — wait {{seconds}} s and try again",
     "connect": "Connect",
     "offline": "Reconnecting…",
+    "full": "Too many phones and screens are connected. Close ICCWorship on another device; this one will connect by itself.",
     "black": "Black",
     "video": "Video",
     "slides": "Slides",
@@ -593,6 +597,7 @@
   },
   "stage": {
     "offline": "Connecting to ICCWorship…",
+    "full": "Too many phones and screens are connected. Close ICCWorship on another device; this screen will connect by itself.",
     "now": "Now",
     "videoLeft": "Video left",
     "item": "Item",

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import '../i18n'
 import { pickLangs } from '@shared/slides'
+import { MAX_MESSAGE_LENGTH } from '@shared/security'
 import type { DisplayLang } from '@shared/types'
 import { safeMediaSrc, useLiveFeed } from '../lib/liveFeed'
 import { rememberPin, usePin } from '../lib/pin'
@@ -63,7 +64,7 @@ function Remote() {
     } else setPin(entry)
   }
 
-  if (!state) return <div className="r-pin">{status === 'offline' ? t('remote.offline') : '…'}</div>
+  if (!state) return <div className="r-pin">{status === 'offline' ? t('remote.offline') : status === 'full' ? t('remote.full') : '…'}</div>
 
   const cur = state.slideIndex >= 0 ? state.slides[state.slideIndex] : undefined
   const txt = pickLangs(cur?.text, state.displayLang, state.bilingualOrder)
@@ -72,7 +73,7 @@ function Remote() {
   const online = status === 'online'
   return (
     <div className={`r ${online ? '' : 'is-offline'}`}>
-      {!online && <div className="r-offline">⚠ {t('remote.offline')}</div>}
+      {!online && <div className="r-offline">⚠ {t(status === 'full' ? 'remote.full' : 'remote.offline')}</div>}
       <header className="r-head">
         <span className={`r-dot ${status === 'online' ? 'on' : ''}`} />
         <div className="r-title">
@@ -176,7 +177,7 @@ function Remote() {
           <div className="r-msg">
             <label>{t('remote.screenMessage')}</label>
             <div className="r-inline">
-              <input value={msg} onChange={(e) => setMsg(e.target.value)} placeholder={t('live.customMessage')} />
+              <input value={msg} maxLength={MAX_MESSAGE_LENGTH} onChange={(e) => setMsg(e.target.value)} placeholder={t('live.customMessage')} />
               <button className="r-btn primary" disabled={!msg.trim()} onClick={() => (send({ type: 'message', text: msg.trim() }), setMsg(''))}>
                 {t('live.show')}
               </button>
@@ -186,7 +187,7 @@ function Remote() {
             </button>
             <label>{t('live.stageMsg')}</label>
             <div className="r-inline">
-              <input value={stageMsg} onChange={(e) => setStageMsg(e.target.value)} placeholder={t('live.stagePlaceholder')} />
+              <input value={stageMsg} maxLength={MAX_MESSAGE_LENGTH} onChange={(e) => setStageMsg(e.target.value)} placeholder={t('live.stagePlaceholder')} />
               <button className="r-btn primary" onClick={() => send({ type: 'stageMessage', text: stageMsg.trim() })}>
                 {t('live.send')}
               </button>

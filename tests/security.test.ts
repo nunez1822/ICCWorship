@@ -23,6 +23,14 @@ describe('parseRange', () => {
     expect(parseRange('bytes=-10', 100)).toEqual({ kind: 'partial', start: 90, end: 99 })
     expect(parseRange('bytes=-500', 100)).toEqual({ kind: 'partial', start: 0, end: 99 })
   })
+  it('accepts spaces around the parts, and stays fast on a long run of spaces', () => {
+    expect(parseRange(' Bytes = 10 - 19 ', 100)).toEqual({ kind: 'partial', start: 10, end: 19 })
+    expect(parseRange('bytes= - 5', 100)).toEqual({ kind: 'partial', start: 95, end: 99 })
+    const t0 = Date.now()
+    for (const h of ['bytes=' + ' '.repeat(100_000), 'bytes=-' + ' '.repeat(100_000) + 'x', 'bytes=1' + ' '.repeat(190) + 'x'])
+      expect(parseRange(h, 100)).toEqual({ kind: 'full' })
+    expect(Date.now() - t0).toBeLessThan(100)
+  })
   it('clamps the end to the file size', () => {
     expect(parseRange('bytes=50-5000', 100)).toEqual({ kind: 'partial', start: 50, end: 99 })
   })
