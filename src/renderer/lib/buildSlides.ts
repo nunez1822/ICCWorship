@@ -2,12 +2,15 @@ import type { Background, MediaItem, PlanItem, Presentation, Settings, Slide, So
 import { countdownTarget, notesToSlides, scriptureToSlides, songToSlides, uid } from '@shared/slides'
 import { backgroundFromMedia, isVideoUrl, toMediaUrl } from './media'
 
+export type BuildSettings = Pick<Settings, 'defaultThemeId' | 'ccliLicense'>
+
 export interface BuildContext {
   songs: Song[]
   media: MediaItem[]
   presentations: Presentation[]
   themes: Theme[]
-  settings: Settings
+  /** only the settings that change what slides look like: previews rebuild when these change */
+  settings: BuildSettings
   bibles: BibleVersionInfo[]
   /** the plan's date (YYYY-MM-DD): a "count down to HH:MM" aims at that day */
   planDate?: string

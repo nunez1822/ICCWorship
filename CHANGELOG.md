@@ -37,7 +37,7 @@ All notable changes to ICCWorship are documented here. The format is based on
 - Releases are built by GitHub Actions, with SHA-256 checksums and signed build provenance; see "Verify your
   download" in the README.
 - The app now includes the licences of the open-source software it is built with (`THIRD_PARTY_NOTICES.md`
-  in the install folder).
+  in the install folder, next to `ICCWorship.exe`).
 
 ### Removed
 - The untested macOS and Linux build targets. ICCWorship is a Windows app.
@@ -47,8 +47,15 @@ All notable changes to ICCWorship are documented here. The format is based on
 - `npm run dev` showed blank windows ("Invalid hook call"): Vite loaded two copies of React in development.
 - Typing a new port in Settings → Remote no longer restarts the server on every keystroke; it applies on Enter.
 - Creating a pasted Bible version whose abbreviation has no letters or digits no longer writes a file named ".json".
-- The "next item" preview on the Live page and the item preview in the plan editor now update when settings,
-  songs, themes or media change, instead of showing the old version until another item is picked.
+- The Live page's preview of a selected item that isn't live yet now updates when the default theme or the CCLI
+  license number changes, and the plan editor's item preview updates when songs, media, themes, Bible versions,
+  the default theme or the CCLI license number change.
+  Switching the screen language (EN / ES / Both) no longer rebuilds either preview, so a previewed countdown
+  keeps its time.
+- Selecting another item on the Live page no longer shows the previous item's slides under the new title while
+  the new preview is being prepared. Clicking one of those thumbnails could send the new item live at the
+  wrong slide.
+- If a preview can't be prepared, the operator now sees a message instead of a stale or empty preview.
 - The README now says Node.js 22.12 or newer is needed to build (Electron 45 requires it).
 - The README now explains that the portable version keeps its data in the PC's `Documents\ICCWorship` folder.
 
