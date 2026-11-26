@@ -24,6 +24,7 @@ import { registerIpc } from './ipc'
 import { restartServer } from './serverControl'
 import { broadcastLive, createOperator, createOutput, forwardCommand, placeOutput } from './windows'
 import { pauseHeartbeats, resumeHeartbeats } from './windowGuards'
+import { endSession, startSession } from './session'
 
 // app:// serves the app's own pages (appUrl.ts). media:// serves local media files to them: corsEnabled +
 // "Access-Control-Allow-Origin: *" are needed because PDF import fetch()es media:// from an app:// page (another
@@ -105,6 +106,7 @@ app
     cleanupOrphanTracks() // backing tracks no song uses any more (only when the songs list is complete: not just seeded)
     setMainLang(getSettings().uiLang)
     buildMenu()
+    startSession() // how did the last run end? (an unexpected exit mid-service is offered back to the operator)
     live.init()
     registerIpc()
     setCommandHandler((cmd) => forwardCommand(cmd))
@@ -165,6 +167,7 @@ app.on('before-quit', () => {
   lifecycle.quitting = true
   log.info('quitting')
   db().flush()
+  endSession()
   stopServer()
 })
 

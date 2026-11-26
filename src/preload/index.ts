@@ -206,6 +206,8 @@ const api = {
     openRelease: (url: string) => invoke('app:openRelease', url),
     /** things to tell the operator after a (re)load, e.g. 'operatorRecovered' */
     notices: (): Promise<string[]> => invoke('app:notices'),
+    /** the plan item that was live when ICCWorship last closed unexpectedly (asked once, at startup) */
+    resumeOffer: () => invoke('app:resumeOffer'),
     onEvent: (cb: (e: AppEvent) => void) => on('app:event', cb)
   }
 }

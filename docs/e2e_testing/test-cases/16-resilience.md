@@ -286,3 +286,26 @@ projector first — earlier crashes in the last minute count toward the limit.
   don't move (the window that drives them is stuck); the music never stops.
 - A confirm box left open in the operator (e.g. Delete a song, then wait 30 s before answering) is **not** taken for a
   freeze: no question appears.
+
+### TC-RES-34 · ICCWorship closes unexpectedly mid-service: the item is offered back  `P0`
+**Steps**
+1. Go live on the 2nd item of the active plan and move to its 2nd slide. Wait 2 s.
+2. Kill the app (no normal quit): from a Node script, `taskkill /T /F /PID <main pid>` (or end it in Task Manager).
+3. `pnpm e2e:launch --keep`.
+**Expected**
+- The projector starts black (nothing goes on screen by itself).
+- A toast says ICCWorship closed unexpectedly while "<item>" (<plan>) was on screen, with **▶ Put it back (slide 2)**.
+- Clicking it puts that item live on slide 2 and selects that plan.
+- Quit normally and launch again: no such toast. `.e2e-data/.userdata/session.json` has `"clean":true`.
+- Variants: a Show-now item (from Bible/Songs) or nothing on screen → no toast. An offer more than 6 hours old → no
+  toast. The item was deleted from the plan in between → clicking says it is no longer in the plan.
+
+### TC-RES-35 · The operator window opens where it was left  `P2`
+**Steps**
+1. Un-maximize the operator window, move and resize it. Quit normally; launch with `--keep`.
+2. Maximize it; quit; launch again.
+3. Edit `.e2e-data/.userdata/window-state.json` so `bounds.x` is far off any screen (e.g. `9000`); launch again.
+**Expected**
+- 1: it opens at the same size and place. 2: it opens maximized.
+- 3: it opens on a visible screen (never off-screen or on an unplugged projector).
+- The first run ever (no `window-state.json`) opens maximized, as before.

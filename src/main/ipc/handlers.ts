@@ -38,6 +38,7 @@ import { buildMenu } from '../menu'
 import { audioOutputOf, restartServer } from '../serverControl'
 import { createOutput, createStageWindow, listDisplays, placeOutput, restartOutput } from '../windows'
 import { testSound } from './testSound'
+import { takeResumeOffer } from '../session'
 
 type FileFilter = { name: string; extensions: string[] }
 
@@ -117,6 +118,8 @@ export function createHandlers() {
     'output:testSound': () => testSound(),
     'output:restart': () => restartOutput(),
     'app:notices': () => pendingNotices.splice(0),
+    /** what was on screen when the last run closed unexpectedly (once; null when there is nothing to offer) */
+    'app:resumeOffer': () => takeResumeOffer(),
     'displays:list': () => listDisplays(),
     'output:open': () => createOutput(),
     'output:close': () => wins.output?.close(),

@@ -62,7 +62,11 @@ export function App() {
   const [clients, setClients] = useState(0)
 
   useEffect(() => {
-    void useApp.getState().load()
+    // then: ICCWorship closed unexpectedly mid-service last time? offer to put that item back on screen
+    void useApp
+      .getState()
+      .load()
+      .then(() => live.offerResume())
     const off = window.api.live.onCommand(live.handleCommand)
     const offSettings = window.api.settings.onChange((s) => {
       useApp.setState({ settings: s })

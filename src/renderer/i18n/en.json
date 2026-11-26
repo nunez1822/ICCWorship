@@ -669,6 +669,9 @@
     "notices": "Open-source licences"
   },
   "recovery": {
+    "resumeOffer": "ICCWorship closed unexpectedly while “{{item}}” ({{plan}}) was on screen.",
+    "resume": "▶ Put it back (slide {{slide}})",
+    "resumeGone": "That item is no longer in the plan, so nothing was put back on screen.",
     "mainError": "Something went wrong inside ICCWorship. What is on screen keeps running; it was written to the log (Help → Open logs folder).",
     "projectorRestarted": "The projector window had a problem and was restarted. It shows what is live again.",
     "projectorSafe": "The projector kept failing, so it now shows black. Go on with the next slide or item, then Settings → Screens → 🔄 Restart projector.",

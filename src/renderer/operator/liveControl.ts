@@ -712,3 +712,26 @@ async function runCommand(cmd: RemoteCommand | VideoEndedCommand): Promise<void>
 export function handleCommand(cmd: RemoteCommand | VideoEndedCommand): void {
   void enqueue(() => runCommand(cmd))
 }
+
+/**
+ * After ICCWorship closed unexpectedly (crash, power cut, Windows update) with a plan item on screen, offer to put it
+ * back where it was: one click on the toast (see src/shared/session.ts). Nothing goes on screen by itself.
+ */
+export async function offerResume(): Promise<void> {
+  const offer = await window.api.app.resumeOffer()
+  if (!offer) return
+  const l = live()
+  if (l && l.slideIndex >= 0) return // something is already on screen again
+  st().toast(t('recovery.resumeOffer', { item: offer.itemTitle || '?', plan: offer.planTitle || '?' }), 'info', 120_000, {
+    label: t('recovery.resume', { slide: offer.slideIndex + 1 }),
+    run: () =>
+      void enqueue(async () => {
+        const s = st()
+        const plan = s.plans.find((p) => p.id === offer.planId)
+        const index = plan ? plan.items.findIndex((i) => i.id === offer.itemId) : -1
+        if (!plan || index < 0) return s.toast(t('recovery.resumeGone'), 'err')
+        s.setActivePlan(plan.id)
+        await goItem(index, offer.slideIndex)
+      })
+  })
+}

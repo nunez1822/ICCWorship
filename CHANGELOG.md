@@ -39,6 +39,11 @@ All notable changes to ICCWorship are documented here. The format is based on
   and connects by itself as soon as a place is free.
 
 ### Added
+- **Put it back after a crash.** If ICCWorship closes unexpectedly (a crash, a power cut, Windows restarting for an
+  update) while a plan item is on screen, the next start offers it back: one click on **▶ Put it back** shows that
+  item again on the slide it was on. Nothing goes on screen by itself, and a normal quit leaves nothing to offer.
+- The main window opens at the size and place it had last time (maximized the first time), never on a screen that
+  is no longer connected.
 - **Backing tracks.** No musicians? Give a song an instrumental (Songs → 🎵 Backing track): the music plays through the
   projector window under the lyrics while you advance them. Space on the last slide takes the text off and lets the
   music finish (the outro); the next Space moves on. Esc fades the music out, Space brings lyrics and music back where

@@ -669,6 +669,9 @@
     "notices": "Licencias de código abierto"
   },
   "recovery": {
+    "resumeOffer": "ICCWorship se cerró inesperadamente mientras “{{item}}” ({{plan}}) estaba en pantalla.",
+    "resume": "▶ Volver a mostrarlo (diapositiva {{slide}})",
+    "resumeGone": "Ese elemento ya no está en el plan, así que no se volvió a mostrar nada.",
     "mainError": "Algo falló dentro de ICCWorship. Lo que está en pantalla sigue funcionando; quedó anotado en el registro (Ayuda → Abrir carpeta de registros).",
     "projectorRestarted": "La ventana del proyector tuvo un problema y se reinició. Ya muestra de nuevo lo que está en vivo.",
     "projectorSafe": "El proyector siguió fallando, así que ahora muestra negro. Continúe con la siguiente diapositiva o elemento y luego Ajustes → Pantallas → 🔄 Reiniciar proyector.",

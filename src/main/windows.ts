@@ -12,13 +12,24 @@ import { live } from './live'
 import { log } from './log'
 import { loadPage } from './pages'
 import { guardOperator, guards, guardWindow } from './windowGuards'
+import { readWindowState, rememberLive, saveWindowState } from './session'
+import { restoreWindowState } from '@shared/windowState'
+
+const OPERATOR_MIN = { width: 1100, height: 680 }
 
 export function createOperator(): void {
+  // the size and place it had last time, if that is still on a screen (else maximized, as on the first run)
+  const state = restoreWindowState(
+    readWindowState(),
+    screen.getAllDisplays().map((d) => d.workArea),
+    OPERATOR_MIN
+  )
   const operator = new BrowserWindow({
     width: 1480,
     height: 920,
-    minWidth: 1100,
-    minHeight: 680,
+    ...state.bounds,
+    minWidth: OPERATOR_MIN.width,
+    minHeight: OPERATOR_MIN.height,
     show: false,
     backgroundColor: '#0e1420',
     title: 'ICCWorship',
@@ -28,9 +39,24 @@ export function createOperator(): void {
   })
   wins.operator = operator
   operator.once('ready-to-show', () => {
-    operator.maximize()
+    if (state.maximized) operator.maximize()
     operator.show()
   })
+  // remember the size and place (a second after the last move or resize, and when it closes)
+  let saveTimer: ReturnType<typeof setTimeout> | undefined
+  const save = () => {
+    clearTimeout(saveTimer)
+    if (!operator.isDestroyed() && !operator.isMinimized() && !operator.isFullScreen()) saveWindowState(operator.getNormalBounds(), operator.isMaximized())
+  }
+  const saveSoon = () => {
+    clearTimeout(saveTimer)
+    saveTimer = setTimeout(save, 1000)
+  }
+  operator.on('resized', saveSoon)
+  operator.on('moved', saveSoon)
+  operator.on('maximize', saveSoon)
+  operator.on('unmaximize', saveSoon)
+  operator.on('close', save)
   operator.on('closed', () => {
     wins.operator = null
     wins.output?.destroy()
@@ -164,6 +190,7 @@ export function broadcastLive(): void {
     send(wins.output, 'live:state', state)
     send(wins.stage, 'live:state', state)
     send(wins.operator, 'live:state', state)
+    rememberLive(state) // offered back if the app closes unexpectedly (session.ts)
   })
   live.on('progress', (p: LiveState['videoProgress']) => {
     send(wins.operator, 'live:progress', p)

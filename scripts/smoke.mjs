@@ -11,6 +11,7 @@ import { request as httpRequest } from 'node:http'
 import { WebSocket as WsClient } from 'ws'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { execFileSync } from 'node:child_process'
 
 /** A ws message as text: one Buffer by default, but the type also allows a Buffer array or an ArrayBuffer. */
 const wsText = (d) => (Array.isArray(d) ? Buffer.concat(d) : Buffer.isBuffer(d) ? d : Buffer.from(d)).toString('utf8')
@@ -498,11 +499,68 @@ try {
   const opPage = await fetch(`http://127.0.0.1:${info.port}/index.html`).then((r) => r.status)
   console.log('operator page over LAN blocked:', opPage === 404 ? '✓' : `✗ (${opPage})`)
   if (opPage !== 404) errors.push('operator page exposed over the network')
+  // ---- ICCWorship closes unexpectedly mid-service: the next start offers the item back (src/shared/session.ts) ----
+  const op1 = await windowByUrl('index.html')
+  await op1.evaluate(() => window.api.live.stageCommand({ type: 'gotoItem', index: 1 }))
+  await sleep(1800) // the session file is written a second after the live item changes
+  const wasLive = await op1.evaluate(() => window.api.live.get())
+  // no normal quit, like a crash or a power cut: end the whole process tree at once
+  execFileSync('taskkill', ['/T', '/F', '/PID', String(app.process().pid)], { stdio: 'ignore' })
+  await sleep(1500)
+  {
+    // the killed copy's helper processes can hold the single-instance lock a moment longer: then the new copy
+    // hands over to it and exits; try again
+    let appR
+    for (let i = 0; i < 5 && !appR; i++) {
+      appR = await electron
+        .launch({
+          args: [root],
+          cwd: root,
+          env: { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_TEST_PROFILE: '1', ICCWORSHIP_WINDOWED: '1', ELECTRON_RENDERER_URL: '' }
+        })
+        .catch(() => undefined)
+      if (!appR) await sleep(1500)
+    }
+    if (!appR) throw new Error('could not start ICCWorship again after killing it')
+    try {
+      let opR
+      for (let i = 0; i < 60 && !opR; i++) {
+        opR = appR.windows().find((w) => w.url().includes('index.html'))
+        if (!opR) await sleep(250)
+      }
+      const nothingLive = (await opR.evaluate(() => window.api.live.get())).slideIndex === -1
+      const button = opR.locator('.toast-action').first()
+      await button.waitFor({ timeout: 15000 })
+      await button.click()
+      let back
+      for (let i = 0; i < 40; i++) {
+        back = await opR.evaluate(() => window.api.live.get())
+        if (back.itemId === wasLive.itemId) break
+        await sleep(250)
+      }
+      const ok = !!wasLive.itemId && nothingLive && back.itemId === wasLive.itemId && back.slideIndex === wasLive.slideIndex
+      console.log(
+        'after an unexpected exit, the live item is offered back:',
+        ok ? '✓' : `✗ was=${wasLive.itemId}/${wasLive.slideIndex} back=${back?.itemId}/${back?.slideIndex}`
+      )
+      if (!ok) errors.push('resume after an unexpected exit failed')
+      // a normal quit leaves nothing to offer next time
+      await appR.evaluate(({ app }) => app.quit())
+      await sleep(800)
+      const session = JSON.parse(readFileSync(join(data, '.userdata', 'session.json'), 'utf8'))
+      console.log('a normal quit is recorded as clean:', session.clean === true ? '✓' : '✗')
+      if (session.clean !== true) errors.push('normal quit not recorded in session.json')
+    } finally {
+      await appR.close().catch(() => {})
+    }
+  }
+
   // ---- data written by a NEWER version opens read-only (an old portable copy must not damage it) ----
-  await app.close()
+  await app.close().catch(() => {})
   const metaFile = join(data, 'data', 'meta.json')
   const songsFile = join(data, 'data', 'songs.json')
-  const env2 = { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_WINDOWED: '1', ELECTRON_RENDERER_URL: '' }
+  // the test profile too: without it these runs would write logs and session files into the real %APPDATA%\ICCWorship
+  const env2 = { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_TEST_PROFILE: '1', ICCWORSHIP_WINDOWED: '1', ELECTRON_RENDERER_URL: '' }
 
   // ---- data from 1.0 (no schema version) is upgraded, after a safety backup ----
   writeFileSync(metaFile, JSON.stringify({ seeded: 1 }))
@@ -522,11 +580,7 @@ try {
 
   writeFileSync(metaFile, JSON.stringify({ seeded: 1, schemaVersion: 99 }))
   const songsOnDisk = readFileSync(songsFile, 'utf8')
-  const app2 = await electron.launch({
-    args: [root],
-    cwd: root,
-    env: { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_WINDOWED: '1', ELECTRON_RENDERER_URL: '' }
-  })
+  const app2 = await electron.launch({ args: [root], cwd: root, env: env2 })
   try {
     let op3
     for (let i = 0; i < 60 && !op3; i++) {
