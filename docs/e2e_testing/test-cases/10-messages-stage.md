@@ -68,3 +68,15 @@
 **Expected**
 - Both show "🎬 <video title>" in the current-slide box — never an empty box. When the video is the next slide,
   the "Next" column shows the same.
+
+### TC-STG-07 · A slide the stage can't draw doesn't blank the stage  `P1`
+**Pre:** stage window open (Settings → Screens → 🎤 Open stage display).
+**Steps**
+1. Operator tab `browser_evaluate` → push a slide that can't be drawn:
+   `await window.api.live.update({ slides: [{ id: 'bad-e2e', kind: 'song', text: { en: {}, es: {} } }], slideIndex: 0, displayLang: 'en' })`
+2. Put a normal song live (Songs → Show now).
+**Expected**
+- Step 1: the stage keeps its clock and timers and shows "—" where the slide would be; the operator gets a red
+  "The stage display could not show this slide…" message (the projector shows black and its own message).
+  `main.log` has `stage could not draw a slide: Error (slide song)`.
+- Step 2: the stage shows the new song normally — no click on the stage and no restart needed.

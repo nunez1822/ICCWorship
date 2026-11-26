@@ -636,6 +636,7 @@
     "stageRestarted": "The stage window had a problem and was restarted.",
     "stageFailed": "The stage window keeps failing. Close it and open it again from Settings → Screens.",
     "renderError": "The projector could not show this slide, so it shows black. Move to the next slide or item.",
+    "stageRenderError": "The stage display could not show this slide. It shows the next slide normally.",
     "gpuCrashed": "The graphics driver stopped responding. If the projector goes black or freezes, turn on \"Turn off graphics acceleration\" in Settings → About and restart ICCWorship.",
     "operatorRecovered": "ICCWorship restarted this window after a problem. The projector kept showing what was live; an announcement loop that was running has stopped — press Space to continue.",
     "operatorCrashed": "The ICCWorship window crashed again. The projector keeps showing what is live. Reload the window?",
@@ -644,6 +645,8 @@
   "boundary": {
     "title": "This page had a problem",
     "body": "The projector and the phone remote keep working. Try again, or reload the window. The problem was written to the log.",
+    "windowTitle": "This window had a problem",
+    "windowBody": "The projector and the phone remote keep working. Reload the window to continue. The problem was written to the log.",
     "retry": "Try again",
     "reload": "Reload window"
   },
@@ -671,6 +674,7 @@
     "checkNow": "Check now",
     "upToDate": "You have the latest version.",
     "available": "ICCWorship {{version}} is available",
+    "download": "Download page",
     "failed": "Could not check (no internet?)."
   }
 }

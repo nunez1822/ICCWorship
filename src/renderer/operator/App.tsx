@@ -271,6 +271,11 @@ export function App() {
         {toasts.map((x) => (
           <div key={x.id} className={`toast ${x.kind}`}>
             {x.text}
+            {x.action && (
+              <button className="btn sm toast-action" onClick={x.action.run}>
+                {x.action.label}
+              </button>
+            )}
           </div>
         ))}
       </div>

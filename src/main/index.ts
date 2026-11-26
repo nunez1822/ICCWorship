@@ -54,7 +54,7 @@ type AppEvent =
   | { type: 'mainError' }
   | { type: 'windowRecovered'; window: 'output' | 'stage'; safe: boolean }
   | { type: 'windowFailed'; window: 'output' | 'stage' }
-  | { type: 'renderError' }
+  | { type: 'renderError'; window: 'output' | 'stage' }
   | { type: 'gpuCrashed' }
   | { type: 'update'; latest: string; url: string }
   | { type: 'diagnostics'; ok: boolean }
@@ -105,8 +105,15 @@ const preload = join(__dirname, '../preload/index.js')
 const iconPath = join(resourcesDir(), 'icon.png')
 const REPO_URL = 'https://github.com/nunez1822/ICCWorship'
 
+let loads = 0
 function loadPage(win: BrowserWindow, page: 'index' | 'output' | 'stage' | 'remote', hash = ''): void {
-  const loading = devUrl ? win.loadURL(`${devUrl}/${page}.html${hash}`) : win.loadFile(join(rendererDir, `${page}.html`), { hash: hash.replace(/^#/, '') })
+  // A query that changes on every load makes this a real page load. Without it, loading the URL the window
+  // already shows (stage.html#local, or output.html → output.html#safe) only changes the #fragment: the page
+  // would not restart, although the operator is told it did.
+  const load = String(++loads)
+  const loading = devUrl
+    ? win.loadURL(`${devUrl}/${page}.html?load=${load}${hash}`)
+    : win.loadFile(join(rendererDir, `${page}.html`), { query: { load }, hash: hash.replace(/^#/, '') })
   // A newer load (crash recovery, "Restart projector" pressed twice) aborts the pending one: that is expected.
   // A real failure is logged; the crash and heartbeat guards deal with a window that stays broken.
   loading.catch((e) => {
@@ -290,7 +297,7 @@ async function exportDiagnosticsInteractive(includeCrashDumps: boolean): Promise
 // finally stops retrying; the operator is told every time.
 type Guarded = 'output' | 'stage'
 const winOf = (kind: Guarded) => (kind === 'output' ? output : stageWin)
-const guards: Record<Guarded, { budget: ReloadBudget; beat: Heartbeat; unresponsive?: ReturnType<typeof setTimeout> }> = {
+const guards: Record<Guarded, { budget: ReloadBudget; beat: Heartbeat; unresponsive?: ReturnType<typeof setTimeout>; failed?: boolean }> = {
   output: { budget: new ReloadBudget(), beat: new Heartbeat(() => killFrozen('output')) },
   stage: { budget: new ReloadBudget(), beat: new Heartbeat(() => killFrozen('stage')) }
 }
@@ -311,7 +318,10 @@ function recover(kind: Guarded, reason: string): void {
   clearUnresponsive(kind) // the page is being replaced: an old "unresponsive" timer must not kill the new one
   const step = g.budget.next()
   log.warn(`${kind} window ${reason}: ${step}`)
-  if (step === 'give-up' || (kind === 'stage' && step === 'safe')) return notify({ type: 'windowFailed', window: kind })
+  if (step === 'give-up' || (kind === 'stage' && step === 'safe')) {
+    g.failed = true // "Restart projector" / "Open stage display" start it again
+    return notify({ type: 'windowFailed', window: kind })
+  }
   if (kind === 'output') loadPage(win, 'output', step === 'safe' ? '#safe' : '')
   else loadPage(win, 'stage', '#local')
   notify({ type: 'windowRecovered', window: kind, safe: step === 'safe' })
@@ -325,6 +335,7 @@ function clearUnresponsive(kind: Guarded): void {
 function guardWindow(win: BrowserWindow, kind: Guarded): void {
   const g = guards[kind]
   g.budget.reset()
+  g.failed = false
   g.beat.stop()
   clearUnresponsive(kind)
   win.webContents.on('render-process-gone', (_e, d) => {
@@ -489,6 +500,13 @@ function createOutput(): void {
 
 function createStageWindow(): void {
   if (stageWin) {
+    // after it gave up (or crashed for good) "open it again" must really start it again, not just focus it
+    if (guards.stage.failed || stageWin.webContents.isCrashed()) {
+      log.info('stage window started again after it failed')
+      guards.stage.budget.reset()
+      guards.stage.failed = false
+      loadPage(stageWin, 'stage', '#local')
+    }
     stageWin.focus()
     return
   }
@@ -680,20 +698,21 @@ function registerIpc(): void {
     recover(kind, 'render error')
   })
   {
-    let last = ''
-    let lastAt = 0
-    on('output:renderError', (_e, message: unknown) => {
+    const last: Record<Guarded, { m: string; at: number }> = { output: { m: '', at: 0 }, stage: { m: '', at: 0 } }
+    on('win:renderError', (e, message: unknown) => {
+      const kind = kindOf(e.sender)
+      if (!kind) return
       // a slide that can't be drawn throws again on every update: report it once, not every second
       const m = String(message).slice(0, 200)
-      if (m === last && Date.now() - lastAt < 30_000) return
-      last = m
-      lastAt = Date.now()
-      log.error('projector could not draw a slide:', m)
-      notify({ type: 'renderError' })
+      if (m === last[kind].m && Date.now() - last[kind].at < 30_000) return
+      last[kind] = { m, at: Date.now() }
+      log.error(`${kind} could not draw a slide:`, m)
+      notify({ type: 'renderError', window: kind })
     })
   }
   h('output:restart', () => {
     guards.output.budget.reset()
+    guards.output.failed = false
     if (output && !output.isDestroyed()) loadPage(output, 'output')
     else createOutput()
   })

@@ -108,7 +108,7 @@ function Output() {
       <ErrorBoundary
         resetKeys={[state.seq]}
         fallback={() => <div className="output-root" />}
-        onError={(e) => window.api.output.renderError(`${errorSummary(e)} (slide ${slide?.kind || 'none'})`)}
+        onError={(e) => window.api.win.renderError(`${errorSummary(e)} (slide ${slide?.kind || 'none'})`)}
       >
         <SlideView
           slide={slide}

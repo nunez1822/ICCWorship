@@ -171,8 +171,10 @@ A web page a phone opens could point its own domain at the church PC (DNS rebind
 **Steps**
 1. Live page: drag `tests/fixtures/sample.pdf` from Explorer onto the slide grid (not a drop zone).
    With Playwright: `browser_drop` the file onto `.slides-grid`, or on the projector window.
+2. Songs → open a song → drag the same PDF onto the lyrics box.
 **Expected**
 - The operator page (and projector) stay as they are — the window does not navigate to the PDF or show a file.
+- Step 2: nothing happens either (a file dropped on a text box is cancelled too).
 
 ### TC-SEC-16 · Logs never quote a file's text or name  `P0`
 Logs are attached to public bug reports.

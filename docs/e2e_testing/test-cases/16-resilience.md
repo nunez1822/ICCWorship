@@ -204,3 +204,30 @@ projector first — earlier crashes in the last minute count toward the limit.
 **Expected**
 - The projector shows the song again. No red "Something went wrong inside ICCWorship" message (the first reload
   being replaced by the second is not an error); `main.log` has no `unhandled rejection in main`.
+
+### TC-RES-27 · A page that breaks without crashing is really reloaded  `P1`
+**Steps**
+1. A song live; stage window open. On the stage tab `browser_evaluate` → `window.api.win.fatal('e2e test')` (what the
+   page sends when React gives up on it; the renderer stays alive).
+2. Same on the projector tab.
+**Expected**
+- Each window really reloads (its URL's `?load=` number goes up, the page starts again) and shows what is live;
+  the operator gets the "…was restarted" message. `main.log` has `stage page failed: e2e test` /
+  `output page failed: e2e test`.
+
+### TC-RES-28 · Stage display that gave up can be opened again  `P2`
+**Steps**
+1. Stage window open. Crash its page (CDP `Page.crash` on the stage tab) **4 times within a minute**, waiting for
+   it to come back each time, until the operator shows "The stage window keeps failing…".
+2. Without closing it, Settings → Screens → 🎤 Open stage display.
+**Expected**
+- Step 2 starts the stage page again: it shows what is live (not a dead window that only gets focus).
+  `main.log` has `stage window started again after it failed`.
+
+### TC-RES-29 · An error outside a page offers a reload instead of a blank window  `P2` (manual, dev build)
+**Steps**
+1. Temporarily add `throw new Error('e2e')` at the top of the `App` component's render in
+   `src/renderer/operator/App.tsx`; `npm run dev`. Remove it afterwards.
+**Expected**
+- The window shows "This window had a problem" with ↻ Reload window / Try again — never a blank window.
+- The projector and phone remote keep working; `main.log` has one `operator: Error` line (not two).

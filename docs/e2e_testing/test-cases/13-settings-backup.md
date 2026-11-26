@@ -78,7 +78,10 @@
 **Expected**
 - "Check for new versions once a day" is **unticked** by default; nothing contacts the internet until Check now or the box.
 - Step 2 shows "You have the latest version" or an "ICCWorship x.y.z is available" button that opens the GitHub releases page.
-- Step 3 shows "Could not check (no internet?)" — no error dialog.
+- Step 3 shows "Could not check (no internet?)" — no error dialog. `main.log` has `update check failed:` with only a
+  short code (`timeout`, a network error code, `http-404`…) — never the text of a web page.
+- With the daily check on and a newer release out, the automatic message "ICCWorship x.y.z is available" has a
+  **Download page** button that opens the GitHub releases page.
 
 ### TC-SET-10 · Graphics acceleration switch  `P2`
 **Steps**

@@ -8,6 +8,7 @@ import { isNewerVersion } from '@shared/version'
 import { getSettings, setSettings } from './db'
 import { live } from './live'
 import { log } from './log'
+import { loggableError } from '@shared/loggableError'
 
 const API = 'https://api.github.com/repos/nunez1822/ICCWorship/releases/latest'
 export const RELEASES_URL = 'https://github.com/nunez1822/ICCWorship/releases/'
@@ -29,7 +30,7 @@ export async function checkForUpdates(opts: { manual: boolean }): Promise<Update
       headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'ICCWorship-update-check' },
       signal: AbortSignal.timeout(5000)
     })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    if (!res.ok) throw new Error(`http-${res.status}`)
     const body = (await res.json()) as { tag_name?: unknown; html_url?: unknown; draft?: unknown; prerelease?: unknown }
     const latest = typeof body.tag_name === 'string' ? body.tag_name.replace(/^v/, '') : ''
     // only ever open this project's own release page
@@ -39,7 +40,8 @@ export async function checkForUpdates(opts: { manual: boolean }): Promise<Update
     log.info('update check:', latest ? `latest ${latest}${newer ? ' (newer)' : ''}` : 'no release found')
     return { ok: true, latest, newer, url }
   } catch (e) {
-    const error = e instanceof Error ? (e.name === 'TimeoutError' ? 'timeout' : e.message) : String(e)
+    // never the raw message: a captive portal's HTML page makes res.json() throw a SyntaxError that quotes it
+    const error = e instanceof Error && e.name === 'TimeoutError' ? 'timeout' : loggableError(e)
     log.info('update check failed:', error)
     return { ok: false, error }
   }

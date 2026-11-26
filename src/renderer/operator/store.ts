@@ -13,6 +13,8 @@ interface Toast {
   id: number
   text: string
   kind: 'ok' | 'err' | 'info'
+  /** a button on the toast, e.g. "Download" for an update */
+  action?: { label: string; run: () => void }
 }
 
 interface AppState {
@@ -46,7 +48,7 @@ interface AppState {
   refreshBibles: () => Promise<void>
   setActivePlan: (id?: string) => void
   selectItem: (id?: string) => void
-  toast: (text: string, kind?: Toast['kind'], ms?: number) => void
+  toast: (text: string, kind?: Toast['kind'], ms?: number, action?: Toast['action']) => void
 }
 
 let toastId = 0
@@ -155,9 +157,13 @@ export const useApp = create<AppState>((set, get) => ({
           else if (e.safe) toast(i18n.t('recovery.projectorSafe'), 'err', 120_000)
           else toast(i18n.t('recovery.projectorRestarted'), 'info', 10_000)
         } else if (e.type === 'windowFailed') toast(i18n.t(e.window === 'output' ? 'recovery.projectorFailed' : 'recovery.stageFailed'), 'err', 120_000)
-        else if (e.type === 'renderError') toast(i18n.t('recovery.renderError'), 'err', 10_000)
+        else if (e.type === 'renderError') toast(i18n.t(e.window === 'stage' ? 'recovery.stageRenderError' : 'recovery.renderError'), 'err', 10_000)
         else if (e.type === 'gpuCrashed') toast(i18n.t('recovery.gpuCrashed'), 'err', 30_000)
-        else if (e.type === 'update') toast(i18n.t('updates.available', { version: e.latest }), 'info', 30_000)
+        else if (e.type === 'update')
+          toast(i18n.t('updates.available', { version: e.latest }), 'info', 30_000, {
+            label: i18n.t('updates.download'),
+            run: () => void api.app.openRelease(e.url)
+          })
         else if (e.type === 'diagnostics') toast(i18n.t(e.ok ? 'about.diagSaved' : 'about.diagFailed'), e.ok ? 'ok' : 'err')
         else if (e.type === 'openFailed') toast(i18n.t(e.what === 'logs' ? 'about.openLogsFailed' : 'about.noticesMissing'), 'err')
       })
@@ -227,9 +233,9 @@ export const useApp = create<AppState>((set, get) => ({
     set({ selectedItemId: id })
   },
 
-  toast(text, kind = 'ok', ms) {
+  toast(text, kind = 'ok', ms, action) {
     const id = ++toastId
-    set((s) => ({ toasts: [...s.toasts, { id, text, kind }] }))
+    set((s) => ({ toasts: [...s.toasts, { id, text, kind, action }] }))
     setTimeout(() => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), ms ?? (kind === 'err' ? 6000 : 4500))
   }
 }))
