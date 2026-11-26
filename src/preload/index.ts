@@ -1,38 +1,44 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { BibleVersionInfo, Lang, LiveState, PassageResult, Presentation, RemoteCommand, Settings, Verse, VideoEndedCommand } from '@shared/types'
 import type { PasteParseResult } from '@shared/bibleCore'
+import type { ImportOutcome } from '../main/presentations'
+import type { AppEvent, MainEvents } from '@shared/ipcEvents'
+import type { IpcHandlers } from '../main/ipc/handlers'
+import type { IpcListeners, VideoProgressReport } from '../main/ipc/listeners'
 
-const invoke = ipcRenderer.invoke.bind(ipcRenderer)
+export type { AppEvent }
+export type { ImportOutcome }
 
-function on<T>(channel: string, cb: (v: T) => void): () => void {
-  const fn = (_e: unknown, v: T) => cb(v)
+/*
+ * The typed bridge between the pages and main. Channel names, arguments and results are checked against main's own
+ * handler objects (src/main/ipc/handlers.ts, listeners.ts) and MainEvents (src/shared/ipcEvents.ts): if one side
+ * changes, the other fails to compile.
+ */
+
+/** call main and wait for the answer */
+function invoke<K extends keyof IpcHandlers>(channel: K, ...args: Parameters<IpcHandlers[K]>): Promise<Awaited<ReturnType<IpcHandlers[K]>>> {
+  return ipcRenderer.invoke(channel, ...args)
+}
+
+type Rest<F> = F extends (e: never, ...args: infer A) => unknown ? A : never
+/** tell main something, no answer */
+function send<K extends keyof IpcListeners>(channel: K, ...args: Rest<IpcListeners[K]>): void {
+  ipcRenderer.send(channel, ...args)
+}
+
+/** listen to a message from main; returns the function that stops listening */
+function on<K extends keyof MainEvents>(channel: K, cb: (v: MainEvents[K]) => void): () => void {
+  const fn = (_e: unknown, v: MainEvents[K]) => cb(v)
   ipcRenderer.on(channel, fn)
   return () => ipcRenderer.removeListener(channel, fn)
 }
 
-export type AppEvent =
-  | { type: 'mainError' }
-  | { type: 'windowRecovered'; window: 'output' | 'stage'; safe: boolean }
-  | { type: 'windowFailed'; window: 'output' | 'stage' }
-  | { type: 'renderError'; window: 'output' | 'stage' }
-  | { type: 'gpuCrashed' }
-  | { type: 'update'; latest: string; url: string }
-  | { type: 'diagnostics'; ok: boolean }
-  | { type: 'menu'; action: 'shortcuts' | 'about' }
-  | { type: 'openFailed'; what: 'logs' | 'notices' }
-  | { type: 'soundOutputMissing'; label: string }
-
-export interface ImportOutcome {
-  presentation?: Presentation
-  pdfToRender?: { id: string; pdfPath: string; name: string; sourcePath: string; method: 'libreoffice' | 'pdf' }
-  error?: string
-}
-
 const api = {
   db: {
-    list: <T>(c: string): Promise<T[]> => invoke('db:list', c),
-    get: <T>(c: string, id: string): Promise<T | undefined> => invoke('db:get', c, id),
-    upsert: <T extends { id: string }>(c: string, item: T): Promise<T> => invoke('db:upsert', c, item),
+    // the collections hold different record types: the caller names the one it reads (main stores them as given)
+    list: <T>(c: string) => invoke('db:list', c) as Promise<T[]>,
+    get: <T>(c: string, id: string) => invoke('db:get', c, id) as Promise<T | undefined>,
+    upsert: <T extends { id: string }>(c: string, item: T) => invoke('db:upsert', c, item) as Promise<T>,
     upsertMany: <T extends { id: string }>(c: string, items: T[]): Promise<void> => invoke('db:upsertMany', c, items),
     remove: (c: string, id: string): Promise<void> => invoke('db:remove', c, id),
     problems: (): Promise<{ name: string; kind: 'recovered' | 'unreadable'; savedAs?: string }[]> => invoke('db:problems'),
@@ -68,10 +74,9 @@ const api = {
     onState: (cb: (s: LiveState) => void) => on('live:state', cb),
     onProgress: (cb: (p: LiveState['videoProgress']) => void) => on('live:progress', cb),
     onCommand: (cb: (c: RemoteCommand | VideoEndedCommand) => void) => on('remote:command', cb),
-    videoProgress: (p: { current: number; duration: number; error?: boolean; src?: string; itemId?: string; seekSeq?: number; load?: boolean }) =>
-      ipcRenderer.send('output:progress', p),
-    videoEnded: (info: { itemId?: string; src: string }) => ipcRenderer.send('output:ended', info),
-    stageCommand: (cmd: RemoteCommand) => ipcRenderer.send('stage:command', cmd)
+    videoProgress: (p: VideoProgressReport) => send('output:progress', p),
+    videoEnded: (info: { itemId?: string; src: string }) => send('output:ended', info),
+    stageCommand: (cmd: RemoteCommand) => send('stage:command', cmd)
   },
   displays: {
     list: (): Promise<{ id: number; label: string; width: number; height: number; primary: boolean }[]> => invoke('displays:list'),
@@ -89,17 +94,17 @@ const api = {
     testSound: (): Promise<{ ok: boolean; error?: 'closed' | 'failed' }> => invoke('output:testSound'),
     /** projector page: main asks for the test tone / the page answers / the chosen output isn't there */
     onTestSound: (cb: () => void) => on('output:testSound', cb),
-    testSoundResult: (r: { ok: boolean }) => ipcRenderer.send('output:testSoundResult', r),
-    sinkFailed: () => ipcRenderer.send('output:sinkFailed')
+    testSoundResult: (r: { ok: boolean }) => send('output:testSoundResult', r),
+    sinkFailed: () => send('output:sinkFailed')
   },
   /** every window: "I'm alive" every second (freeze detection), and the projector / stage: "my page broke, reload me" */
   win: {
-    alive: () => ipcRenderer.send('win:alive'),
+    alive: () => send('win:alive'),
     /** operator: a confirm() is open (it blocks the page, so its heartbeat stops while the volunteer reads it) */
-    busy: (busy: boolean) => ipcRenderer.send('win:busy', busy),
-    fatal: (message: string) => ipcRenderer.send('win:fatal', message),
+    busy: (busy: boolean) => send('win:busy', busy),
+    fatal: (message: string) => send('win:fatal', message),
     /** this window couldn't draw the current slide (its error boundary caught it): tell the operator */
-    renderError: (message: string) => ipcRenderer.send('win:renderError', message)
+    renderError: (message: string) => send('win:renderError', message)
   },
   stage: { open: () => invoke('stage:open') },
   files: {
@@ -188,7 +193,7 @@ const api = {
     dataStatus: (): Promise<{ readOnly: boolean; newerSchema?: number; upgradeFailed?: boolean }> => invoke('app:dataStatus'),
     openExternal: (url: string) => invoke('app:openExternal', url),
     /** write a line to the app's log file (never put lyrics, people or PINs in it) */
-    log: (level: 'info' | 'warn' | 'error', message: string) => ipcRenderer.send('app:log', level, message),
+    log: (level: 'info' | 'warn' | 'error', message: string) => send('app:log', level, message),
     /** false when the folder could not be opened */
     openLogs: (): Promise<boolean> => invoke('app:openLogs'),
     exportDiagnostics: (includeCrashDumps: boolean): Promise<{ ok: boolean; path: string } | null> => invoke('app:exportDiagnostics', includeCrashDumps),

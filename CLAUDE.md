@@ -17,12 +17,15 @@ usually operated by a volunteer during a live service, so reliability and simpli
 - Any user text shown on phones, stage or projector must render as text, never as HTML (see `escapeHtml` in
   `src/main/server.ts`). The phone/stage server is reachable by anyone on the church Wi-Fi.
 - **Trust boundaries** (see `src/shared/security.ts`, unit tested in `tests/security.test.ts`):
-  - IPC handlers are registered through `h()` / `on()` in `src/main/index.ts`, which only accept the app's own pages.
+  - IPC channels live in `src/main/ipc/handlers.ts` (invoke) and `listeners.ts` (send). `registerIpc` only accepts
+    the app's own pages. These objects are the IPC contract: the preload is typed from them, so add a channel there
+    and call it from `src/preload/index.ts` with `invoke()` / `send()` (main → page messages: `MainEvents` in
+    `src/shared/ipcEvents.ts`, sent with `send()` from `src/main/appState.ts`).
   - An id that becomes a file name must pass `isSafeId`; deletes and writes use `within()` (`src/main/pathGuard.ts`).
   - New settings must be added to `SETTING_CHECKS` or they can't be saved; the renderer can never set `remotePin`.
   - LAN input goes through `validateCommand` / `parseRange`, and phones only receive `pickPublicState`.
   - Nothing a LAN request sends may throw in main: every socket and stream needs an `'error'` handler.
-- **Crash recovery** (`src/shared/recovery.ts`, wired in `index.ts` → `guardWindow` / `guardOperator`): projector
+- **Crash recovery** (`src/shared/recovery.ts`, wired in `src/main/windowGuards.ts` → `guardWindow` / `guardOperator`): projector
   and stage pages send `win.alive()` every second and are restarted when they crash or stop beating; repeated
   failures put the projector in `#safe` (black). Pages are wrapped in `ErrorBoundary`. Keep new windows/pages
   inside this net.
@@ -35,7 +38,9 @@ usually operated by a volunteer during a live service, so reliability and simpli
 
 ## Layout
 - `src/main/`: Electron main process.
-  - `index.ts`: windows and IPC handlers.
+  - `index.ts`: startup, lifecycle and last-resort error handling only. `windows.ts` (windows), `windowGuards.ts`
+    (crash/freeze recovery), `ipc/` (every IPC channel), `pages.ts` (loading our pages, trusted senders),
+    `hardening.ts`, `mediaProtocol.ts`, `dialogs.ts`, `menu.ts`, `help.ts`, `appState.ts` (window refs, `notify`).
   - `live.ts`: live state, the single source of truth for what's on screen.
   - `server.ts`: HTTP + WebSocket server on :7272 for `/remote` and `/stage`, PIN-protected.
   - `jsonStore.ts` / `db.ts`: JSON files with `.bak`, atomic writes and recovery of damaged files.
