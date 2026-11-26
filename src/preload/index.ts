@@ -128,6 +128,11 @@ const api = {
     /** delete the song's track files it no longer uses (after Replace / Remove) */
     prune: (songId: string): Promise<void> => invoke('tracks:prune', songId)
   },
+  /** the media library's own copies (src/main/mediaLibrary.ts) */
+  media: {
+    /** copy a picture / video / sound file into the data folder → its stored path ("media/<id>.<ext>") */
+    copyIn: (path: string) => invoke('media:copyIn', path)
+  },
   pres: {
     detect: (): Promise<{ powerpoint: boolean; libreoffice: string | null }> => invoke('pres:detect'),
     import: (path: string, prefer?: 'powerpoint' | 'libreoffice' | 'text', reuseId?: string): Promise<ImportOutcome> =>
@@ -146,7 +151,7 @@ const api = {
   backup: {
     create: (): Promise<
       /** tracksLeftOut: too many backing tracks for one .zip — saved without them */
-      | { ok: true; path: string; files: number; bytes: number; tracksLeftOut?: boolean }
+      | { ok: true; path: string; files: number; bytes: number; tracksLeftOut?: boolean; mediaLeftOut?: boolean }
       /** nothing was saved: no room on that drive, more than one .zip can hold, or the write failed */
       | { ok: false; error: 'no-space' | 'too-large' | 'failed' }
       | null

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test'
 import { join, resolve } from 'node:path'
-import { isTracksEntry, restoreTarget } from '../src/main/restorePath'
+import { isMediaEntry, isTracksEntry, restoreTarget } from '../src/main/restorePath'
 
 describe('restoreTarget (backup restore paths)', () => {
   const root = resolve('/church-data')
@@ -30,6 +30,18 @@ describe('restoreTarget (backup restore paths)', () => {
     expect(restoreTarget(root, 'tracks/abc.ogg')).toBeNull()
     expect(restoreTarget(root, 'tracks/../data/songs.json')).toBe(join(root, 'data', 'songs.json')) // resolves into data/: allowed like data/songs.json
     expect(restoreTarget(root, 'tracks/../../evil.ogg')).toBeNull()
+  })
+
+  it('restores the media library, and only its own copies directly in media/', () => {
+    expect(restoreTarget(root, 'media/0f8e-41aa.mp4')).toBe(join(root, 'media', '0f8e-41aa.mp4'))
+    expect(restoreTarget(root, 'media/logo1.png')).toBe(join(root, 'media', 'logo1.png'))
+    expect(restoreTarget(root, 'media/evil.exe')).toBeNull()
+    expect(restoreTarget(root, 'media/settings.json')).toBeNull()
+    expect(restoreTarget(root, 'media/sub/a.mp4')).toBeNull()
+    expect(restoreTarget(root, 'media/../../evil.mp4')).toBeNull()
+    expect(isMediaEntry('media/a.mp4')).toBe(true)
+    expect(isMediaEntry(join('media', 'a.mp4'))).toBe(true)
+    expect(isMediaEntry('mediax/a.mp4')).toBe(false)
   })
 
   it('knows which entries are tracks', () => {

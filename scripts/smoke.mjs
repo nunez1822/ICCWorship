@@ -6,7 +6,7 @@
  *   node scripts/smoke.mjs [screenshotDir]
  */
 import { _electron as electron } from 'playwright-core'
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer, request as httpRequest } from 'node:http'
 import { createHash, randomBytes } from 'node:crypto'
 import { WebSocket as WsClient } from 'ws'
@@ -269,6 +269,14 @@ try {
     await op.waitForSelector('.media-card', { timeout: 20000 })
     await sleep(800)
     await op.screenshot({ path: join(shots, '20-media-library.png') })
+    // the media library keeps its own copy (backups and a new computer then have it)
+    {
+      const items = await op.evaluate(() => window.api.db.list('media'))
+      const copied = items.length > 0 && items.every((m) => /^media\/[^/]+\.mp4$/.test(m.path) && !!m.source)
+      const onDisk = copied && items.every((m) => existsSync(join(data, m.path)))
+      console.log('added video copied into the media library:', copied && onDisk ? '✓' : `✗ ${JSON.stringify(items.map((m) => m.path))}`)
+      if (!copied || !onDisk) errors.push('media not copied into the library')
+    }
     await op.locator('.media-card').first().dblclick()
     await sleep(2500)
     await outShot(join(shots, '21-projector-video.png'))
@@ -560,6 +568,10 @@ try {
     dialog.showSaveDialog = async () => ({ canceled: false, filePath: p })
   }, backupPath)
   const made = await op.evaluate(() => window.api.backup.create())
+  // the media library goes into "Back up now" and comes back on restore (as on a new computer, where it's missing)
+  const mediaDir = join(data, 'media')
+  const mediaFiles = existsSync(mediaDir) ? readdirSync(mediaDir) : []
+  for (const f of mediaFiles) rmSync(join(mediaDir, f), { force: true })
   const songsBefore = (await op.evaluate(() => window.api.db.list('songs'))).length
   await op.evaluate(() =>
     window.api.db.upsert('songs', { id: 'temp-song', title: 'Temp', tags: [], sections: [], arrangement: [], linesPerSlide: 4, createdAt: 0, updatedAt: 0 })
@@ -574,6 +586,11 @@ try {
   console.log('restore keeps this PC’s PIN:', pinAfterRestore === pinBeforeRestore ? '✓' : '✗')
   if (pinAfterRestore !== pinBeforeRestore) errors.push('restore changed the PIN of this computer')
   if (songsAfter !== songsBefore) errors.push('restore did not bring back the backed-up data')
+  {
+    const back = mediaFiles.length > 0 && mediaFiles.every((f) => existsSync(join(mediaDir, f)))
+    console.log('the media library is in the backup and comes back on restore:', back ? '✓' : `✗ ${JSON.stringify(mediaFiles)}`)
+    if (!back) errors.push('media library not restored from the backup')
+  }
 
   // the log exists and holds the startup line (Help → Open logs folder / Export diagnostics)
   const logOk = /ICCWorship .* starting/.test(readFileSync(join(data, '.userdata', 'logs', 'main.log'), 'utf8'))

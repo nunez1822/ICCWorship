@@ -20,14 +20,16 @@ export interface BackupManifest {
    * leaves tracks/ as it is (and fills in missing ones from backups/tracks/) — it never deletes them.
    */
   hasTracks?: boolean
+  /** the media library's own copies (media/) are inside (manual backups) */
+  hasMedia?: boolean
 }
 
-export function makeManifest(appVersion: string, hasTracks = false, now = new Date()): BackupManifest {
-  return { app: 'ICCWorship', format: BACKUP_FORMAT, schemaVersion: SCHEMA_VERSION, appVersion, createdAt: now.toISOString(), hasTracks }
+export function makeManifest(appVersion: string, hasTracks = false, now = new Date(), hasMedia = false): BackupManifest {
+  return { app: 'ICCWorship', format: BACKUP_FORMAT, schemaVersion: SCHEMA_VERSION, appVersion, createdAt: now.toISOString(), hasTracks, hasMedia }
 }
 
 export type ManifestCheck =
-  | { ok: true; format: number; schemaVersion?: number; hasTracks: boolean }
+  | { ok: true; format: number; schemaVersion?: number; hasTracks: boolean; hasMedia: boolean }
   | { ok: false; error: 'not-a-backup' | 'newer-format' | 'newer-schema' }
 
 /** 1.0.x wrote { app, version: 1 }; later versions { app, format, schemaVersion, … }. */
@@ -41,7 +43,8 @@ export function checkManifest(raw: unknown): ManifestCheck {
   const schemaVersion = typeof m.schemaVersion === 'number' ? m.schemaVersion : undefined
   if (schemaVersion !== undefined && schemaVersion > SCHEMA_VERSION) return { ok: false, error: 'newer-schema' }
   // only a backup that says so replaces tracks/ (1.0/1.1 backups, and an older version's backup of newer data, don't)
-  return { ok: true, format, schemaVersion, hasTracks: (raw as { hasTracks?: unknown }).hasTracks === true }
+  const r = raw as { hasTracks?: unknown; hasMedia?: unknown }
+  return { ok: true, format, schemaVersion, hasTracks: r.hasTracks === true, hasMedia: r.hasMedia === true }
 }
 
 /* ------------------------------ restore ------------------------------ */

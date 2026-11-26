@@ -39,6 +39,12 @@ All notable changes to ICCWorship are documented here. The format is based on
   and connects by itself as soon as a place is free.
 
 ### Added
+- **The media library keeps its own copy** of the pictures, videos and sound you add, and of the logo, in
+  `Documents\ICCWorship\media` (like EasyWorship and ProPresenter). Moving or deleting the original file no longer
+  breaks a slide or a background, and **Back up now** includes them, so a restore on a new computer brings them
+  back. Deleting an item from the library removes its copy (unless a theme or the logo still uses it). Turn it off in
+  Settings → Backup for a very large video library on another drive (items then link to the original file, as
+  before). A backup too big for one file leaves the media out and says which folder to copy.
 - **"Ready for Sunday?"** (Live page → ✅): one click before the service checks the plan (deleted songs or media,
   video and picture files that moved, Bible versions), the projector window and second screen, the sound output,
   the phone remote and stage display, and how recent the last backup is — each problem with a button to fix it.

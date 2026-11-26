@@ -286,6 +286,7 @@ const SETTING_CHECKS: { [K in keyof Settings]?: (v: unknown) => Settings[K] | un
   firstRunDone: bool,
   checkForUpdates: bool,
   autoUpdate: bool,
+  copyMediaToLibrary: bool,
   disableHwAccel: bool,
   audioOutputId: str(500),
   audioOutputLabel: str(300)

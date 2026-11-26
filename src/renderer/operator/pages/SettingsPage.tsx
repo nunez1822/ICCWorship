@@ -5,7 +5,7 @@ import { uid } from '@shared/slides'
 import { SETTING_LIMITS } from '@shared/security'
 import { installUpdate, toastError, useApp } from '../store'
 import { Field, Seg } from '../../components/ui'
-import { IMAGE_EXT } from '../../lib/media'
+import { fileName, IMAGE_EXT } from '../../lib/media'
 import { updateLive } from '../liveControl'
 
 export function SettingsPage() {
@@ -174,7 +174,12 @@ export function SettingsPage() {
                   className="btn sm"
                   onClick={async () => {
                     const [p] = await window.api.files.open({ filters: [{ name: 'Image', extensions: IMAGE_EXT }] })
-                    if (p) void s.setSettings({ logoPath: p })
+                    if (!p) return
+                    // the logo goes into the media library too, so backups and a new computer have it
+                    if (st.copyMediaToLibrary === false) return void s.setSettings({ logoPath: p })
+                    const r = await window.api.media.copyIn(p)
+                    if (!r.ok) s.toast(t(r.error === 'no-space' ? 'media.copyNoSpace' : 'media.copyFailed', { name: fileName(p) }), 'err')
+                    void s.setSettings({ logoPath: r.ok ? r.path : p })
                   }}
                 >
                   📂 {t('settings.chooseLogo')}
@@ -319,18 +324,25 @@ export function SettingsPage() {
           <div className="card col">
             <h2>💾 {t('settings.backup')}</h2>
             <div className="small muted">{t('settings.backupHelp')}</div>
+            <label className="check">
+              <input type="checkbox" checked={st.copyMediaToLibrary !== false} onChange={(e) => void s.setSettings({ copyMediaToLibrary: e.target.checked })} />{' '}
+              {t('settings.copyMedia')}
+            </label>
+            <div className="small muted">{t('settings.copyMediaHelp')}</div>
             <div className="row wrap">
               <button
                 className="btn primary"
                 onClick={async () => {
                   const r = await window.api.backup.create()
-                  if (r?.ok)
+                  if (r?.ok) {
+                    // too much for one .zip: the media library (then the tracks too) stayed out — say which folders to copy
+                    const partial = r.tracksLeftOut ? 'settings.backupNoTracks' : r.mediaLeftOut ? 'settings.backupNoMedia' : undefined
                     s.toast(
-                      t(r.tracksLeftOut ? 'settings.backupNoTracks' : 'settings.backupDone', { files: r.files, size: (r.bytes / 1024 / 1024).toFixed(1) }),
-                      r.tracksLeftOut ? 'info' : 'ok',
-                      r.tracksLeftOut ? 20_000 : undefined
+                      t(partial || 'settings.backupDone', { files: r.files, size: (r.bytes / 1024 / 1024).toFixed(1) }),
+                      partial ? 'info' : 'ok',
+                      partial ? 20_000 : undefined
                     )
-                  else if (r) s.toast(t(`settings.backupError.${r.error}`), 'err', 15_000)
+                  } else if (r) s.toast(t(`settings.backupError.${r.error}`), 'err', 15_000)
                   refresh()
                 }}
               >

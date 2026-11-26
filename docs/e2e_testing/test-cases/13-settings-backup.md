@@ -402,3 +402,19 @@ presentations)
 - Step 3: a toast says the portable ICCWorship can't write to its folder and uses `Documents\ICCWorship` this time.
 - `pnpm packaged-check` covers the first expectation automatically ("portable: data, settings and logs are kept
   beside the exe").
+
+### TC-BAK-25 · The media library is in "Back up now" and comes back on another computer  `P0`
+**Steps**
+1. Add `sample.mp4` and `sample.jpg` to Media (copied into `.e2e-data/media/`); choose `sample.png` as the logo.
+   **Back up now**.
+2. Delete everything in `.e2e-data/media/`. **Restore** that backup.
+3. Make the media folder over 4 GB (manual: big videos), **Back up now**.
+**Expected**
+- `pnpm smoke` covers 1–2 ("the media library is in the backup and comes back on restore").
+- 1: the .zip holds `media/<id>.mp4`, `media/<id>.jpg`, `media/<id>.png` (stored, not recompressed) and its
+  `iccworship-backup.json` says `"hasMedia": true`.
+- 2: the files are back; the video plays, the image shows, the logo shows. A restore never deletes files from
+  `media/` that the backup doesn't have.
+- Automatic backups (`auto-…zip`) never contain `media/`.
+- 3: "Backup saved WITHOUT the media library…" (the tracks are still in it, unless they are too big too).
+

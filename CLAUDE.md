@@ -32,7 +32,9 @@ usually operated by a volunteer during a live service, so reliability and simpli
 - **Data format changes need a migration** (`src/shared/migrations.ts`): bump `SCHEMA_VERSION` and add an
   idempotent migration. Data from a newer schema opens read-only (`JsonStore.readOnly`); any main-side file write
   outside the store must call `assertWritable()` first. Write files with `writeFileAtomic` (`src/main/atomicWrite.ts`).
-  Media inside the data folder is referenced data-relative (`dataMediaUrl`) and resolved with `mediaFile()`.
+  Media inside the data folder is referenced data-relative (`dataMediaUrl`) and resolved with `mediaFile()`. Added
+  pictures/videos/sound and the logo are copied into `<data>/media/` (`src/shared/mediaLibrary.ts`, `media:copyIn`);
+  `MediaItem.path` is then `media/<id>.<ext>`, so never treat it as an absolute path (use `toMediaUrl` + `mediaStatus`).
 - **Logging:** use `log` from `src/main/log.ts` (`%APPDATA%\ICCWorship\logs`; test runs: `<ICCWORSHIP_DATA>/.userdata/logs`). Log ids, counts, error codes and short messages, **never** lyrics,
   people, prayer requests, request URLs or payloads. Logs are attached to public bug reports.
 

@@ -21,8 +21,14 @@ import { checkSchema, MIGRATIONS, runMigrations, SCHEMA_VERSION, type Migration 
 
 describe('backup manifest', () => {
   it('accepts backups from 1.0 and from now', () => {
-    expect(checkManifest({ app: 'ICCWorship', version: 1, createdAt: 'x' })).toEqual({ ok: true, format: 1, schemaVersion: undefined, hasTracks: false })
-    expect(checkManifest(makeManifest('1.1.0'))).toEqual({ ok: true, format: 1, schemaVersion: SCHEMA_VERSION, hasTracks: false })
+    expect(checkManifest({ app: 'ICCWorship', version: 1, createdAt: 'x' })).toEqual({
+      ok: true,
+      format: 1,
+      schemaVersion: undefined,
+      hasTracks: false,
+      hasMedia: false
+    })
+    expect(checkManifest(makeManifest('1.1.0'))).toEqual({ ok: true, format: 1, schemaVersion: SCHEMA_VERSION, hasTracks: false, hasMedia: false })
     expect(makeManifest('1.1.0').schemaVersion).toBe(SCHEMA_VERSION)
   })
   it('says whether the backup holds the backing tracks (only then does a restore replace tracks/)', () => {
@@ -31,6 +37,8 @@ describe('backup manifest', () => {
     // 1.1 backups, and an older version's backup of newer data, have no such field: tracks/ is left alone
     expect(checkManifest({ app: 'ICCWorship', format: 1, schemaVersion: 1 })).toMatchObject({ ok: true, hasTracks: false })
     expect(checkManifest({ app: 'ICCWorship', format: 1, hasTracks: 'yes' })).toMatchObject({ ok: true, hasTracks: false })
+    expect(checkManifest(makeManifest('1.2.0', true, new Date(), true))).toMatchObject({ ok: true, hasTracks: true, hasMedia: true })
+    expect(checkManifest({ app: 'ICCWorship', format: 1, hasMedia: 1 })).toMatchObject({ ok: true, hasMedia: false })
   })
   it('refuses other files and backups made by a newer layout', () => {
     expect(checkManifest(null)).toEqual({ ok: false, error: 'not-a-backup' })

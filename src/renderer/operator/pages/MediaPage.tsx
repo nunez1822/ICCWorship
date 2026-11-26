@@ -53,16 +53,36 @@ export function MediaPage() {
     })
 
   const addMediaPaths = async (paths: string[]) => {
-    const known = new Set(s.media.map((m) => m.path.toLowerCase()))
+    // the same file added again: by where it was copied from, or the file it links to
+    const known = new Set(s.media.flatMap((m) => [m.path, m.source].filter((x): x is string => !!x).map((x) => x.toLowerCase())))
+    const copy = s.settings.copyMediaToLibrary !== false
     let n = 0
     let already = 0
     for (const p of paths) {
       const kind = kindOf(p)
       if (kind && known.has(p.toLowerCase())) already++
       if (!kind || known.has(p.toLowerCase())) continue
+      // the library keeps its own copy (backups and a new computer then have it, see @shared/mediaLibrary);
+      // if it can't (no room), the item links to the file where it is, as before — and says so
+      let stored = p
+      if (copy) {
+        setBusy(`${t('media.copying')} ${fileName(p)}`)
+        const r = await window.api.media.copyIn(p)
+        if (r.ok) stored = r.path
+        else s.toast(t(r.error === 'no-space' ? 'media.copyNoSpace' : 'media.copyFailed', { name: fileName(p) }), 'err', 10_000)
+      }
       setBusy(`${t('common.working')} ${fileName(p)}`)
-      const thumb = await makeThumb(p, kind)
-      await s.save('media', { id: uid(), name: fileName(p).replace(/\.[^.]+$/, ''), path: p, kind, thumb, addedAt: Date.now() } satisfies MediaItem)
+      const thumb = await makeThumb(stored, kind)
+      await s.save('media', {
+        id: uid(),
+        name: fileName(p).replace(/\.[^.]+$/, ''),
+        path: stored,
+        source: stored !== p ? p : undefined,
+        kind,
+        thumb,
+        addedAt: Date.now()
+      } satisfies MediaItem)
+      known.add(p.toLowerCase())
       n++
     }
     setBusy(null)
@@ -214,7 +234,10 @@ function Library() {
   const item = s.media.find((m) => m.id === sel)
 
   useEffect(() => {
-    void window.api.files.exists(s.media.map((m) => m.path)).then((ex) => setMissing(new Set(s.media.filter((_, i) => !ex[i]).map((m) => m.id))))
+    // resolved like the projector does (library copies are data-relative)
+    void window.api.files
+      .mediaStatus(s.media.map((m) => toMediaUrl(m.path)))
+      .then((st) => setMissing(new Set(s.media.filter((_, i) => !st[i]?.exists).map((m) => m.id))))
   }, [s.media])
 
   if (!s.media.length)

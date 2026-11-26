@@ -40,6 +40,7 @@ import { createOutput, createStageWindow, listDisplays, placeOutput, restartOutp
 import { testSound } from './testSound'
 import { takeResumeOffer } from '../session'
 import { location } from '../bootstrap'
+import { copyIntoLibrary, removeMediaItem } from '../mediaLibrary'
 
 type FileFilter = { name: string; extensions: string[] }
 
@@ -61,6 +62,7 @@ export function createHandlers() {
     },
     'db:remove': (c: string, id: string): void => {
       if (c === 'presentations') deletePresentation(id)
+      else if (c === 'media') removeMediaItem(id) // and its library copy, when nothing else shows it
       else if (isCollection(c)) {
         db().remove(c, id)
         if (c === 'songs') pruneTrack(id) // its backing track goes with it (unless it is playing right now)
@@ -166,6 +168,9 @@ export function createHandlers() {
       assertWritable()
       pruneTrack(songId)
     },
+
+    /* ---------------- media library: keep a copy of what is added (see @shared/mediaLibrary) ---------------- */
+    'media:copyIn': (path: string) => copyIntoLibrary(path),
 
     /* ---------------- presentations ---------------- */
     'pres:detect': () => detectConverters(),

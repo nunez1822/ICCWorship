@@ -341,6 +341,9 @@
     "storedCount_other": "{{count}} verses stored"
   },
   "media": {
+    "copyFailed": "“{{name}}” could not be copied into the library: it links to the original file instead.",
+    "copyNoSpace": "Not enough free disk space to keep a copy of “{{name}}”: it links to the original file instead.",
+    "copying": "Copying into the library:",
     "title": "Media",
     "added_one": "{{count}} file added",
     "added_other": "{{count}} files added",
@@ -370,7 +373,7 @@
     "useAsBg": "Use as background now",
     "bgApplied": "Background changed on the projector",
     "remove": "Remove from library",
-    "confirmRemove": "Remove it from ICCWorship? (The file itself is not deleted.)",
+    "confirmRemove": "Remove it from ICCWorship? Its copy in the media library is deleted too (unless a theme or the logo uses it). Your original file is never touched.",
     "dropTitle": "Drag videos, images or music here",
     "dropHelp": "MP4, MOV, WebM, JPG, PNG, MP3 and WAV work. Files stay where they are — nothing is copied.",
     "empty": "The media library is empty. Add files on the Media page.",
@@ -499,6 +502,9 @@
     "noUsage": "No songs used in this range."
   },
   "settings": {
+    "copyMediaHelp": "Then backups and a new computer have them, and moving or deleting the original file breaks nothing. Turn it off for a very large video library on another drive: those items then link to the original file.",
+    "copyMedia": "Keep a copy of added pictures, videos and sound in the ICCWorship folder",
+    "backupNoMedia": "Backup saved WITHOUT the media library ({{files}} files, {{size}} MB): its pictures and videos are over 4 GB, too much for one backup file. Copy the media folder (in the data folder) to the same drive too.",
     "portableData": "portable: the data travels with ICCWorship-Portable.exe (the “ICCWorship Data” folder beside it)",
     "title": "Settings",
     "general": "General",
@@ -538,10 +544,10 @@
     "port": "Port",
     "firewall": "The first time, Windows may ask to allow ICCWorship on the network — choose “Allow” for private networks.",
     "backup": "Backup",
-    "backupHelp": "Everything (songs, plans, people, pasted verses, imported slides) goes in one .zip — save it to a USB drive. ICCWorship also makes an automatic backup every day.",
+    "backupHelp": "Everything (songs, plans, people, pasted verses, imported slides, backing tracks, and the pictures, videos and sound in the media library) goes in one .zip — save it to a USB drive. ICCWorship also makes automatic backups (without the media and tracks) when it starts and every hour.",
     "backupNow": "Back up now",
     "backupDone": "Backup saved ({{files}} files, {{size}} MB)",
-    "backupNoTracks": "Backup saved WITHOUT the backing tracks ({{files}} files, {{size}} MB): together they are over 4 GB, too much for one backup file. Copy the folder Documents\\ICCWorship\\tracks to the same drive too.",
+    "backupNoTracks": "Backup saved WITHOUT the media library and the backing tracks ({{files}} files, {{size}} MB): together they are over 4 GB, too much for one backup file. Copy the folders media and tracks (in the data folder) to the same drive too.",
     "backupError": {
       "no-space": "Not enough free space on that drive for the backup. Nothing was saved. Pick another drive (a USB stick) or free up space.",
       "too-large": "The data and backing tracks are too large for one backup file (over 4 GB). Nothing was saved. Remove backing tracks you no longer use and try again.",

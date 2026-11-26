@@ -97,10 +97,14 @@ mostrar en un idioma o **en ambos a la vez**, cambiando en vivo con una sola tec
   (en `Documentos\ICCWorship\backups`). Se guarda la más reciente de cada uno de los últimos 14 días en que se usó
   la app, además de las 6 más recientes.
 - **Cambiar de computadora:** en la PC anterior, Ajustes → Copia de seguridad → **Hacer copia ahora** a una memoria USB.
-  Instale ICCWorship en la nueva PC y elija **Restaurar** con ese archivo. Los videos e imágenes que agregó (incluidos
-  el logo y los fondos de los temas) se *referencian por su ruta completa*, no se copian: cópielos a la **misma
-  carpeta** en la nueva PC (por ejemplo `C:\Users\Pastor\Videos`), o agréguelos de nuevo desde la página de Medios y
-  vuelva a elegir el logo y los fondos.
+  Instale ICCWorship en la nueva PC y elija **Restaurar** con ese archivo. **Las imágenes, videos y sonidos que agregó
+  (y el logo) van dentro de esa copia**, porque la biblioteca de medios guarda su propia copia de todo lo que agrega
+  (en `Documentos\ICCWorship\media`), igual que las **pistas de acompañamiento**. Si juntos pasan de 4 GB, la copia lo
+  avisa y los deja fuera: copie también las carpetas `media` y `tracks` a la memoria.
+  (Si desactiva Ajustes → Copia de seguridad → "Guardar una copia de las imágenes, videos y sonidos…", los elementos
+  enlazan al archivo original: copie esos archivos a la misma carpeta en la nueva PC.)
+- Las copias automáticas dejan fuera la biblioteca de medios y las pistas (harían grande cada copia de cada hora), y
+  restaurar una copia nunca borra pistas ni archivos de medios.
 - No se sube nada a ningún lugar — vea [PRIVACY.md](PRIVACY.md).
 
 ## Su primer domingo (5 minutos)

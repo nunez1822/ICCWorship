@@ -341,6 +341,9 @@
     "storedCount_other": "{{count}} versículos guardados"
   },
   "media": {
+    "copyFailed": "No se pudo copiar “{{name}}” a la biblioteca: enlaza al archivo original.",
+    "copyNoSpace": "No hay espacio libre suficiente para guardar una copia de “{{name}}”: enlaza al archivo original.",
+    "copying": "Copiando a la biblioteca:",
     "title": "Medios",
     "added_one": "{{count}} archivo agregado",
     "added_other": "{{count}} archivos agregados",
@@ -370,7 +373,7 @@
     "useAsBg": "Usar como fondo ahora",
     "bgApplied": "Se cambió el fondo en el proyector",
     "remove": "Quitar de la biblioteca",
-    "confirmRemove": "¿Quitarlo de ICCWorship? (El archivo no se borra.)",
+    "confirmRemove": "¿Quitarlo de ICCWorship? Su copia en la biblioteca de medios también se borra (salvo que la use un tema o el logo). Su archivo original nunca se toca.",
     "dropTitle": "Arrastre aquí videos, imágenes o música",
     "dropHelp": "Funcionan MP4, MOV, WebM, JPG, PNG, MP3 y WAV. Los archivos se quedan donde están — no se copian.",
     "empty": "La biblioteca de medios está vacía. Agregue archivos en la página Medios.",
@@ -499,6 +502,9 @@
     "noUsage": "No se usaron cantos en este periodo."
   },
   "settings": {
+    "copyMediaHelp": "Así las copias de seguridad y una computadora nueva los tienen, y mover o borrar el archivo original no rompe nada. Desactívelo para una biblioteca de videos muy grande en otra unidad: esos elementos enlazan entonces al archivo original.",
+    "copyMedia": "Guardar una copia de las imágenes, videos y sonidos agregados en la carpeta de ICCWorship",
+    "backupNoMedia": "Copia guardada SIN la biblioteca de medios ({{files}} archivos, {{size}} MB): sus imágenes y videos pasan de 4 GB, demasiado para un solo archivo de copia. Copie también la carpeta media (en la carpeta de datos) a la misma unidad.",
     "portableData": "portátil: los datos viajan con ICCWorship-Portable.exe (la carpeta “ICCWorship Data” a su lado)",
     "title": "Ajustes",
     "general": "General",
@@ -538,10 +544,10 @@
     "port": "Puerto",
     "firewall": "La primera vez, Windows puede pedir permiso para ICCWorship en la red — elija “Permitir” en redes privadas.",
     "backup": "Copia de seguridad",
-    "backupHelp": "Todo (cantos, servicios, personas, versículos pegados, diapositivas importadas) en un solo .zip — guárdelo en una memoria USB. ICCWorship también hace una copia automática cada día.",
+    "backupHelp": "Todo (cantos, servicios, personas, versículos pegados, diapositivas importadas, pistas de acompañamiento, y las imágenes, videos y sonidos de la biblioteca de medios) en un solo .zip — guárdelo en una memoria USB. ICCWorship también hace copias automáticas (sin los medios ni las pistas) al iniciar y cada hora.",
     "backupNow": "Hacer copia ahora",
     "backupDone": "Copia guardada ({{files}} archivos, {{size}} MB)",
-    "backupNoTracks": "Copia guardada SIN las pistas de acompañamiento ({{files}} archivos, {{size}} MB): juntas pasan de 4 GB, demasiado para un solo archivo de copia. Copie también la carpeta Documentos\\ICCWorship\\tracks a la misma unidad.",
+    "backupNoTracks": "Copia guardada SIN la biblioteca de medios ni las pistas de acompañamiento ({{files}} archivos, {{size}} MB): juntas pasan de 4 GB, demasiado para un solo archivo de copia. Copie también las carpetas media y tracks (en la carpeta de datos) a la misma unidad.",
     "backupError": {
       "no-space": "No hay suficiente espacio libre en esa unidad para la copia. No se guardó nada. Elija otra unidad (una memoria USB) o libere espacio.",
       "too-large": "Los datos y las pistas de acompañamiento son demasiado grandes para un solo archivo de copia (más de 4 GB). No se guardó nada. Quite las pistas que ya no use e intente de nuevo.",
