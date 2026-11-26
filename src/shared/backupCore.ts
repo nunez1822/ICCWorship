@@ -130,7 +130,9 @@ export const MACHINE_SETTINGS = [
   'remotePin',
   'checkForUpdates',
   'lastUpdateCheck',
-  'disableHwAccel'
+  'disableHwAccel',
+  'audioOutputId',
+  'audioOutputLabel'
 ] as const
 
 export function mergeRestoredSettings(restored: Record<string, unknown>, current: Record<string, unknown>): Record<string, unknown> {

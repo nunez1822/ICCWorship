@@ -221,6 +221,21 @@ export function pickPublicState(s: LiveState, mediaUrl: (u: string | undefined) 
   }
 }
 
+/* ------------------------------ Chromium permissions ------------------------------ */
+
+/**
+ * May a page use this browser permission? Full screen and copying to the clipboard: always. Choosing where sound
+ * plays (listing the sound outputs with their names, and setSinkId) needs `speaker-selection` and the audio part
+ * of `media` — but only as a *check* from one of the app's own pages. A *request* for `media` (getUserMedia: the
+ * microphone or a camera) is always refused: no page of ours records anything.
+ */
+export function permissionAllowed(permission: string, opts: { check: boolean; trusted: boolean; mediaType?: string }): boolean {
+  if (permission === 'fullscreen' || permission === 'clipboard-sanitized-write') return true
+  if (!opts.check || !opts.trusted) return false
+  if (permission === 'speaker-selection') return true
+  return permission === 'media' && opts.mediaType === 'audio'
+}
+
 /* ------------------------------ settings from the renderer ------------------------------ */
 
 /** Limits the settings checks below enforce; the Settings page uses the same numbers so typing stops there. */
@@ -266,7 +281,9 @@ const SETTING_CHECKS: { [K in keyof Settings]?: (v: unknown) => Settings[K] | un
   operatorTheme: oneOf(['dark', 'light'] as const),
   firstRunDone: bool,
   checkForUpdates: bool,
-  disableHwAccel: bool
+  disableHwAccel: bool,
+  audioOutputId: str(500),
+  audioOutputLabel: str(300)
   // lastUpdateCheck: main only
 }
 

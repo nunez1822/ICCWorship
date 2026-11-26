@@ -4,6 +4,7 @@ import type { LiveState } from '@shared/types'
 import { SlideView } from '../components/SlideView'
 import { ErrorBoundary, errorSummary } from '../components/ErrorBoundary'
 import { toMediaUrl } from '../lib/media'
+import { applySink, playTestSound } from './sink'
 import './output.css'
 import '../lib/noDropNavigation'
 
@@ -27,6 +28,15 @@ function Output() {
     return window.api.live.onState(setState)
   }, [])
 
+  // Settings → Screens → Test sound
+  useEffect(() => window.api.output.onTestSound(() => void playTestSound(stateRef.current?.audioOutput)), [])
+
+  // the sound output was changed in Settings: move what is playing there now
+  const outputKey = `${state?.audioOutput?.id || ''}|${state?.audioOutput?.label || ''}`
+  useEffect(() => {
+    if (video.current) void applySink(video.current, stateRef.current?.audioOutput)
+  }, [outputKey])
+
   // hide expired messages
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000)
@@ -44,7 +54,7 @@ function Output() {
       lastSeek.current = vs.seekSeq
       if (vs.seekSeq > 0) v.currentTime = vs.seekTo
     }
-    if (vs.playing && v.paused) void v.play().catch(() => {})
+    if (vs.playing && v.paused) void play(v)
     if (!vs.playing && !v.paused) v.pause()
     // The same broken video put live again keeps this <video> (same src: no new load, no new
     // error event) while the operator reset its progress — report the error again, so the
@@ -53,51 +63,61 @@ function Output() {
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- the error flag is read as a snapshot; re-running on it would replay play/pause
   }, [state?.video, state?.seq])
 
+  /** play through the chosen sound output: switch the device first (not a split second on the wrong speakers),
+   *  then play — unless the operator paused or moved on meanwhile */
+  const play = useCallback(async (el: HTMLMediaElement) => {
+    await applySink(el, stateRef.current?.audioOutput)
+    if (stateRef.current?.video?.playing && el.paused && el.isConnected) await el.play().catch(() => {})
+  }, [])
+
   // Stable on purpose: a new callback each render made React detach and re-attach the
   // <video> on every state change, which reset lastSeek and jumped the video back to
   // the last seek point (and paused it there when it ended).
-  const attachVideo = useCallback((el: HTMLVideoElement | null) => {
-    if (video.current === el) return
-    video.current = el
-    if (!el) return
-    const src = () => el.getAttribute('src') || undefined
-    // A pending operator seek (e.g. Space after Esc resumes the video where it was) still applies: the effect
-    // above sees seekSeq ≠ 0.
-    lastSeek.current = 0
-    // After the projector restarted (crash, freeze) the video must continue where it was, not start over with
-    // sound in the middle of the service. Main still knows the last position the old page reported — so don't
-    // report this element's position until we've checked (it would overwrite that), then jump there if needed.
-    // Going live with a video clears that position, so a video started on purpose always starts from 0.
-    let resuming = true
-    void window.api.live.get().then((s) => {
-      const p = s.videoProgress
-      if (!p || p.error || p.src !== src() || !(p.current > 0) || (p.duration > 0 && p.current >= p.duration - 0.5)) {
-        resuming = false
-        return
+  const attachVideo = useCallback(
+    (el: HTMLVideoElement | null) => {
+      if (video.current === el) return
+      video.current = el
+      if (!el) return
+      const src = () => el.getAttribute('src') || undefined
+      // A pending operator seek (e.g. Space after Esc resumes the video where it was) still applies: the effect
+      // above sees seekSeq ≠ 0.
+      lastSeek.current = 0
+      // After the projector restarted (crash, freeze) the video must continue where it was, not start over with
+      // sound in the middle of the service. Main still knows the last position the old page reported — so don't
+      // report this element's position until we've checked (it would overwrite that), then jump there if needed.
+      // Going live with a video clears that position, so a video started on purpose always starts from 0.
+      let resuming = true
+      void window.api.live.get().then((s) => {
+        const p = s.videoProgress
+        if (!p || p.error || p.src !== src() || !(p.current > 0) || (p.duration > 0 && p.current >= p.duration - 0.5)) {
+          resuming = false
+          return
+        }
+        const go = () => {
+          el.currentTime = p.current
+          resuming = false
+        }
+        if (el.readyState >= 1) go()
+        else el.addEventListener('loadedmetadata', go, { once: true })
+      })
+      // a failed load still fires timeupdate (position reset to 0): don't let it wipe the error
+      el.ontimeupdate = () => !el.error && !resuming && window.api.live.videoProgress({ current: el.currentTime, duration: el.duration || 0, src: src() })
+      el.onloadedmetadata = () => !el.error && !resuming && window.api.live.videoProgress({ current: 0, duration: el.duration || 0, src: src() })
+      // tell the operator instead of sitting on a black frame that claims to be "playing"
+      el.onerror = () => window.api.live.videoProgress({ current: 0, duration: 0, error: true, src: src() })
+      el.onended = () => {
+        const s = stateRef.current
+        if (!el.loop && s?.video) window.api.live.videoEnded({ itemId: s.itemId, src: s.video.src })
       }
-      const go = () => {
-        el.currentTime = p.current
-        resuming = false
+      const vs = stateRef.current?.video
+      if (vs) {
+        el.loop = vs.loop
+        el.volume = vs.volume
+        if (vs.playing) void play(el)
       }
-      if (el.readyState >= 1) go()
-      else el.addEventListener('loadedmetadata', go, { once: true })
-    })
-    // a failed load still fires timeupdate (position reset to 0): don't let it wipe the error
-    el.ontimeupdate = () => !el.error && !resuming && window.api.live.videoProgress({ current: el.currentTime, duration: el.duration || 0, src: src() })
-    el.onloadedmetadata = () => !el.error && !resuming && window.api.live.videoProgress({ current: 0, duration: el.duration || 0, src: src() })
-    // tell the operator instead of sitting on a black frame that claims to be "playing"
-    el.onerror = () => window.api.live.videoProgress({ current: 0, duration: 0, error: true, src: src() })
-    el.onended = () => {
-      const s = stateRef.current
-      if (!el.loop && s?.video) window.api.live.videoEnded({ itemId: s.itemId, src: s.video.src })
-    }
-    const vs = stateRef.current?.video
-    if (vs) {
-      el.loop = vs.loop
-      el.volume = vs.volume
-      if (vs.playing) void el.play().catch(() => {})
-    }
-  }, [])
+    },
+    [play]
+  )
 
   if (SAFE_MODE || !state?.theme) return <div className="output-root" />
   const slide = state.slideIndex >= 0 ? state.slides[state.slideIndex] : null

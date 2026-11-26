@@ -56,9 +56,10 @@
 2. **Restore…** → accept confirm → `queueOpenFiles([backup.zip])` must be queued **before** clicking.
 **Expected**
 - The confirm says the restore **replaces** all data (pasted Bible verses and anything imported after the backup too)
-  and that this computer's screen, remote and PIN settings are kept.
+  and that this computer's screen, sound output, remote and PIN settings are kept.
 - Operator reloads; the deleted song is back and "Después de la copia" is **gone** (replace, not merge).
 - The PIN is unchanged, and a phone on `/remote` before the restore stays connected (the server is not restarted).
+  The sound output chosen in Settings → Screens is unchanged too.
   A safety zip "before-restore-…" appears in the backups list.
 - The projector and stage windows were not reloaded (what was live stays on screen).
 
@@ -225,3 +226,19 @@
 - `unzip -p recovered.zip data/songs.json` is the full, valid song list (not the damaged file).
 - The restore succeeds (no "damaged" message); afterwards the songs are all there, `songs.json` is valid, and a
   `songs.json.corrupt-…` copy of the damaged file is still in `.e2e-data/data/`.
+
+### TC-SET-13 · Choose the sound output and test it  `P1`
+**Pre:** projector on
+**Steps**
+1. Settings → Screens → **🔊 Sound output**: open the list. 2. Pick an output other than "Default (Windows)".
+3. **🔊 Test sound**. 4. Turn the projector off, **Test sound** again. 5. Pick **Default (Windows)** again.
+**Expected**
+- The list shows this PC's sound outputs by name (not only "Default"); Windows' "Default -" / "Communications -"
+  aliases are not listed twice.
+- Step 2: `window.api.live.get().audioOutput.label` is the chosen name (the projector plays through it).
+- Step 3: a short beep plays and the toast "🔊 Sound sent to: <name>". Step 4: "Open the projector first…".
+- Step 5: `audioOutput` is gone from the live state.
+- Choosing an output that isn't connected (`window.api.settings.set({ audioOutputId: 'x', audioOutputLabel: 'Gone' })`,
+  then Test sound): the beep still plays (default speakers) and the toast says “Gone” isn't connected; the Settings
+  list shows "Gone (not connected)" with a warning under it.
+

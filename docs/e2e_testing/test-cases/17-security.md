@@ -211,3 +211,14 @@ An error's message can quote what a page was reading (a SyntaxError quotes the J
 **Expected**
 - The operator shows an error toast (the failure isn't silent).
 - `main.log` has `[index.html] unhandled rejection: SyntaxError` and does **not** contain `PLACEHOLDER-LYRIC-TEXT`.
+
+### TC-SEC-19 · The app's pages still can't use the microphone or camera  `P1`
+**Steps**
+1. In the operator and in the projector page: `await navigator.mediaDevices.getUserMedia({ audio: true })`, then
+   `{ video: true }`.
+2. `navigator.mediaDevices.enumerateDevices()` in the projector page.
+**Expected**
+- Both `getUserMedia` calls reject with `NotAllowedError` (no recording is ever possible).
+- Step 2 lists the sound outputs **with** their names (allowed only for choosing where sound plays).
+- In a dev build the log shows `permission request: media (audio)` refused and `permission check: speaker-selection`.
+

@@ -19,7 +19,7 @@ import { dirname, extname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Readable } from 'node:stream'
 import type { LiveState, RemoteCommand, VideoEndedCommand } from '@shared/types'
-import { parseRange, sanitizeSettingsPatch, validateCommand } from '@shared/security'
+import { parseRange, permissionAllowed, sanitizeSettingsPatch, validateCommand } from '@shared/security'
 import { COLLECTIONS, dataStatus, db, ensurePin, getSettings, isCollection, prepareData, seedIfEmpty, setSettings } from './db'
 import * as bible from './bible'
 import { live } from './live'
@@ -61,6 +61,7 @@ type AppEvent =
   | { type: 'diagnostics'; ok: boolean }
   | { type: 'menu'; action: 'shortcuts' | 'about' }
   | { type: 'openFailed'; what: 'logs' | 'notices' }
+  | { type: 'soundOutputMissing'; label: string }
 function notify(evt: AppEvent): void {
   if (operator && !operator.isDestroyed()) operator.webContents.send('app:event', evt)
 }
@@ -178,8 +179,6 @@ function registerMediaProtocol(): void {
 }
 
 /* ------------------------------ web contents hardening ------------------------------ */
-const ALLOWED_PERMISSIONS = new Set(['fullscreen', 'clipboard-sanitized-write'])
-
 function hardenWebContents(): void {
   app.on('web-contents-created', (_e, wc) => {
     // The app's pages never navigate. Without this, a file dropped outside a drop zone would replace the
@@ -196,8 +195,24 @@ function hardenWebContents(): void {
       return { action: 'deny' }
     })
   })
-  session.defaultSession.setPermissionRequestHandler((_wc, permission, done) => done(ALLOWED_PERMISSIONS.has(permission)))
-  session.defaultSession.setPermissionCheckHandler((_wc, permission) => ALLOWED_PERMISSIONS.has(permission))
+  // Choosing the sound output (Settings → Screens) needs to list the outputs by name: allowed only as a check, only
+  // for our own pages. A request (getUserMedia — microphone, camera) is always refused. See permissionAllowed.
+  const seen = new Set<string>()
+  const devLog = (kind: string, permission: string, mediaType?: string) => {
+    const key = `${kind}:${permission}:${mediaType || ''}`
+    if (app.isPackaged || seen.has(key)) return
+    seen.add(key)
+    log.info(`permission ${kind}: ${permission}${mediaType ? ` (${mediaType})` : ''}`)
+  }
+  session.defaultSession.setPermissionRequestHandler((wc, permission, done, details) => {
+    const mediaType = (details as { mediaTypes?: string[] }).mediaTypes?.join(',')
+    devLog('request', permission, mediaType)
+    done(permissionAllowed(permission, { check: false, trusted: isTrustedSender(wc?.mainFrame) }))
+  })
+  session.defaultSession.setPermissionCheckHandler((wc, permission, _origin, details) => {
+    devLog('check', permission, details.mediaType)
+    return permissionAllowed(permission, { check: true, trusted: isTrustedSender(wc?.mainFrame), mediaType: details.mediaType })
+  })
 }
 
 /** Only our own three pages (operator, projector, stage) may call into main. */
@@ -642,6 +657,7 @@ function registerIpc(): void {
     if (patch.outputDisplayId !== undefined && output) placeOutput()
     if (before.serverPort !== s.serverPort || before.serverEnabled !== s.serverEnabled) await restartServer()
     if (patch.logoPath !== undefined || patch.churchName !== undefined) live.update({ logoPath: s.logoPath, churchName: s.churchName })
+    if (patch.audioOutputId !== undefined || patch.audioOutputLabel !== undefined) live.update({ audioOutput: audioOutputOf(s) })
     return s
   })
 
@@ -713,6 +729,36 @@ function registerIpc(): void {
       notify({ type: 'renderError', window: kind })
     })
   }
+  // Settings → Screens → Test sound: the projector plays a short tone through the chosen output and answers
+  {
+    let waiter: ((r: { ok: boolean; error?: 'closed' | 'failed' }) => void) | null = null
+    h(
+      'output:testSound',
+      () =>
+        new Promise<{ ok: boolean; error?: 'closed' | 'failed' }>((resolve) => {
+          if (!output || output.isDestroyed()) return resolve({ ok: false, error: 'closed' })
+          waiter?.({ ok: false, error: 'failed' })
+          const timer = setTimeout(() => {
+            waiter = null
+            resolve({ ok: false, error: 'failed' })
+          }, 5000)
+          waiter = (r) => {
+            clearTimeout(timer)
+            waiter = null
+            resolve(r)
+          }
+          output.webContents.send('output:testSound')
+        })
+    )
+    on('output:testSoundResult', (e, r: { ok?: unknown }) => {
+      if (kindOf(e.sender) === 'output') waiter?.(r?.ok === true ? { ok: true } : { ok: false, error: 'failed' })
+    })
+  }
+  on('output:sinkFailed', (e) => {
+    if (kindOf(e.sender) !== 'output') return
+    log.warn('the chosen sound output is not available: playing through the default one')
+    notify({ type: 'soundOutputMissing', label: getSettings().audioOutputLabel || '' })
+  })
   h('output:restart', () => {
     guards.output.budget.reset()
     guards.output.failed = false
@@ -821,7 +867,7 @@ function registerIpc(): void {
       const s = getSettings()
       setMainLang(s.uiLang)
       buildMenu()
-      live.update({ logoPath: s.logoPath, churchName: s.churchName })
+      live.update({ logoPath: s.logoPath, churchName: s.churchName, audioOutput: audioOutputOf(s) })
       BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('settings:changed', s))
       if (before.remotePin !== s.remotePin || before.serverPort !== s.serverPort || before.serverEnabled !== s.serverEnabled) await restartServer()
       // reply first, then reload: reloading before the answer arrives destroys the page that is waiting for it
@@ -880,6 +926,11 @@ function registerIpc(): void {
   h('app:openExternal', (_e, url: unknown) => {
     if (typeof url === 'string' && /^https?:\/\//i.test(url)) void shell.openExternal(url)
   })
+}
+
+/** the sound output the projector plays through ({} = the Windows default) */
+function audioOutputOf(s: ReturnType<typeof getSettings>): LiveState['audioOutput'] {
+  return s.audioOutputId || s.audioOutputLabel ? { id: s.audioOutputId || undefined, label: s.audioOutputLabel || undefined } : undefined
 }
 
 async function restartServer(): Promise<{ ok: boolean; error?: string }> {

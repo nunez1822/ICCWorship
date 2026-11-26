@@ -39,6 +39,10 @@ All notable changes to ICCWorship are documented here. The format is based on
   video or audio item goes live while the projector window is off, a message says so with an **Open projector**
   button, and closing the projector while something plays says that the sound stopped.
 - FLAC and Opus audio files can be added to the media library and played.
+- **Choose the sound output** (Settings → Screens → 🔊 Sound output), e.g. the cable to the sound desk instead of the
+  projector's own speakers, with a **Test sound** button. The projector switches to it before anything plays; if that
+  output is unplugged, sound plays through the Windows default and a message says so. A restore keeps this
+  computer's choice. The app still can't use the microphone or camera.
 - **Data versions.** ICCWorship now records which version wrote the data. Data from 1.0 is upgraded
   automatically after a safety backup (`before-migrate-….zip`). Data written by a **newer** version opens
   **read-only**: an older copy (say, a portable one on a USB stick) can still run the service, but changes are not

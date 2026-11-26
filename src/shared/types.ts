@@ -291,6 +291,10 @@ export interface Settings {
   lastUpdateCheck?: number
   /** troubleshooting: turn off GPU acceleration (takes effect after a restart) */
   disableHwAccel?: boolean
+  /** where videos, audio and backing tracks play ('' / unset = the Windows default). The id is what Chromium
+   *  reported on this PC; the label finds the device again when the id changes (ids are per page and profile). */
+  audioOutputId?: string
+  audioOutputLabel?: string
 }
 
 /* ---------------- Live state ---------------- */
@@ -349,6 +353,8 @@ export interface LiveState {
   serviceStartedAt?: number
   logoPath?: string
   churchName?: string
+  /** the sound output chosen in Settings (pushed by main, like the logo) — the projector plays through it */
+  audioOutput?: { id?: string; label?: string }
   seq: number
 }
 

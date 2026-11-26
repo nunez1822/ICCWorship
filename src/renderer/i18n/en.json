@@ -7,7 +7,8 @@
     "dataUnreadable": "⚠ The {{what}} file is damaged and could not be read. It was kept as {{file}} — restore a backup in Settings → Backup.",
     "mediaMissing": "⚠ File not found: {{file}}",
     "mediaUnplayable": "⚠ This video can't be played (damaged or unsupported format).",
-    "previewFailed": "⚠ Could not prepare the preview of “{{title}}”. Check that its song, Bible version or file still exists."
+    "previewFailed": "⚠ Could not prepare the preview of “{{title}}”. Check that its song, Bible version or file still exists.",
+    "soundOutputMissing": "⚠ The sound output chosen in Settings (“{{label}}”) isn't connected: sound plays through the default speakers."
   },
   "common": {
     "add": "Add",
@@ -537,7 +538,7 @@
     "backupNow": "Back up now",
     "backupDone": "Backup saved ({{files}} files, {{size}} MB)",
     "restore": "Restore…",
-    "restoreConfirm": "Restoring REPLACES all current data with the backup (a safety copy is made first). Pasted Bible verses and anything imported after the backup was made will be replaced too. This computer’s screen, phone-remote and PIN settings are kept. Continue?",
+    "restoreConfirm": "Restoring REPLACES all current data with the backup (a safety copy is made first). Pasted Bible verses and anything imported after the backup was made will be replaced too. This computer’s screen, sound output, phone-remote and PIN settings are kept. Continue?",
     "restoreFailed": "That file is not an ICCWorship backup.",
     "openData": "Open data folder",
     "openDataFailed": "Could not open the data folder.",
@@ -565,7 +566,17 @@
       "read-only": "This data is open read-only because a newer ICCWorship wrote it, so no backup can be restored here. Restore it with the newer version.",
       "read-only-unprepared": "Your data is open read-only (see the red bar at the bottom), so no backup can be restored now. Do what the bar says and restart ICCWorship, then try again.",
       "forbidden": "That file can’t be restored from here. Use Restore… to pick it."
-    }
+    },
+    "soundOutput": "Sound output",
+    "soundOutputHelp": "Where videos, audio and backing tracks play — usually the cable to the sound desk. Sound plays through the projector window.",
+    "soundDefault": "Default (Windows)",
+    "soundMissing": "{{label}} (not connected)",
+    "soundNotConnected": "This output isn't connected: sound plays through the Windows default until it is.",
+    "soundNoList": "The list of sound outputs isn't available on this PC: sound plays through the Windows default.",
+    "testSound": "Test sound",
+    "testSoundOk": "🔊 Sound sent to: {{device}}",
+    "testSoundClosed": "Open the projector first: sound plays through the projector window.",
+    "testSoundFailed": "⚠ The test sound could not play."
   },
   "help": {
     "title": "Keyboard shortcuts",

@@ -173,6 +173,7 @@ export const useApp = create<AppState>((set, get) => ({
           })
         else if (e.type === 'diagnostics') toast(i18n.t(e.ok ? 'about.diagSaved' : 'about.diagFailed'), e.ok ? 'ok' : 'err')
         else if (e.type === 'openFailed') toast(i18n.t(e.what === 'logs' ? 'about.openLogsFailed' : 'about.noticesMissing'), 'err')
+        else if (e.type === 'soundOutputMissing') toast(i18n.t('errors.soundOutputMissing', { label: e.label || '?' }), 'err', 15_000)
       })
     }
     // damaged data files found at startup: say so (and where the damaged copy was kept)

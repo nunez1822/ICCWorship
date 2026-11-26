@@ -7,7 +7,8 @@
     "dataUnreadable": "⚠ El archivo de {{what}} está dañado y no se pudo leer. Se guardó como {{file}} — restaure una copia en Ajustes → Copia de seguridad.",
     "mediaMissing": "⚠ Archivo no encontrado: {{file}}",
     "mediaUnplayable": "⚠ Este video no se puede reproducir (dañado o formato no compatible).",
-    "previewFailed": "⚠ No se pudo preparar la vista previa de «{{title}}». Verifique que su canto, versión de la Biblia o archivo todavía existe."
+    "previewFailed": "⚠ No se pudo preparar la vista previa de «{{title}}». Verifique que su canto, versión de la Biblia o archivo todavía existe.",
+    "soundOutputMissing": "⚠ La salida de sonido elegida en Configuración («{{label}}») no está conectada: el sonido sale por los altavoces predeterminados."
   },
   "common": {
     "add": "Agregar",
@@ -537,7 +538,7 @@
     "backupNow": "Hacer copia ahora",
     "backupDone": "Copia guardada ({{files}} archivos, {{size}} MB)",
     "restore": "Restaurar…",
-    "restoreConfirm": "Restaurar REEMPLAZA todos los datos actuales con la copia (antes se hace una copia de seguridad). También se reemplazan los versículos pegados y todo lo importado después de hacer la copia. Se conservan los ajustes de pantallas, control remoto y PIN de esta computadora. ¿Continuar?",
+    "restoreConfirm": "Restaurar REEMPLAZA todos los datos actuales con la copia (antes se hace una copia de seguridad). También se reemplazan los versículos pegados y todo lo importado después de hacer la copia. Se conservan los ajustes de pantallas, salida de sonido, control remoto y PIN de esta computadora. ¿Continuar?",
     "restoreFailed": "Ese archivo no es una copia de ICCWorship.",
     "openData": "Abrir carpeta de datos",
     "openDataFailed": "No se pudo abrir la carpeta de datos.",
@@ -565,7 +566,17 @@
       "read-only": "Estos datos están abiertos en solo lectura porque los escribió una versión más nueva de ICCWorship, así que aquí no se puede restaurar ninguna copia. Restáurela con la versión más nueva.",
       "read-only-unprepared": "Sus datos están abiertos en solo lectura (vea la barra roja abajo), así que ahora no se puede restaurar ninguna copia. Haga lo que indica la barra, reinicie ICCWorship e intente de nuevo.",
       "forbidden": "Ese archivo no se puede restaurar desde aquí. Use Restaurar… para elegirlo."
-    }
+    },
+    "soundOutput": "Salida de sonido",
+    "soundOutputHelp": "Por dónde suenan los videos, el audio y las pistas de acompañamiento — normalmente el cable a la consola de sonido. El sonido sale por la ventana del proyector.",
+    "soundDefault": "Predeterminada (Windows)",
+    "soundMissing": "{{label}} (no conectada)",
+    "soundNotConnected": "Esta salida no está conectada: el sonido sale por la predeterminada de Windows hasta que se conecte.",
+    "soundNoList": "La lista de salidas de sonido no está disponible en este equipo: el sonido sale por la predeterminada de Windows.",
+    "testSound": "Probar sonido",
+    "testSoundOk": "🔊 Sonido enviado a: {{device}}",
+    "testSoundClosed": "Primero abra el proyector: el sonido sale por la ventana del proyector.",
+    "testSoundFailed": "⚠ No se pudo reproducir el sonido de prueba."
   },
   "help": {
     "title": "Atajos de teclado",

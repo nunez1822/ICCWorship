@@ -20,6 +20,7 @@ export type AppEvent =
   | { type: 'diagnostics'; ok: boolean }
   | { type: 'menu'; action: 'shortcuts' | 'about' }
   | { type: 'openFailed'; what: 'logs' | 'notices' }
+  | { type: 'soundOutputMissing'; label: string }
 
 export interface ImportOutcome {
   presentation?: Presentation
@@ -82,7 +83,13 @@ const api = {
     replace: () => invoke('output:replace'),
     onStatus: (cb: (s: { open: boolean }) => void) => on('output:status', cb),
     /** reload the projector page (and leave "safe" mode after repeated crashes) */
-    restart: () => invoke('output:restart')
+    restart: () => invoke('output:restart'),
+    /** Settings: play a short tone in the projector, through the chosen sound output */
+    testSound: (): Promise<{ ok: boolean; error?: 'closed' | 'failed' }> => invoke('output:testSound'),
+    /** projector page: main asks for the test tone / the page answers / the chosen output isn't there */
+    onTestSound: (cb: () => void) => on('output:testSound', cb),
+    testSoundResult: (r: { ok: boolean }) => ipcRenderer.send('output:testSoundResult', r),
+    sinkFailed: () => ipcRenderer.send('output:sinkFailed')
   },
   /** projector / stage windows: "I'm alive" every second, and "my page broke, reload me" */
   win: {

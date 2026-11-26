@@ -73,6 +73,14 @@ describe('restoring settings from another PC', () => {
     )
     expect(merged).toEqual({ churchName: 'Old', uiLang: 'en', remotePin: '123456', serverPort: 7272, disableHwAccel: true })
   })
+  it('keeps this computer’s sound output (another PC has other speakers)', () => {
+    const merged = mergeRestoredSettings(
+      { churchName: 'Old', audioOutputId: 'abc', audioOutputLabel: 'Speakers (Old PC)' },
+      { churchName: 'New', audioOutputId: 'xyz', audioOutputLabel: 'Line out (Sound desk)' }
+    )
+    expect(merged).toEqual({ churchName: 'Old', audioOutputId: 'xyz', audioOutputLabel: 'Line out (Sound desk)' })
+    expect(mergeRestoredSettings({ audioOutputId: 'abc', audioOutputLabel: 'Old' }, {})).toEqual({})
+  })
 })
 
 describe('schema versions and migrations', () => {
