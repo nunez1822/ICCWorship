@@ -11,6 +11,11 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/nunez1822/ICCWorship/actions/workflows/ci.yml"><img src="https://github.com/nunez1822/ICCWorship/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/nunez1822/ICCWorship"><img src="https://api.scorecard.dev/projects/github.com/nunez1822/ICCWorship/badge" alt="OpenSSF Scorecard" /></a>
+</p>
+
+<p align="center">
   <img src="docs/screenshots/projector-bilingual.png" width="720" alt="Bilingual lyrics on the projector" />
 </p>
 

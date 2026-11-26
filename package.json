@@ -35,6 +35,7 @@
     "format": "vp fmt",
     "format:check": "vp fmt --check",
     "licenses": "node scripts/licenses.mjs",
+    "release:prepare": "node scripts/release-prepare.mjs",
     "packaged-check": "node scripts/packaged-check.mjs",
     "prepare": "vp config"
   },

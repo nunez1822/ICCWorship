@@ -1,30 +1,79 @@
 name: Release
 
-# Triggered by pushing a version tag (see CONTRIBUTING.md → Releasing). Builds the Windows installers on GitHub's
-# servers, checks the packaged app starts, and creates a DRAFT release with checksums and build provenance.
-# A maintainer downloads and tries the draft's files, then publishes it (releases are immutable once published).
+# How a release happens (see CONTRIBUTING.md → Releasing):
+#   1. `pnpm release:prepare <patch|minor|major>` opens a "Release x.y.z" PR (version bump + CHANGELOG section).
+#   2. Merging it puts the new version on main: this workflow tags it vx.y.z, builds the Windows installers on
+#      GitHub's servers, checks the packaged app starts, and creates a DRAFT release with checksums, build provenance,
+#      an SBOM and the self-update files (latest.yml, .blockmap).
+#   3. A maintainer downloads and tries the draft's files, then publishes it. Releases are immutable once published,
+#      and installed copies with automatic updates on download it.
+# Pushing a vx.y.z tag by hand still works, and "Run workflow" rebuilds the current version's tag if a run failed.
 on:
   push:
+    branches: [main]
+    paths: [package.json] # a dependency bump changes package.json too: the tag job then finds nothing to release
     tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 
 jobs:
+  # Decide whether there is a release to build, and make sure its tag exists. A tag created here with the workflow's
+  # own token doesn't start this workflow again (GitHub never chains runs from GITHUB_TOKEN events).
+  tag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write # create the tag
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
+      release: ${{ steps.v.outputs.release }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          tag="v${version}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            # a maintainer pushed the tag by hand: it must name this version
+            if [ "${GITHUB_REF_NAME}" != "${tag}" ]; then echo "::error::Tag ${GITHUB_REF_NAME} does not match package.json version ${version}"; exit 1; fi
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          elif gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" >/dev/null 2>&1; then
+            if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+              echo "Tag ${tag} exists: building it again"
+              echo "release=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "Version ${version} is already tagged: nothing to release (package.json changed for another reason)"
+              echo "release=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            if [ "${GITHUB_REF}" != "refs/heads/main" ]; then echo "::error::Releases are made from main only"; exit 1; fi
+            gh api "repos/${GITHUB_REPOSITORY}/git/refs" -f ref="refs/tags/${tag}" -f sha="${GITHUB_SHA}" >/dev/null
+            echo "Tagged ${tag} at ${GITHUB_SHA}"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: tag
+    if: needs.tag.outputs.release == 'true'
     runs-on: windows-latest
     timeout-minutes: 40
     permissions:
       contents: read
-    outputs:
-      version: ${{ steps.guard.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ needs.tag.outputs.tag }}
           fetch-depth: 0
       # Vite+ (vp): Node from .node-version and pnpm. Dependencies are installed after the tag check below.
       - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
@@ -33,17 +82,13 @@ jobs:
           run-install: false
 
       - name: Check the tag matches package.json and is on main
-        id: guard
         shell: bash
+        env:
+          TAG: ${{ needs.tag.outputs.tag }}
         run: |
           version=$(node -p "require('./package.json').version")
-          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
-            echo "::error::Tag ${GITHUB_REF_NAME} does not match package.json version ${version}"; exit 1
-          fi
-          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
-            echo "::error::Tag ${GITHUB_REF_NAME} is not on main"; exit 1
-          fi
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          if [ "${TAG}" != "v${version}" ]; then echo "::error::Tag ${TAG} does not match package.json version ${version}"; exit 1; fi
+          if ! git merge-base --is-ancestor HEAD origin/main; then echo "::error::Tag ${TAG} is not on main"; exit 1; fi
 
       - run: vp install
       - run: vp check
@@ -52,41 +97,61 @@ jobs:
       - run: vp run build:win
       - name: Check the packaged app starts
         run: node scripts/packaged-check.mjs dist/win-unpacked/ICCWorship.exe
+      # the software bill of materials written by scripts/licenses.mjs (what ships inside the app)
+      - name: SBOM
+        shell: bash
+        run: cp out/sbom.cdx.json "dist/ICCWorship-${{ needs.tag.outputs.version }}.sbom.cdx.json"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: installers
           # latest.yml + .blockmap: what installed copies read to update themselves (src/main/updates.ts)
           path: |
-            dist/ICCWorship-Setup-${{ steps.guard.outputs.version }}.exe
-            dist/ICCWorship-Setup-${{ steps.guard.outputs.version }}.exe.blockmap
-            dist/ICCWorship-Portable-${{ steps.guard.outputs.version }}.exe
+            dist/ICCWorship-Setup-${{ needs.tag.outputs.version }}.exe
+            dist/ICCWorship-Setup-${{ needs.tag.outputs.version }}.exe.blockmap
+            dist/ICCWorship-Portable-${{ needs.tag.outputs.version }}.exe
             dist/latest.yml
+            dist/ICCWorship-${{ needs.tag.outputs.version }}.sbom.cdx.json
           if-no-files-found: error
           retention-days: 7
 
   publish:
-    needs: build
+    needs: [tag, build]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write # create the draft release
-      id-token: write # sign the build provenance
+      id-token: write # sign the build provenance and the SBOM attestation
       attestations: write
+    env:
+      VERSION: ${{ needs.tag.outputs.version }}
+      TAG: ${{ needs.tag.outputs.tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.tag.outputs.tag }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: installers
           path: release
+      - name: Every file the release needs is there
+        working-directory: release
+        run: |
+          for f in "ICCWorship-Setup-${VERSION}.exe" "ICCWorship-Setup-${VERSION}.exe.blockmap" "ICCWorship-Portable-${VERSION}.exe" latest.yml "ICCWorship-${VERSION}.sbom.cdx.json"; do
+            test -s "$f" || { echo "::error::missing ${f}"; exit 1; }
+          done
+          grep -q "^version: ${VERSION}$" latest.yml || { echo "::error::latest.yml is not for ${VERSION}"; exit 1; }
       - name: Checksums
         working-directory: release
-        run: sha256sum "ICCWorship-Setup-${{ needs.build.outputs.version }}.exe" "ICCWorship-Portable-${{ needs.build.outputs.version }}.exe" > SHA256SUMS.txt && cat SHA256SUMS.txt
+        run: sha256sum "ICCWorship-Setup-${VERSION}.exe" "ICCWorship-Portable-${VERSION}.exe" > SHA256SUMS.txt && cat SHA256SUMS.txt
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: release/*.exe
+      - uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-path: release/*.exe
+          sbom-path: release/ICCWorship-${{ needs.tag.outputs.version }}.sbom.cdx.json
       - name: Release notes from CHANGELOG.md
-        env:
-          VERSION: ${{ needs.build.outputs.version }}
         run: |
           awk -v v="$VERSION" '
             index($0, "## [" v "]") == 1 { on = 1; next }
@@ -99,8 +164,11 @@ jobs:
           ---
           **Verify your download:** compare the file's SHA-256 with `SHA256SUMS.txt`, or run
           `gh attestation verify <file> --repo nunez1822/ICCWorship` to confirm it was built by this repository's release workflow.
+          The software bill of materials (`.sbom.cdx.json`, CycloneDX) lists every third-party package inside the app.
           NOTES
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" release/*.exe release/*.blockmap release/latest.yml release/SHA256SUMS.txt --draft --verify-tag --title "ICCWorship ${{ needs.build.outputs.version }}" --notes-file notes.md
+        run: |
+          gh release create "${TAG}" release/*.exe release/*.blockmap release/latest.yml release/*.sbom.cdx.json release/SHA256SUMS.txt \
+            --draft --verify-tag --title "ICCWorship ${VERSION}" --notes-file notes.md

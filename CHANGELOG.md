@@ -39,6 +39,8 @@ All notable changes to ICCWorship are documented here. The format is based on
   and connects by itself as soon as a place is free.
 
 ### Added
+- Each release also includes a **software bill of materials** (`ICCWorship-x.y.z.sbom.cdx.json`, CycloneDX) listing
+  every third-party package inside the app, with a GitHub attestation like the installers'.
 - **Automatic updates for the installed version.** With "Check for new versions" on (Settings → About), the
   installed ICCWorship also downloads a new version by itself — never while something is on screen — and installs it
   when you close the app, or right away with **Restart now** when nothing is live. Untick "Download new versions…"

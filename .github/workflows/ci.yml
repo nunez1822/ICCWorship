@@ -55,6 +55,14 @@ jobs:
           key: electron-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - run: vp run build:dir
       - run: node scripts/packaged-check.mjs
+      # A build to try without installing anything (testers, reviewers): this run → Artifacts → unzip → ICCWorship.exe.
+      # Unsigned and only kept a week; releases are built by release.yml, never from these.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ICCWorship-test-build-${{ github.event.pull_request.number && format('pr{0}', github.event.pull_request.number) || github.sha }}
+          path: dist/win-unpacked/
+          if-no-files-found: error
+          retention-days: 7
 
   # End-to-end smoke test of the built app. Not a required check yet: it uses fixed waits and
   # must prove stable on the hosted runner first.

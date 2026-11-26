@@ -69,6 +69,7 @@ pnpm check --fix     # …and fix what it can (pnpm format = formatting only)
 pnpm build           # needed before e2e:launch / smoke (electron-vite, not `vp build`)
 pnpm e2e:launch      # app with fresh test data + CDP on :9222 for Playwright MCP (add --keep to reuse data)
 pnpm smoke           # scripted end-to-end check with screenshots
+pnpm release:prepare minor  # maintainers: open the release PR (merging it tags, builds and drafts the release)
 ```
 The toolchain is Vite+ (`vp`), configured in `vite.config.ts` (tests, lint, format, hook). The app is still built by
 electron-vite (`electron.vite.config.mts`): `vp dev` / `vp build` would run plain Vite and are not used.

@@ -62,6 +62,16 @@ can run them with the `/e2e-test` skill (`.claude/skills/e2e-test/`), which driv
 Playwright MCP servers in `.mcp.json`.
 
 ## Pull requests
+Every PR gets, from CI:
+- `ci` (required): `vp check` (format, lint, types), unit tests and a build.
+- `smoke` and `packaged`: the built app driven end to end, and the installed-style build started with its fuses
+  checked. `packaged` uploads an **ICCWorship-test-build** artifact (the unpacked app, unsigned, kept a week):
+  reviewers and testers can run a PR without building it.
+- `changelog`: a PR that changes the app must add a line under `[Unreleased]` in `CHANGELOG.md`, or carry the
+  `no-changelog` label.
+- `dependency-review`: no new dependency with a known vulnerability or a licence outside the allowed list.
+- CodeQL and OpenSSF Scorecard (on `main`) report under Security → Code scanning.
+
 1. Fork, then create a branch from `main` (`fix/…`, `feat/…`, `docs/…`, `chore/…`).
 2. One topic per PR, with a short description and, for UI changes, a screenshot.
 3. Add a line to `CHANGELOG.md` under **[Unreleased]** for anything a user would notice.
@@ -72,12 +82,19 @@ Playwright MCP servers in `.mcp.json`.
 Commit messages and PRs can be in English or Spanish; both are fine.
 
 ## Releasing (maintainers)
-1. Open a release PR: bump `version` in `package.json` (`pnpm version X.Y.Z --no-git-tag-version`),
-   and move the `[Unreleased]` notes in `CHANGELOG.md` under a new `[X.Y.Z] - YYYY-MM-DD` heading. Merge it.
-2. Create the tag on GitHub, from the merged commit on `main`:
-   `gh api repos/nunez1822/ICCWorship/git/refs -f ref=refs/tags/vX.Y.Z -f sha=<main sha>`.
-   The release workflow builds the installers on GitHub's servers and creates a **draft** release with checksums
-   and build provenance.
-3. **Download and install the draft's files and try them** before you press Publish. Releases are immutable:
-   published files can never be replaced, and the version number can't be reused.
+1. On an up-to-date `main`: `pnpm release:prepare <patch|minor|major>` (or an exact `X.Y.Z`; add `--dry-run` to
+   preview). It bumps `package.json`, moves the `[Unreleased]` notes in `CHANGELOG.md` under `[X.Y.Z] - date`, and
+   opens a **Release X.Y.Z** pull request.
+2. Merge that PR (squash) once CI is green. The release workflow sees the new version on `main`, **tags it
+   `vX.Y.Z` itself**, builds the installers on GitHub's servers, checks the packaged app starts, and creates a
+   **draft** release with: both exes, `SHA256SUMS.txt`, build provenance, an SBOM (`.sbom.cdx.json`, attested too)
+   and the self-update files (`latest.yml`, `.blockmap`). If a run fails, fix it and use **Run workflow** on the
+   Release workflow: it rebuilds the existing tag.
+3. **Download and install the draft's files and try them** (the P0 e2e cases; `/e2e-test packaged`) before you press
+   Publish. Releases are immutable: published files can never be replaced, and the version number can't be reused.
+   **Publishing is what ships it:** installed copies with automatic updates on download it within a day.
 4. Publish, then announce it in Discussions.
+
+Which version number? **patch** (1.0.1) for fixes only, **minor** (1.1.0) for new features, **major** (2.0.0) when
+data written by the new version can't be opened by older ones in the usual way (a `SCHEMA_VERSION` bump is
+normally a minor: older versions open newer data read-only).

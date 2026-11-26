@@ -10,6 +10,9 @@
  *  3. Extra shipped files with their own licences (pdf.js wasm decoders, if present in the build).
  *  4. NOTICE.md (public-domain Bible texts).
  * Electron and Chromium licences are shipped by electron-builder itself (LICENSE.electron.txt, LICENSES.chromium.html).
+ *
+ * Also writes out/sbom.cdx.json: a CycloneDX software bill of materials of the same shipped packages (plus Electron),
+ * attached to each release and attested by the release workflow — what scanners and security teams read.
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
@@ -94,6 +97,32 @@ for (const e of sorted) {
 }
 
 writeFileSync(join(out, 'THIRD_PARTY_NOTICES.md'), md)
+
+// ---- SBOM (CycloneDX 1.5): exactly the packages above — what ships, not the build tools ----
+const purl = (name, version) => `pkg:npm/${name.startsWith('@') ? '%40' + name.slice(1) : name}@${version}`
+const SPDX_ID = /^[A-Za-z0-9.+-]+$/
+const licenseOf = (id) => (!id ? undefined : SPDX_ID.test(id) ? [{ license: { id } }] : [{ expression: id }])
+const electronVersion = JSON.parse(readFileSync(join(root, 'node_modules', 'electron', 'package.json'), 'utf8')).version
+const component = (e, type = 'library') => ({
+  type,
+  'bom-ref': purl(e.name, e.version),
+  name: e.name,
+  version: e.version,
+  purl: purl(e.name, e.version),
+  ...(licenseOf(e.identifier) ? { licenses: licenseOf(e.identifier) } : {})
+})
+const sbom = {
+  bomFormat: 'CycloneDX',
+  specVersion: '1.5',
+  version: 1,
+  metadata: {
+    timestamp: new Date().toISOString(),
+    tools: { components: [{ type: 'application', name: 'iccworship scripts/licenses.mjs' }] },
+    component: { type: 'application', 'bom-ref': 'iccworship', name: 'ICCWorship', version: rootPkg.version, licenses: [{ license: { id: rootPkg.license } }] }
+  },
+  components: [component({ name: 'electron', version: electronVersion, identifier: 'MIT' }, 'framework'), ...sorted.map((e) => component(e))]
+}
+writeFileSync(join(out, 'sbom.cdx.json'), JSON.stringify(sbom, null, 2) + '\n')
 console.log(
   `THIRD_PARTY_NOTICES.md: ${sorted.length} packages${missing.length ? `, ${missing.length} without a licence file (identifier only): ${missing.map((e) => e.name).join(', ')}` : ''}`
 )
