@@ -97,6 +97,8 @@ export function TimingModal({ song, edit, onClose }: { song: Song; edit: boolean
   const setTime = (i: number, sec: number) => setMarks((m) => m.map((x, j) => (j === i ? Math.max(0, Math.round(sec * 10) / 10) : x)))
 
   const valid = marks.length === slides.length && !!cleanTimings(marks)
+  /** a time that isn't after the one before it (after −½ / +½ or typing): marked in red, and the reason Save is off */
+  const outOfOrder = (i: number) => i > 0 && marks[i] !== undefined && marks[i] <= marks[i - 1]
   const save = async () => {
     const timings = cleanTimings(marks)
     if (!timings || timings.length !== slides.length) return
@@ -176,8 +178,8 @@ export function TimingModal({ song, edit, onClose }: { song: Song; edit: boolean
         {phase === 'review' && (
           <div className="col" style={{ gap: 6 }}>
             {!valid && (
-              <div className="small" style={{ color: 'var(--warn)' }}>
-                ⚠ {t('timing.incomplete', { n: marks.length, total: slides.length })}
+              <div className="small" style={{ color: 'var(--warn)' }} role="alert">
+                ⚠ {marks.length === slides.length ? t('timing.outOfOrder') : t('timing.incomplete', { n: marks.length, total: slides.length })}
               </div>
             )}
             <div className="col" style={{ gap: 4, maxHeight: '50vh', overflow: 'auto' }}>
@@ -193,7 +195,8 @@ export function TimingModal({ song, edit, onClose }: { song: Song; edit: boolean
                     <>
                       <input
                         className="input"
-                        style={{ width: 80, height: 28 }}
+                        style={{ width: 80, height: 28, ...(outOfOrder(i) ? { borderColor: 'var(--live)', color: 'var(--live)' } : {}) }}
+                        aria-invalid={outOfOrder(i) || undefined}
                         type="number"
                         step={0.1}
                         min={0}

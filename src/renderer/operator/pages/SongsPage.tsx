@@ -179,7 +179,9 @@ function SongEditor({ song, onDeleted }: { song: Song; onDeleted: () => void }) 
         <button
           className="btn ghost"
           onClick={async () => {
-            if (!confirmDel(t('songs.confirmDelete', { title: songName(song) }) + usedInPlansNote(s.plans, song.id, t))) return
+            // its backing track file is deleted with it: say so (it can't be brought back from an automatic backup)
+            const trackNote = song.track ? '\n\n' + t('songs.confirmDeleteTrack') : ''
+            if (!confirmDel(t('songs.confirmDelete', { title: songName(song) }) + trackNote + usedInPlansNote(s.plans, song.id, t))) return
             await s.remove('songs', song.id)
             onDeleted()
           }}

@@ -222,3 +222,11 @@ foreach ($s in @(@(16,16,'tiny'), @(1080,4000,'tall'), @(6000,400,'wide'))) { $b
 - Step 2: the lyrics start on slide 1 (no intro), nothing moves by itself, and one message says the timing no longer
   fits ("…advance by hand, or record the timing again").
 - Step 3: the badge is "⏱ timing" again and the lyrics follow (a typo doesn't break the timing).
+
+### TC-EDGE-25 · A huge file from the media library says it is too large  `P1`
+**Setup:** add a WAV over 200 MB to the media library (e.g. a long silent recording).
+**Steps**
+1. Songs → a song → **Add backing track…** → **From the media library** → that file → **Use it as is**.
+**Expected**
+- The toast "⚠ The file is larger than 200 MB."; the operator window stays responsive (it doesn't read the whole
+  file first); the song has no track.

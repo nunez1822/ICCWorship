@@ -17,7 +17,9 @@ const SAFE_MODE = location.hash.includes('safe')
 /** how long a backing track fades out when it leaves the screen (Esc, another item) instead of cutting off */
 const FADE_MS = 1000
 
-type TrackEntry = { key: string; src: string; fading: boolean }
+/** `key`: item + file (what is live); `id`: this one <audio> (the same song restarted gets a new one) */
+type TrackEntry = { id: number; key: string; src: string; fading: boolean }
+let nextTrackId = 0
 
 /** The projector window. Renders exactly what main says is live, and plays videos and backing tracks with sound. */
 function Output() {
@@ -45,17 +47,20 @@ function Output() {
   }, [outputKey])
 
   // Backing tracks: the live one, plus ones fading out. A track that leaves (Esc, another item) keeps its element
-  // — same key, so React keeps the very same <audio> — and fades out over a second instead of cutting off.
+  // and fades out over a second instead of cutting off.
   const [tracks, setTracks] = useState<TrackEntry[]>([])
   const trackSrc = state?.video?.track ? state.video.src : undefined
   const trackKey = trackSrc ? `${state?.itemId ?? ''}|${trackSrc}` : null
   useEffect(() => {
+    // The same track back during its fade continues in the same element only when it resumes (Esc, then Space at
+    // once: the state seeks to where it was). Restarted from the top (the item double-clicked again) it gets a new
+    // element, so it doesn't carry on from where the fading one is.
+    const resumes = (stateRef.current?.video?.seekSeq ?? 0) > 0
     setTracks((prev) => {
-      const others = prev.filter((t) => t.key !== trackKey).map((t) => (t.fading ? t : { ...t, fading: true }))
+      const again = trackKey && resumes ? prev.find((t) => t.key === trackKey) : undefined
+      const others = prev.filter((t) => t !== again).map((t) => (t.fading ? t : { ...t, fading: true }))
       if (!trackKey || !trackSrc) return others
-      // the same track back during its fade (Esc, then Space at once): it continues instead of a second copy
-      const again = prev.find((t) => t.key === trackKey)
-      return [...others, again ? { ...again, fading: false } : { key: trackKey, src: trackSrc, fading: false }]
+      return [...others, again ? { ...again, fading: false } : { id: ++nextTrackId, key: trackKey, src: trackSrc, fading: false }]
     })
   }, [trackKey, trackSrc])
   useEffect(() => {
@@ -190,7 +195,7 @@ function Output() {
       </ErrorBoundary>
       {/* outside the error boundary: a slide that can't be drawn must not stop the music */}
       {tracks.map((t) => (
-        <TrackAudio key={t.key} trackKey={t.key} src={t.src} fading={t.fading} attach={attachTrack} detach={detachTrack} />
+        <TrackAudio key={t.id} trackKey={t.key} src={t.src} fading={t.fading} attach={attachTrack} detach={detachTrack} />
       ))}
     </div>
   )

@@ -1,7 +1,7 @@
 import JSZip from 'jszip'
 import { app } from 'electron'
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statfsSync, statSync, unlinkSync } from 'node:fs'
-import { copyFile, readFile, rename, rm } from 'node:fs/promises'
+import { copyFile, readFile, rename, rm, stat, statfs } from 'node:fs/promises'
 import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import { backupDir, dataRoot } from './paths'
 import { dataStatus, db, getSettings } from './db'
@@ -28,6 +28,7 @@ import {
 } from '@shared/backupCore'
 import { writeFileAtomic, writeFileAtomicAsync } from './atomicWrite'
 import { log } from './log'
+import { within } from './pathGuard'
 
 /** Folders inside Documents\ICCWorship that belong in a backup (and the only ones a restore writes) */
 const INCLUDE = RESTORE_DIRS
@@ -379,7 +380,21 @@ async function copyFileSafely(from: string, to: string): Promise<void> {
   }
 }
 
-/** Bring backups/tracks/ up to date (a track can be 60 MB: copied without blocking main). Never fails the backup that calls it. */
+/** bytes free on the disk holding `dir` (Infinity when it can't be told: go ahead) */
+async function freeBytes(dir: string): Promise<number> {
+  try {
+    const { bavail, bsize } = await statfs(dir)
+    return bavail * bsize
+  } catch {
+    return Infinity
+  }
+}
+
+/**
+ * Bring backups/tracks/ up to date (a track can be 60 MB: copied without blocking main). Never fails the backup that
+ * calls it, and never fills the last of the disk (saving the church's data needs it more): copies stop when free
+ * space would drop under MIN_FREE_BYTES, and are made on a later run.
+ */
 export async function mirrorTracks(): Promise<void> {
   try {
     const src = join(dataRoot(), TRACKS_DIR)
@@ -395,11 +410,30 @@ export async function mirrorTracks(): Promise<void> {
       entries.filter((e) => e.isDirectory()).map((e) => e.name),
       today
     )
-    for (const n of plan.copy) await copyFileSafely(join(src, n), join(dst, n))
-    if (plan.retire.length) mkdirSync(join(dst, `gone-${today}`), { recursive: true })
-    for (const n of plan.retire) renameSync(join(dst, n), join(dst, `gone-${today}`, n))
-    for (const d of plan.dropDirs) rmSync(join(dst, d), { recursive: true, force: true })
-    if (plan.copy.length || plan.retire.length) log.info(`backing tracks kept beside the backups: +${plan.copy.length} -${plan.retire.length}`)
+    let copied = 0
+    for (const n of plan.copy) {
+      const from = join(src, n)
+      const to = join(dst, n)
+      if (!within(src, from) || !within(dst, to)) continue
+      if ((await freeBytes(dst)) - (await stat(from)).size < MIN_FREE_BYTES) {
+        log.warn('backing tracks not copied beside the backups: the disk is nearly full')
+        break
+      }
+      await copyFileSafely(from, to)
+      copied++
+    }
+    const goneDir = join(dst, `gone-${today}`)
+    if (plan.retire.length) mkdirSync(goneDir, { recursive: true })
+    for (const n of plan.retire) {
+      const from = join(dst, n)
+      const to = join(goneDir, n)
+      if (within(dst, from) && within(goneDir, to)) renameSync(from, to)
+    }
+    for (const d of plan.dropDirs) {
+      const p = join(dst, d)
+      if (within(dst, p)) rmSync(p, { recursive: true, force: true })
+    }
+    if (copied || plan.retire.length) log.info(`backing tracks kept beside the backups: +${copied} -${plan.retire.length}`)
   } catch (e) {
     log.warn('could not keep a copy of the backing tracks', (e as NodeJS.ErrnoException).code || 'error')
   }
@@ -416,8 +450,8 @@ async function fillMissingTracks(root: string): Promise<void> {
     let n = 0
     for (const name of referencedTrackFiles(songs)) {
       const dest = join(dir, name)
-      if (existsSync(dest)) continue
-      const from = [join(m, name), ...gone.map((g) => join(m, g.name, name))].find((f) => existsSync(f))
+      if (!within(dir, dest) || existsSync(dest)) continue
+      const from = [join(m, name), ...gone.map((g) => join(m, g.name, name))].find((f) => within(m, f) && existsSync(f))
       if (!from) continue
       mkdirSync(dir, { recursive: true })
       await copyFileSafely(from, dest)

@@ -28,6 +28,7 @@ export async function encodeOggOpus(left: Float32Array, right: Float32Array, onP
   let preSkip = 0
   let failure: unknown = null
   let encodedUs = 0
+  let wake: (() => void) | null = null
   const encoder = new AudioEncoder({
     output: (chunk, meta) => {
       if (!writer) {
@@ -41,10 +42,15 @@ export async function encodeOggOpus(left: Float32Array, right: Float32Array, onP
     },
     error: (e) => {
       failure = e
+      wake?.() // a wait for 'dequeue' would never end now
     }
   })
   encoder.configure(OPUS_CONFIG)
-  const waitQueue = () => new Promise<void>((r) => encoder.addEventListener('dequeue', () => r(), { once: true }))
+  const waitQueue = () =>
+    new Promise<void>((r) => {
+      wake = r
+      encoder.addEventListener('dequeue', () => r(), { once: true })
+    })
   const feed = (start: number, frames: number, tail: boolean) => {
     const data = new Float32Array(frames * 2)
     if (!tail) {
@@ -63,16 +69,25 @@ export async function encodeOggOpus(left: Float32Array, right: Float32Array, onP
     ad.close()
   }
   const totalUs = (n / rate) * 1e6
-  for (let s = 0; s < n; s += rate) {
-    if (failure) break
-    feed(s, Math.min(rate, n - s), false)
-    while (encoder.encodeQueueSize > 4) await waitQueue()
-    onProgress?.(Math.min(0.99, encodedUs / totalUs))
+  // After its error callback the encoder is closed: encode() / close() on it throw InvalidStateError. Any of that is
+  // the encoder failing — always reported as 'encoder', never as a generic failure.
+  // (a function, not an inline test: the state changes behind TypeScript's back, in the error callback)
+  const closed = () => encoder.state === 'closed'
+  try {
+    for (let s = 0; s < n; s += rate) {
+      if (failure || closed()) break
+      feed(s, Math.min(rate, n - s), false)
+      while (encoder.encodeQueueSize > 4 && !closed()) await waitQueue()
+      onProgress?.(Math.min(0.99, encodedUs / totalUs))
+    }
+    // silence for the encoder's look-ahead (known from its first packet), so no real audio is cut at the end
+    if (!failure && !closed()) feed(n, Math.max(preSkip, 312), true)
+    if (!closed()) await encoder.flush().catch((e) => (failure ??= e))
+  } catch (e) {
+    failure ??= e
+  } finally {
+    if (!closed()) encoder.close()
   }
-  // silence for the encoder's look-ahead (known from its first packet), so no real audio is cut at the end
-  if (!failure) feed(n, Math.max(preSkip, 312), true)
-  await encoder.flush().catch((e) => (failure ??= e))
-  encoder.close()
   if (failure || !writer) throw new Error('encoder')
   onProgress?.(1)
   return (writer as OggOpusWriter).finish(n)

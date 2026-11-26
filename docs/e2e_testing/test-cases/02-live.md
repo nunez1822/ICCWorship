@@ -231,3 +231,11 @@ second song's item (if its timing is recorded, enter it part-way so it starts wi
 **Expected**
 - While it plays: "🎵 Music playing". After it ends (`live.get().video.playing === false`): the top bar says
   "Off air", not the gold Music pill.
+
+### TC-LIVE-29 · Starting a song again right after Esc starts its music from the top  `P1`
+**Pre:** "Track Test" live from its plan item, music at about 0:08
+**Steps**
+1. `Esc`, then within a second double-click the "Track Test" plan item again.
+**Expected**
+- The music starts again from 0:00 (`videoProgress.current` < 2 shortly after), under slide 1 or the intro — it
+  doesn't carry on from about 0:08. (Esc, then `Space` instead still continues near 0:08, as in TC-LIVE-16.)

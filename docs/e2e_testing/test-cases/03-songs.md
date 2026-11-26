@@ -101,7 +101,7 @@ Reload the operator (`location.reload()`), then do TC-SONG-12.
 **Expected**
 - The window shows a progress bar, then the toast "🎵 Backing track ready." and closes. A click beside the window
   while it works does not close it.
-- The card shows "▶ Listen · sample-stereo.mp3 · Replace… · Remove"; **🎵 Show with track** appears next to Show now.
+- The card shows "▶ Listen · sample-stereo.mp3 · ⏱ Record timing · Replace… · Remove"; **🎵 Show with track** appears next to Show now.
 - `(await window.api.db.list('songs')).find(s => s.id === 'track-test').track` →
   `{ url: 'media://local/tracks%2Ftrack-test-<digits>.ogg', sourceName: 'sample-stereo.mp3', vocalsRemoved: false }`,
   and the file is in `.e2e-data/tracks/` (about 240 KB).
@@ -114,13 +114,17 @@ Reload the operator (`location.reload()`), then do TC-SONG-12.
 1. Songs → "Track Test" → **Remove** → accept the confirm (stub `window.confirm = () => true` in the same call).
 **Expected**
 - Toast "Backing track removed."; the card says "No backing track…"; **Show with track** is gone.
-- The `.ogg` file is gone from `.e2e-data/tracks/` (unless the song was on screen: then it goes once it is off screen).
+- The `.ogg` file is gone from `.e2e-data/tracks/` (unless the song is the live item: then it goes once another item
+  goes live — Esc then `Space` can still bring the music back, so the file stays until then).
+- If **▶ Listen** was playing when the track was removed or replaced, the button says **▶ Listen** again, not Stop.
 
 ### TC-SONG-14 · Deleting a song deletes its backing track  `P2`
 **Pre:** TC-SONG-12 (a song with a track that is not on screen)
 **Steps**
-1. Delete "Track Test" (stub the confirm).
+1. Delete "Track Test" (stub the confirm; read the text it was given).
 **Expected**
+- The confirm says "Delete “Track Test”?" and "🎵 Its backing track is deleted too." (a song without a track: no
+  such line).
 - The song is gone and so is its `.ogg` in `.e2e-data/tracks/`. Other songs' tracks are untouched.
 
 ### TC-SONG-15 · Remove the voice from a stereo recording (no AI)  `P1`
@@ -156,6 +160,9 @@ Reload the operator (`location.reload()`), then do TC-SONG-12.
 - While recording: "On screen now: 🎵 Intro (no text)" before the first press, then the slide each press started, and
   "Next press (n of 3)". `←` / `Backspace` takes the last press back.
 - After Stop: three increasing times (about 1, 3, 6). Save is disabled until every slide has a time.
+- A time that isn't after the one before it (press −½ on slide 2 until it is below slide 1): Save is disabled, that
+  time is red, and the message says "Each slide must start after the one before it…" (not "3 of 3 slides have a
+  time").
 - Step 4: "⏱ Timing saved…"; the card shows **⏱ timing** and **Edit timing**;
   `track.timings` = `[2, 5, 8]` and `track.timingsKey` is set.
 - **Edit timing** opens the list directly (no recording); **Remove the timing** removes it.
@@ -178,3 +185,13 @@ Reload the operator (`location.reload()`), then do TC-SONG-12.
 the sample again. Repeat 3 times.
 **Expected**
 - The sample plays every time, and closing the window stops it at once (no sound left playing).
+
+### TC-SONG-20 · Replacing the live song's track mid-song: Esc then Space still plays  `P1`
+**Pre:** "Track Test" live with its music; a second file queued (`window.api.e2e.queueOpenFiles([...])`)
+**Steps**
+1. Songs → "Track Test" → **Replace…** → choose the file → **Use it as is**. 2. `Esc`. 3. `Space`.
+4. Double-click another plan item.
+**Expected**
+- Steps 2–3: the music fades out and comes back where it was (no "can't be played" toast): the old `.ogg` is still
+  in `.e2e-data/tracks/`.
+- Step 4: the old `.ogg` is deleted; the new one stays.

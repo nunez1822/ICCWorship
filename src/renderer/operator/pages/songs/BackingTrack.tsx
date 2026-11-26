@@ -29,6 +29,7 @@ export function BackingTrackCard({ song }: { song: Song }) {
     () => () => {
       audio.current?.pause()
       audio.current = null
+      setPlaying(false) // a replaced / removed track: the button says Listen again, not Stop
     },
     [track?.url]
   )

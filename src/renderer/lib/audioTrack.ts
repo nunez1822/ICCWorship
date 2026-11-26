@@ -5,6 +5,7 @@
  */
 import type { VoicePreset } from '@shared/types'
 import type { StereoCheck } from '@shared/vocalRemoval'
+import { MAX_SOURCE_BYTES } from '@shared/tracks'
 import AudioTrackWorker from './audioTrack.worker?worker&inline'
 
 export type TrackErrorCode = 'format' | 'memory' | 'too-long' | 'too-large' | 'encoder' | 'failed' | 'canceled' | 'empty'
@@ -33,13 +34,46 @@ export const MAX_MINUTES = 20
 export async function readSource(src: { path: string } | { url: string }): Promise<Uint8Array> {
   try {
     if ('path' in src) return await window.api.tracks.readPicked(src.path)
-    const r = await fetch(src.url)
-    if (!r.ok) throw new TrackError('format')
-    return new Uint8Array(await r.arrayBuffer())
+    return await fetchLimited(src.url)
   } catch (e) {
     if (e instanceof TrackError) throw e
     throw new TrackError(String((e as Error)?.message || '').includes('too-large') ? 'too-large' : 'format')
   }
+}
+
+/** A media-library file, with the same size limit as a picked one (main checks those): a 1.5 GB recording of a whole
+ *  service must say "too large", not fill the operator window's memory. */
+async function fetchLimited(url: string): Promise<Uint8Array> {
+  const ac = new AbortController()
+  const r = await fetch(url, { signal: ac.signal })
+  if (!r.ok) throw new TrackError('format')
+  const tooLarge = () => {
+    ac.abort()
+    return new TrackError('too-large')
+  }
+  if (Number(r.headers.get('content-length')) > MAX_SOURCE_BYTES) throw tooLarge()
+  if (!r.body) {
+    const b = new Uint8Array(await r.arrayBuffer())
+    if (b.length > MAX_SOURCE_BYTES) throw tooLarge()
+    return b
+  }
+  const reader = r.body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.length
+    if (total > MAX_SOURCE_BYTES) throw tooLarge()
+    chunks.push(value)
+  }
+  const out = new Uint8Array(total)
+  let at = 0
+  for (const c of chunks) {
+    out.set(c, at)
+    at += c.length
+  }
+  return out
 }
 
 export interface Decoded {

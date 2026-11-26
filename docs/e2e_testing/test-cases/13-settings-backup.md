@@ -184,6 +184,9 @@
 1. Run from a small USB stick or a nearly full drive (less than 300 MB free) with `ICCWORSHIP_DATA` pointing there.
 **Expected**
 - No automatic backup is written; the log says "automatic backup skipped: the disk is nearly full"; saving songs still works.
+- With backing tracks not yet copied beside the backups: none are copied into `backups/tracks/` either (the log says
+  "backing tracks not copied beside the backups: the disk is nearly full"); they are copied on a later run once
+  there is space.
 
 ### TC-BAK-11 · Restore doesn't bring back data from leftover .bak copies  `P1`
 **Pre:** a fresh data folder (`pnpm e2e:launch`) where no song has been shown live yet, so there is no `usage.json`.
@@ -240,7 +243,8 @@
 - Step 3: a short beep plays and the toast "🔊 Sound sent to: <name>". Step 4: "Open the projector first…".
 - Step 5: `audioOutput` is gone from the live state.
 - Choosing an output that isn't connected (`window.api.settings.set({ audioOutputId: 'x', audioOutputLabel: 'Gone' })`,
-  then Test sound): the beep still plays (default speakers) and the toast says “Gone” isn't connected; the Settings
+  then Test sound): the beep still plays (default speakers) and the toast says “Gone” isn't connected; after
+  reloading the operator (`location.reload()`: a direct `settings.set` doesn't update the page's copy) the Settings
   list shows "Gone (not connected)" with a warning under it.
 - Two outputs with the same name (e.g. two identical USB interfaces): picking the second one saves **its** id
   (`(await window.api.settings.get()).audioOutputId` is the second device's id, not the first's), and the list

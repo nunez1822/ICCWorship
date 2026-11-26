@@ -420,19 +420,21 @@ function Controls() {
             <button className="btn sm" onClick={() => void live.enqueue(() => live.videoSeek(0, videoSrc))}>
               ⏮
             </button>
-            {/* a backing track doesn't loop: the song ends with it */}
-            <label className="check small" hidden={!!l.video.track}>
-              <input
-                type="checkbox"
-                checked={l.video.loop}
-                onChange={(e) => {
-                  // read now: React resets the controlled box before the queued action runs
-                  const loop = e.target.checked
-                  void live.enqueue(() => live.videoSet({ loop }, videoSrc))
-                }}
-              />{' '}
-              {t('live.loop')}
-            </label>
+            {/* a backing track doesn't loop: the song ends with it (not rendered: `hidden` loses to .check's display) */}
+            {!l.video.track && (
+              <label className="check small">
+                <input
+                  type="checkbox"
+                  checked={l.video.loop}
+                  onChange={(e) => {
+                    // read now: React resets the controlled box before the queued action runs
+                    const loop = e.target.checked
+                    void live.enqueue(() => live.videoSet({ loop }, videoSrc))
+                  }}
+                />{' '}
+                {t('live.loop')}
+              </label>
+            )}
             <span style={{ flex: 1 }} />
             <span className="small" style={{ fontVariantNumeric: 'tabular-nums' }}>
               −{formatClock(((progress?.duration || 0) - (progress?.current || 0)) * 1000)}

@@ -44,9 +44,19 @@ export async function saveTrack(songId: unknown, bytes: unknown): Promise<string
   return dataMediaUrl(file)
 }
 
-/** the track file on screen right now (never deleted under the projector) */
+/**
+ * The last track file the live item played. After Esc the live state has no video, but the item is still selected
+ * and Space (or a thumbnail) brings that same file back where it was — so it stays "in use" until another item goes
+ * live.
+ */
+let lastOfItem: { itemId?: string; file: string } | null = null
+
+/** the track file on screen right now, or the one the live item can bring back (never deleted under the projector) */
 function liveTrackFile(): string | null {
-  return trackFileOfUrl(live.state.video?.src)
+  const s = live.state
+  const now = trackFileOfUrl(s.video?.src)
+  if (now) return now
+  return lastOfItem && lastOfItem.itemId === s.itemId ? lastOfItem.file : null
 }
 
 /** songs whose unused files couldn't go yet because one of them was on screen */
@@ -81,8 +91,12 @@ export function pruneTrack(songId: unknown): void {
   else pending.delete(songId)
 }
 
-// once the deferred file is off screen, finish the job
+// once the deferred file is off screen (and the live item can't bring it back), finish the job
 live.on('change', () => {
+  const s = live.state
+  const now = trackFileOfUrl(s.video?.src)
+  if (now) lastOfItem = { itemId: s.itemId, file: now }
+  else if (lastOfItem && lastOfItem.itemId !== s.itemId) lastOfItem = null
   if (!pending.size) return
   const onScreen = liveTrackFile()
   // oxlint-disable-next-line unicorn/no-useless-spread -- pruneTrack changes `pending` while we walk it: walk a copy
