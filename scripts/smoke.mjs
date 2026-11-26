@@ -186,6 +186,21 @@ try {
     await op.evaluate(() => window.api.settings.set({ checkForUpdates: false }))
   }
 
+  // "Ready for Sunday?" checklist (Live page → ✅): it checks the sample plan, the screens, the phone remote, backups
+  {
+    await op.click('.ready-btn')
+    await op.waitForSelector('.ready-list li', { timeout: 15000 })
+    await sleep(300)
+    await op.screenshot({ path: join(shots, '02b-ready-check.png') })
+    const rows = await op.$$eval('.ready-list li', (lis) => lis.map((li) => `${li.className}: ${li.querySelector('.txt')?.textContent}`))
+    // the sample plan's items all exist; only one screen and no backup yet are expected warnings here
+    const ok = rows.length >= 4 && !rows.some((r) => r.startsWith('error'))
+    console.log('ready-for-Sunday checklist:', ok ? '✓' : '✗', JSON.stringify(rows))
+    if (!ok) errors.push('ready checklist failed')
+    await op.click('.modal-foot .btn.primary')
+    await sleep(300)
+  }
+
   // go live on the first song (3rd item in the sample plan)
   const items = op.locator('.plan-item')
   console.log('plan items:', await items.count())

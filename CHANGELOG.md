@@ -39,6 +39,9 @@ All notable changes to ICCWorship are documented here. The format is based on
   and connects by itself as soon as a place is free.
 
 ### Added
+- **"Ready for Sunday?"** (Live page → ✅): one click before the service checks the plan (deleted songs or media,
+  video and picture files that moved, Bible versions), the projector window and second screen, the sound output,
+  the phone remote and stage display, and how recent the last backup is — each problem with a button to fix it.
 - Each release also includes a **software bill of materials** (`ICCWorship-x.y.z.sbom.cdx.json`, CycloneDX) listing
   every third-party package inside the app, with a GitHub attestation like the installers'.
 - **Automatic updates for the installed version.** With "Check for new versions" on (Settings → About), the

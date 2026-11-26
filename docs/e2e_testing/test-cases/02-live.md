@@ -267,3 +267,19 @@ second song's item (if its timing is recorded, enter it part-way so it starts wi
 1. Put item 1 live, press `→` until item 2's intro starts. 2. Press `←` during the intro.
 **Expected**
 - Step 2: item 1 comes back on its last slide; the intro's music fades out. The phone remote's Prev does the same.
+
+### TC-LIVE-33 · "Ready for Sunday?" checks the plan, screens, sound, phone remote and backups  `P1`
+**Steps**
+1. Live page → ✅ (next to ✏️). Read the list; close it.
+2. Break things: delete a song the active plan uses; rename the video file a media item in the plan points to;
+   close the projector window (Settings → Screens); in Settings choose a sound output, then unplug that device.
+3. ✅ again. Click each row's button.
+**Expected**
+- 1: "Everything is ready" or warnings only, e.g. "Only one screen is connected…" on a laptop alone, "There is no
+  backup yet" on a fresh install. The plan line names the active plan and its item count.
+- 2→3: errors, each naming the items: "1 item points to something that was deleted: <song>", "1 item needs a file
+  that isn't on this computer…: <media item>", "The projector window is closed…", "The chosen sound output … is not
+  connected" (an **error** when the plan plays a video or backing track).
+- **Open projector** opens it and the list re-checks itself; **Open plan** opens the plan editor; **Back up now** asks
+  where to save and the backup line turns ✅; **Settings** opens Settings.
+- A plan dated before today says it is for a day that has passed. Running the check never changes anything on screen.

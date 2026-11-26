@@ -9,6 +9,7 @@ import { SlideView } from '../../components/SlideView'
 import { TYPE_ICON, fmtMin, itemIcon } from '../../components/ui'
 import { toMediaUrl } from '../../lib/media'
 import { itemSourceMissing, playsTrack } from '../../lib/planRefs'
+import { ReadyCheck } from '../ReadyCheck'
 
 /** Replace every `{n}` placeholder in a message template. */
 function fillTemplate(text: string, n: string): string {
@@ -32,6 +33,7 @@ export function LivePage() {
   const plans = useMemo(() => s.plans.filter((p) => !p.isTemplate).sort((a, b) => b.date.localeCompare(a.date)), [s.plans])
   const selected = plan?.items.find((i) => i.id === s.selectedItemId)
   const liveItemInPlan = liveSt && plan && liveSt.planId === plan.id ? liveSt.itemId : undefined
+  const [readyCheck, setReadyCheck] = useState(false)
 
   return (
     <div className="live-page">
@@ -51,7 +53,11 @@ export function LivePage() {
           <button className="btn sm" title={t('live.editPlan')} onClick={() => s.setPage('plans', s.activePlanId)}>
             ✏️
           </button>
+          <button className="btn sm ready-btn" title={t('ready.button')} aria-label={t('ready.button')} onClick={() => setReadyCheck(true)}>
+            ✅
+          </button>
         </div>
+        {readyCheck && <ReadyCheck onClose={() => setReadyCheck(false)} />}
         <div className="col-body">
           {!plan && (
             <div className="empty">
