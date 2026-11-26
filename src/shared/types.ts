@@ -368,7 +368,9 @@ export interface LiveState {
   video?: VideoState
   /** error: the projector could not load/play the video (missing file, damaged, unsupported) */
   /** src: the media:// url the projector was playing (so a restarted projector resumes the right video) */
-  videoProgress?: { current: number; duration: number; error?: boolean; src?: string }
+  /** itemId / seekSeq: what the projector was playing when it reported (a late report from before a seek or from
+   *  the previous item is ignored by "follow the timing"); load: the report made when the file opened (position 0) */
+  videoProgress?: { current: number; duration: number; error?: boolean; src?: string; itemId?: string; seekSeq?: number; load?: boolean }
   /** song shown by the live item (plan item or Show now) — lets edits refresh the screen */
   songId?: string
   /** slide that was live before Clear all (Esc) — Space resumes there */
@@ -376,6 +378,10 @@ export interface LiveState {
   /** Next on the last lyric slide while the backing track plays: the text is off, the music finishes (the outro);
    *  the next Next goes to the next item */
   outro?: boolean
+  /** the song's backing track plays its intro: no text until the first line (recorded timing), at `firstAt` seconds */
+  intro?: { firstAt: number }
+  /** the operator turned "follow the timing" off for the live song */
+  followOff?: boolean
   itemStartedAt?: number
   serviceStartedAt?: number
   logoPath?: string

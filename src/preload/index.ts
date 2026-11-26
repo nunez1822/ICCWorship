@@ -68,7 +68,8 @@ const api = {
     onState: (cb: (s: LiveState) => void) => on('live:state', cb),
     onProgress: (cb: (p: LiveState['videoProgress']) => void) => on('live:progress', cb),
     onCommand: (cb: (c: RemoteCommand | VideoEndedCommand) => void) => on('remote:command', cb),
-    videoProgress: (p: { current: number; duration: number; error?: boolean; src?: string }) => ipcRenderer.send('output:progress', p),
+    videoProgress: (p: { current: number; duration: number; error?: boolean; src?: string; itemId?: string; seekSeq?: number; load?: boolean }) =>
+      ipcRenderer.send('output:progress', p),
     videoEnded: (info: { itemId?: string; src: string }) => ipcRenderer.send('output:ended', info),
     stageCommand: (cmd: RemoteCommand) => ipcRenderer.send('stage:command', cmd)
   },

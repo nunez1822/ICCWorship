@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import type { LiveState, PlanItem, ServicePlan, Slide, Song } from '@shared/types'
+import { slidesTimingKey } from '@shared/slides'
 
 /*
  * liveControl runs in the operator window: the store and window.api are replaced by small
@@ -18,6 +19,7 @@ type FakeState = {
   bibles: never[]
   toast: (...a: unknown[]) => void
   selectItem: (id?: string) => void
+  outputOpen?: boolean
 }
 const state = vi.hoisted(() => ({ current: {} as FakeState }))
 
@@ -58,7 +60,8 @@ function setup(items: PlanItem[]) {
     settings: {},
     bibles: [],
     toast: () => {},
-    selectItem: () => {}
+    selectItem: () => {},
+    outputOpen: true
   }
   ;(globalThis as unknown as { window: unknown }).window = {
     api: {
@@ -301,6 +304,161 @@ describe('live control', () => {
       expect(L().video).toMatchObject({ src: TRACK, track: true, playing: true })
       await live.goSlide(1)
       expect(L().video).toMatchObject({ src: TRACK, playing: true })
+    })
+  })
+
+  describe('recorded timing: the lyrics follow the backing track', () => {
+    const TRACK = 'media://local/tracks%2Fs1-1.ogg'
+    const slides = [text('a'), text('b'), text('c'), text('d')]
+    const TIMES = [5, 9, 14, 20]
+    const songWith = (timings: number[], key = slidesTimingKey(slides)): Song =>
+      ({
+        id: 's1',
+        title: 'Canción',
+        tags: [],
+        sections: [],
+        arrangement: [],
+        linesPerSlide: 2,
+        createdAt: 0,
+        updatedAt: 0,
+        track: { url: TRACK, sourceName: 'x', vocalsRemoved: false, timings, timingsKey: key }
+      }) as Song
+    const item = {
+      id: 'song',
+      type: 'song',
+      title: 'Canción',
+      refId: 's1',
+      slides,
+      testTrack: { src: TRACK, volume: 1 },
+      track: { play: true, volume: 1, autoNext: false }
+    } as unknown as PlanItem
+    const after = { id: 'next', type: 'announcement', title: 'Anuncios', slides: [text('n')] } as unknown as PlanItem
+    const settle = () => live.enqueue(async () => {})
+    /** a position report from the projector for what is live now */
+    const tick = async (current: number, over: Partial<NonNullable<LiveState['videoProgress']>> = {}) => {
+      live.followTick({ current, duration: 30, src: L().video?.src, itemId: L().itemId, seekSeq: L().video?.seekSeq, ...over })
+      await settle()
+    }
+    const start = async (timings = TIMES, key?: string) => {
+      setup([item, after])
+      state.current.songs = [songWith(timings, key)]
+      state.current.toast = vi.fn()
+      await live.goItem(0)
+    }
+
+    it('starts with the intro: no text until the first line, then each slide when the music reaches it', async () => {
+      await start()
+      expect(L()).toMatchObject({ slideIndex: -1, clearedFrom: 0, intro: { firstAt: 5 }, video: { playing: true, track: true } })
+      await tick(0.3)
+      expect(L().slideIndex).toBe(-1)
+      await tick(4.9) // a little early (reports come ~4× a second)
+      expect(L()).toMatchObject({ slideIndex: 0, intro: undefined })
+      await tick(9.1)
+      expect(L().slideIndex).toBe(1)
+      await tick(14)
+      expect(L().slideIndex).toBe(2)
+    })
+
+    it('Space in the intro shows the first line early; ← stays in the intro', async () => {
+      await start()
+      await live.prev()
+      expect(L()).toMatchObject({ slideIndex: -1, intro: { firstAt: 5 } })
+      await live.next()
+      expect(L()).toMatchObject({ slideIndex: 0, intro: undefined })
+      await tick(1)
+      await tick(5) // the first line's time arrives: it's already up, nothing moves
+      expect(L().slideIndex).toBe(0)
+    })
+
+    it('never pulls the operator back; the next start in the music takes over again', async () => {
+      await start()
+      await tick(0.5)
+      await tick(9.2) // slide 1
+      await live.next() // the operator goes ahead to slide 2
+      await live.next() // and to 3
+      await tick(14.2) // the music reaches slide 2's start: not back to 2
+      expect(L().slideIndex).toBe(3)
+      await live.prev() // the operator goes back to repeat slide 2
+      await tick(15)
+      expect(L().slideIndex).toBe(2) // not pushed forward again by an old start
+    })
+
+    it('ignores late reports: from before a seek, from another item, or from opening the file', async () => {
+      await start()
+      await tick(0.5)
+      await tick(9.2, { itemId: 'other' })
+      await tick(9.2, { seekSeq: 7 })
+      await tick(9.2, { load: true })
+      await tick(9.2, { src: 'media://local/tracks%2Fother.ogg' })
+      expect(L().slideIndex).toBe(-1)
+    })
+
+    it('a seek moves the lyrics to the slide of the new position, backwards too', async () => {
+      await start()
+      await tick(0.5)
+      await tick(14.1)
+      expect(L().slideIndex).toBe(2)
+      await live.videoSeek(6, TRACK)
+      await tick(6.05)
+      expect(L().slideIndex).toBe(0)
+      await live.videoSeek(1, TRACK)
+      await tick(1.05)
+      expect(L()).toMatchObject({ slideIndex: -1, intro: { firstAt: 5 } }) // back into the intro
+    })
+
+    it('entering part-way starts the music where that slide begins', async () => {
+      setup([item, after])
+      state.current.songs = [songWith(TIMES)]
+      await live.goItem(0, 2)
+      expect(L()).toMatchObject({ slideIndex: 2, video: { playing: true, seekSeq: 1, seekTo: 14 } })
+      await tick(14.1)
+      expect(L().slideIndex).toBe(2)
+    })
+
+    it('a song whose slides changed since the timing was recorded: no following, one message', async () => {
+      await start(TIMES, 'other-layout')
+      expect(L()).toMatchObject({ slideIndex: 0, intro: undefined })
+      await tick(0.5)
+      await tick(9.2)
+      await tick(14.2)
+      expect(L().slideIndex).toBe(0)
+      const calls = (state.current.toast as ReturnType<typeof vi.fn>).mock.calls.filter((c) => c[0] === 'track.timingOld')
+      expect(calls).toHaveLength(1)
+    })
+
+    it('Follow off: the operator advances by hand', async () => {
+      await start()
+      await tick(0.5)
+      await live.setFollow(false)
+      await tick(9.2)
+      expect(L().slideIndex).toBe(-1)
+      await live.setFollow(true) // on again: follows from the next start, no jump to "now"
+      await tick(9.5)
+      expect(L().slideIndex).toBe(-1)
+      await tick(14.2)
+      expect(L().slideIndex).toBe(2)
+    })
+
+    it('a track held under the Logo starts at the slide shown when the cover lifts', async () => {
+      setup([item, after])
+      state.current.songs = [songWith([0, 9, 14, 20])]
+      await live.goItem(1)
+      await live.toggleLayer('logo')
+      await live.goItem(0)
+      expect(L().video).toMatchObject({ playing: false })
+      await live.goSlide(2) // the operator lines up slide 3 under the logo
+      await live.toggleLayer('logo')
+      expect(L().video).toMatchObject({ playing: true, seekTo: 14 })
+    })
+
+    it('Esc stops following; nothing moves while the lyrics are cleared', async () => {
+      await start()
+      await tick(0.5)
+      await live.clearAll()
+      live.followTick({ current: 9.2, duration: 30, src: TRACK, itemId: 'song', seekSeq: 0 })
+      await settle()
+      expect(L().slideIndex).toBe(-1)
+      expect(L().intro).toBeUndefined()
     })
   })
 })

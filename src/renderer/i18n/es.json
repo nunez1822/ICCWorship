@@ -47,7 +47,8 @@
     "outputOff": "Proyector apagado",
     "outputTip": "Abrir o cerrar la ventana del proyector",
     "remotesTip": "Teléfonos / pantallas de escenario conectados",
-    "music": "🎵 Suena la música"
+    "music": "🎵 Suena la música",
+    "intro": "🎵 Intro — primera línea en {{time}}"
   },
   "types": {
     "song": "Canto",
@@ -636,7 +637,8 @@
     "black": "La pantalla está en negro",
     "logo": "Se muestra el logo",
     "next": "Siguiente",
-    "end": "Fin del servicio"
+    "end": "Fin del servicio",
+    "firstLineIn": "Primera línea en"
   },
   "menu": {
     "file": "Archivo",
@@ -667,7 +669,7 @@
     "renderError": "El proyector no pudo mostrar esta diapositiva, así que muestra negro. Pase a la siguiente diapositiva o elemento.",
     "stageRenderError": "La pantalla de escenario no pudo mostrar esta diapositiva. La siguiente se mostrará con normalidad.",
     "gpuCrashed": "El controlador de gráficos dejó de responder. Si el proyector se pone negro o se congela, active \"Desactivar la aceleración gráfica\" en Ajustes → Acerca de y reinicie ICCWorship.",
-    "operatorRecovered": "ICCWorship reinició esta ventana después de un problema. El proyector siguió mostrando lo que estaba en vivo; si había anuncios en bucle, se detuvieron — presione Espacio para continuar.",
+    "operatorRecovered": "ICCWorship reinició esta ventana después de un problema. El proyector siguió mostrando lo que estaba en vivo (una pista de acompañamiento siguió sonando y su letra sigue la música); si había anuncios en bucle, se detuvieron — presione Espacio para continuar.",
     "operatorCrashed": "La ventana de ICCWorship falló otra vez. El proyector sigue mostrando lo que está en vivo. ¿Recargar la ventana?",
     "reload": "Recargar"
   },
@@ -778,6 +780,38 @@
       "limits": "Funciona mejor con grabaciones de estudio con la voz principal en el centro. Los coros, la reverberación y las voces abiertas a los lados se quedan.",
       "little": "ℹ Había poco en el centro de esta grabación: la voz puede seguir escuchándose. Pruebe «Más».",
       "almostAll": "⚠ Casi todo estaba en el centro de esta grabación: la pista puede sonar pobre. Pruebe «Menos»."
-    }
+    },
+    "timingOld": "⚠ Los tiempos grabados de este canto ya no coinciden con sus diapositivas (se cambió el canto): avance a mano, o grabe los tiempos de nuevo."
+  },
+  "timing": {
+    "title": "Grabar tiempos",
+    "record": "Grabar tiempos",
+    "recordHelp": "Reproduzca la pista y presione Espacio en cada diapositiva: luego la letra sigue la música sola.",
+    "edit": "Editar tiempos",
+    "ok": "tiempos",
+    "okHelp": "En vivo, la letra sigue la música.",
+    "old": "tiempos desactualizados",
+    "oldHelp": "Las diapositivas del canto cambiaron desde que se grabaron los tiempos: grábelos de nuevo.",
+    "help": "Presione ⏺ Empezar: la pista suena desde el principio. Presione Espacio (o → / un control) en el momento en que debe aparecer cada diapositiva — la primera vez es la diapositiva 1, así la introducción queda sin texto. ← / Retroceso deshace la última.",
+    "start": "Empezar",
+    "speed": "Velocidad",
+    "recording": "Grabando",
+    "stop": "Detener",
+    "onScreen": "En pantalla ahora:",
+    "intro": "Introducción (sin texto)",
+    "nextPress": "Próxima vez ({{n}} de {{total}}):",
+    "allMarked": "Todas las diapositivas tienen tiempo. Presione Detener.",
+    "keys": "Espacio / → / ↓ / AvPág: siguiente diapositiva · ← / ↑ / RePág / Retroceso: deshacer. Estas teclas no mueven el proyector mientras esta ventana está abierta.",
+    "incomplete": "{{n}} de {{total}} diapositivas tienen tiempo.",
+    "startsAt": "La diapositiva {{n}} empieza en (segundos)",
+    "listenHere": "Escuchar desde 2 segundos antes",
+    "addTime": "Agregar un tiempo",
+    "recordAgain": "Grabar de nuevo",
+    "clear": "Quitar los tiempos",
+    "saved": "⏱ Tiempos guardados: en vivo, la letra sigue la música.",
+    "confirmClose": "¿Cerrar sin guardar los tiempos?",
+    "follow": "Seguir los tiempos",
+    "followHelp": "La letra cambia sola con la música. Puede moverla a mano: el siguiente inicio de diapositiva en la música vuelve a tomar el control.",
+    "introHint": "🎵 Intro — primera línea en {{time}} (Espacio la muestra ya)"
   }
 }

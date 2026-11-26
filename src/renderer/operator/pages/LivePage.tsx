@@ -398,6 +398,11 @@ function Controls() {
               {t('track.label')}
             </div>
           )}
+          {l.video.track && l.intro && (
+            <div className="small" role="status" style={{ color: 'var(--gold, var(--warn))', marginBottom: 6 }}>
+              {t('timing.introHint', { time: formatClock(Math.max(0, l.intro.firstAt - (progress?.current || 0)) * 1000) })}
+            </div>
+          )}
           {l.video.track && l.outro && (
             <div className="small" role="status" style={{ color: 'var(--gold, var(--warn))', marginBottom: 6 }}>
               {t('track.musicStill')}
@@ -445,6 +450,19 @@ function Controls() {
             <div style={{ width: `${progress?.duration ? (progress.current / progress.duration) * 100 : 0}%` }} />
           </div>
           <div className="row" style={{ marginTop: 8 }}>
+            {l.video.track && live.liveTimings(l) && (
+              <label className="check small" title={t('timing.followHelp')}>
+                <input
+                  type="checkbox"
+                  checked={!l.followOff}
+                  onChange={(e) => {
+                    const on = e.target.checked
+                    void live.enqueue(() => live.setFollow(on))
+                  }}
+                />{' '}
+                ⏱ {t('timing.follow')}
+              </label>
+            )}
             <span className="small muted">🔊</span>
             <input
               type="range"

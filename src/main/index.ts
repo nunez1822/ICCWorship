@@ -693,15 +693,21 @@ function registerIpc(): void {
   // live
   h('live:get', () => live.state)
   h('live:update', (_e, patch: Partial<LiveState>) => live.update(patch))
-  on('output:progress', (_e, p: { current?: unknown; duration?: unknown; error?: unknown; src?: unknown }) => {
-    const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
-    live.progress({
-      current: num(p?.current),
-      duration: num(p?.duration),
-      error: p?.error === true ? true : undefined,
-      src: typeof p?.src === 'string' && p.src.length < 4000 ? p.src : undefined
-    })
-  })
+  on(
+    'output:progress',
+    (_e, p: { current?: unknown; duration?: unknown; error?: unknown; src?: unknown; itemId?: unknown; seekSeq?: unknown; load?: unknown }) => {
+      const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
+      live.progress({
+        current: num(p?.current),
+        duration: num(p?.duration),
+        error: p?.error === true ? true : undefined,
+        src: typeof p?.src === 'string' && p.src.length < 4000 ? p.src : undefined,
+        itemId: typeof p?.itemId === 'string' && p.itemId.length < 200 ? p.itemId : undefined,
+        seekSeq: typeof p?.seekSeq === 'number' && Number.isSafeInteger(p.seekSeq) ? p.seekSeq : undefined,
+        load: p?.load === true ? true : undefined
+      })
+    }
+  )
   on('output:ended', (_e, info: { itemId?: unknown; src?: unknown }) => {
     if (typeof info?.src !== 'string') return
     forwardCommand({ type: 'videoEnded', src: info.src, itemId: typeof info.itemId === 'string' ? info.itemId : undefined })

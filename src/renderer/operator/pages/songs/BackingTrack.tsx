@@ -8,6 +8,8 @@ import { songEdited } from '../../liveControl'
 import { Modal, Seg, confirmDel } from '../../../components/ui'
 import { AUDIO_EXT, fileName, toMediaUrl } from '../../../lib/media'
 import { decodeAudio, MAX_MINUTES, readSource, TrackError, TrackJob } from '../../../lib/audioTrack'
+import { slidesTimingKey, songToSlides } from '@shared/slides'
+import { TimingModal } from './TimingModal'
 
 /**
  * Song editor → Backing track: one compact row. A track is an instrumental the congregation sings with when there
@@ -17,6 +19,7 @@ export function BackingTrackCard({ song }: { song: Song }) {
   const { t } = useTranslation()
   const s = useApp()
   const [adding, setAdding] = useState(false)
+  const [timing, setTiming] = useState<null | 'record' | 'edit'>(null)
   const [playing, setPlaying] = useState(false)
   const audio = useRef<HTMLAudioElement | null>(null)
   const track = song.track
@@ -81,6 +84,15 @@ export function BackingTrackCard({ song }: { song: Song }) {
               {track.sourceName || t('track.title')}
             </span>
             {track.vocalsRemoved && <span className="pill">{t('track.vocalsRemoved')}</span>}
+            <TimingBadge song={song} />
+            <button className="btn sm" onClick={() => setTiming('record')} title={t('timing.recordHelp')}>
+              ⏱ {t('timing.record')}
+            </button>
+            {track.timings && (
+              <button className="btn sm" onClick={() => setTiming('edit')}>
+                {t('timing.edit')}
+              </button>
+            )}
             <button className="btn sm" onClick={() => setAdding(true)}>
               {t('track.replace')}
             </button>
@@ -100,7 +112,23 @@ export function BackingTrackCard({ song }: { song: Song }) {
         )}
       </div>
       {adding && <AddTrackModal song={song} onClose={() => setAdding(false)} />}
+      {timing && track && <TimingModal song={song} edit={timing === 'edit'} onClose={() => setTiming(null)} />}
     </>
+  )
+}
+
+/** "timing ✓" when recorded timing fits the song's slides, "timing out of date" after a layout change */
+function TimingBadge({ song }: { song: Song }) {
+  const { t } = useTranslation()
+  const ccli = useApp((s) => s.settings.ccliLicense)
+  const tr = song.track
+  if (!tr?.timings) return null
+  const slides = songToSlides(song, { ccliLicense: ccli })
+  const ok = tr.timingsKey === slidesTimingKey(slides) && tr.timings.length === slides.length
+  return (
+    <span className="pill" style={ok ? undefined : { color: 'var(--warn)' }} title={ok ? t('timing.okHelp') : t('timing.oldHelp')}>
+      {ok ? `⏱ ${t('timing.ok')}` : `⚠ ${t('timing.old')}`}
+    </span>
   )
 }
 

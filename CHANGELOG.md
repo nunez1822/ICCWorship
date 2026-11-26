@@ -43,6 +43,12 @@ All notable changes to ICCWorship are documented here. The format is based on
   next item when finished". Adding a track to a song never turns it on in plans that already have the song. The plan,
   the Live page and the printed run sheet mark songs that play a track (🎧). Tracks are stored small (Opus,
   ~1.2 MB per minute) in `Documents\ICCWorship\tracks`.
+- **Lyrics that follow the music** (recorded timing, like ProPresenter's Timeline): Songs → ⏱ Record timing, play
+  the track and press Space as each slide should appear, then fine-tune any time. Live, the intro shows no text
+  ("first line in 0:08" on the top bar and the stage display, for the choir), each slide comes up with the music, a
+  seek moves the lyrics with it, and the volunteer can still move by hand (the music never pulls them backwards). A
+  song changed since (another order, more lines) stops following with a message; a typo fix doesn't. "Follow the
+  timing" can be switched off on the Live page. While recording, no key moves the live screen.
 - **Remove the voice** from a stereo recording to make a backing track — classic center-channel removal (like
   Audacity's "Vocal Reduction" or Audition's "Center Channel Extractor"), **no AI, offline**. Choose Less / Normal /
   More and compare a 20-second sample (Original ⇄ Without voice) before saving. It takes out what is in the center

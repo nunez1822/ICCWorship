@@ -171,3 +171,45 @@ to a time of day, which would hide a rebuild). Welcome is live.
 1. Double-click the live "Track Test" plan item again, then click its 2nd thumbnail.
 **Expected**
 - The slides change but the music doesn't restart (`videoProgress.current` keeps growing from ~5).
+
+### TC-LIVE-22 · The lyrics follow the music (recorded timing)  `P1`
+**Pre:** TC-SONG-17 (timings 2 / 5 / 8)
+**Steps**
+1. Songs → "Track Test" → **🎵 Show with track**. Read `window.api.live.get()` every 0.5 s for 10 s.
+**Expected**
+- Until ~2 s: no text (`slideIndex −1`, `intro.firstAt === 2`); the top bar says "🎵 Intro — first line in 0:0x" and
+  the media bar "🎵 Intro — first line in … (Space shows it now)".
+- Then slide 1 at ~2 s, slide 2 at ~5 s, slide 3 at ~8 s (each up to 0.25 s early), with no key pressed.
+- The Live page media bar has **⏱ Follow the timing** ticked.
+
+### TC-LIVE-23 · Moving by hand while it follows  `P1`
+**Pre:** TC-LIVE-22 running, before 5 s
+**Steps**
+1. At ~3 s press `Space` (slide 2 early). 2. At ~6 s press `←` (back to slide 1).
+**Expected**
+- Step 1: slide 2 shows at once; when the music reaches 5 s nothing changes (it's already there).
+- Step 2: slide 1 stays up (the music never pulls the lyrics backwards or forwards to an old start); at 8 s slide 3
+  comes up by itself.
+
+### TC-LIVE-24 · Seeking moves the lyrics with the music  `P1`
+**Pre:** TC-LIVE-22 running, after 8 s
+**Steps**
+1. Click the media bar's progress line at about 50% (≈ 6 s). 2. Click near the start (≈ 1 s).
+**Expected**
+- Step 1: slide 2 shows. Step 2: back to the intro (no text, "first line in …").
+
+### TC-LIVE-25 · The intro and the choir's countdown  `P1`
+**Pre:** TC-SONG-17; stage display open
+**Steps**
+1. **🎵 Show with track**. 2. `←` during the intro. 3. `Space` during the intro.
+**Expected**
+- The projector shows no text during the intro; the stage display shows "🎵 First line in 0:0x" counting down.
+- Step 2: still the intro. Step 3: slide 1 shows at once.
+
+### TC-LIVE-26 · Follow the timing off  `P2`
+**Pre:** TC-LIVE-22 running
+**Steps**
+1. Untick **⏱ Follow the timing** before 5 s. 2. Wait until 9 s. 3. Tick it again.
+**Expected**
+- Step 2: nothing moves by itself (`live.get().followOff === true`); `Space` still works.
+- Step 3: it follows again from the next start in the music (no jump to "where the music is now").

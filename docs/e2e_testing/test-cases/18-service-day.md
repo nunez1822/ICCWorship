@@ -98,3 +98,11 @@ run them before a release. Check the projector, stage and phone at every marked 
 **Expected**
 - The music starts with the first slide, plays under every slide, keeps going after the last slide (outro), and the
   next item comes up on the next `Space`. No silence, no restart, no toast.
+
+### TC-DAY-12 · The choir sings with a timed backing track  `P1`
+**Pre:** "Track Test" with recorded timing (TC-SONG-17), in today's plan with the track on (TC-PLAN-13 steps 1–2)
+**Steps**
+1. Go live with the song from the plan; the volunteer presses nothing during the song. 2. After the last line, `Space`.
+**Expected**
+- Intro without text, every slide on time by itself, the outro after the last line (music finishing), then the next
+  item on `Space`. The stage display counted the choir in.

@@ -160,3 +160,12 @@ keyboard together.
 **Expected**
 - An error toast "⚠ The projector window was closed: the sound stopped…". Turning the projector on again resumes the video.
 
+### TC-CONF-20 · Keys pressed while recording a timing never move the live screen  `P0`
+**Pre:** another song live on slide 1 (Songs → Show now); TC-SONG-12
+**Steps**
+1. "Track Test" → **⏱ Record timing** → **⏺ Start**. 2. Press `Space` three times, then `PageUp`, `PageDown`, `B`,
+   `L`, `P`, `2`, `Ctrl+→`.
+**Expected**
+- The live song is still on slide 1, no Black / Logo, the screen language unchanged, the same item
+  (`window.api.live.get()` unchanged); only the recording took the presses (PageUp took one back, PageDown added one).
+- A click beside the window doesn't close it; `Esc` asks "Close without saving the timing?".

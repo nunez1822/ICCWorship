@@ -47,7 +47,8 @@
     "outputOff": "Projector off",
     "outputTip": "Open or close the projector window",
     "remotesTip": "Phones / stage displays connected",
-    "music": "🎵 Music playing"
+    "music": "🎵 Music playing",
+    "intro": "🎵 Intro — first line in {{time}}"
   },
   "types": {
     "song": "Song",
@@ -636,7 +637,8 @@
     "black": "Screen is black",
     "logo": "Logo is showing",
     "next": "Next",
-    "end": "End of plan"
+    "end": "End of plan",
+    "firstLineIn": "First line in"
   },
   "menu": {
     "file": "File",
@@ -667,7 +669,7 @@
     "renderError": "The projector could not show this slide, so it shows black. Move to the next slide or item.",
     "stageRenderError": "The stage display could not show this slide. It shows the next slide normally.",
     "gpuCrashed": "The graphics driver stopped responding. If the projector goes black or freezes, turn on \"Turn off graphics acceleration\" in Settings → About and restart ICCWorship.",
-    "operatorRecovered": "ICCWorship restarted this window after a problem. The projector kept showing what was live; an announcement loop that was running has stopped — press Space to continue.",
+    "operatorRecovered": "ICCWorship restarted this window after a problem. The projector kept showing what was live (a backing track kept playing, and its lyrics keep following the music); an announcement loop that was running has stopped — press Space to continue.",
     "operatorCrashed": "The ICCWorship window crashed again. The projector keeps showing what is live. Reload the window?",
     "reload": "Reload"
   },
@@ -778,6 +780,38 @@
       "limits": "Works best on studio recordings with the lead voice in the center. Backing vocals, reverb and voices spread left and right stay.",
       "little": "ℹ Little was in the center of this recording: the voice may still be heard. Try “More”.",
       "almostAll": "⚠ Nearly everything was in the center of this recording: the track may sound thin. Try “Less”."
-    }
+    },
+    "timingOld": "⚠ This song's recorded timing no longer fits its slides (the song was changed): advance by hand, or record the timing again."
+  },
+  "timing": {
+    "title": "Record timing",
+    "record": "Record timing",
+    "recordHelp": "Play the track and press Space at each slide: then the lyrics follow the music by themselves.",
+    "edit": "Edit timing",
+    "ok": "timing",
+    "okHelp": "Live, the lyrics follow the music.",
+    "old": "timing out of date",
+    "oldHelp": "The song's slides changed since the timing was recorded: record it again.",
+    "help": "Press ⏺ Start: the track plays from the beginning. Press Space (or → / a clicker) the moment each slide should appear — the first press is slide 1, so an intro has no text. ← / Backspace takes back the last press.",
+    "start": "Start",
+    "speed": "Speed",
+    "recording": "Recording",
+    "stop": "Stop",
+    "onScreen": "On screen now:",
+    "intro": "Intro (no text)",
+    "nextPress": "Next press ({{n}} of {{total}}):",
+    "allMarked": "All slides have a time. Press Stop.",
+    "keys": "Space / → / ↓ / PageDown: next slide · ← / ↑ / PageUp / Backspace: take back. These keys don't move the projector while this window is open.",
+    "incomplete": "{{n}} of {{total}} slides have a time.",
+    "startsAt": "Slide {{n}} starts at (seconds)",
+    "listenHere": "Listen from 2 seconds before",
+    "addTime": "Add a time",
+    "recordAgain": "Record again",
+    "clear": "Remove the timing",
+    "saved": "⏱ Timing saved: live, the lyrics follow the music.",
+    "confirmClose": "Close without saving the timing?",
+    "follow": "Follow the timing",
+    "followHelp": "The lyrics change by themselves with the music. You can still move by hand: the next slide start in the music takes over again.",
+    "introHint": "🎵 Intro — first line in {{time}} (Space shows it now)"
   }
 }

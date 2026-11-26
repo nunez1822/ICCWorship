@@ -180,6 +180,8 @@ export interface PublicState {
   layers: { black: boolean; clearText: boolean; logo: boolean }
   /** track: a song's backing track (music), not a video */
   video?: { playing: boolean; track?: true }
+  /** the backing track's intro is playing: the first line comes at `firstAt` seconds (the stage counts down) */
+  intro?: { firstAt: number }
   stageMessage?: LiveState['stageMessage']
   displayLang: DisplayLang
   bilingualOrder: BilingualOrder
@@ -216,6 +218,7 @@ export function pickPublicState(s: LiveState, mediaUrl: (u: string | undefined) 
     planItems: s.planItems.map((i) => ({ id: i.id, title: i.title, type: i.type, person: i.person, durationMin: i.durationMin })),
     layers: { black: s.layers.black, clearText: s.layers.clearText, logo: s.layers.logo },
     video: s.video ? { playing: s.video.playing, ...(s.video.track ? { track: true as const } : {}) } : undefined,
+    intro: s.intro ? { firstAt: s.intro.firstAt } : undefined,
     stageMessage: s.stageMessage,
     displayLang: s.displayLang,
     bilingualOrder: s.bilingualOrder

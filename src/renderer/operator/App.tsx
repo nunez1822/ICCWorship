@@ -17,6 +17,7 @@ import { ShortcutsHelp } from './ShortcutsHelp'
 import { Seg } from '../components/ui'
 import { ErrorBoundary, errorSummary } from '../components/ErrorBoundary'
 import type { DisplayLang } from '@shared/types'
+import { formatClock } from '@shared/slides'
 
 const NAV: { id: Page; ico: string }[] = [
   { id: 'live', ico: '📺' },
@@ -156,7 +157,7 @@ export function App() {
   const cover = liveState?.layers.black ? 'black' : liveState?.layers.logo ? 'logo' : null
   const isLive = !!liveState && liveState.slideIndex >= 0 && !cover
   // the lyrics are off but the backing track still plays (the outro): the bar says so instead of "Off air"
-  const musicOnly = !!liveState?.outro && !!liveState.video?.track
+  const musicOnly = (!!liveState?.outro || !!liveState?.intro) && !!liveState?.video?.track
 
   return (
     <div className="shell">
@@ -178,8 +179,8 @@ export function App() {
           {liveState?.itemTitle && liveState.slideIndex >= 0 && <span className="pill">{liveState.itemTitle}</span>}
           {/* the lyrics are off but the backing track still plays (the outro) */}
           {!cover && musicOnly && (
-            <span className="pill gold" title={t('track.musicStill')}>
-              {t('top.music')}
+            <span className="pill gold" title={liveState?.intro ? undefined : t('track.musicStill')}>
+              {liveState?.intro ? <IntroCountdown firstAt={liveState.intro.firstAt} /> : t('top.music')}
             </span>
           )}
           {/* a cover is up: the audience does not see the slide the operator is moving through */}
@@ -301,4 +302,11 @@ export function App() {
       </div>
     </div>
   )
+}
+
+/** "🎵 Intro — first line in 0:08": its own component, so only it re-renders with every position report */
+function IntroCountdown({ firstAt }: { firstAt: number }) {
+  const { t } = useTranslation()
+  const current = useApp((s) => s.progress?.current || 0)
+  return <>{t('top.intro', { time: formatClock(Math.max(0, firstAt - current) * 1000) })}</>
 }

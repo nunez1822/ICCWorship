@@ -211,3 +211,14 @@ foreach ($s in @(@(16,16,'tiny'), @(1080,4000,'tall'), @(6000,400,'wide'))) { $b
 **Expected**
 - "⚠ Both channels of this file are (almost) the same: removing the center would remove nearly everything…" and no
   **Save the track** button.
+
+### TC-EDGE-24 · A song changed after its timing was recorded  `P1`
+**Pre:** TC-SONG-17
+**Steps**
+1. "Track Test" → **＋ Chorus** and type one line in it (4 slides now). 2. **🎵 Show with track**.
+3. Remove that chorus (✕); then fix a word in a line (a typo, no line added); Show with track again.
+**Expected**
+- Step 1: the card's badge becomes "⚠ timing out of date".
+- Step 2: the lyrics start on slide 1 (no intro), nothing moves by itself, and one message says the timing no longer
+  fits ("…advance by hand, or record the timing again").
+- Step 3: the badge is "⏱ timing" again and the lyrics follow (a typo doesn't break the timing).

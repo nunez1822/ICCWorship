@@ -264,3 +264,12 @@ projector first — earlier crashes in the last minute count toward the limit.
 **Expected**
 - The track file is in the new folder's `tracks/`, and the music plays (the song stores the track relative to the
   data folder).
+
+### TC-RES-33 · The operator window crashes mid-song: the music and following go on  `P1`
+**Pre:** TC-LIVE-22 running at ~3 s
+**Steps**
+1. Crash the operator page (`browser_evaluate(() => { while (true) {} })` on index.html; answer the reload message
+   with `queueMessageBox(0)` if asked).
+**Expected**
+- The projector keeps the music playing and the lyrics on screen; after the operator reloads, the toast says the
+  window restarted and that the lyrics keep following the music; slide 3 still comes up at ~8 s.

@@ -128,8 +128,10 @@ function Output() {
         else el.addEventListener('loadedmetadata', go, { once: true })
       })
       // a failed load still fires timeupdate (position reset to 0): don't let it wipe the error
-      el.ontimeupdate = () => !el.error && !resuming && window.api.live.videoProgress({ current: el.currentTime, duration: el.duration || 0, src: src() })
-      el.onloadedmetadata = () => !el.error && !resuming && window.api.live.videoProgress({ current: 0, duration: el.duration || 0, src: src() })
+      // stamped with what this page was playing (item, seek), so a late report can't move the lyrics backwards
+      const stamp = () => ({ src: src(), itemId: stateRef.current?.itemId, seekSeq: lastSeek.current })
+      el.ontimeupdate = () => !el.error && !resuming && window.api.live.videoProgress({ current: el.currentTime, duration: el.duration || 0, ...stamp() })
+      el.onloadedmetadata = () => !el.error && !resuming && window.api.live.videoProgress({ current: 0, duration: el.duration || 0, load: true, ...stamp() })
       // tell the operator instead of sitting on a black frame that claims to be "playing"
       el.onerror = () => window.api.live.videoProgress({ current: 0, duration: 0, error: true, src: src() })
       el.onended = () => {

@@ -11,7 +11,7 @@ import type {
   Background,
   VideoEndedCommand
 } from '@shared/types'
-import { songName, songToSlides, uid } from '@shared/slides'
+import { slidesTimingKey, songName, songToSlides, timedSlideAt, uid } from '@shared/slides'
 import { localDate } from '@shared/dates'
 import { buildItem, themeBackground } from '../lib/buildSlides'
 import { createActionQueue } from '../lib/actionQueue'
@@ -154,6 +154,99 @@ function checkMediaFiles(slides: Slide[], background?: Background | null, track?
     })
 }
 
+/* ------------------------------ recorded timing: the lyrics follow the backing track ------------------------------ */
+
+/** the item that was already told its timing no longer fits (one message per item) */
+let timingWarnedFor: string | undefined
+
+/**
+ * The recorded timing of a song's backing track, if it fits these slides (same layout as when it was recorded).
+ * A song edited since (another order, other lines per slide) says so once, and the operator advances by hand.
+ */
+function timingsFor(songId: string | undefined, src: string, slides: Slide[], itemId: string | undefined): number[] | undefined {
+  const tr = st().songs.find((x) => x.id === songId)?.track
+  if (!tr?.timings?.length || tr.url !== src) return undefined
+  if (tr.timingsKey !== slidesTimingKey(slides) || tr.timings.length !== slides.length) {
+    if (itemId && timingWarnedFor !== itemId) {
+      timingWarnedFor = itemId
+      st().toast(t('track.timingOld'), 'err', 10_000)
+    }
+    return undefined
+  }
+  return tr.timings
+}
+
+/** the live song's recorded timing, when its backing track plays and the timing fits (Live page: the Follow box) */
+export function liveTimings(l: LiveState | null | undefined = live()): number[] | undefined {
+  return l?.video?.track ? timingsFor(l.songId, l.video.src, l.slides, undefined) : undefined
+}
+
+/** where "follow the timing" stands for the live item */
+const follow = { itemId: undefined as string | undefined, lastTarget: -2, lastAuto: -1, seekSeq: -1 }
+
+/**
+ * Each position report from the projector: when the music crosses the start of a slide, show that slide. Moves only
+ * forward (an operator who went ahead or back by hand is never pulled backwards — the next start the music reaches
+ * takes over again), except right after a seek, which jumps to the slide of the new position. Reports from before a
+ * seek, from another item or from the moment the file opened are ignored.
+ */
+export function followTick(p: LiveState['videoProgress']): void {
+  const l = live()
+  if (!p || p.error || p.load || !l?.video?.track || l.followOff) return
+  if (p.itemId !== l.itemId || p.seekSeq !== l.video.seekSeq || p.src !== l.video.src) return
+  // Esc'd, or the outro: the operator decides
+  if (l.outro || (l.slideIndex < 0 && !l.intro)) return
+  const timings = timingsFor(l.songId, l.video.src, l.slides, l.itemId)
+  if (!timings) return
+  const target = timedSlideAt(timings, p.current)
+  const cur = l.intro ? -1 : l.slideIndex
+  if (follow.itemId !== l.itemId) {
+    // a new item (or the operator window was reloaded): start from where things are, never jump
+    Object.assign(follow, { itemId: l.itemId, lastTarget: target, lastAuto: cur, seekSeq: l.video.seekSeq })
+    return
+  }
+  if (follow.seekSeq !== l.video.seekSeq) {
+    // the first report after a seek: show the slide of the new position, backwards too
+    follow.seekSeq = l.video.seekSeq
+    follow.lastTarget = target
+    if (Math.abs(p.current - l.video.seekTo) < 1 && target !== cur) {
+      follow.lastAuto = target
+      moveTo(target, timings, l.itemId)
+    }
+    return
+  }
+  if (target === follow.lastTarget) return
+  follow.lastTarget = target
+  if (target > Math.max(cur, follow.lastAuto)) {
+    follow.lastAuto = target
+    moveTo(target, timings, l.itemId)
+  }
+}
+
+function moveTo(target: number, timings: number[], itemId: string | undefined): void {
+  void enqueue(async () => {
+    // decided when it's our turn in the queue: Esc, another item or "follow" off since then win
+    const l = live()
+    if (!l || l.itemId !== itemId || !l.video?.track || l.followOff || l.outro || (l.slideIndex < 0 && !l.intro)) return
+    if (target < 0) {
+      if (!l.intro) await push({ slideIndex: -1, clearedFrom: 0, intro: { firstAt: timings[0] } })
+      return
+    }
+    if (target < l.slides.length && target !== l.slideIndex) await goSlide(target)
+  })
+}
+
+// the store gets every position report; follow them (the store mock in tests has no subscribe)
+useApp.subscribe?.((s, prev) => {
+  if (s.progress !== prev.progress) followTick(s.progress)
+})
+
+/** Live page → "Follow the timing": off = the operator advances by hand; on again follows from the next start */
+export async function setFollow(on: boolean): Promise<void> {
+  follow.itemId = undefined
+  await push({ followOff: on ? undefined : true })
+}
+
 /** Put a plan item on screen */
 export async function goItem(index: number, slideIndex = 0): Promise<void> {
   const plan = activePlan()
@@ -166,6 +259,9 @@ export async function goItem(index: number, slideIndex = 0): Promise<void> {
   const l = live()
   // the same song is already live with its music (a thumbnail click, a double-click): the music goes on
   const sameTrack = !!built.track && l?.itemId === item.id && !!l.video?.track && l.video.src === built.track.src
+  // recorded timing: the music starts at the slide's time; from the top, an intro without text until the first line
+  const timings = built.track && !sameTrack ? timingsFor(item.refId, built.track.src, built.slides, item.id) : undefined
+  const intro = timings && si === 0 && timings[0] >= 0.5 ? { firstAt: timings[0] } : undefined
   const patch: Partial<LiveState> = {
     planId: plan.id,
     planTitle: plan.title,
@@ -176,8 +272,10 @@ export async function goItem(index: number, slideIndex = 0): Promise<void> {
     itemType: item.type,
     itemNotes: item.notes,
     slides: built.slides,
-    slideIndex: built.slides.length ? si : -1,
-    clearedFrom: undefined,
+    slideIndex: built.slides.length && !intro ? si : -1,
+    clearedFrom: intro ? 0 : undefined,
+    intro,
+    followOff: sameTrack ? l?.followOff : undefined,
     songId: item.type === 'song' ? item.refId : undefined,
     theme: built.theme,
     background: built.background,
@@ -185,14 +283,17 @@ export async function goItem(index: number, slideIndex = 0): Promise<void> {
     serviceStartedAt: l?.serviceStartedAt || Date.now(),
     // the slide it starts on decides: a media item, or a video slide inside an
     // announcement / header (which otherwise sat on a frozen first frame) — or the song's backing track
-    video: startVideo(built.slides[si], item) ?? (built.track && (sameTrack ? l!.video : startTrack(built.track, si))),
+    video: startVideo(built.slides[si], item) ?? (built.track && (sameTrack ? l!.video : startTrack(built.track, si, timings))),
     outro: undefined,
     // Black and Logo are screen covers (as in EasyWorship / ProPresenter / MediaShout): they
     // stay up while the operator moves on underneath, until turned off. Clear text resets.
     layers: { black: !!l?.layers.black, clearText: false, clearBackground: false, logo: !!l?.layers.logo }
   }
-  // a new video or track starts with fresh progress; the music that goes on keeps its position
-  if (!sameTrack) patch.videoProgress = undefined
+  // a new video or track starts with fresh progress (and following starts over); the music that goes on keeps both
+  if (!sameTrack) {
+    patch.videoProgress = undefined
+    follow.itemId = undefined
+  }
   clearedVideo = undefined
   await push(patch)
   st().selectItem(item.id)
@@ -236,20 +337,26 @@ async function showAdhocNow(args: {
   const background = args.background === undefined ? themeBackground(theme, s.media) : args.background
   clearedVideo = undefined
   heldVideoSrc = undefined
+  const itemId = 'adhoc-' + uid()
+  follow.itemId = undefined
+  const timings = args.track ? timingsFor(args.songId, args.track.src, args.slides, itemId) : undefined
+  const intro = timings && timings[0] >= 0.5 ? { firstAt: timings[0] } : undefined
   await push({
     itemIndex: -1,
-    itemId: 'adhoc-' + uid(),
+    itemId,
     itemTitle: args.title,
     itemType: args.type,
     itemNotes: undefined,
     slides: args.slides,
-    slideIndex: args.slides.length ? 0 : -1,
-    clearedFrom: undefined,
+    slideIndex: args.slides.length && !intro ? 0 : -1,
+    clearedFrom: intro ? 0 : undefined,
+    intro,
+    followOff: undefined,
     songId: args.songId,
     theme,
     background,
     itemStartedAt: Date.now(),
-    video: args.video || args.slides[0]?.kind === 'video' ? startVideo(args.slides[0]) : args.track ? startTrack(args.track, 0) : undefined,
+    video: args.video || args.slides[0]?.kind === 'video' ? startVideo(args.slides[0]) : args.track ? startTrack(args.track, 0, timings) : undefined,
     videoProgress: undefined,
     outro: undefined,
     // screen covers stay up (see goItem)
@@ -294,7 +401,7 @@ export async function goSlide(index: number): Promise<void> {
   if (!l || index < 0 || index >= l.slides.length) return
   const slide = l.slides[index]
   // covers (black / logo) stay up: the operator can line up the next slide, then reveal it
-  const patch: Partial<LiveState> = { slideIndex: index, clearedFrom: undefined, outro: undefined }
+  const patch: Partial<LiveState> = { slideIndex: index, clearedFrom: undefined, outro: undefined, intro: undefined }
   // A video slide needs playback state (after Esc, or reached inside an announcement),
   // or the projector sits on a frozen first frame with no play controls. Leaving a video
   // slide for a text / image one drops it, so no stale video controls stay up — but a song's
@@ -324,12 +431,15 @@ function startVideo(slide: Slide | undefined, item?: PlanItem): LiveState['video
 }
 
 /**
- * Playback state for a song's backing track. Entering a song part-way (a thumbnail, Back from the next item) has
- * the music wait, paused at the start, for P — rather than starting the song from the top under a later verse.
+ * Playback state for a song's backing track. Entering a song part-way (a thumbnail, Back from the next item): with
+ * recorded timing the music starts where that slide begins; without it, it waits paused at the start for P —
+ * rather than starting the song from the top under a later verse.
  */
-function startTrack(t: { src: string; volume: number }, slideIndex: number): NonNullable<LiveState['video']> {
+function startTrack(t: { src: string; volume: number }, slideIndex: number, timings?: number[]): NonNullable<LiveState['video']> {
   const v = { src: t.src, playing: true, loop: false, volume: t.volume, seekSeq: 0, seekTo: 0, track: true }
-  return slideIndex > 0 ? { ...v, playing: false } : holdUnderCover(v)
+  if (slideIndex <= 0) return holdUnderCover(v)
+  if (timings?.[slideIndex] !== undefined) return holdUnderCover({ ...v, seekSeq: 1, seekTo: timings[slideIndex] })
+  return { ...v, playing: false }
 }
 
 /** Black / Logo is up: the audience can't see the video, so don't play its sound yet. */
@@ -380,8 +490,9 @@ function canResumeCleared(l: LiveState): boolean {
 export async function prev(): Promise<void> {
   const l = live()
   if (!l) return
-  // during the outro, Back brings the last lyric slide back
+  // during the outro, Back brings the last lyric slide back; during the intro there is nothing before it
   if (l.outro) return goSlide(Math.min(l.clearedFrom ?? l.slides.length - 1, l.slides.length - 1))
+  if (l.intro) return
   // after an accidental Esc, ← brings the cleared slide back (like Space), instead of
   // jumping to the previous plan item
   if (canResumeCleared(l)) return goSlide(l.clearedFrom!)
@@ -411,7 +522,11 @@ export async function toggleLayer(layer: keyof LiveState['layers']): Promise<voi
   const layers = { ...l.layers, [layer]: !l.layers[layer] }
   const patch: Partial<LiveState> = { layers }
   // the last cover came off: a video held under it starts now
-  if (!layers.black && !layers.logo && heldVideoSrc && l.video?.src === heldVideoSrc && !l.video.playing) patch.video = { ...l.video, playing: true }
+  if (!layers.black && !layers.logo && heldVideoSrc && l.video?.src === heldVideoSrc && !l.video.playing) {
+    // a backing track held from the start while the operator moved on underneath: start at the slide shown now
+    const tm = l.video.track && l.slideIndex > 0 ? liveTimings(l) : undefined
+    patch.video = { ...l.video, playing: true, ...(tm ? { seekSeq: l.video.seekSeq + 1, seekTo: tm[l.slideIndex] } : {}) }
+  }
   if (!layers.black && !layers.logo) heldVideoSrc = undefined
   await push(patch)
 }
@@ -436,6 +551,7 @@ export async function clearAll(): Promise<void> {
     video: undefined,
     videoProgress: undefined,
     outro: undefined,
+    intro: undefined,
     message: undefined,
     layers: { black: false, clearText: false, clearBackground: false, logo: false }
   })

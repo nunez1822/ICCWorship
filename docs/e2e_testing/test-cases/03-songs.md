@@ -145,3 +145,17 @@ Reload the operator (`location.reload()`), then do TC-SONG-12.
 **Expected**
 - "⚠ This file is mono (one channel): the voice can't be separated…"; there is no **Save the track** button.
   **← Back** and **Yes — use it as is** still work (a mono instrumental is fine to play).
+
+### TC-SONG-17 · Record the timing, then fine-tune it  `P1`
+**Pre:** TC-SONG-12 ("Track Test", 3 slides, with its track)
+**Steps**
+1. "Track Test" → **⏱ Record timing** → **⏺ Start**. Press `Space` about 1 s, 3 s and 6 s into the music.
+2. **⏹ Stop**. 3. Change the three times to `2`, `5`, `8` (type, or −½ / +½); **▶** next to a time plays from 2 s
+   before it. 4. **✓ Save**.
+**Expected**
+- While recording: "On screen now: 🎵 Intro (no text)" before the first press, then the slide each press started, and
+  "Next press (n of 3)". `←` / `Backspace` takes the last press back.
+- After Stop: three increasing times (about 1, 3, 6). Save is disabled until every slide has a time.
+- Step 4: "⏱ Timing saved…"; the card shows **⏱ timing** and **Edit timing**;
+  `track.timings` = `[2, 5, 8]` and `track.timingsKey` is set.
+- **Edit timing** opens the list directly (no recording); **Remove the timing** removes it.
