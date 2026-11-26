@@ -91,6 +91,19 @@ describe('cleanTimings', () => {
     expect(cleanTimings([0, 4.25, 8.0004])).toEqual([0, 4.25, 8])
     expect(cleanTimings([2.5, 6])).toEqual([2.5, 6]) // an intro before the first slide
   })
+  it('never stores two marks as the same number (they would be rejected on the next load)', () => {
+    expect(cleanTimings([1.9996, 2.0004])).toEqual([2, 2.001])
+    expect(cleanTimings([12.0004, 12.0006, 12.0009])).toEqual([12, 12.001, 12.002])
+    for (const raw of [
+      [1.9996, 2.0004],
+      [12.0004, 12.0006, 12.0009],
+      [0, 4.25, 8.0004],
+      [0.1, 0.2, 0.3]
+    ]) {
+      const once = cleanTimings(raw)!
+      expect(cleanTimings(once)).toEqual(once) // stable: what is saved loads back the same
+    }
+  })
   it('drops timing that is out of order or broken (rather than guessing)', () => {
     for (const bad of [[3, 2], [0, 0], [-1, 2], [0, Number.NaN], [0, Infinity], ['1'], [], 'x', null]) expect(cleanTimings(bad)).toBeUndefined()
   })

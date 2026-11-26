@@ -176,23 +176,43 @@ describe('JsonStore and backups of recovered files', () => {
   })
 })
 
-describe('JsonStore.isHealthy (may files be deleted based on this list?)', () => {
+describe('JsonStore.loadedAs (may files be deleted based on this list?)', () => {
   let dir: string
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'iccw-store-'))
   })
   afterEach(() => rmSync(dir, { recursive: true, force: true }))
 
-  it('is true only for a list read undamaged from its own file', () => {
+  it('is ok only for a list read undamaged from its own file', () => {
     writeFileSync(join(dir, 'songs.json'), '[{"id":"a"}]')
-    expect(new JsonStore(dir).isHealthy('songs')).toBe(true)
+    expect(new JsonStore(dir).loadedAs('songs')).toBe('ok')
   })
-  it('is false for a list recovered from .bak, a missing file or an unreadable one', () => {
+  it('tells a list recovered from .bak or unreadable (degraded) from one with no file (missing)', () => {
     writeFileSync(join(dir, 'songs.json'), '[{"id":"a"},{"i')
     writeFileSync(join(dir, 'songs.json.bak'), '[{"id":"a"}]')
-    expect(new JsonStore(dir).isHealthy('songs')).toBe(false)
-    expect(new JsonStore(dir).isHealthy('plans')).toBe(false) // no plans.json at all
+    expect(new JsonStore(dir).loadedAs('songs')).toBe('degraded')
+    expect(new JsonStore(dir).loadedAs('plans')).toBe('missing') // no plans.json at all
     writeFileSync(join(dir, 'media.json'), '{{{')
-    expect(new JsonStore(dir).isHealthy('media')).toBe(false)
+    expect(new JsonStore(dir).loadedAs('media')).toBe('degraded')
+    writeFileSync(join(dir, 'people.json.bak'), '[]') // the main file is gone, its .bak is used
+    expect(new JsonStore(dir).loadedAs('people')).toBe('degraded')
+  })
+  it('stays degraded / missing after saves and after the problems are handed to the operator', () => {
+    writeFileSync(join(dir, 'songs.json'), '[{"id":"a"},{"i')
+    writeFileSync(join(dir, 'songs.json.bak'), '[{"id":"a"}]')
+    const s = new JsonStore(dir)
+    s.upsert('songs', { id: 'b' })
+    s.flush()
+    s.problems.splice(0)
+    expect(s.loadedAs('songs')).toBe('degraded')
+    s.upsert('plans', { id: 'p' })
+    s.flush()
+    expect(s.loadedAs('plans')).toBe('missing')
+    // a restore forgets it all: the files are read again (both are healthy on disk now)
+    const gen = s.generation
+    s.reset()
+    expect(s.generation).toBe(gen + 1)
+    expect(s.loadedAs('songs')).toBe('ok')
+    expect(s.loadedAs('plans')).toBe('ok')
   })
 })

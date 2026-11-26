@@ -197,3 +197,18 @@ the sample again. Repeat 3 times.
 - Steps 2–3: the music fades out and comes back where it was (no "can't be played" toast): the old `.ogg` is still
   in `.e2e-data/tracks/`.
 - Step 4: the old `.ogg` is deleted; the new one stays.
+
+### TC-SONG-21 · A whole-service recording is turned away before it is decoded  `P1`
+**Pre:** TC-SONG-12's setup, "Track Test" without a backing track. Make a 40-minute silent WAV (8 kHz mono 8-bit,
+about 19 MB: under the 200 MB size limit) and queue it:
+```bash
+node -e "const n=8000*2400,b=Buffer.alloc(44+n,128);b.write('RIFF',0);b.writeUInt32LE(36+n,4);b.write('WAVEfmt ',8);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(8000,24);b.writeUInt32LE(8000,28);b.writeUInt16LE(1,32);b.writeUInt16LE(8,34);b.write('data',36);b.writeUInt32LE(n,40);require('fs').writeFileSync('.e2e-data/long.wav',b)"
+```
+`window.api.e2e.queueOpenFiles(['<repo>/.e2e-data/long.wav'])`
+**Steps**
+1. **＋ Add backing track…** → **📂 Choose a file…** → **✓ Yes — use it as is**.
+**Expected**
+- Within a few seconds the toast "⚠ The file is longer than 20 minutes." ("⚠ El archivo dura más de 20 minutos.")
+  appears and the window is back at the file choice. The operator window stays responsive throughout.
+- The song still has no `track`, and no new `.ogg` is in `.e2e-data/tracks/`. The log says
+  `backing track not made: too-long`.

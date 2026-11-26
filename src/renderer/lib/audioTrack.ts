@@ -84,8 +84,41 @@ export interface Decoded {
   seconds: number
 }
 
+/** how long the <audio> element may take to read a file's length before decoding goes ahead without it */
+const PROBE_MS = 10_000
+
+/**
+ * The file's length in seconds as the <audio> element reads it from the header — without decoding anything — or
+ * undefined when it can't tell (unknown format, no length in the header, too slow). Only a guess for some files
+ * (an MP3 without a VBR header): good enough to turn away a whole-service recording before it is decoded.
+ */
+function probeSeconds(bytes: Uint8Array): Promise<number | undefined> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>]))
+    const el = new Audio()
+    const done = (s?: number) => {
+      clearTimeout(timer)
+      el.onloadedmetadata = el.onerror = null
+      el.removeAttribute('src')
+      el.load()
+      URL.revokeObjectURL(url)
+      resolve(s !== undefined && Number.isFinite(s) && s > 0 ? s : undefined)
+    }
+    const timer = setTimeout(() => done(), PROBE_MS)
+    el.preload = 'metadata'
+    el.onloadedmetadata = () => done(el.duration)
+    el.onerror = () => done()
+    el.src = url
+  })
+}
+
 /** Decode to 48 kHz (what Opus uses). A file with more than two channels keeps front left / right. */
 export async function decodeAudio(bytes: Uint8Array): Promise<Decoded> {
+  // Too long? Say so before decoding: a 2-hour recording under the size limit would need GBs of memory decoded and
+  // could freeze the operator window. A header can be a little off (VBR MP3): only a clear "too long" is turned
+  // away here; the exact check after decoding catches the rest.
+  const guess = await probeSeconds(bytes)
+  if (guess !== undefined && guess > MAX_MINUTES * 60 * 1.25) throw new TrackError('too-long')
   // OfflineAudioContext: no sound device needed, and it resamples to exactly 48 kHz
   const ctx = new OfflineAudioContext(2, 1, 48000)
   let buf: AudioBuffer

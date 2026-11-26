@@ -825,5 +825,19 @@
     "follow": "Seguir los tiempos",
     "followHelp": "La letra cambia sola con la música. Puede moverla a mano: el siguiente inicio de diapositiva en la música vuelve a tomar el control.",
     "introHint": "🎵 Intro — primera línea en {{time}} (Espacio la muestra ya)"
+  },
+  "runSheet": {
+    "time": "Hora",
+    "item": "Elemento",
+    "who": "Quién",
+    "min": "Min",
+    "notes": "Notas",
+    "team": "Equipo",
+    "total": "Total",
+    "printed": "Impreso con ICCWorship — software libre y gratuito para iglesias",
+    "position": "Puesto",
+    "person": "Persona",
+    "status": "Estado",
+    "track": "pista de acompañamiento"
   }
 }

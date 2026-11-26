@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { JsonStore } from './jsonStore'
-import { dataDir, dataRoot } from './paths'
+import { dataDir, dataRoot, trackMirrorDir } from './paths'
 import { TRACKS_DIR } from './restorePath'
 import { isTrackFileName } from '@shared/tracks'
 import { newPin } from './pathGuard'
@@ -105,24 +105,41 @@ export function ensurePin(): boolean {
 }
 
 /**
- * Backing tracks that were already in tracks/ when the sample songs were written into an empty songs list: data/ was
- * lost or only partly synced while tracks/ is still there, so they belong to songs this list doesn't have. They are
- * kept in meta.json (so it lasts beyond this run) and are never deleted or retired as "unused" — until a restore
- * replaces meta.json with the backup's. Anything that deletes tracks no song uses must add these to the ones in use.
+ * Backing tracks kept for good, in meta.json (so it lasts beyond this run): never deleted or retired as "unused" —
+ * until a restore replaces meta.json with the backup's. They belong to songs the songs list may no longer have:
+ * - tracks already in tracks/ when the sample songs were written into an empty songs list (data/ was lost or only
+ *   partly synced while tracks/ is still there);
+ * - every track there was when the songs list was found damaged, recovered from an older .bak, or missing (see
+ *   songsListIsComplete in tracks.ts).
+ * Anything that deletes tracks no song uses must add these to the ones in use.
  */
-export function tracksKeptFromBeforeSeeding(): Set<string> {
+export function keptTracks(): Set<string> {
   const keep = db().read<{ keepTracks?: unknown }>('meta', {}).keepTracks
   return new Set(Array.isArray(keep) ? keep.filter((n): n is string => typeof n === 'string' && isTrackFileName(n)) : [])
 }
 
-function trackFilesOnDisk(): string[] {
+/** Add track files to the ones kept for good (see keptTracks). Writes meta.json only when one is new; how many were. */
+export function keepTracksForGood(names: readonly string[]): number {
+  const s = db()
+  const kept = keptTracks()
+  const added = [...new Set(names)].filter((n) => isTrackFileName(n) && !kept.has(n))
+  if (!added.length) return 0
+  s.write('meta', { ...s.read<Record<string, unknown>>('meta', {}), keepTracks: [...kept, ...added] }, true)
+  return added.length
+}
+
+function trackFilesIn(dir: string): string[] {
   try {
-    const dir = join(dataRoot(), TRACKS_DIR)
     return existsSync(dir) ? readdirSync(dir).filter(isTrackFileName) : []
   } catch {
     return []
   }
 }
+
+/** the track files in tracks/ */
+export const trackFilesOnDisk = (): string[] => trackFilesIn(join(dataRoot(), TRACKS_DIR))
+/** the copies kept beside the backups (backups/tracks/, not its gone-<day> folders) */
+export const trackFilesInMirror = (): string[] => trackFilesIn(trackMirrorDir())
 
 /** First launch: seed sample songs, themes, teams and a Sunday template so the app is useful immediately. */
 export function seedIfEmpty(): void {
@@ -138,17 +155,17 @@ export function seedIfEmpty(): void {
     if (JSON.stringify(next) !== JSON.stringify(themes)) s.write('themes', next)
     return
   }
-  let keepTracks: string[] = []
-  if (!s.list('songs').length) {
-    s.write('songs', SAMPLE_SONGS)
-    // tracks already here belong to songs this list doesn't have (see tracksKeptFromBeforeSeeding)
-    keepTracks = trackFilesOnDisk()
-    if (keepTracks.length) log.warn('sample songs added while tracks/ already holds backing tracks: they are kept', keepTracks.length)
-  }
+  const sampleSongs = !s.list('songs').length
+  if (sampleSongs) s.write('songs', SAMPLE_SONGS)
   s.write('themes', DEFAULT_THEMES)
   if (!s.list('teams').length) s.write('teams', DEFAULT_TEAMS)
   if (!s.list('plans').length) s.write('plans', [sampleTemplate()])
-  s.write('meta', { ...meta, seeded: Date.now(), schemaVersion: SCHEMA_VERSION, ...(keepTracks.length ? { keepTracks } : {}) }, true)
+  s.write('meta', { ...meta, seeded: Date.now(), schemaVersion: SCHEMA_VERSION }, true)
+  if (sampleSongs) {
+    // tracks already here belong to songs this list doesn't have (see keptTracks)
+    const kept = keepTracksForGood(trackFilesOnDisk())
+    if (kept) log.warn('sample songs added while tracks/ already holds backing tracks: they are kept', kept)
+  }
   s.flush()
 }
 

@@ -70,6 +70,33 @@ describe('ZipReader', () => {
     expect(readdirSync(dir).sort()).toEqual(['b.zip'])
   })
 
+  it('reads every entry of a backup with more than 65,535 of them (JSZip keeps only 16 bits of the count)', async () => {
+    const f = join(dir, 'big.zip')
+    const zip = new JSZip()
+    const n = 65_537 + 3
+    for (let i = 0; i < n; i++) zip.file(`cache/presentations/p/${i}.png`, '', { compression: 'STORE' })
+    writeFileSync(f, await zip.generateAsync({ type: 'nodebuffer' }))
+    const buf = readFileSync(f)
+    const eocd = buf.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]))
+    const z = await ZipReader.open(f)
+    expect(z.entries.length).toBeGreaterThan(0xffff)
+    expect(buf.readUInt16LE(eocd + 10)).toBe(z.entries.length & 0xffff) // what JSZip wrote: a handful, not 65,540+
+    const files = z.entries.filter((e) => !e.dir)
+    expect(files).toHaveLength(n)
+    expect(files.at(-1)!.name).toBe(`cache/presentations/p/${n - 1}.png`)
+  }, 60_000)
+
+  it('refuses a directory that disagrees with the count in the end record', async () => {
+    const f = join(dir, 'b.zip')
+    await makeZip(f, false)
+    const buf = readFileSync(f)
+    const eocd = buf.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]))
+    buf.writeUInt16LE(buf.readUInt16LE(eocd + 10) + 1, eocd + 10)
+    buf.writeUInt16LE(buf.readUInt16LE(eocd + 8) + 1, eocd + 8)
+    writeFileSync(f, buf)
+    await expect(ZipReader.open(f)).rejects.toBeInstanceOf(ZipError)
+  })
+
   it('refuses a truncated zip', async () => {
     const f = join(dir, 'b.zip')
     await makeZip(f, true)

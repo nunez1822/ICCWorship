@@ -76,14 +76,22 @@ export const MAX_TRACK_BYTES = 60 * 1024 * 1024
 /** the largest audio file the operator may pick to make a track from */
 export const MAX_SOURCE_BYTES = 200 * 1024 * 1024
 
-/** Cue times: finite, ≥ 0 and increasing, or undefined when nothing valid is left. */
+const ms = (v: number) => Math.round(v * 1000) / 1000
+
+/**
+ * Cue times: finite, ≥ 0 and increasing, kept to the millisecond — or undefined when nothing valid is left. What it
+ * returns always passes it again unchanged: two marks less than 1 ms apart that round to the same millisecond are
+ * kept 1 ms apart (stored equal, the next load would reject them and drop the whole timing).
+ */
 export function cleanTimings(raw: unknown): number[] | undefined {
   if (!Array.isArray(raw)) return undefined
   const out: number[] = []
+  let prev = -1
   for (const v of raw) {
     if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) return undefined
-    if (out.length && v <= out[out.length - 1]) return undefined
-    out.push(Math.round(v * 1000) / 1000)
+    if (out.length && v <= prev) return undefined
+    prev = v
+    out.push(out.length ? Math.max(ms(v), ms(out[out.length - 1] + 0.001)) : ms(v))
   }
   return out.length ? out : undefined
 }

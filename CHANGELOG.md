@@ -42,7 +42,8 @@ All notable changes to ICCWorship are documented here. The format is based on
   where it was. **Show with track** on the Songs page, and per plan item: play it or not, its volume, and "go to the
   next item when finished". Adding a track to a song never turns it on in plans that already have the song. The plan,
   the Live page and the printed run sheet mark songs that play a track (🎧). Tracks are stored small (Opus,
-  ~1.2 MB per minute) in `Documents\ICCWorship\tracks`.
+  ~1.2 MB per minute) in `Documents\ICCWorship\tracks`. Songs up to 20 minutes; a longer recording (a whole
+  service) is turned away at once, before it is decoded.
 - **Lyrics that follow the music** (recorded timing, like ProPresenter's Timeline): Songs → ⏱ Record timing, play
   the track and press Space as each slide should appear, then fine-tune any time. Live, the intro shows no text
   ("first line in 0:08" on the top bar and the stage display, for the choir), each slide comes up with the music, a
@@ -104,8 +105,9 @@ All notable changes to ICCWorship are documented here. The format is based on
   automatic backup never deletes tracks (missing ones come back from `backups\tracks\`).
   A track that disappears from `tracks\` while a song still uses it (antivirus, a sync problem, tidying folders)
   comes back from `backups\tracks\` at the next start or hourly backup, and its copy there is never thrown away.
-  Unused tracks are only cleaned up when the song list is known to be complete, and tracks found when the sample
-  songs are added to an empty data folder (data lost or half synced) are never cleaned up until a backup is restored.
+  Unused tracks are only cleaned up when the song list is known to be complete. Tracks found when the sample songs
+  are added to an empty data folder (data lost or half synced), or when the song list had to be recovered from an
+  older copy or was missing, are never cleaned up until a backup is restored, even after the list is saved again.
   Backups and restores stream the files, so a large track library never has to fit in memory; they check the free
   disk space first, and **Back up now** says when the drive is full instead of failing silently. Over 4 GB of tracks,
   Back up now saves the data without them and says to copy the tracks folder too. Only the newest 2 safety copies

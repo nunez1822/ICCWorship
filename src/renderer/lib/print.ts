@@ -1,5 +1,7 @@
 import type { Person, ServicePlan, Team, Lang, Song, SongUsage } from '@shared/types'
 import { playsTrack } from './planRefs'
+import en from '../i18n/en.json'
+import es from '../i18n/es.json'
 
 const esc = (s: string | number | null | undefined) =>
   String(s ?? '')
@@ -7,38 +9,8 @@ const esc = (s: string | number | null | undefined) =>
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
 
-const L = {
-  en: {
-    order: 'Order of Service',
-    time: 'Time',
-    item: 'Item',
-    who: 'Who',
-    min: 'Min',
-    notes: 'Notes',
-    team: 'Team',
-    total: 'Total',
-    printed: 'Printed with ICCWorship — free & open-source church software',
-    position: 'Position',
-    person: 'Person',
-    status: 'Status',
-    track: 'backing track'
-  },
-  es: {
-    order: 'Orden del Servicio',
-    time: 'Hora',
-    item: 'Elemento',
-    who: 'Quién',
-    min: 'Min',
-    notes: 'Notas',
-    team: 'Equipo',
-    total: 'Total',
-    printed: 'Impreso con ICCWorship — software libre y gratuito para iglesias',
-    position: 'Puesto',
-    person: 'Persona',
-    status: 'Estado',
-    track: 'pista de acompañamiento'
-  }
-}
+// the run sheet is printed in the plan's language, whatever the operator's is: both tables, from the i18n files
+const L = { en: en.runSheet, es: es.runSheet }
 
 export function addMinutes(hhmm: string, minutes: number): string {
   const [h, m] = (hhmm || '00:00').split(':').map((x) => parseInt(x, 10) || 0)

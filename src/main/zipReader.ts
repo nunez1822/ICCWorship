@@ -4,8 +4,9 @@
  * holding every backing track can be GBs; JSZip would need all of it in memory at once.
  *
  * What a backup needs, nothing more: stored and deflated entries, no encryption, no Zip64 (JSZip, which writes our
- * backups, never makes Zip64). Every entry's size and CRC are checked while it is read: a damaged file fails, it is
- * never taken as data. (No Electron imports: unit tested in tests/zipReader.test.ts.)
+ * backups, never makes Zip64: past 65,535 entries it keeps only the low 16 bits of the count, so the entries are found
+ * by walking the central directory, not by trusting the count). Every entry's size and CRC are checked while it is
+ * read: a damaged file fails, it is never taken as data. (No Electron imports: unit tested in tests/zipReader.test.ts.)
  */
 import { createReadStream } from 'node:fs'
 import { open } from 'node:fs/promises'
@@ -28,6 +29,7 @@ export interface ZipEntry {
 const EOCD = 0x06054b50
 const CENTRAL = 0x02014b50
 const LOCAL = 0x04034b50
+const ZIP64_LOCATOR = 0x07064b50
 /** a central directory bigger than this isn't one of our backups (each entry takes ~100 bytes) */
 const MAX_DIRECTORY_BYTES = 64 * 1024 * 1024
 
@@ -76,16 +78,21 @@ export class ZipReader {
         }
       }
       if (at < 0) throw new ZipError('not a zip')
+      // A real Zip64 file has its locator just before the end record. Without one, a count of 0xffff is just the
+      // low 16 bits of the real count: JSZip writes `count & 0xffff` when a backup has more than 65,535 entries.
+      if (at >= 20 && tail.readUInt32LE(at - 20) === ZIP64_LOCATOR) throw new ZipError('zip64 is not supported')
       const count = tail.readUInt16LE(at + 10)
       const dirSize = tail.readUInt32LE(at + 12)
       const dirOffset = tail.readUInt32LE(at + 16)
-      if (count === 0xffff || dirSize === 0xffffffff || dirOffset === 0xffffffff) throw new ZipError('zip64 is not supported')
+      if (dirSize === 0xffffffff || dirOffset === 0xffffffff) throw new ZipError('zip64 is not supported')
       if (dirSize > MAX_DIRECTORY_BYTES || dirOffset + dirSize > size) throw new ZipError('bad central directory')
       const dir = Buffer.alloc(dirSize)
       await fh.read(dir, 0, dirSize, dirOffset)
       const entries: ZipEntry[] = []
       let p = 0
-      for (let i = 0; i < count; i++) {
+      // walk the whole directory (its size is exact), never just `count` entries: that field is only 16 bits, and a
+      // restore that skipped entries would then delete those files from disk as "not in the backup"
+      while (p < dir.length) {
         if (p + 46 > dir.length || dir.readUInt32LE(p) !== CENTRAL) throw new ZipError('bad central directory')
         const nameLen = dir.readUInt16LE(p + 28)
         const extraLen = dir.readUInt16LE(p + 30)
@@ -107,6 +114,8 @@ export class ZipReader {
         entries.push(e)
         p += 46 + nameLen + extraLen + commentLen
       }
+      // the end record's count must agree (in its 16 bits): otherwise the directory isn't the one it describes
+      if (p !== dir.length || (entries.length & 0xffff) !== count) throw new ZipError('bad central directory')
       return new ZipReader(path, size, entries)
     } finally {
       await fh.close()

@@ -10,7 +10,7 @@ import { join } from 'node:path'
 import type { Song } from '@shared/types'
 import { isSafeId } from '@shared/security'
 import { isOggBytes, MAX_TRACK_BYTES, orphanTrackFiles, referencedTrackFiles, trackFileName, trackFileOfUrl, unusedTrackFiles } from '@shared/tracks'
-import { assertWritable, db, tracksKeptFromBeforeSeeding } from './db'
+import { assertWritable, db, keepTracksForGood, keptTracks, trackFilesInMirror, trackFilesOnDisk } from './db'
 import { dataRoot } from './paths'
 import { within } from './pathGuard'
 import { dataMediaUrl } from './mediaPath'
@@ -107,19 +107,37 @@ live.on('change', () => {
   }
 })
 
+/** the store generation whose incomplete songs list already had its tracks kept */
+let keptAtGeneration = -1
+
 /**
- * Can the songs list be trusted to hold every song the church has? Only when it was read healthy from its own file (a
- * damaged list, or one recovered from its .bak, could be missing songs) and isn't empty. Anything that deletes or
- * retires a backing track because no song uses it must check this first, and treat tracksInUse() as used.
+ * Can the songs list be trusted to hold every song the church has? Only when it was read undamaged from its own file
+ * (a damaged list, one recovered from an older .bak, or one rebuilt after songs.json went missing could be missing
+ * songs) and isn't empty. Anything that deletes or retires a backing track because no song uses it must check this
+ * first, and treat tracksInUse() as used.
+ *
+ * Saving the list later doesn't make it complete: it is judged by how it was read (JsonStore.loadedAs). And so that
+ * the next start — when the saved file reads fine — can't delete them either, every track in tracks/ and beside the
+ * backups when the list is found incomplete is kept for good (keptTracks).
  */
 export function songsListIsComplete(): boolean {
   const store = db()
-  return store.isHealthy('songs') && store.list<Song>('songs').length > 0
+  const state = store.loadedAs('songs')
+  if (state !== 'ok') {
+    // once per read of the list: the tracks there were when it was found (not ones made since, for songs it has)
+    if (!store.readOnly && keptAtGeneration !== store.generation) {
+      keptAtGeneration = store.generation
+      const kept = keepTracksForGood([...trackFilesOnDisk(), ...trackFilesInMirror()])
+      if (kept) log.warn(`songs list ${state}: every backing track there is now is kept`, kept)
+    }
+    return false
+  }
+  return store.list<Song>('songs').length > 0
 }
 
-/** The track files that must never count as unused: the ones the songs use, and those kept from before seeding. */
+/** The track files that must never count as unused: the ones the songs use, and those kept for good. */
 export function tracksInUse(songs: readonly Pick<Song, 'track'>[]): Set<string> {
-  return new Set([...referencedTrackFiles(songs), ...tracksKeptFromBeforeSeeding()])
+  return new Set([...referencedTrackFiles(songs), ...keptTracks()])
 }
 
 /** At start-up: remove track files no song uses, older than a week — only when the songs list is complete. */

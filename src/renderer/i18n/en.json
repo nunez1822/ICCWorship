@@ -825,5 +825,19 @@
     "follow": "Follow the timing",
     "followHelp": "The lyrics change by themselves with the music. You can still move by hand: the next slide start in the music takes over again.",
     "introHint": "🎵 Intro — first line in {{time}} (Space shows it now)"
+  },
+  "runSheet": {
+    "time": "Time",
+    "item": "Item",
+    "who": "Who",
+    "min": "Min",
+    "notes": "Notes",
+    "team": "Team",
+    "total": "Total",
+    "printed": "Printed with ICCWorship — free & open-source church software",
+    "position": "Position",
+    "person": "Person",
+    "status": "Status",
+    "track": "backing track"
   }
 }

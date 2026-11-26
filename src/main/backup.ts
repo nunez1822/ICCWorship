@@ -4,7 +4,7 @@ import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, ren
 import { stat, statfs } from 'node:fs/promises'
 import { Readable } from 'node:stream'
 import { basename, dirname, join, parse, relative, resolve, sep } from 'node:path'
-import { backupDir, dataRoot } from './paths'
+import { backupDir, dataRoot, trackMirrorDir } from './paths'
 import { dataStatus, db, getSettings } from './db'
 import { localDate, localStamp } from '@shared/dates'
 import { checkSchema, runMigrations, SCHEMA_VERSION } from '@shared/migrations'
@@ -426,8 +426,11 @@ async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: Restor
     }
     pruneSafetyBackups()
     db().reset()
+    // tracks this restore adds to tracks/: with a data-only safety copy, putting it back leaves tracks/ alone, so
+    // these must be taken out again by hand for "your previous data was put back" to be true
+    const addedTracks: string[] = []
     try {
-      replaceFrom(root, staged, replaceTracks)
+      replaceFrom(root, staged, replaceTracks, addedTracks)
     } catch (e) {
       log.error('restore failed while replacing files; putting the safety backup back', e)
       let putBackOk = true
@@ -437,6 +440,7 @@ async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: Restor
         putBackOk = false
         log.error('could not put the safety backup back', e2)
       }
+      if (putBackOk && !replaceTracks) removeAddedTracks(root, addedTracks)
       db().reset()
       reloadBibles()
       if (putBackOk) await fillMissingTracks(db().list<Song>('songs'))
@@ -467,15 +471,19 @@ function removeLeftoverTempDirs(root: string): void {
  * .corrupt copies). That includes every .bak: JsonStore falls back to <name>.json.bak when <name>.json is
  * missing or damaged, so a .bak left behind would bring back the data from before the restore.
  * Staged tracks are always moved in. The other files in tracks/ are removed only when `replaceTracks` (the backup
- * holds the tracks, and so does the safety copy); otherwise they are left as they are.
+ * holds the tracks, and so does the safety copy); otherwise they are left as they are. Track files that weren't in
+ * tracks/ before are listed in `addedTracks` as they go in (even if a later file fails), so a failed restore can
+ * take them out again.
  */
-function replaceFrom(root: string, staged: Map<string, string>, replaceTracks: boolean): void {
+function replaceFrom(root: string, staged: Map<string, string>, replaceTracks: boolean, addedTracks: string[] = []): void {
   for (const [rel, tmp] of staged) {
     const dest = join(root, rel)
     mkdirSync(dirname(dest), { recursive: true })
+    const added = isTracksEntry(rel) && !existsSync(dest)
     // the staged file is complete and already on the disk (written atomically, flushed), on the same disk: one
     // rename puts it in place — no second copy of a 60 MB track in memory or on the disk, and never half a file
     renameSyncWithRetry(tmp, dest)
+    if (added) addedTracks.push(dest)
   }
   const keep = new Set([...staged.keys()].map((r) => r.toLowerCase()))
   for (const inc of INCLUDE) {
@@ -485,6 +493,23 @@ function replaceFrom(root: string, staged: Map<string, string>, replaceTracks: b
       if (!keep.has(rel.toLowerCase()) && !keptOnRestore(rel)) unlinkSync(f)
     }
   }
+}
+
+/** Take out the track files a failed restore added (best effort: one that can't go now is only an unused track). */
+function removeAddedTracks(root: string, files: readonly string[]): void {
+  const dir = join(root, TRACKS_DIR)
+  let n = 0
+  for (const f of files) {
+    if (!within(dir, f)) continue
+    try {
+      unlinkSync(f)
+      n++
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT')
+        log.warn('could not take out a track the failed restore added', (e as NodeJS.ErrnoException).code || 'error')
+    }
+  }
+  if (n) log.info('tracks the failed restore added were taken out again:', n)
 }
 
 async function putBack(root: string, safetyZip: string): Promise<void> {
@@ -519,7 +544,7 @@ async function putBack(root: string, safetyZip: string): Promise<void> {
 // Instead each track is copied ONCE into backups/tracks/ (tracks never change after they are written); a track the
 // church deletes moves to backups/tracks/gone-<day>/ and is kept 15 days, as long as the automatic backups go back.
 
-const mirrorDir = () => join(backupDir(), 'tracks')
+const mirrorDir = trackMirrorDir
 
 /** Remove `<track>.ogg.tmp` files a cut-off save or copy left in `dir` (nothing else ever would). Best effort. */
 function removeStaleTrackTemps(dir: string): void {
@@ -620,6 +645,11 @@ async function fillMissingTracks(songs: readonly Pick<Song, 'track'>[]): Promise
       const from = [join(m, name), ...gone.map((g) => join(m, g.name, name))].find((f) => within(m, f) && existsSync(f))
       if (!from) continue
       mkdirSync(dir, { recursive: true })
+      // never fill the last of the disk: the church's data must still be saved (the next run tries again)
+      if ((await freeBytes(dir)) - (await stat(from)).size < MIN_FREE_BYTES) {
+        log.warn('backing tracks not brought back from backups/tracks: the disk is nearly full')
+        break
+      }
       await copyFileAtomic(from, dest)
       n++
     }

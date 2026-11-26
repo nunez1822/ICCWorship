@@ -292,6 +292,9 @@
 - The track file is back in `.e2e-data/tracks/`, the song plays its track, and the log says
   `backing tracks brought back from backups/tracks: 1`.
 - The copy stays in `.e2e-data/backups/tracks/` (never moved to a `gone-<day>` folder while a song uses it).
+- (Manual) On a disk with less than the app's minimum free space left after the copy, the track is **not** brought
+  back: the log says `backing tracks not brought back from backups/tracks: the disk is nearly full`, and songs and
+  plans can still be saved.
 
 ### TC-BAK-18 · Sample songs seeded into an empty data folder never cost the church its tracks  `P0`
 **Pre:** a song with a backing track whose file is more than 7 days old (set its modified date back), with a copy in
@@ -336,3 +339,35 @@
   Documents\ICCWorship\tracks to the same drive too." The zip's manifest says `"hasTracks": false`.
 - Step 2: the restore works; its safety copy is a data-only `before-restore-…` zip, the backup's tracks are added
   and none of the current tracks are removed.
+- If that restore fails while replacing files (hold a data file open in another program so it can't be replaced):
+  "your previous data was put back", and the backup's tracks it had added are taken out of `tracks/` again (the log
+  says `tracks the failed restore added were taken out again: <n>`); the tracks that were there before all stay.
+
+### TC-BAK-22 · A songs list recovered from an older .bak never costs the church its tracks  `P0`
+**Pre:** "Track Test" with a backing track whose file is more than 7 days old (set its modified date back), with a copy
+in `.e2e-data/backups/tracks/`; at least one other song
+**Steps**
+1. Quit. Write `.e2e-data/data/songs.json.bak` as the songs list **without** "Track Test" (an older list), and
+   truncate `songs.json` to `[{"id":` (damaged). Launch `--keep`.
+2. Edit another song (fix a typo) and save, so `songs.json` is a good file again. Wait for the hourly backup, or
+   quit and relaunch with `--keep` after deleting today's `auto-….zip`.
+3. Quit and relaunch with `--keep` twice more.
+4. Restore the newest backup made **before** step 1.
+5. Repeat steps 1–3 with `songs.json` deleted and no `.bak` at all, then one new song added in step 2.
+**Expected**
+- Step 1: the log says `songs list degraded: every backing track there is now is kept`, and `data/meta.json` lists
+  the track file under `keepTracks`.
+- After steps 2–3: the track file is still in `.e2e-data/tracks/` (the log never says "removed unused backing
+  tracks"), and its copy is still directly in `.e2e-data/backups/tracks/` (not in `gone-…`).
+- Step 4: "Track Test" is back and plays its track.
+- Step 5: the same, with the log saying `songs list missing: …`.
+
+### TC-BAK-23 · A backup with more than 65,535 files restores every one of them  `P2` (manual)
+**Pre:** more than 65,535 files in `data/`, `cache/presentations/` and `tracks/` together (e.g. many imported
+presentations)
+**Steps**
+1. **Back up now**. 2. Restore that backup.
+**Expected**
+- The restore says it worked, and afterwards the number of files in `cache/presentations/` (and `tracks/`) is the
+  same as before: no slide images or tracks are missing. (JSZip writes only the low 16 bits of the file count; the
+  restore reads the whole list anyway.)
