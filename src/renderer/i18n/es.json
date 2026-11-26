@@ -680,6 +680,10 @@
     "gpuCrashed": "El controlador de gráficos dejó de responder. Si el proyector se pone negro o se congela, active \"Desactivar la aceleración gráfica\" en Ajustes → Acerca de y reinicie ICCWorship.",
     "operatorRecovered": "ICCWorship reinició esta ventana después de un problema. El proyector siguió mostrando lo que estaba en vivo (una pista de acompañamiento siguió sonando y su letra sigue la música); si había anuncios en bucle, se detuvieron — presione Espacio para continuar.",
     "operatorCrashed": "La ventana de ICCWorship falló otra vez. El proyector sigue mostrando lo que está en vivo. ¿Recargar la ventana?",
+    "operatorFrozen": "La ventana de ICCWorship no responde.",
+    "operatorFrozenDetail": "El proyector, la música y el control desde el teléfono siguen funcionando. Reinicie la ventana ahora, o siga esperando si estaba ocupada con algo largo.",
+    "restartWindow": "Reiniciar la ventana",
+    "keepWaiting": "Seguir esperando",
     "reload": "Recargar"
   },
   "boundary": {

@@ -15,7 +15,7 @@ import { slidesTimingKey, songName, songToSlides, timedSlideAt, uid } from '@sha
 import { localDate } from '@shared/dates'
 import { buildItem, themeBackground } from '../lib/buildSlides'
 import { createActionQueue } from '../lib/actionQueue'
-import { useApp, t, toastError } from './store'
+import { afterRecovery, useApp, t, toastError } from './store'
 
 /**
  * Everything the operator (keyboard, mouse, phone remote) can do to the screens.
@@ -201,8 +201,17 @@ export function followTick(p: LiveState['videoProgress']): void {
   const target = timedSlideAt(timings, p.current)
   const cur = l.intro ? -1 : l.slideIndex
   if (follow.itemId !== l.itemId) {
-    // a new item (or the operator window was reloaded): start from where things are, never jump
+    // a new item (or the operator window was reloaded): start from where things are, never jump…
     Object.assign(follow, { itemId: l.itemId, lastTarget: target, lastAuto: cur, seekSeq: l.video.seekSeq })
+    // …except after this window was restarted following a crash or a freeze: the music went on without it, so the
+    // lyrics catch up — forward only (an operator who had gone ahead by hand is never pulled back)
+    if (afterRecovery.followCatchUp) {
+      afterRecovery.followCatchUp = false
+      if (target > cur) {
+        follow.lastAuto = target
+        moveTo(target, timings, l.itemId)
+      }
+    }
     return
   }
   if (follow.seekSeq !== l.video.seekSeq) {

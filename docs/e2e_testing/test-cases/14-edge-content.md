@@ -200,9 +200,12 @@ foreach ($s in @(@(16,16,'tiny'), @(1080,4000,'tall'), @(6000,400,'wide'))) { $b
 ### TC-EDGE-22 · No new track while the data is read-only  `P1`
 **Pre:** data opened read-only (TC-BAK-08)
 **Steps**
-1. Try to add a backing track to a song.
+1. Click **＋ Add backing track…** (or **Replace…**) on a song. 2. On a song with a track, **⏱ Record timing**.
 **Expected**
-- The read-only message ("…opened read-only…" toast), no file appears in `.e2e-data/tracks/`.
+- At once, before any file is chosen or read: the read-only message "Not saved: this data is open read-only (see
+  the red bar at the bottom)" — not "The backing track could not be made". No window opens, no file appears in
+  `.e2e-data/tracks/`.
+- (If the data becomes read-only while a track is being made, the same message appears and the window closes.)
 
 ### TC-EDGE-23 · "Remove the voice" on a file whose channels are the same  `P2`
 **Setup:** `ffmpeg -i tests/fixtures/sample.mp3 -ac 2 .e2e-data/tmp/fake-stereo.mp3` (two identical channels)
@@ -226,7 +229,8 @@ foreach ($s in @(@(16,16,'tiny'), @(1080,4000,'tall'), @(6000,400,'wide'))) { $b
 ### TC-EDGE-25 · A huge file from the media library says it is too large  `P1`
 **Setup:** add a WAV over 200 MB to the media library (e.g. a long silent recording).
 **Steps**
-1. Songs → a song → **Add backing track…** → **From the media library** → that file → **Use it as is**.
+1. Songs → a song → **Add backing track…** → pick that file in the "— or from the media library —" list →
+   **Use it as is**.
 **Expected**
 - The toast "⚠ The file is larger than 200 MB."; the operator window stays responsive (it doesn't read the whole
   file first); the song has no track.

@@ -680,6 +680,10 @@
     "gpuCrashed": "The graphics driver stopped responding. If the projector goes black or freezes, turn on \"Turn off graphics acceleration\" in Settings → About and restart ICCWorship.",
     "operatorRecovered": "ICCWorship restarted this window after a problem. The projector kept showing what was live (a backing track kept playing, and its lyrics keep following the music); an announcement loop that was running has stopped — press Space to continue.",
     "operatorCrashed": "The ICCWorship window crashed again. The projector keeps showing what is live. Reload the window?",
+    "operatorFrozen": "The ICCWorship window is not responding.",
+    "operatorFrozenDetail": "The projector, the music and the phone remote keep running. Restart the window now, or keep waiting if it was busy with something long.",
+    "restartWindow": "Restart the window",
+    "keepWaiting": "Keep waiting",
     "reload": "Reload"
   },
   "boundary": {

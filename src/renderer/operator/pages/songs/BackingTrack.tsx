@@ -3,10 +3,10 @@ import { useTranslation } from 'react-i18next'
 import type { Song, VoicePreset } from '@shared/types'
 import type { StereoCheck } from '@shared/vocalRemoval'
 import { songName } from '@shared/slides'
-import { useApp, toastError } from '../../store'
+import { useApp, isReadOnlyError, refuseWhileReadOnly, toastError } from '../../store'
 import { songEdited } from '../../liveControl'
 import { Modal, Seg, confirmDel } from '../../../components/ui'
-import { AUDIO_EXT, fileName, toMediaUrl } from '../../../lib/media'
+import { AUDIO_EXT, fileName, releaseAudio, toMediaUrl } from '../../../lib/media'
 import { decodeAudio, MAX_MINUTES, readSource, TrackError, TrackJob } from '../../../lib/audioTrack'
 import { slidesTimingKey, songToSlides } from '@shared/slides'
 import { TimingModal } from './TimingModal'
@@ -27,7 +27,7 @@ export function BackingTrackCard({ song }: { song: Song }) {
   // stop the preview when the song changes or the editor closes
   useEffect(
     () => () => {
-      audio.current?.pause()
+      releaseAudio(audio.current)
       audio.current = null
       setPlaying(false) // a replaced / removed track: the button says Listen again, not Stop
     },
@@ -86,15 +86,15 @@ export function BackingTrackCard({ song }: { song: Song }) {
             </span>
             {track.vocalsRemoved && <span className="pill">{t('track.vocalsRemoved')}</span>}
             <TimingBadge song={song} />
-            <button className="btn sm" onClick={() => setTiming('record')} title={t('timing.recordHelp')}>
+            <button className="btn sm" onClick={() => refuseWhileReadOnly() || setTiming('record')} title={t('timing.recordHelp')}>
               ⏱ {t('timing.record')}
             </button>
             {track.timings && (
-              <button className="btn sm" onClick={() => setTiming('edit')}>
+              <button className="btn sm" onClick={() => refuseWhileReadOnly() || setTiming('edit')}>
                 {t('timing.edit')}
               </button>
             )}
-            <button className="btn sm" onClick={() => setAdding(true)}>
+            <button className="btn sm" onClick={() => refuseWhileReadOnly() || setAdding(true)}>
               {t('track.replace')}
             </button>
             <button className="btn sm ghost" onClick={() => void remove()}>
@@ -106,7 +106,7 @@ export function BackingTrackCard({ song }: { song: Song }) {
             <span className="small muted" style={{ flex: 1 }}>
               {t('track.none')}
             </span>
-            <button className="btn sm" onClick={() => setAdding(true)}>
+            <button className="btn sm" onClick={() => refuseWhileReadOnly() || setAdding(true)}>
               ＋ {t('track.add')}
             </button>
           </>
@@ -201,6 +201,13 @@ function AddTrackModal({ song, onClose }: { song: Song; onClose: () => void }) {
 
   const fail = (e: unknown) => {
     if (closed.current || (e instanceof TrackError && e.code === 'canceled')) return
+    // main refused to store it (the data became read-only): say that, not "could not be made"
+    if (isReadOnlyError(e)) {
+      window.api.app.log('warn', 'backing track not made: read-only')
+      toastError(e)
+      onClose()
+      return
+    }
     const code = e instanceof TrackError ? e.code : 'failed'
     window.api.app.log('warn', `backing track not made: ${code}`)
     s.toast(t(`track.err.${code}`, { max: MAX_MINUTES }), 'err', 10_000)

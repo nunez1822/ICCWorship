@@ -81,3 +81,16 @@ export function makeThumb(path: string, kind: MediaKind): Promise<string | undef
     } else resolve(undefined)
   })
 }
+
+/**
+ * Stop an audio/video element we are done with and let go of its file. Its handlers go first: emptying the source
+ * makes the element fire 'error' (and maybe 'ended'), and a handler still attached would tell the operator the file
+ * "can't be played" when nothing went wrong. Never `el.src = ''` on its own.
+ */
+export function releaseAudio(el: HTMLMediaElement | null | undefined): void {
+  if (!el) return
+  el.onerror = el.onended = el.ontimeupdate = el.onloadedmetadata = el.oncanplay = null
+  el.pause()
+  el.removeAttribute('src')
+  el.load()
+}

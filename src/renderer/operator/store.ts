@@ -185,9 +185,12 @@ export const useApp = create<AppState>((set, get) => ({
     }
     // data written by a newer ICCWorship: shown as a banner (App)
     set({ dataStatus: await api.app.dataStatus() })
-    // this window was restarted after a crash: what the operator has to know
+    // this window was restarted after a crash or a freeze: what the operator has to know
     for (const n of await api.app.notices()) {
-      if (n === 'operatorRecovered') get().toast(i18n.t('recovery.operatorRecovered'), 'err', 30_000)
+      if (n !== 'operatorRecovered') continue
+      get().toast(i18n.t('recovery.operatorRecovered'), 'err', 30_000)
+      // the music played on while this window was down: the lyrics catch up with it (see followTick)
+      afterRecovery.followCatchUp = true
     }
   },
 
@@ -273,13 +276,37 @@ export const useApp = create<AppState>((set, get) => ({
   }
 }))
 
+/** The message of an Error (or error-like object from IPC) or string, without Electron's "Error invoking remote
+ *  method…" prefix; '' for anything else. */
+function errorMessage(e: unknown): string {
+  const raw = typeof e === 'string' ? e : typeof (e as Error | null)?.message === 'string' ? (e as Error).message : ''
+  return raw.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+}
+
+/** Did main refuse because the data is open read-only (written by a newer ICCWorship)? */
+export const isReadOnlyError = (e: unknown): boolean => errorMessage(e) === 'read-only'
+
+const toastReadOnly = () => useApp.getState().toast(i18n.t('data.readOnlyAction'), 'err', 10_000)
+
+/**
+ * Before starting work that ends in a save (making a backing track takes a while): if the data is open read-only,
+ * say so now and return true — don't let the operator wait for something that can't be kept.
+ */
+export function refuseWhileReadOnly(): boolean {
+  if (!useApp.getState().dataStatus?.readOnly) return false
+  toastReadOnly()
+  return true
+}
+
+/** set when this window was restarted after a problem (read and cleared by liveControl's followTick) */
+export const afterRecovery = { followCatchUp: false }
+
 /** Tell the operator an action failed (instead of failing silently). */
 export function toastError(e: unknown): void {
-  // an Error (or error-like object from IPC) or a string; anything else gets the generic message, never "[object Object]"
-  const raw = typeof e === 'string' ? e : typeof (e as Error | null)?.message === 'string' ? (e as Error).message : ''
-  const msg = raw.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+  // anything that isn't an error or a string gets the generic message, never "[object Object]"
+  const msg = errorMessage(e)
   // data from a newer version is open read-only: say what that means instead of a technical message
-  if (msg === 'read-only') return useApp.getState().toast(i18n.t('data.readOnlyAction'), 'err', 10_000)
+  if (msg === 'read-only') return toastReadOnly()
   useApp.getState().toast(`⚠ ${msg || i18n.t('errors.generic')}`, 'err', 8000)
 }
 

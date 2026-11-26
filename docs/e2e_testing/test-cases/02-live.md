@@ -6,7 +6,7 @@ Default start: welcome finished (English), Live page, sample plan selected.
 **Steps**
 1. Double-click **Holy, Holy, Holy** in the plan list.
 **Expected**
-- The item row shows a red **LIVE** pill; top bar shows "ON AIR" and the item name.
+- The item row shows a red **ON AIR** pill; top bar shows "ON AIR" and the item name.
 - Centre grid shows 4 slides (Verse 1–4); slide 1 has a red border.
 - Projector tab: Spanish lines on top ("¡Santo! ¡Santo! ¡Santo! Señor omnipotente,"), a thin divider,
   English below in italic gold ("Holy, holy, holy! Lord God Almighty!").
@@ -158,7 +158,10 @@ to a time of day, which would hide a rebuild). Welcome is live.
 - Step 2: the last slide comes back. Step 3: the outro again, then the next plan item.
 
 ### TC-LIVE-20 · Entering a song part-way waits for P  `P2`
-**Pre:** TC-PLAN-13 steps 1–2 (the track plays in the plan)
+**Pre:** TC-PLAN-13 steps 1–2 (the track plays in the plan); the track has **no** recorded timing (run before
+TC-SONG-17, or use another song — a timed track entered part-way starts at that slide's own start and plays, see
+TC-LIVE-27); another item, not "Track Test", was live last (right after `Esc` on "Track Test" itself, bringing it back
+resumes its music where it was, as in TC-LIVE-16)
 **Steps**
 1. Click the "Track Test" item, then double-click its 3rd thumbnail (not the first).
 **Expected**
@@ -249,7 +252,7 @@ second song's item (if its timing is recorded, enter it part-way so it starts wi
   `live.get().video.playing === false`, that line is gone (the room is silent), as the top bar goes back to "Off air".
 
 ### TC-LIVE-31 · Esc then Space keeps a waiting or paused track paused  `P1`
-**Pre:** TC-LIVE-20 step 1 (3rd slide live, the music waiting at 0:00)
+**Pre:** TC-LIVE-20 step 1 (3rd slide live, the music waiting at 0:00 — so a track without recorded timing)
 **Steps**
 1. `Esc`, then `Space`. 2. Start the music with `P`, press `P` again to pause it at about 0:05, then `Esc`, `Space`.
 **Expected**

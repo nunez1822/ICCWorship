@@ -7,6 +7,8 @@ All notable changes to ICCWorship are documented here. The format is based on
 ## [Unreleased]
 
 ### Security
+- The app's windows no longer learn the names of the computer's microphones and cameras (they never could use
+  them). Listing and choosing the sound output works as before.
 - **The phone/stage server can no longer be crashed from the Wi-Fi.** Before, a malformed video range request
   or WebSocket message from any device could stop ICCWorship mid-service.
 - **An empty remote PIN no longer lets anyone in.** ICCWorship now always makes sure a PIN exists.
@@ -120,6 +122,12 @@ All notable changes to ICCWorship are documented here. The format is based on
 - The untested macOS and Linux build targets. ICCWorship is a Windows app.
 
 ### Fixed
+- **A frozen ICCWorship window now says so.** If the main window stops responding (it hangs rather than crashes), a
+  message asks **Restart the window** or **Keep waiting** — the projector, the music and the phone remote keep
+  running, and the question goes away by itself if the window recovers. Before, it stayed frozen with no way out.
+- **The live keys work right after clicking a checkbox, slider or dropdown.** Before, Space ticked the box again
+  (e.g. "Loop") instead of moving to the next slide, and ↓ on the Live page's plan list could switch to another plan.
+  Controls reached with Tab keep their own keys, for keyboard users.
 - **Copy system info** (Settings → About) now waits for the copy to finish and shows an error if it fails, instead of
   always saying "copied".
 - An unexpected error now shows the generic error message instead of "[object Object]".

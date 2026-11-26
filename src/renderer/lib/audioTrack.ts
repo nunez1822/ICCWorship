@@ -6,6 +6,7 @@
 import type { VoicePreset } from '@shared/types'
 import type { StereoCheck } from '@shared/vocalRemoval'
 import { MAX_SOURCE_BYTES } from '@shared/tracks'
+import { releaseAudio } from './media'
 import AudioTrackWorker from './audioTrack.worker?worker&inline'
 
 export type TrackErrorCode = 'format' | 'memory' | 'too-long' | 'too-large' | 'encoder' | 'failed' | 'canceled' | 'empty'
@@ -98,9 +99,7 @@ function probeSeconds(bytes: Uint8Array): Promise<number | undefined> {
     const el = new Audio()
     const done = (s?: number) => {
       clearTimeout(timer)
-      el.onloadedmetadata = el.onerror = null
-      el.removeAttribute('src')
-      el.load()
+      releaseAudio(el)
       URL.revokeObjectURL(url)
       resolve(s !== undefined && Number.isFinite(s) && s > 0 ? s : undefined)
     }

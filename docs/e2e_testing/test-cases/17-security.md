@@ -216,10 +216,13 @@ An error's message can quote what a page was reading (a SyntaxError quotes the J
 **Steps**
 1. In the operator and in the projector page: `await navigator.mediaDevices.getUserMedia({ audio: true })`, then
    `{ video: true }`.
-2. `navigator.mediaDevices.enumerateDevices()` in the projector page.
+2. `navigator.mediaDevices.enumerateDevices()` in the operator and in the projector page.
 **Expected**
 - Both `getUserMedia` calls reject with `NotAllowedError` (no recording is ever possible).
-- Step 2 lists the sound outputs **with** their names (allowed only for choosing where sound plays).
+- Step 2 lists the sound outputs **with** their names and ids (allowed only for choosing where sound plays), but
+  every `audioinput` / `videoinput` has an **empty** label and id: the pages never learn the microphones' or
+  cameras' names.
+- Choosing an output still works (TC-SET-13: Test sound plays through it).
 - In a dev build the log shows `permission request: media (audio)` refused and `permission check: speaker-selection`.
 
 ### TC-SEC-20 · Saving a backing track checks the song id and the file  `P0`

@@ -21,7 +21,7 @@ type FakeState = {
   selectItem: (id?: string) => void
   outputOpen?: boolean
 }
-const state = vi.hoisted(() => ({ current: {} as FakeState }))
+const state = vi.hoisted(() => ({ current: {} as FakeState, recovery: { followCatchUp: false } }))
 
 vi.mock('../src/renderer/operator/store', () => ({
   useApp: {
@@ -29,7 +29,8 @@ vi.mock('../src/renderer/operator/store', () => ({
     setState: (p: Partial<FakeState>) => Object.assign(state.current, p)
   },
   t: (k: string) => k,
-  toastError: () => {}
+  toastError: () => {},
+  afterRecovery: state.recovery
 }))
 vi.mock('../src/renderer/lib/buildSlides', () => ({
   // a test item may carry `testTrack`: the backing track buildItem would return for it
@@ -467,6 +468,33 @@ describe('live control', () => {
       await live.goSlide(2) // the operator lines up slide 3 under the logo
       await live.toggleLayer('logo')
       expect(L().video).toMatchObject({ playing: true, seekTo: 14 })
+    })
+
+    it('after the window was restarted following a crash or freeze, the lyrics catch up with the music — forward only', async () => {
+      await start()
+      await tick(0.5)
+      await tick(6) // slide 1
+      // the window reloads: following starts over (setFollow resets it, like a fresh page)
+      const reload = async () => {
+        await live.setFollow(true)
+        await settle()
+      }
+      // a plain reload never jumps: it waits for the next start in the music
+      await reload()
+      await tick(15)
+      expect(L().slideIndex).toBe(0)
+      // restarted after a problem: the music is at 15 s (slide 3), so the lyrics catch up at once
+      await reload()
+      state.recovery.followCatchUp = true
+      await tick(15.5)
+      expect(L().slideIndex).toBe(2)
+      expect(state.recovery.followCatchUp).toBe(false)
+      // never backwards: an operator ahead of the music stays where they are
+      await live.goSlide(3)
+      await reload()
+      state.recovery.followCatchUp = true
+      await tick(16)
+      expect(L().slideIndex).toBe(3)
     })
 
     it('Esc stops following; nothing moves while the lyrics are cleared', async () => {

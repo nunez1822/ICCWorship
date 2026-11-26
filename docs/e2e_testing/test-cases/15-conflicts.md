@@ -169,3 +169,16 @@ keyboard together.
 - The live song is still on slide 1, no Black / Logo, the screen language unchanged, the same item
   (`window.api.live.get()` unchanged); only the recording took the presses (PageUp took one back, PageDown added one).
 - A click beside the window doesn't close it; `Esc` asks "Close without saving the timing?".
+
+### TC-CONF-21 · A checkbox, slider or dropdown clicked with the mouse never swallows the live keys  `P1`
+**Pre:** a song live on slide 1 (Live page), a video or backing track playing
+**Steps**
+1. Click the media bar's **Loop** box (or **⏱ Follow the timing**), then press `Space`, `B`, `B`.
+2. Click the volume slider, then press `→`.
+3. Pick a plan in the Live page's plan dropdown with the mouse, then press `↓` and `Space`.
+4. Press `Tab` until the Loop box has a focus ring, then press `Space`.
+**Expected**
+- Steps 1–3: each key does its live action (next slide, black on / off, next slide); the box does **not** toggle, the
+  slider doesn't move, and the dropdown does **not** switch to another plan.
+- Step 4 (reached with the keyboard): `Space` ticks the box, as it should for keyboard users.
+- Typing in a text box (a song title, the message box) still never triggers a shortcut (TC-CONF-01).

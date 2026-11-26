@@ -6,6 +6,7 @@ import { cleanTimings } from '@shared/tracks'
 import { useApp, toastError } from '../../store'
 import { songEdited } from '../../liveControl'
 import { Modal } from '../../../components/ui'
+import { releaseAudio } from '../../../lib/media'
 
 /**
  * Record when each slide starts in the backing track (like ProPresenter's Timeline): play the track, press Space at
@@ -38,10 +39,7 @@ export function TimingModal({ song, edit, onClose }: { song: Song; edit: boolean
       if (phaseRef.current === 'recording') setPhase('review')
     }
     a.onerror = () => s.toast(t('errors.mediaUnplayable'), 'err')
-    return () => {
-      a.pause()
-      a.src = ''
-    }
+    return () => releaseAudio(a)
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- one player per open window
   }, [track.url])
 

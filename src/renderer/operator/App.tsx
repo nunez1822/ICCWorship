@@ -18,6 +18,8 @@ import { Seg } from '../components/ui'
 import { ErrorBoundary, errorSummary } from '../components/ErrorBoundary'
 import type { DisplayLang } from '@shared/types'
 import { formatClock } from '@shared/slides'
+import { keyBelongsToControl } from '@shared/shortcutTarget'
+import { focusedByKeyboard } from '../lib/focusOrigin'
 
 const NAV: { id: Page; ico: string }[] = [
   { id: 'live', ico: '📺' },
@@ -30,11 +32,19 @@ const NAV: { id: Page; ico: string }[] = [
   { id: 'reports', ico: '📊' }
 ]
 
+/** typing in a field, or a key a keyboard-focused control uses itself: the shortcuts leave it alone (see keyBelongsToControl) */
 function isTyping(e: KeyboardEvent): boolean {
   const el = e.target as HTMLElement | null
-  if (!el) return false
-  const tag = el.tagName
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable
+  if (!el?.tagName) return false
+  return keyBelongsToControl(
+    {
+      tag: el.tagName,
+      type: (el as HTMLInputElement).type,
+      editable: el.isContentEditable,
+      keyboardFocused: focusedByKeyboard(el)
+    },
+    e.key
+  )
 }
 
 export function App() {

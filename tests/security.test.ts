@@ -250,9 +250,9 @@ describe('permissionAllowed', () => {
   })
   it('lets the app’s own pages list and choose sound outputs', () => {
     expect(permissionAllowed('speaker-selection', check)).toBe(true)
-    expect(permissionAllowed('media', { ...check, mediaType: 'audio' })).toBe(true)
   })
-  it('never grants the microphone or camera, and nothing to other pages', () => {
+  it('never grants the microphone or camera — not even the check that would show their names — nor anything to other pages', () => {
+    expect(permissionAllowed('media', { ...check, mediaType: 'audio' })).toBe(false)
     // a request for media is getUserMedia: refused even for our own pages
     expect(permissionAllowed('media', { check: false, trusted: true, mediaType: 'audio' })).toBe(false)
     expect(permissionAllowed('media', { ...check, mediaType: 'video' })).toBe(false)

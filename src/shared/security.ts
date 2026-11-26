@@ -229,15 +229,15 @@ export function pickPublicState(s: LiveState, mediaUrl: (u: string | undefined) 
 
 /**
  * May a page use this browser permission? Full screen and copying to the clipboard: always. Choosing where sound
- * plays (listing the sound outputs with their names, and setSinkId) needs `speaker-selection` and the audio part
- * of `media` — but only as a *check* from one of the app's own pages. A *request* for `media` (getUserMedia: the
- * microphone or a camera) is always refused: no page of ours records anything.
+ * plays (listing the sound outputs with their names, and setSinkId) needs `speaker-selection` — only as a *check*
+ * from one of the app's own pages. `media` is never granted, check or request: a request is getUserMedia (the
+ * microphone or a camera: no page of ours records anything), and granting even the check would also show the
+ * pages the names of every microphone and camera. Output ids and names don't depend on it (checked on Electron 45).
  */
 export function permissionAllowed(permission: string, opts: { check: boolean; trusted: boolean; mediaType?: string }): boolean {
   if (permission === 'fullscreen' || permission === 'clipboard-sanitized-write') return true
   if (!opts.check || !opts.trusted) return false
-  if (permission === 'speaker-selection') return true
-  return permission === 'media' && opts.mediaType === 'audio'
+  return permission === 'speaker-selection'
 }
 
 /* ------------------------------ settings from the renderer ------------------------------ */

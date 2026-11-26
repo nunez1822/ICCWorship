@@ -166,6 +166,8 @@ Reload the operator (`location.reload()`), then do TC-SONG-12.
 - Step 4: "⏱ Timing saved…"; the card shows **⏱ timing** and **Edit timing**;
   `track.timings` = `[2, 5, 8]` and `track.timingsKey` is set.
 - **Edit timing** opens the list directly (no recording); **Remove the timing** removes it.
+- Saving, closing (✕) or **Remove the timing** never shows an error toast such as "⚠ This video can't be played…" —
+  nothing went wrong (also after ▶ listening to a cue).
 - The −½ / +½ buttons are read out as "Half a second earlier" / "Half a second later" ("Medio segundo antes" /
   "Medio segundo después" in Spanish) and have the same tooltip.
 

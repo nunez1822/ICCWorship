@@ -84,7 +84,8 @@ run them before a release. Check the projector, stage and phone at every marked 
 ### TC-DAY-10 · After the service  `P1`
 **Steps**
 1. Plan → Attendance & notes: attendance `120`, offering `1,234.56` (try typing with a comma).
-2. Reports → this year; export CCLI CSV; Settings → Back up now.
+2. Reports → set **From** / **To** to this year (the default range ends today, and next Sunday's service is after
+   it); export CCLI CSV; Settings → Back up now.
 3. Close the app with the window ✕ and relaunch `--keep`.
 **Expected**
 - Offering stored as 1234.56 (or a clear validation message — never silently 1 or 0).

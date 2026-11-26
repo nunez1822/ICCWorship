@@ -389,17 +389,81 @@ function kindOf(sender: Electron.WebContents): Guarded | null {
 // window has run fine for a minute, it goes back to reloading by itself.
 const operatorBudget = new ReloadBudget(1, 60_000)
 let operatorStable: ReturnType<typeof setTimeout> | undefined
+
+// The operator page beats too (see operator/main.tsx). A FROZEN page (an endless loop, a stuck task) doesn't crash,
+// and Chromium's "unresponsive" only fires after input, so without this nothing would ever notice. Like VS Code's
+// "The window is not responding" and Chrome's "Page Unresponsive", the volunteer is asked instead of the page being
+// killed: something long may still finish. The question closes by itself if the page starts beating again.
+const OPERATOR_STALL_MS = 10_000
+const operatorBeat = new Heartbeat(() => void askAboutFrozenOperator(), OPERATOR_STALL_MS)
+/** the open "not responding" question (aborted when the page answers again) */
+let frozenAsk: AbortController | null = null
+/** the volunteer chose "Restart the window": the crash that follows is ours, reload without asking again */
+let restartingFrozen = false
+/** a confirm() is open in the operator page: it blocks the page (and its beats) while the volunteer reads it */
+let operatorBusy = false
+
+async function askAboutFrozenOperator(): Promise<void> {
+  const win = operator
+  if (quitting || !win || win.isDestroyed() || frozenAsk) return
+  log.warn('operator window stopped responding: asking')
+  const ask = new AbortController()
+  frozenAsk = ask
+  const r = await messageBox({
+    type: 'warning',
+    title: 'ICCWorship',
+    message: t('recovery.operatorFrozen'),
+    detail: t('recovery.operatorFrozenDetail'),
+    buttons: [t('recovery.restartWindow'), t('recovery.keepWaiting')],
+    defaultId: 0,
+    cancelId: 1,
+    noLink: true,
+    signal: ask.signal
+  })
+  frozenAsk = null
+  if (ask.signal.aborted || quitting || win.isDestroyed()) return // it answered again by itself
+  if (r.response === 0) {
+    log.warn('operator window stopped responding: restarting it')
+    restartingFrozen = true
+    win.webContents.forcefullyCrashRenderer() // → render-process-gone → reload (guardOperator)
+  } else {
+    log.info('operator window stopped responding: waiting')
+    operatorBeat.beat() // watch again: still no sign of life in 10 s → ask again
+  }
+}
+
+/** a heartbeat from the operator page: it is alive (and a "not responding" question is no longer needed) */
+function operatorAlive(): void {
+  operatorBeat.beat()
+  if (frozenAsk) {
+    log.info('operator window responding again')
+    frozenAsk.abort()
+  }
+}
 function guardOperator(win: BrowserWindow): void {
   win.webContents.on('did-finish-load', () => {
     clearTimeout(operatorStable)
     operatorStable = setTimeout(() => operatorBudget.reset(), 60_000)
   })
-  win.on('closed', () => clearTimeout(operatorStable))
+  win.on('closed', () => {
+    clearTimeout(operatorStable)
+    operatorBeat.stop()
+    frozenAsk?.abort()
+  })
   win.webContents.on('render-process-gone', async (_e, d) => {
     clearTimeout(operatorStable)
+    operatorBeat.stop() // the new page starts watching again with its first beat
+    frozenAsk?.abort()
     if (d.reason === 'clean-exit' || quitting || win.isDestroyed()) return
-    log.error(`operator window crashed (${d.reason})`)
     db().flush()
+    if (restartingFrozen) {
+      // the volunteer asked for it (the window had stopped responding): reload, no second question
+      restartingFrozen = false
+      pendingNotices.push('operatorRecovered')
+      loadPage(win, 'index')
+      return
+    }
+    log.error(`operator window crashed (${d.reason})`)
     if (operatorBudget.next() === 'reload') {
       pendingNotices.push('operatorRecovered')
       loadPage(win, 'index')
@@ -418,7 +482,11 @@ function guardOperator(win: BrowserWindow): void {
       loadPage(win, 'index')
     } else app.quit()
   })
-  win.on('unresponsive', () => log.warn('operator window unresponsive'))
+  // the volunteer is clicking a window that doesn't answer: ask now rather than after the heartbeat's 10 s
+  win.on('unresponsive', () => {
+    log.warn('operator window unresponsive')
+    if (!operatorBusy) void askAboutFrozenOperator()
+  })
   // Windows shutdown / log off skips before-quit: save now
   win.on('session-end', () => {
     log.info('Windows session ending: saving')
@@ -719,8 +787,16 @@ function registerIpc(): void {
 
   // crash & freeze recovery (see guardWindow)
   on('win:alive', (e) => {
+    if (operator && !operator.isDestroyed() && e.sender === operator.webContents) return operatorAlive()
     const kind = kindOf(e.sender)
     if (kind) guards[kind].beat.beat()
+  })
+  // the operator page opened / closed a confirm() (it blocks the page): waiting for the volunteer isn't a freeze
+  on('win:busy', (e, busy: unknown) => {
+    if (!operator || operator.isDestroyed() || e.sender !== operator.webContents) return
+    operatorBusy = busy === true
+    if (operatorBusy) operatorBeat.pause()
+    else operatorBeat.resume()
   })
   on('win:fatal', (e, message: unknown) => {
     const kind = kindOf(e.sender)
@@ -1034,11 +1110,13 @@ app
       db().flush()
       guards.output.beat.pause()
       guards.stage.beat.pause()
+      operatorBeat.pause()
     })
     powerMonitor.on('resume', () => {
       log.info('system resumed')
       guards.output.beat.resume()
       guards.stage.beat.resume()
+      if (!operatorBusy) operatorBeat.resume() // a confirm() still open keeps it paused
     })
 
     // optional update check (off by default; never during a service), a minute after start and then daily

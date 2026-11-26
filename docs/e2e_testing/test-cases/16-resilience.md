@@ -265,11 +265,24 @@ projector first — earlier crashes in the last minute count toward the limit.
 - The track file is in the new folder's `tracks/`, and the music plays (the song stores the track relative to the
   data folder).
 
-### TC-RES-33 · The operator window crashes mid-song: the music and following go on  `P1`
+### TC-RES-33 · The operator window freezes or crashes mid-song: the music and following go on  `P1`
 **Pre:** TC-LIVE-22 running at ~3 s
 **Steps**
-1. Crash the operator page (`browser_evaluate(() => { while (true) {} })` on index.html; answer the reload message
-   with `queueMessageBox(0)` if asked).
+1. Freeze the operator page: `browser_evaluate` on index.html →
+   `await window.api.e2e.queueMessageBox(0); setTimeout(() => { while (true) {} }, 50)` (queue the answer **first**,
+   and start the loop from a timer so the call returns — a frozen page never answers the MCP again).
+2. Wait 15 s.
+3. Crash it instead: from a plain Node script, CDP `Page.crash` on the index.html target (not through the Playwright
+   MCP: it may close the crashed page, which quits the app).
 **Expected**
-- The projector keeps the music playing and the lyrics on screen; after the operator reloads, the toast says the
-  window restarted and that the lyrics keep following the music; slide 3 still comes up at ~8 s.
+- Step 1–2: within ~10 s main asks "The ICCWorship window is not responding." with **Restart the window** / **Keep
+  waiting** (the queued answer 0 restarts it); `main.log` says `operator window stopped responding: asking` then
+  `…: restarting it`. Without a queued answer, choosing **Keep waiting** asks again 10 s later if it's still frozen,
+  and the question closes by itself if the window starts answering.
+- Steps 1–3: the projector keeps the music playing and the lyrics on screen; after the operator reloads, the toast
+  says the window restarted and that the lyrics keep following the music. The lyrics **catch up** with the music at
+  once (frozen during the intro and restarted at ~10 s: slide 3 straight away), forward only — and then follow as
+  usual (a crash reloads within a second: slide 3 still comes up at ~8 s). While the window is frozen the lyrics
+  don't move (the window that drives them is stuck); the music never stops.
+- A confirm box left open in the operator (e.g. Delete a song, then wait 30 s before answering) is **not** taken for a
+  freeze: no question appears.

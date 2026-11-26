@@ -92,9 +92,11 @@ const api = {
     testSoundResult: (r: { ok: boolean }) => ipcRenderer.send('output:testSoundResult', r),
     sinkFailed: () => ipcRenderer.send('output:sinkFailed')
   },
-  /** projector / stage windows: "I'm alive" every second, and "my page broke, reload me" */
+  /** every window: "I'm alive" every second (freeze detection), and the projector / stage: "my page broke, reload me" */
   win: {
     alive: () => ipcRenderer.send('win:alive'),
+    /** operator: a confirm() is open (it blocks the page, so its heartbeat stops while the volunteer reads it) */
+    busy: (busy: boolean) => ipcRenderer.send('win:busy', busy),
     fatal: (message: string) => ipcRenderer.send('win:fatal', message),
     /** this window couldn't draw the current slide (its error boundary caught it): tell the operator */
     renderError: (message: string) => ipcRenderer.send('win:renderError', message)
