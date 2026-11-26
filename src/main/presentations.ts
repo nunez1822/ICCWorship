@@ -7,6 +7,7 @@ import { readPptxText } from '@shared/pptxText'
 import { uid } from '@shared/slides'
 import { cacheDir } from './paths'
 import { isSafeId } from '@shared/security'
+import { loggableError } from '@shared/loggableError'
 import { within } from './pathGuard'
 import { log } from './log'
 import { db } from './db'
@@ -156,7 +157,7 @@ export async function importPresentation(src: string, prefer?: 'powerpoint' | 'l
       }
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e)
-      log.warn('presentation import via', method, 'failed:', lastError)
+      log.warn('presentation import via', method, 'failed:', loggableError(e))
     }
   }
   return { error: ext === '.ppt' ? 'ppt-needs-office' : lastError || 'failed' }

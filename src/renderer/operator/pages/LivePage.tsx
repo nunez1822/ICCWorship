@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { PlanItem, Slide, Theme, Background } from '@shared/types'
 import { formatClock, upcomingSlideIndex } from '@shared/slides'
-import { useApp } from '../store'
+import { useApp, t as tr } from '../store'
 import * as live from '../liveControl'
 import { buildItem } from '../../lib/buildSlides'
 import { SlideView } from '../../components/SlideView'
@@ -157,11 +157,13 @@ function SlidesColumn({ item }: { item?: PlanItem }) {
   const { t } = useTranslation()
   const s = useApp()
   const liveSt = s.live
-  const [built, setBuilt] = useState<{ slides: Slide[]; theme: Theme; background: Background | null; itemId?: string } | null>(null)
+  const [built, setBuilt] = useState<{ slides: Slide[]; theme?: Theme; background: Background | null; itemId: string } | null>(null)
   const [size, setSize] = useState(220)
   const isLiveItem = !!item && liveSt?.itemId === item.id
   const plan = live.activePlan()
   const index = plan && item ? plan.items.findIndex((i) => i.id === item.id) : -1
+  // only the settings buildItem reads: the EN/ES/Both toggle also writes settings and must not rebuild
+  const { defaultThemeId, ccliLicense } = s.settings
 
   // build preview slides for a selected item that is not live yet
   useEffect(() => {
@@ -170,27 +172,39 @@ function SlidesColumn({ item }: { item?: PlanItem }) {
       setBuilt(null)
       return
     }
-    void buildItem(item, {
+    buildItem(item, {
       songs: s.songs,
       media: s.media,
       presentations: s.presentations,
       themes: s.themes,
-      settings: s.settings,
+      settings: { defaultThemeId, ccliLicense },
       bibles: s.bibles,
       planDate: plan?.date
-    }).then((b) => {
-      if (!cancel) setBuilt({ ...b, itemId: item.id })
-    })
+    }).then(
+      (b) => {
+        if (!cancel) setBuilt({ ...b, itemId: item.id })
+      },
+      (e: unknown) => {
+        if (cancel) return
+        console.error('preview build failed', e)
+        setBuilt({ slides: [], background: null, itemId: item.id })
+        useApp.getState().toast(tr('errors.previewFailed', { title: item.title }), 'err', 8000)
+      }
+    )
     return () => {
       cancel = true
     }
-  }, [item, isLiveItem, s.songs, s.media, s.presentations, s.themes, s.settings, s.bibles, plan?.date])
+  }, [item, isLiveItem, s.songs, s.media, s.presentations, s.themes, defaultThemeId, ccliLicense, s.bibles, plan?.date])
 
   // what to show: live slides if the selected item (or nothing selected) is live
   const showLive = isLiveItem || (!item && !!liveSt && liveSt.slides.length > 0)
-  const slides = showLive ? liveSt!.slides : built?.slides || []
-  const theme = showLive ? liveSt!.theme : built?.theme
-  const bg = showLive ? liveSt!.background : built?.background
+  // a preview built for a previously selected item must never show under this item's title:
+  // clicking one of its thumbnails would send this item live at the other item's slide index
+  const preview = built && item && built.itemId === item.id ? built : null
+  const building = !showLive && !!item && !preview
+  const slides = showLive ? liveSt!.slides : preview?.slides || []
+  const theme = showLive ? liveSt!.theme : preview?.theme
+  const bg = showLive ? liveSt!.background : preview?.background
   const title = showLive ? liveSt?.itemTitle : item?.title
 
   return (
@@ -215,8 +229,8 @@ function SlidesColumn({ item }: { item?: PlanItem }) {
       <div className="col-body" style={{ padding: 0 }}>
         {!slides.length && (
           <div className="empty">
-            <div className="big">👈</div>
-            {item ? t('live.noSlides') : t('live.pickHelp')}
+            <div className="big">{building ? '⏳' : '👈'}</div>
+            {building ? t('common.working') : item ? t('live.noSlides') : t('live.pickHelp')}
           </div>
         )}
         {theme && (

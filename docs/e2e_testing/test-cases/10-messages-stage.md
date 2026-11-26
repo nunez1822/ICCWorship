@@ -60,3 +60,23 @@
 - Step 1 shows the "Enter the PIN shown in ICCWorship → Settings" screen — **no slides, notes or plan are shown before the PIN**.
 - Step 2: "Wrong PIN". Step 3: the stage display appears and updates live.
 - The app's own stage window (Settings → open stage) never asks for a PIN.
+
+### TC-STG-06 · Video slide on a stage screen in a browser  `P1`
+**Pre:** a video in Media (`tests/fixtures/sample.mp4`); phone on `http://localhost:7272/stage#pin=<PIN>` (TC-STG-04)
+**Steps**
+1. Put the video live (Media → the video → Show now). 2. Look at the phone's stage page, then the app's stage window.
+**Expected**
+- Both show "🎬 <video title>" in the current-slide box — never an empty box. When the video is the next slide,
+  the "Next" column shows the same.
+
+### TC-STG-07 · A slide the stage can't draw doesn't blank the stage  `P1`
+**Pre:** stage window open (Settings → Screens → 🎤 Open stage display).
+**Steps**
+1. Operator tab `browser_evaluate` → push a slide that can't be drawn:
+   `await window.api.live.update({ slides: [{ id: 'bad-e2e', kind: 'song', text: { en: {}, es: {} } }], slideIndex: 0, displayLang: 'en' })`
+2. Put a normal song live (Songs → Show now).
+**Expected**
+- Step 1: the stage keeps its clock and timers and shows "—" where the slide would be; the operator gets a red
+  "The stage display could not show this slide…" message (the projector shows black and its own message).
+  `main.log` has `stage could not draw a slide: Error (slide song)`.
+- Step 2: the stage shows the new song normally — no click on the stage and no restart needed.

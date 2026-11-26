@@ -50,7 +50,7 @@ function Stage() {
       />
     )
   }
-  if (!state) return <div className="stage-wait">{status === 'offline' ? t('stage.offline') : '…'}</div>
+  if (!state) return <div className="stage-wait">{status === 'offline' ? t('stage.offline') : status === 'full' ? t('stage.full') : '…'}</div>
 
   const cur = state.slideIndex >= 0 ? state.slides[state.slideIndex] : undefined
   const nextIdx = upcomingSlideIndex(state)
@@ -64,7 +64,7 @@ function Stage() {
 
   return (
     <div className="stage">
-      {status === 'offline' && <div className="stage-offline">⚠ {t('stage.offline')}</div>}
+      {(status === 'offline' || status === 'full') && <div className="stage-offline">⚠ {t(status === 'full' ? 'stage.full' : 'stage.offline')}</div>}
       <header className="stage-top">
         <div className="stage-clock">{new Date(now).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</div>
         <div className="stage-item">
@@ -100,28 +100,41 @@ function Stage() {
         )}
       </header>
       {state.stageMessage && <div className={`stage-msg ${flash ? 'flash' : ''}`}>{state.stageMessage.text}</div>}
-      <main className="stage-main">
-        <section className="stage-current">
-          {state.layers.black && <div className="stage-flag">⬛ {t('stage.black')}</div>}
-          {state.layers.logo && !state.layers.black && <div className="stage-flag">✝ {t('stage.logo')}</div>}
-          <StageSlide slide={cur} state={state} chords={chords && hasChords} big />
-        </section>
-        <aside className="stage-next">
-          <div className="lbl">{t('stage.next')}</div>
-          {next ? (
-            <StageSlide slide={next} state={state} chords={false} />
-          ) : (
-            <div className="next-item">{nextItem ? `⏭ ${nextItem.title}` : t('stage.end')}</div>
-          )}
-          {cur?.notes && (
-            <div className="stage-notes">
-              <div className="lbl">📝</div>
-              {cur.notes}
-            </div>
-          )}
-          {state.itemNotes && <div className="stage-notes">{state.itemNotes}</div>}
-        </aside>
-      </main>
+      {/* a slide that can't be drawn shows "—" until the next one, and the operator is told (app window) */}
+      <ErrorBoundary
+        resetKeys={[state.seq]}
+        fallback={() => (
+          <main className="stage-main">
+            <div className="stage-empty">—</div>
+          </main>
+        )}
+        onError={(e) => {
+          if (inApp) window.api.win.renderError(`${errorSummary(e)} (slide ${cur?.kind || 'none'})`)
+        }}
+      >
+        <main className="stage-main">
+          <section className="stage-current">
+            {state.layers.black && <div className="stage-flag">⬛ {t('stage.black')}</div>}
+            {state.layers.logo && !state.layers.black && <div className="stage-flag">✝ {t('stage.logo')}</div>}
+            <StageSlide slide={cur} state={state} chords={chords && hasChords} big />
+          </section>
+          <aside className="stage-next">
+            <div className="lbl">{t('stage.next')}</div>
+            {next ? (
+              <StageSlide slide={next} state={state} chords={false} />
+            ) : (
+              <div className="next-item">{nextItem ? `⏭ ${nextItem.title}` : t('stage.end')}</div>
+            )}
+            {cur?.notes && (
+              <div className="stage-notes">
+                <div className="lbl">📝</div>
+                {cur.notes}
+              </div>
+            )}
+            {state.itemNotes && <div className="stage-notes">{state.itemNotes}</div>}
+          </aside>
+        </main>
+      </ErrorBoundary>
     </div>
   )
 }
@@ -138,9 +151,9 @@ function StageSlide({
   big?: boolean
 }) {
   if (!slide) return <div className="stage-empty">—</div>
-  if ((slide.kind === 'image' || slide.kind === 'video') && slide.media) {
-    return slide.kind === 'image' ? <img className="stage-img" src={safeMediaSrc(slide.media)} alt="" /> : <div className="stage-empty">🎬 {slide.group}</div>
-  }
+  // over the LAN a video slide arrives without its media (only images get a link), so test the kind alone
+  if (slide.kind === 'video') return <div className="stage-empty">🎬 {slide.group}</div>
+  if (slide.kind === 'image' && slide.media) return <img className="stage-img" src={safeMediaSrc(slide.media)} alt="" />
   if (slide.kind === 'countdown') return <div className="stage-empty">⏱ {formatClock(Math.max(0, (slide.countdownTo || 0) - Date.now()))}</div>
   const src = chords && slide.chords ? slide.chords : slide.text
   const txt = pickLangs(src, state.displayLang === 'both' ? 'both' : state.displayLang, state.bilingualOrder)
@@ -183,14 +196,15 @@ function renderChords(text?: string) {
 const inAppWindow = !!window.api
 if (inAppWindow) setInterval(() => window.api.win.alive(), 1000) // freeze detection (see main's guardWindow)
 
-createRoot(document.getElementById('root')!, {
-  onUncaughtError: (e) => {
-    // in the app's own stage window main reloads the page; a browser just reloads itself
-    if (inAppWindow) window.api.win.fatal(errorSummary(e))
-    else setTimeout(() => location.reload(), 3000)
-  }
-}).render(
+/** the page itself broke (not just one slide): in the app's stage window main reloads it; a browser reloads itself */
+function pageBroke(e: unknown): void {
+  if (inAppWindow) window.api.win.fatal(errorSummary(e))
+  else setTimeout(() => location.reload(), 3000)
+}
+
+createRoot(document.getElementById('root')!, { onUncaughtError: pageBroke }).render(
   <ErrorBoundary
+    onError={pageBroke}
     fallback={(reset) => (
       <div className="stage-wait" onClick={reset}>
         …

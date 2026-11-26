@@ -1,11 +1,13 @@
 {
   "errors": {
     "generic": "Algo salió mal.",
+    "startFailed": "ICCWorship no se pudo iniciar.",
     "saveFailed": "⚠ No se pudo guardar {{what}} ({{reason}}). Sus cambios se conservan mientras la aplicación esté abierta — verifique que la carpeta de datos no sea de solo lectura ni esté llena.",
     "dataRecovered": "⚠ El archivo de {{what}} estaba dañado y se restauró desde su copia de respaldo. La copia dañada se guardó: {{file}}",
     "dataUnreadable": "⚠ El archivo de {{what}} está dañado y no se pudo leer. Se guardó como {{file}} — restaure una copia en Ajustes → Copia de seguridad.",
     "mediaMissing": "⚠ Archivo no encontrado: {{file}}",
-    "mediaUnplayable": "⚠ Este video no se puede reproducir (dañado o formato no compatible)."
+    "mediaUnplayable": "⚠ Este video no se puede reproducir (dañado o formato no compatible).",
+    "previewFailed": "⚠ No se pudo preparar la vista previa de «{{title}}». Verifique que su canto, versión de la Biblia o archivo todavía existe."
   },
   "common": {
     "add": "Agregar",
@@ -319,7 +321,8 @@
     "importErr": {
       "empty": "No se encontró texto bíblico en ese archivo. Use una Biblia completa en XML OSIS o USFX, o una Biblia JSON de ICCWorship.",
       "unsupported": "Ese archivo no tiene un formato de Biblia que ICCWorship pueda leer (OSIS, USFX o JSON de ICCWorship).",
-      "id-taken": "Esa abreviatura pertenece a una Biblia incluida. Elija otra abreviatura."
+      "id-taken": "Esa abreviatura pertenece a una Biblia incluida. Elija otra abreviatura.",
+      "bad-id": "Esa abreviatura no se puede usar. Use hasta 64 letras o números (por ejemplo LBLA o NVI)."
     },
     "imported": "“{{name}}” importada",
     "results_one": "{{count}} resultado",
@@ -533,6 +536,7 @@
     "restoreConfirm": "Restaurar REEMPLAZA todos los datos actuales con la copia (antes se hace una copia de seguridad). También se reemplazan los versículos pegados y todo lo importado después de hacer la copia. Se conservan los ajustes de pantallas, control remoto y PIN de esta computadora. ¿Continuar?",
     "restoreFailed": "Ese archivo no es una copia de ICCWorship.",
     "openData": "Abrir carpeta de datos",
+    "openDataFailed": "No se pudo abrir la carpeta de datos.",
     "about": "Acerca de",
     "aboutText": "Software libre y gratuito para presentaciones en la iglesia (licencia MIT). Hecho con amor para las iglesias que lo necesitan.",
     "credits": "Biblias incluidas: King James Version y Reina-Valera 1909 (dominio público, vía el proyecto open-bibles).",
@@ -546,6 +550,7 @@
     "portHelp": "Presione Enter para aplicar. Use un número de 1024 a 65535.",
     "restartOutput": "Reiniciar proyector",
     "restartOutputHelp": "Recarga la ventana del proyector (y sale del modo negro \"seguro\" después de errores repetidos)",
+    "portInvalid": "No se puede usar el puerto {{port}}. Use un número de 1024 a 65535; el puerto sigue siendo {{current}}.",
     "restoreError": {
       "not-a-backup": "Ese archivo no es una copia de seguridad de ICCWorship.",
       "newer-format": "Esa copia la hizo una versión más nueva de ICCWorship. Instale la versión más reciente para restaurarla.",
@@ -591,6 +596,7 @@
     "locked": "Demasiados PIN incorrectos — espere {{seconds}} s e intente de nuevo",
     "connect": "Conectar",
     "offline": "Reconectando…",
+    "full": "Hay demasiados teléfonos y pantallas conectados. Cierre ICCWorship en otro dispositivo; este se conectará solo.",
     "black": "Negro",
     "video": "Video",
     "slides": "Diapositivas",
@@ -601,6 +607,7 @@
   },
   "stage": {
     "offline": "Conectando con ICCWorship…",
+    "full": "Hay demasiados teléfonos y pantallas conectados. Cierre ICCWorship en otro dispositivo; esta pantalla se conectará sola.",
     "now": "Ahora",
     "videoLeft": "Resta del video",
     "item": "Elemento",
@@ -637,6 +644,7 @@
     "stageRestarted": "La ventana de escenario tuvo un problema y se reinició.",
     "stageFailed": "La ventana de escenario sigue fallando. Ciérrela y ábrala de nuevo en Ajustes → Pantallas.",
     "renderError": "El proyector no pudo mostrar esta diapositiva, así que muestra negro. Pase a la siguiente diapositiva o elemento.",
+    "stageRenderError": "La pantalla de escenario no pudo mostrar esta diapositiva. La siguiente se mostrará con normalidad.",
     "gpuCrashed": "El controlador de gráficos dejó de responder. Si el proyector se pone negro o se congela, active \"Desactivar la aceleración gráfica\" en Ajustes → Acerca de y reinicie ICCWorship.",
     "operatorRecovered": "ICCWorship reinició esta ventana después de un problema. El proyector siguió mostrando lo que estaba en vivo; si había anuncios en bucle, se detuvieron — presione Espacio para continuar.",
     "operatorCrashed": "La ventana de ICCWorship falló otra vez. El proyector sigue mostrando lo que está en vivo. ¿Recargar la ventana?",
@@ -645,11 +653,14 @@
   "boundary": {
     "title": "Esta página tuvo un problema",
     "body": "El proyector y el control remoto siguen funcionando. Intente de nuevo o recargue la ventana. El problema quedó anotado en el registro.",
+    "windowTitle": "Esta ventana tuvo un problema",
+    "windowBody": "El proyector y el control remoto siguen funcionando. Recargue la ventana para continuar. El problema quedó anotado en el registro.",
     "retry": "Intentar de nuevo",
     "reload": "Recargar ventana"
   },
   "about": {
     "notices": "Licencias de código abierto",
+    "noticesMissing": "Falta el archivo de licencias de código abierto en esta copia de ICCWorship. La lista también está en el sitio web de ICCWorship.",
     "troubleshooting": "Solución de problemas",
     "troubleshootingHelp": "¿Va a reportar un problema? Adjunte el archivo de diagnóstico. No contiene letras, personas, peticiones de oración ni el PIN, pero los reportes en GitHub son públicos.",
     "reportProblem": "Reportar un problema",
@@ -659,6 +670,7 @@
     "copyInfo": "Copiar información del sistema",
     "copied": "Copiado — péguelo en su reporte.",
     "openLogs": "Abrir carpeta de registros",
+    "openLogsFailed": "No se pudo abrir la carpeta de registros.",
     "includeDumps": "Incluir volcados de fallos (pueden contener texto que estaba en pantalla)",
     "hwAccel": "Desactivar la aceleración gráfica",
     "hwAccelHelp": "Solo si el proyector se pone negro, parpadea o se congela en esta computadora. Se aplica al reiniciar ICCWorship."
@@ -670,12 +682,14 @@
     "checkNow": "Buscar ahora",
     "upToDate": "Tiene la versión más reciente.",
     "available": "ICCWorship {{version}} está disponible",
+    "download": "Página de descarga",
     "failed": "No se pudo comprobar (¿sin internet?)."
   },
   "data": {
     "readOnly": "No se pudieron preparar sus datos de forma segura, así que ICCWorship los abrió en solo lectura: puede dirigir el servicio, pero los cambios NO se guardan. Libere espacio en disco y reinicie.",
     "readOnlyNewer": "Estos datos los guardó una versión más nueva de ICCWorship. Esta versión anterior puede mostrarlos, pero los cambios — incluido el registro CCLI — NO se guardan. Instale la versión más reciente.",
     "readOnlyAction": "No se guardó: estos datos están abiertos en solo lectura (vea el mensaje arriba).",
-    "openBackups": "Abrir carpeta de copias"
+    "openBackups": "Abrir carpeta de copias",
+    "openBackupsFailed": "No se pudo abrir la carpeta de copias de seguridad."
   }
 }

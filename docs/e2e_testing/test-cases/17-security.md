@@ -140,6 +140,9 @@ A web page a phone opens could point its own domain at the church PC (DNS rebind
 4. `curl -sI http://localhost:7272/remote` and look at the headers.
 **Expected**
 - Step 1: **403**. Step 2: **200** (the PC's own name still works). Step 3: refused (HTTP 401), no live data.
+- A browser sent to a name the server doesn't answer (e.g. `<PC name>.fritz.box`) shows a plain-text bilingual hint:
+  "Forbidden: open the address or QR code shown in ICCWorship → Settings → Phone remote & stage display." /
+  "Prohibido: abra la dirección o el código QR…" — nothing from the request is echoed back.
 - Step 4: `Content-Security-Policy: frame-ancestors 'none'` and `X-Frame-Options: DENY` (other sites can't frame the remote).
 
 ### TC-SEC-13 · An empty PIN never lets anyone in  `P0`
@@ -168,5 +171,42 @@ A web page a phone opens could point its own domain at the church PC (DNS rebind
 **Steps**
 1. Live page: drag `tests/fixtures/sample.pdf` from Explorer onto the slide grid (not a drop zone).
    With Playwright: `browser_drop` the file onto `.slides-grid`, or on the projector window.
+2. Songs → open a song → drag the same PDF onto the lyrics box.
 **Expected**
 - The operator page (and projector) stay as they are — the window does not navigate to the PDF or show a file.
+- Step 2: nothing happens either (a file dropped on a text box is cancelled too).
+
+### TC-SEC-16 · Logs never quote a file's text or name  `P0`
+Logs are attached to public bug reports.
+**Steps**
+1. Write `.e2e-data/broken-bible.json` containing `{"books":[[["PLACEHOLDER-VERSE-TEXT` (cut short on purpose).
+   Bible → import with abbreviation `BRK` → `queueOpenFiles([<that file>])` first.
+2. Copy `tests/fixtures/sample.mp3` to `.e2e-data/Private Person Name.pptx` and import it as a presentation.
+3. Open the log: `.e2e-data/.userdata/logs/main.log` (test runs keep their own logs).
+**Expected**
+- Both imports show an error toast; the app keeps running.
+- `main.log` has lines "bible import failed: SyntaxError" and "presentation import via … failed: …" with only a
+  short code (`exit 1`, `ENOENT`, `no-slides`, an error kind…).
+- `main.log` contains neither `PLACEHOLDER-VERSE-TEXT` nor `Private Person Name`.
+- After a phone and a stage screen have connected (and one wrong PIN was tried), `main.log` has lines like
+  "LAN remote connected (1 devices)" and "LAN stage connection refused (wrong PIN)" but **no IP addresses**.
+
+### TC-SEC-17 · A custom data folder doesn't move the app's profile  `P2`
+`ICCWORSHIP_DATA` is a user setting (data on another drive); only test runs get a separate profile.
+**Steps**
+1. Quit every ICCWorship. In PowerShell: `$env:ICCWORSHIP_DATA = "$env:TEMP\icc-data"; npx electron .` (after `npm run build`).
+2. Quit it, then look inside `%TEMP%\icc-data`.
+**Expected**
+- The data (`data\`, `backups\`…) is in `%TEMP%\icc-data`, but there is **no** `.userdata` folder there: logs stay in
+  `%APPDATA%\ICCWorship\logs`.
+- Starting ICCWorship normally while that copy runs just brings the running window forward (one instance only).
+
+### TC-SEC-18 · Page errors in the log never quote their text  `P1`
+An error's message can quote what a page was reading (a SyntaxError quotes the JSON: a song, a Bible).
+**Steps**
+1. Operator tab: `browser_evaluate` →
+   `setTimeout(() => Promise.reject(new SyntaxError('Unexpected token PLACEHOLDER-LYRIC-TEXT is not valid JSON')))`.
+2. Open `.e2e-data/.userdata/logs/main.log`.
+**Expected**
+- The operator shows an error toast (the failure isn't silent).
+- `main.log` has `[index.html] unhandled rejection: SyntaxError` and does **not** contain `PLACEHOLDER-LYRIC-TEXT`.

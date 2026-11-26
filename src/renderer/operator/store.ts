@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { BibleVersionInfo, LiveState, MediaItem, Person, PrayerRequest, Presentation, ServicePlan, Settings, Song, Team, Theme } from '@shared/types'
 import i18n from '../i18n'
 import { localDate } from '@shared/dates'
+import { loggableError } from '@shared/loggableError'
 
 export type Page = 'live' | 'plans' | 'songs' | 'bible' | 'media' | 'themes' | 'people' | 'reports' | 'settings'
 
@@ -11,6 +12,8 @@ interface Toast {
   id: number
   text: string
   kind: 'ok' | 'err' | 'info'
+  /** a button on the toast, e.g. "Download" for an update */
+  action?: { label: string; run: () => void }
 }
 
 interface AppState {
@@ -44,7 +47,7 @@ interface AppState {
   refreshBibles: () => Promise<void>
   setActivePlan: (id?: string) => void
   selectItem: (id?: string) => void
-  toast: (text: string, kind?: Toast['kind'], ms?: number) => void
+  toast: (text: string, kind?: Toast['kind'], ms?: number, action?: Toast['action']) => void
   /** readOnly: the data was written by a newer ICCWorship; nothing is saved this session */
   dataStatus?: { readOnly: boolean; newerSchema?: number }
 }
@@ -144,7 +147,7 @@ export const useApp = create<AppState>((set, get) => ({
       // file to a folder that no longer exists) must not fail silently
       window.addEventListener('unhandledrejection', (ev) => {
         toastError(ev.reason)
-        api.app.log('warn', `unhandled rejection: ${ev.reason instanceof Error ? `${ev.reason.name}: ${ev.reason.message}` : String(ev.reason)}`)
+        api.app.log('warn', `unhandled rejection: ${loggableError(ev.reason)}`)
       })
       // what main reports: windows restarted after a crash, updates, diagnostics…
       api.app.onEvent((e) => {
@@ -155,10 +158,15 @@ export const useApp = create<AppState>((set, get) => ({
           else if (e.safe) toast(i18n.t('recovery.projectorSafe'), 'err', 120_000)
           else toast(i18n.t('recovery.projectorRestarted'), 'info', 10_000)
         } else if (e.type === 'windowFailed') toast(i18n.t(e.window === 'output' ? 'recovery.projectorFailed' : 'recovery.stageFailed'), 'err', 120_000)
-        else if (e.type === 'renderError') toast(i18n.t('recovery.renderError'), 'err', 10_000)
+        else if (e.type === 'renderError') toast(i18n.t(e.window === 'stage' ? 'recovery.stageRenderError' : 'recovery.renderError'), 'err', 10_000)
         else if (e.type === 'gpuCrashed') toast(i18n.t('recovery.gpuCrashed'), 'err', 30_000)
-        else if (e.type === 'update') toast(i18n.t('updates.available', { version: e.latest }), 'info', 30_000)
+        else if (e.type === 'update')
+          toast(i18n.t('updates.available', { version: e.latest }), 'info', 30_000, {
+            label: i18n.t('updates.download'),
+            run: () => void api.app.openRelease(e.url)
+          })
         else if (e.type === 'diagnostics') toast(i18n.t(e.ok ? 'about.diagSaved' : 'about.diagFailed'), e.ok ? 'ok' : 'err')
+        else if (e.type === 'openFailed') toast(i18n.t(e.what === 'logs' ? 'about.openLogsFailed' : 'about.noticesMissing'), 'err')
       })
     }
     // damaged data files found at startup: say so (and where the damaged copy was kept)
@@ -201,7 +209,13 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   async setSettings(patch) {
-    const s = await window.api.settings.set(patch)
+    let s: Settings
+    try {
+      s = await window.api.settings.set(patch)
+    } catch (e) {
+      toastError(e) // e.g. the server couldn't restart on a new port: never fail silently
+      return
+    }
     if (patch.uiLang) {
       void i18n.changeLanguage(s.uiLang)
       document.documentElement.lang = s.uiLang
@@ -222,11 +236,11 @@ export const useApp = create<AppState>((set, get) => ({
     set({ selectedItemId: id })
   },
 
-  toast(text, kind = 'ok', ms) {
+  toast(text, kind = 'ok', ms, action) {
     // the same message twice in a row (one action reported by two checks, a double click) is shown once
     if (get().toasts.some((x) => x.text === text)) return
     const id = ++toastId
-    set((s) => ({ toasts: [...s.toasts, { id, text, kind }] }))
+    set((s) => ({ toasts: [...s.toasts, { id, text, kind, action }] }))
     setTimeout(() => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), ms ?? (kind === 'err' ? 6000 : 4500))
   }
 }))

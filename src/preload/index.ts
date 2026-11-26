@@ -14,11 +14,12 @@ export type AppEvent =
   | { type: 'mainError' }
   | { type: 'windowRecovered'; window: 'output' | 'stage'; safe: boolean }
   | { type: 'windowFailed'; window: 'output' | 'stage' }
-  | { type: 'renderError' }
+  | { type: 'renderError'; window: 'output' | 'stage' }
   | { type: 'gpuCrashed' }
   | { type: 'update'; latest: string; url: string }
   | { type: 'diagnostics'; ok: boolean }
   | { type: 'menu'; action: 'shortcuts' | 'about' }
+  | { type: 'openFailed'; what: 'logs' | 'notices' }
 
 export interface ImportOutcome {
   presentation?: Presentation
@@ -81,14 +82,14 @@ const api = {
     replace: () => invoke('output:replace'),
     onStatus: (cb: (s: { open: boolean }) => void) => on('output:status', cb),
     /** reload the projector page (and leave "safe" mode after repeated crashes) */
-    restart: () => invoke('output:restart'),
-    /** the projector couldn't draw the current slide (its error boundary caught it) */
-    renderError: (message: string) => ipcRenderer.send('output:renderError', message)
+    restart: () => invoke('output:restart')
   },
   /** projector / stage windows: "I'm alive" every second, and "my page broke, reload me" */
   win: {
     alive: () => ipcRenderer.send('win:alive'),
-    fatal: (message: string) => ipcRenderer.send('win:fatal', message)
+    fatal: (message: string) => ipcRenderer.send('win:fatal', message),
+    /** this window couldn't draw the current slide (its error boundary caught it): tell the operator */
+    renderError: (message: string) => ipcRenderer.send('win:renderError', message)
   },
   stage: { open: () => invoke('stage:open') },
   files: {
@@ -139,17 +140,21 @@ const api = {
   },
   app: {
     info: (): Promise<{ version: string; dataPath: string; electron: string }> => invoke('app:info'),
-    openDataFolder: () => invoke('app:openDataFolder'),
-    openBackups: () => invoke('app:openBackups'),
+    /** false when the folder could not be opened */
+    openDataFolder: (): Promise<boolean> => invoke('app:openDataFolder'),
+    /** false when the folder could not be opened */
+    openBackups: (): Promise<boolean> => invoke('app:openBackups'),
     /** readOnly: the data was written by a newer ICCWorship (nothing is saved this session) */
     dataStatus: (): Promise<{ readOnly: boolean; newerSchema?: number }> => invoke('app:dataStatus'),
     openExternal: (url: string) => invoke('app:openExternal', url),
     /** write a line to the app's log file (never put lyrics, people or PINs in it) */
     log: (level: 'info' | 'warn' | 'error', message: string) => ipcRenderer.send('app:log', level, message),
-    openLogs: () => invoke('app:openLogs'),
+    /** false when the folder could not be opened */
+    openLogs: (): Promise<boolean> => invoke('app:openLogs'),
     exportDiagnostics: (includeCrashDumps: boolean): Promise<{ ok: boolean; path: string } | null> => invoke('app:exportDiagnostics', includeCrashDumps),
     copySystemInfo: (): Promise<boolean> => invoke('app:copySystemInfo'),
-    openNotices: () => invoke('app:openNotices'),
+    /** false when the licences file is missing */
+    openNotices: (): Promise<boolean> => invoke('app:openNotices'),
     reportProblem: () => invoke('app:reportProblem'),
     checkUpdates: (): Promise<{ ok: true; latest: string; newer: boolean; url: string } | { ok: false; error?: string; skipped?: true }> =>
       invoke('app:checkUpdates'),

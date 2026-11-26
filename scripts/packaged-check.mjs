@@ -2,7 +2,8 @@
 /**
  * Launches the PACKAGED app (dist/win-unpacked/ICCWorship.exe) with throw-away data and checks that the operator,
  * projector and stage windows render. Unit tests, smoke and e2e all run the unpackaged app from node_modules, so
- * this is the only check that exercises what users install: asar packaging, Electron fuses, asar integrity.
+ * this is the only check that exercises what users install: asar packaging, and the Electron fuses set in
+ * electron-builder.yml (checked below), including asar integrity validation (the app would not start otherwise).
  *
  *   npm run build:dir && node scripts/packaged-check.mjs [path\to\ICCWorship.exe]
  */
@@ -10,6 +11,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import fuses from '@electron/fuses' // CommonJS: no named exports
 import { chromium } from 'playwright-core'
 
 const root = resolve(import.meta.dirname, '..')
@@ -20,19 +22,41 @@ if (!existsSync(exe)) {
   process.exit(1)
 }
 
-const data = mkdtempSync(join(tmpdir(), 'iccworship-packaged-'))
-const env = { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_WINDOWED: '1' }
-delete env.ELECTRON_RENDERER_URL
-const child = spawn(exe, [`--remote-debugging-port=${port}`], { env, stdio: 'inherit' })
-let exited = null
-child.on('exit', (code) => (exited = code))
-
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 let failed = false
 const check = (ok, what) => {
   console.log(`${ok ? '✓' : '✗'} ${what}`)
   if (!ok) failed = true
 }
+
+// Fuses: must match electronFuses in electron-builder.yml. Read before launching, so an error here leaves no app
+// running. The wire holds one byte per fuse: '1' (49) on, '0' (48) off (FuseState is not exported by the package).
+const { FuseV1Options, getCurrentFuseWire } = fuses
+const wire = await getCurrentFuseWire(exe)
+const expectFuse = (opt, on) => check(wire[opt] === (on ? 49 : 48), `fuse ${FuseV1Options[opt]} ${on ? 'on' : 'off'}`)
+expectFuse(FuseV1Options.RunAsNode, false)
+expectFuse(FuseV1Options.EnableNodeOptionsEnvironmentVariable, false)
+expectFuse(FuseV1Options.EnableNodeCliInspectArguments, false)
+expectFuse(FuseV1Options.EnableEmbeddedAsarIntegrityValidation, true)
+expectFuse(FuseV1Options.OnlyLoadAppFromAsar, true)
+expectFuse(FuseV1Options.EnableCookieEncryption, true)
+expectFuse(FuseV1Options.GrantFileProtocolExtraPrivileges, true) // pages load from file://; see electron-builder.yml
+
+const data = mkdtempSync(join(tmpdir(), 'iccworship-packaged-'))
+const env = { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_TEST_PROFILE: '1', ICCWORSHIP_WINDOWED: '1' }
+delete env.ELECTRON_RENDERER_URL
+const child = spawn(exe, [`--remote-debugging-port=${port}`], { env, stdio: 'inherit' })
+let exited = null
+child.on('exit', (code) => (exited = code))
+
+/** True once React has rendered something into #root (windows load asynchronously). */
+const rendered = (p) =>
+  p
+    ? p.waitForSelector('#root *', { state: 'attached', timeout: 15000 }).then(
+        () => true,
+        () => false
+      )
+    : false
 
 let browser
 try {
@@ -68,10 +92,10 @@ try {
     check(typeof wasm === 'number' && wasm > 1000, `pdf.js wasm decoders load (${wasm})`)
   }
   const out = await page('output.html')
-  check(!!out && (await out.locator('#root *').count()) > 0, 'projector window rendered')
+  check(await rendered(out), 'projector window rendered')
   if (op) await op.evaluate(() => window.api.stage.open())
   const stage = await page('stage.html')
-  check(!!stage && (await stage.locator('#root *').count()) > 0, 'stage window rendered')
+  check(await rendered(stage), 'stage window rendered')
 } catch (e) {
   check(false, String(e?.message || e))
 } finally {

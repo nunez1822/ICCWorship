@@ -76,13 +76,22 @@ export async function prepareData(safetyBackup: () => Promise<unknown>): Promise
   return status
 }
 
+/**
+ * An empty PIN would let anyone on the Wi-Fi use the remote (and the server now refuses every device instead).
+ * Settings from before PINs existed, a damaged settings file or a restored old backup can lack one: call this
+ * at startup and after every restore. Returns true if it had to make a new one.
+ */
+export function ensurePin(): boolean {
+  if (getSettings().remotePin) return false
+  setSettings({ remotePin: newPin() })
+  return true
+}
+
 /** First launch: seed sample songs, themes, teams and a Sunday template so the app is useful immediately. */
 export function seedIfEmpty(): void {
   const s = db()
   const meta = s.read<{ seeded?: number }>('meta', {})
-  // An empty PIN would let anyone on the Wi-Fi use the remote. Settings from before PINs existed, a damaged
-  // settings file or an old backup can lack one: always make sure there is one.
-  if (!getSettings().remotePin) setSettings({ remotePin: newPin() })
+  ensurePin()
   if (meta.seeded) {
     // make sure built-in themes are always present (they may be updated between versions)
     const themes = s.list<Theme>('themes')

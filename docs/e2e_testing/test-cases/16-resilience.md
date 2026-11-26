@@ -136,9 +136,11 @@ Stop the app: `taskkill /F /IM electron.exe`. Relaunch keeping data: `npm run e2
 
 ### TC-RES-18 · Laptop sleep and resume  `P2` (manual)
 **Steps**
-1. Live with phone connected; close the laptop lid 1 minute; open.
+1. Live with phone connected and the projector open; close the laptop lid 1 minute; open.
 **Expected**
 - Clock and timers correct after resume; phone reconnects; video background resumes.
+- Waking up does **not** restart the projector: no "The projector window had a problem and was restarted"
+  message, and `main.log` has `system suspending` / `system resumed` but no `output window stopped responding`.
 
 ### TC-RES-19 · Two-hour soak  `P2` (long)
 **Steps**
@@ -172,6 +174,7 @@ projector first — earlier crashes in the last minute count toward the limit.
 1. A song live. Projector tab `browser_evaluate` → `setTimeout(() => { for (;;) {} }, 100)` (freezes the page).
 **Expected**
 - Within ~10 s the projector is restarted (log: `output window stopped responding`) and shows the song again.
+- It is restarted **once**: one "restarted" message, and no second black flash a few seconds later.
 
 ### TC-RES-23 · Main window crash  `P1`
 **Steps**
@@ -189,3 +192,46 @@ projector first — earlier crashes in the last minute count toward the limit.
 **Expected**
 - At worst the Songs page shows "This page had a problem — Try again / Reload window"; the top bar, the other
   pages, the keyboard shortcuts and the phone remote keep working. Remove the record afterwards.
+
+### TC-RES-25 · A main window crash long after a "crashed again" prompt reloads by itself  `P2` (long)
+**Pre:** TC-RES-23 just done (the "crashed again" box was answered Reload).
+**Steps**
+1. Wait at least 70 s with the window working. 2. Crash the operator page again (CDP `Page.crash`).
+**Expected**
+- The window reloads by itself with the red "restarted" message — **no** "crashed again — reload?" box (don't
+  queue a message box answer; if the box appears, the test fails).
+
+### TC-RES-26 · Restart projector twice quickly  `P1`
+**Steps**
+1. A song live. Settings → Screens → click 🔄 Restart projector twice in quick succession (one `browser_run_code_unsafe`
+   that clicks it twice).
+**Expected**
+- The projector shows the song again. No red "Something went wrong inside ICCWorship" message (the first reload
+  being replaced by the second is not an error); `main.log` has no `unhandled rejection in main`.
+
+### TC-RES-27 · A page that breaks without crashing is really reloaded  `P1`
+**Steps**
+1. A song live; stage window open. On the stage tab `browser_evaluate` → `window.api.win.fatal('e2e test')` (what the
+   page sends when React gives up on it; the renderer stays alive).
+2. Same on the projector tab.
+**Expected**
+- Each window really reloads (its URL's `?load=` number goes up, the page starts again) and shows what is live;
+  the operator gets the "…was restarted" message. `main.log` has `stage page failed: e2e test` /
+  `output page failed: e2e test`.
+
+### TC-RES-28 · Stage display that gave up can be opened again  `P2`
+**Steps**
+1. Stage window open. Crash its page (CDP `Page.crash` on the stage tab) **4 times within a minute**, waiting for
+   it to come back each time, until the operator shows "The stage window keeps failing…".
+2. Without closing it, Settings → Screens → 🎤 Open stage display.
+**Expected**
+- Step 2 starts the stage page again: it shows what is live (not a dead window that only gets focus).
+  `main.log` has `stage window started again after it failed`.
+
+### TC-RES-29 · An error outside a page offers a reload instead of a blank window  `P2` (manual, dev build)
+**Steps**
+1. Temporarily add `throw new Error('e2e')` at the top of the `App` component's render in
+   `src/renderer/operator/App.tsx`; `npm run dev`. Remove it afterwards.
+**Expected**
+- The window shows "This window had a problem" with ↻ Reload window / Try again — never a blank window.
+- The projector and phone remote keep working; `main.log` has one `operator: Error` line (not two).

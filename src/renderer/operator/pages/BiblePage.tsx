@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { BibleVersionInfo, Lang, PassageResult, Verse } from '@shared/types'
 import { bookName } from '@shared/books'
+import { BIBLE_ERRORS } from '@shared/bibleCore'
 import { bookSuggestions, formatReference, parseReference } from '@shared/scriptureRef'
 import { uid } from '@shared/slides'
-import { useApp } from '../store'
+import { toastError, useApp } from '../store'
 import { activePlan, showAdhoc, syncPlanSummary } from '../liveControl'
 import { scriptureSlides } from '../../lib/buildSlides'
 import { Field, confirmDel } from '../../components/ui'
@@ -480,10 +481,16 @@ function NewPastedVersion({ onDone }: { onDone: (id?: string) => void }) {
   const s = useApp()
   const [meta, setMeta] = useState({ name: '', abbrev: '', lang: 'es' as Lang, copyright: '', verseLimit: 500 })
   const create = async (m: typeof meta & { id?: string }) => {
-    const info = await window.api.bible.createPasted({ ...m, verseLimit: m.verseLimit || undefined })
-    await s.refreshBibles()
-    s.toast(t('bible.versionCreated', { name: info.name }))
-    onDone(info.id)
+    try {
+      const info = await window.api.bible.createPasted({ ...m, verseLimit: m.verseLimit || undefined })
+      await s.refreshBibles()
+      s.toast(t('bible.versionCreated', { name: info.name }))
+      onDone(info.id)
+    } catch (e) {
+      const code = String((e as Error)?.message || '').replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+      if (BIBLE_ERRORS.includes(code)) s.toast(t(`bible.importErr.${code}`), 'err', 10_000)
+      else toastError(e)
+    }
   }
   const hasLbla = s.bibles.some((b) => b.id === 'lbla')
   return (
@@ -624,7 +631,7 @@ function Versions() {
               const r = await window.api.bible.importFile(meta)
               if (r.canceled) return
               if (!r.ok) {
-                const known = ['empty', 'unsupported', 'id-taken'].includes(r.error || '')
+                const known = BIBLE_ERRORS.includes(r.error || '')
                 return s.toast(known ? t(`bible.importErr.${r.error}`) : t('bible.importFailed', { error: r.error }), 'err', 10_000)
               }
               await s.refreshBibles()

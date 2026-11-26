@@ -604,6 +604,10 @@ table.table {
 .toast.info {
   border-left-color: var(--blue);
 }
+.toast-action {
+  display: block;
+  margin-top: 8px;
+}
 
 /* ---------- live page ---------- */
 .live-page {

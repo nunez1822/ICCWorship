@@ -22,7 +22,7 @@ usually operated by a volunteer during a live service, so reliability and simpli
   - New settings must be added to `SETTING_CHECKS` or they can't be saved; the renderer can never set `remotePin`.
   - LAN input goes through `validateCommand` / `parseRange`, and phones only receive `pickPublicState`.
   - Nothing a LAN request sends may throw in main: every socket and stream needs an `'error'` handler.
-- **Crash recovery** (`src/main/recovery.ts`, wired in `index.ts` → `guardWindow` / `guardOperator`): projector
+- **Crash recovery** (`src/shared/recovery.ts`, wired in `index.ts` → `guardWindow` / `guardOperator`): projector
   and stage pages send `win.alive()` every second and are restarted when they crash or stop beating; repeated
   failures put the projector in `#safe` (black). Pages are wrapped in `ErrorBoundary`. Keep new windows/pages
   inside this net.

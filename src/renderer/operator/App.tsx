@@ -236,7 +236,10 @@ export function App() {
       {dataStatus?.readOnly && (
         <div className="readonly-banner" role="alert">
           <span>⚠ {t(dataStatus.newerSchema ? 'data.readOnlyNewer' : 'data.readOnly')}</span>
-          <button className="btn sm" onClick={() => void window.api.app.openBackups()}>
+          <button
+            className="btn sm"
+            onClick={() => void window.api.app.openBackups().then((ok) => ok || useApp.getState().toast(t('data.openBackupsFailed'), 'err'))}
+          >
             📂 {t('data.openBackups')}
           </button>
         </div>
@@ -280,6 +283,11 @@ export function App() {
         {toasts.map((x) => (
           <div key={x.id} className={`toast ${x.kind}`}>
             {x.text}
+            {x.action && (
+              <button className="btn sm toast-action" onClick={x.action.run}>
+                {x.action.label}
+              </button>
+            )}
           </div>
         ))}
       </div>

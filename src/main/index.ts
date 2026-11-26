@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url'
 import { Readable } from 'node:stream'
 import type { LiveState, RemoteCommand, VideoEndedCommand } from '@shared/types'
 import { parseRange, sanitizeSettingsPatch, validateCommand } from '@shared/security'
-import { COLLECTIONS, dataStatus, db, getSettings, isCollection, prepareData, seedIfEmpty, setSettings } from './db'
+import { COLLECTIONS, dataStatus, db, ensurePin, getSettings, isCollection, prepareData, seedIfEmpty, setSettings } from './db'
 import * as bible from './bible'
 import { live } from './live'
 import { serverInfo, setCommandHandler, startServer, stopServer } from './server'
@@ -29,10 +29,11 @@ import { deletePresentation, detectConverters, importImages, importPresentation,
 import { autoBackup, createBackup, createSafetyBackup, defaultBackupName, listBackups, restoreBackup } from './backup'
 import { backupDir, dataRoot, resourcesDir } from './paths'
 import { decodeText } from '@shared/textDecode'
+import { loggableError } from '@shared/loggableError'
 import { log, logDir, setLogDataRoot } from './log'
 import { newPin, within } from './pathGuard'
 import { setMainLang, t } from './i18n'
-import { Heartbeat, ReloadBudget } from './recovery'
+import { Heartbeat, ReloadBudget } from '@shared/recovery'
 import { exportDiagnostics, systemInfoText } from './diagnostics'
 import { checkForUpdates, RELEASES_URL } from './updates'
 
@@ -46,17 +47,20 @@ let operator: BrowserWindow | null = null
 let output: BrowserWindow | null = null
 let stageWin: BrowserWindow | null = null
 let quitting = false
+/** the operator window has been created: from then on an uncaught error is reported, not fatal */
+let started = false
 
 /** Events for the operator window (shown as toasts): crashes recovered, menu actions, updates… */
 type AppEvent =
   | { type: 'mainError' }
   | { type: 'windowRecovered'; window: 'output' | 'stage'; safe: boolean }
   | { type: 'windowFailed'; window: 'output' | 'stage' }
-  | { type: 'renderError' }
+  | { type: 'renderError'; window: 'output' | 'stage' }
   | { type: 'gpuCrashed' }
   | { type: 'update'; latest: string; url: string }
   | { type: 'diagnostics'; ok: boolean }
   | { type: 'menu'; action: 'shortcuts' | 'about' }
+  | { type: 'openFailed'; what: 'logs' | 'notices' }
 function notify(evt: AppEvent): void {
   if (operator && !operator.isDestroyed()) operator.webContents.send('app:event', evt)
 }
@@ -74,15 +78,24 @@ process.on('uncaughtException', (e) => {
     /* nothing more we can do */
   }
   if (operator && !operator.isDestroyed()) notify({ type: 'mainError' })
-  else {
-    dialog.showErrorBox('ICCWorship', `ICCWorship could not start / no se pudo iniciar.\n\n${e?.message || e}`)
-    app.exit(1)
-  }
+  else if (!started && !quitting) startupFailed(e)
+  // else: the window is already closed and the app is quitting. It is logged; there is nothing to show.
 })
+/** The app couldn't open its window: say so (a silent exit looks like "nothing happens" on double-click). */
+function startupFailed(e: unknown): void {
+  dialog.showErrorBox('ICCWorship', `${t('errors.startFailed')}\n\n${e instanceof Error ? e.message : String(e)}`)
+  app.exit(1)
+}
 process.on('unhandledRejection', (r) => {
-  log.error('unhandled rejection in main:', r instanceof Error ? r : String(r))
+  // a page load replaced by a newer one (a reload during a reload) rejects with ERR_ABORTED: nothing failed
+  if (isAbortedLoad(r)) return log.info('page load superseded')
+  // a non-Error rejection is logged only by its kind: its text could be anything (a payload, a file's content)
+  log.error('unhandled rejection in main:', r instanceof Error ? r : `(${typeof r})`)
   notify({ type: 'mainError' })
 })
+function isAbortedLoad(e: unknown): boolean {
+  return e instanceof Error && (e as Error & { code?: unknown }).code === 'ERR_ABORTED'
+}
 
 // Development and test switches. A packaged app ignores them, so nobody can point an installed ICCWorship at
 // other pages (ELECTRON_RENDERER_URL) or turn on the test hooks (ICCWORSHIP_E2E) with an environment variable.
@@ -93,9 +106,20 @@ const preload = join(__dirname, '../preload/index.js')
 const iconPath = join(resourcesDir(), 'icon.png')
 const REPO_URL = 'https://github.com/nunez1822/ICCWorship'
 
+let loads = 0
 function loadPage(win: BrowserWindow, page: 'index' | 'output' | 'stage' | 'remote', hash = ''): void {
-  if (devUrl) void win.loadURL(`${devUrl}/${page}.html${hash}`)
-  else void win.loadFile(join(rendererDir, `${page}.html`), { hash: hash.replace(/^#/, '') })
+  // A query that changes on every load makes this a real page load. Without it, loading the URL the window
+  // already shows (stage.html#local, or output.html → output.html#safe) only changes the #fragment: the page
+  // would not restart, although the operator is told it did.
+  const load = String(++loads)
+  const loading = devUrl
+    ? win.loadURL(`${devUrl}/${page}.html?load=${load}${hash}`)
+    : win.loadFile(join(rendererDir, `${page}.html`), { query: { load }, hash: hash.replace(/^#/, '') })
+  // A newer load (crash recovery, "Restart projector" pressed twice) aborts the pending one: that is expected.
+  // A real failure is logged; the crash and heartbeat guards deal with a window that stays broken.
+  loading.catch((e) => {
+    if (!isAbortedLoad(e)) log.warn(`${page} page did not load:`, e)
+  })
 }
 
 /* ------------------------------ media:// protocol ------------------------------ */
@@ -210,7 +234,7 @@ function buildMenu(): void {
       submenu: [
         { label: t('menu.shortcuts'), click: () => notify({ type: 'menu', action: 'shortcuts' }) },
         { type: 'separator' },
-        { label: t('menu.openLogs'), click: () => void shell.openPath(logDir()) },
+        { label: t('menu.openLogs'), click: () => void openLogs().then((ok) => ok || notify({ type: 'openFailed', what: 'logs' })) },
         {
           label: t('menu.exportDiagnostics'),
           click: () => void exportDiagnosticsInteractive(false).then((r) => r && notify({ type: 'diagnostics', ok: r.ok }))
@@ -218,7 +242,7 @@ function buildMenu(): void {
         { label: t('menu.reportProblem'), click: () => void shell.openExternal(newIssueUrl()) },
         { type: 'separator' },
         { label: t('menu.website'), click: () => void shell.openExternal(REPO_URL) },
-        { label: t('menu.notices'), click: () => void openNotices() },
+        { label: t('menu.notices'), click: () => void openNotices().then((ok) => ok || notify({ type: 'openFailed', what: 'notices' })) },
         { label: t('menu.about'), click: () => notify({ type: 'menu', action: 'about' }) }
       ]
     }
@@ -233,12 +257,25 @@ const newIssueUrl = () => `${REPO_URL}/issues/new?template=bug_report.yml&versio
 function noticesPath(): string {
   return app.isPackaged ? join(process.resourcesPath, 'THIRD_PARTY_NOTICES.md') : join(app.getAppPath(), 'out', 'THIRD_PARTY_NOTICES.md')
 }
-async function openNotices(): Promise<void> {
+/** false when the file isn't there (e.g. `npm run dev` before `node scripts/licenses.mjs`): the caller says so */
+async function openNotices(): Promise<boolean> {
   const p = noticesPath()
-  if (!existsSync(p)) return
+  if (!existsSync(p)) {
+    log.warn('open-source notices file missing')
+    return false
+  }
   // .md may have no program associated with it on a church PC: then show the file in Explorer instead
   if (await shell.openPath(p)) shell.showItemInFolder(p)
+  return true
 }
+
+/** shell.openPath answers with an error text ('' when it worked); false tells the caller to say so */
+async function openFolder(dir: string, what: string): Promise<boolean> {
+  const error = await shell.openPath(dir)
+  if (error) log.warn(`could not open the ${what} folder`)
+  return !error
+}
+const openLogs = () => openFolder(logDir(), 'logs')
 
 async function exportDiagnosticsInteractive(includeCrashDumps: boolean): Promise<{ ok: boolean; path: string } | null> {
   const stamp = new Date().toISOString().slice(0, 10)
@@ -261,13 +298,14 @@ async function exportDiagnosticsInteractive(includeCrashDumps: boolean): Promise
 // finally stops retrying; the operator is told every time.
 type Guarded = 'output' | 'stage'
 const winOf = (kind: Guarded) => (kind === 'output' ? output : stageWin)
-const guards: Record<Guarded, { budget: ReloadBudget; beat: Heartbeat; unresponsive?: ReturnType<typeof setTimeout> }> = {
+const guards: Record<Guarded, { budget: ReloadBudget; beat: Heartbeat; unresponsive?: ReturnType<typeof setTimeout>; failed?: boolean }> = {
   output: { budget: new ReloadBudget(), beat: new Heartbeat(() => killFrozen('output')) },
   stage: { budget: new ReloadBudget(), beat: new Heartbeat(() => killFrozen('stage')) }
 }
 
 function killFrozen(kind: Guarded): void {
   const win = winOf(kind)
+  clearUnresponsive(kind)
   if (quitting || !win || win.isDestroyed()) return
   log.warn(`${kind} window stopped responding: restarting it`)
   win.webContents.forcefullyCrashRenderer() // → render-process-gone → recover()
@@ -278,29 +316,44 @@ function recover(kind: Guarded, reason: string): void {
   if (quitting || !win || win.isDestroyed()) return
   const g = guards[kind]
   g.beat.stop()
+  clearUnresponsive(kind) // the page is being replaced: an old "unresponsive" timer must not kill the new one
   const step = g.budget.next()
   log.warn(`${kind} window ${reason}: ${step}`)
-  if (step === 'give-up' || (kind === 'stage' && step === 'safe')) return notify({ type: 'windowFailed', window: kind })
+  if (step === 'give-up' || (kind === 'stage' && step === 'safe')) {
+    g.failed = true // "Restart projector" / "Open stage display" start it again
+    return notify({ type: 'windowFailed', window: kind })
+  }
   if (kind === 'output') loadPage(win, 'output', step === 'safe' ? '#safe' : '')
   else loadPage(win, 'stage', '#local')
   notify({ type: 'windowRecovered', window: kind, safe: step === 'safe' })
 }
 
+function clearUnresponsive(kind: Guarded): void {
+  clearTimeout(guards[kind].unresponsive)
+  guards[kind].unresponsive = undefined
+}
+
 function guardWindow(win: BrowserWindow, kind: Guarded): void {
   const g = guards[kind]
   g.budget.reset()
+  g.failed = false
   g.beat.stop()
+  clearUnresponsive(kind)
   win.webContents.on('render-process-gone', (_e, d) => {
     if (d.reason !== 'clean-exit') recover(kind, `crashed (${d.reason})`)
   })
   win.on('unresponsive', () => {
     log.warn(`${kind} window unresponsive`)
-    clearTimeout(g.unresponsive)
-    g.unresponsive = setTimeout(() => killFrozen(kind), 5000)
+    clearUnresponsive(kind)
+    // 'responsive', a crash or a heartbeat restart clears this timer first, so it only fires on a page still frozen
+    g.unresponsive = setTimeout(() => {
+      g.unresponsive = undefined
+      killFrozen(kind)
+    }, 5000)
   })
-  win.on('responsive', () => clearTimeout(g.unresponsive))
+  win.on('responsive', () => clearUnresponsive(kind))
   win.on('closed', () => {
-    clearTimeout(g.unresponsive)
+    clearUnresponsive(kind)
     g.beat.stop()
   })
 }
@@ -312,10 +365,18 @@ function kindOf(sender: Electron.WebContents): Guarded | null {
   return null
 }
 
-// The operator window reloads once after a crash; a second crash within a minute asks the user.
+// The operator window reloads once after a crash; a second crash within a minute asks the user. Once the
+// window has run fine for a minute, it goes back to reloading by itself.
 const operatorBudget = new ReloadBudget(1, 60_000)
+let operatorStable: ReturnType<typeof setTimeout> | undefined
 function guardOperator(win: BrowserWindow): void {
+  win.webContents.on('did-finish-load', () => {
+    clearTimeout(operatorStable)
+    operatorStable = setTimeout(() => operatorBudget.reset(), 60_000)
+  })
+  win.on('closed', () => clearTimeout(operatorStable))
   win.webContents.on('render-process-gone', async (_e, d) => {
+    clearTimeout(operatorStable)
     if (d.reason === 'clean-exit' || quitting || win.isDestroyed()) return
     log.error(`operator window crashed (${d.reason})`)
     db().flush()
@@ -440,6 +501,13 @@ function createOutput(): void {
 
 function createStageWindow(): void {
   if (stageWin) {
+    // after it gave up (or crashed for good) "open it again" must really start it again, not just focus it
+    if (guards.stage.failed || stageWin.webContents.isCrashed()) {
+      log.info('stage window started again after it failed')
+      guards.stage.budget.reset()
+      guards.stage.failed = false
+      loadPage(stageWin, 'stage', '#local')
+    }
     stageWin.focus()
     return
   }
@@ -592,7 +660,8 @@ function registerIpc(): void {
     try {
       return { ok: true, info: bible.importFile(r.filePaths[0], meta) }
     } catch (e) {
-      log.warn('bible import failed', e)
+      // never the raw message in the log: a parser's SyntaxError quotes the file's text (maybe a licensed Bible)
+      log.warn('bible import failed:', loggableError(e))
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
   })
@@ -630,20 +699,21 @@ function registerIpc(): void {
     recover(kind, 'render error')
   })
   {
-    let last = ''
-    let lastAt = 0
-    on('output:renderError', (_e, message: unknown) => {
+    const last: Record<Guarded, { m: string; at: number }> = { output: { m: '', at: 0 }, stage: { m: '', at: 0 } }
+    on('win:renderError', (e, message: unknown) => {
+      const kind = kindOf(e.sender)
+      if (!kind) return
       // a slide that can't be drawn throws again on every update: report it once, not every second
       const m = String(message).slice(0, 200)
-      if (m === last && Date.now() - lastAt < 30_000) return
-      last = m
-      lastAt = Date.now()
-      log.error('projector could not draw a slide:', m)
-      notify({ type: 'renderError' })
+      if (m === last[kind].m && Date.now() - last[kind].at < 30_000) return
+      last[kind] = { m, at: Date.now() }
+      log.error(`${kind} could not draw a slide:`, m)
+      notify({ type: 'renderError', window: kind })
     })
   }
   h('output:restart', () => {
     guards.output.budget.reset()
+    guards.output.failed = false
     if (output && !output.isDestroyed()) loadPage(output, 'output')
     else createOutput()
   })
@@ -739,14 +809,18 @@ function registerIpc(): void {
     const res = await restoreBackup(p)
     log.info('backup restore', res.ok ? 'ok' : `failed: ${res.error}`)
     if (res.ok) {
-      // the restored data is in place: refresh what main holds, tell every window, reload only the operator
-      // (the projector and stage keep showing what is live — reloading them mid-service gains nothing)
+      // The restored data is in place: refresh what main holds, tell every window, reload only the operator (the
+      // projector and stage keep showing what is live — reloading them mid-service gains nothing). An old backup
+      // may have no PIN (the server would then refuse every device), and phones still connected with the previous
+      // PIN must be dropped: restart the server on the restored PIN/port.
+      if (ensurePin()) log.info('restored settings had no remote PIN: made a new one')
       seedIfEmpty()
       const s = getSettings()
       setMainLang(s.uiLang)
       buildMenu()
       live.update({ logoPath: s.logoPath, churchName: s.churchName })
       BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('settings:changed', s))
+      await restartServer()
       // reply first, then reload: reloading before the answer arrives destroys the page that is waiting for it
       setTimeout(() => operator?.webContents.reload(), 150)
     }
@@ -781,7 +855,7 @@ function registerIpc(): void {
   }
 
   // help & diagnostics
-  h('app:openLogs', () => shell.openPath(logDir()))
+  h('app:openLogs', () => openLogs())
   h('app:exportDiagnostics', (_e, includeCrashDumps: unknown) => exportDiagnosticsInteractive(includeCrashDumps === true))
   h('app:copySystemInfo', () => {
     clipboard.writeText(systemInfoText())
@@ -796,8 +870,8 @@ function registerIpc(): void {
 
   // app
   h('app:info', () => ({ version: app.getVersion(), dataPath: dataRoot(), electron: process.versions.electron }))
-  h('app:openDataFolder', () => shell.openPath(dataRoot()))
-  h('app:openBackups', () => shell.openPath(backupDir()))
+  h('app:openDataFolder', () => openFolder(dataRoot(), 'data'))
+  h('app:openBackups', () => openFolder(backupDir(), 'backups'))
   h('app:dataStatus', () => dataStatus())
   h('app:openExternal', (_e, url: unknown) => {
     if (typeof url === 'string' && /^https?:\/\//i.test(url)) void shell.openExternal(url)
@@ -826,73 +900,84 @@ app.on('second-instance', () => {
   }
 })
 
-app.whenReady().then(async () => {
-  if (!single) return
-  setLogDataRoot(dataRoot())
-  log.info(`ICCWorship ${app.getVersion()} starting (Electron ${process.versions.electron}, ${process.platform} ${process.getSystemVersion()})`)
-  hardenWebContents()
-  registerMediaProtocol()
-  // which version wrote the data? upgrade it (after a safety backup), or open it read-only if it is newer
-  const data = await prepareData(() => createSafetyBackup('before-migrate'))
-  if (data.migrated?.length) log.info('data upgraded:', data.migrated.join('; '))
-  if (data.readOnly)
-    log.warn(`data opened read-only${data.newerSchema ? ` (written by a newer version, schema ${data.newerSchema})` : ' (no safety backup possible)'}`)
-  seedIfEmpty()
-  setMainLang(getSettings().uiLang)
-  buildMenu()
-  live.init()
-  registerIpc()
-  setCommandHandler((cmd) => forwardCommand(cmd))
-  createOperator()
-  if (getSettings().outputEnabled) createOutput()
-  void restartServer()
-  autoBackup().catch((e) => log.error('auto backup failed', e))
-  // and every hour the app stays open (only if something changed, never while something is on screen)
-  setInterval(
-    () => {
-      if (live.state.slideIndex >= 0 || live.state.video?.playing) return
-      autoBackup().catch((e) => log.error('auto backup failed', e))
-    },
-    60 * 60 * 1000
-  )
+app
+  .whenReady()
+  .then(async () => {
+    if (!single) return
+    setLogDataRoot(dataRoot())
+    // until the settings are read (reading them could be what fails), use the PC's language
+    setMainLang(app.getLocale().toLowerCase().startsWith('es') ? 'es' : 'en')
+    log.info(`ICCWorship ${app.getVersion()} starting (Electron ${process.versions.electron}, ${process.platform} ${process.getSystemVersion()})`)
+    hardenWebContents()
+    registerMediaProtocol()
+    // which version wrote the data? upgrade it (after a safety backup), or open it read-only if it is newer
+    const data = await prepareData(() => createSafetyBackup('before-migrate'))
+    if (data.migrated?.length) log.info('data upgraded:', data.migrated.join('; '))
+    if (data.readOnly)
+      log.warn(`data opened read-only${data.newerSchema ? ` (written by a newer version, schema ${data.newerSchema})` : ' (no safety backup possible)'}`)
+    seedIfEmpty()
+    setMainLang(getSettings().uiLang)
+    buildMenu()
+    live.init()
+    registerIpc()
+    setCommandHandler((cmd) => forwardCommand(cmd))
+    createOperator()
+    started = true
+    if (getSettings().outputEnabled) createOutput()
+    void restartServer()
+    autoBackup().catch((e) => log.error('auto backup failed', e))
+    // and every hour the app stays open (only if something changed, never while something is on screen)
+    setInterval(
+      () => {
+        if (live.state.slideIndex >= 0 || live.state.video?.playing) return
+        autoBackup().catch((e) => log.error('auto backup failed', e))
+      },
+      60 * 60 * 1000
+    )
 
-  // a crashed GPU process can leave the projector black or frozen: tell the operator about the workaround
-  app.on('child-process-gone', (_e, d) => {
-    log.warn(`child process gone: ${d.type} (${d.reason}, exit ${d.exitCode})`)
-    if (d.type === 'GPU' && d.reason !== 'clean-exit') notify({ type: 'gpuCrashed' })
-  })
-  // sleep: save, and don't mistake the pause for a frozen projector when the PC wakes up
-  powerMonitor.on('suspend', () => {
-    log.info('system suspending: saving')
-    db().flush()
-    guards.output.beat.stop()
-    guards.stage.beat.stop()
-  })
-  powerMonitor.on('resume', () => {
-    log.info('system resumed')
-    guards.output.beat.stop()
-    guards.stage.beat.stop()
-  })
-
-  // optional update check (off by default; never during a service), a minute after start and then daily
-  const runUpdateCheck = () =>
-    void checkForUpdates({ manual: false }).then((r) => {
-      if (r.ok && r.newer) notify({ type: 'update', latest: r.latest, url: r.url })
+    // a crashed GPU process can leave the projector black or frozen: tell the operator about the workaround
+    app.on('child-process-gone', (_e, d) => {
+      log.warn(`child process gone: ${d.type} (${d.reason}, exit ${d.exitCode})`)
+      if (d.type === 'GPU' && d.reason !== 'clean-exit') notify({ type: 'gpuCrashed' })
     })
-  setTimeout(runUpdateCheck, 60_000)
-  setInterval(runUpdateCheck, 6 * 60 * 60 * 1000)
+    // sleep: save, and don't mistake the pause for a frozen projector when the PC wakes up
+    powerMonitor.on('suspend', () => {
+      log.info('system suspending: saving')
+      db().flush()
+      guards.output.beat.pause()
+      guards.stage.beat.pause()
+    })
+    powerMonitor.on('resume', () => {
+      log.info('system resumed')
+      guards.output.beat.resume()
+      guards.stage.beat.resume()
+    })
 
-  screen.on('display-added', () => {
-    log.info('display added')
-    operator?.webContents.send('displays:changed')
-    placeOutput()
+    // optional update check (off by default; never during a service), a minute after start and then daily
+    const runUpdateCheck = () =>
+      void checkForUpdates({ manual: false }).then((r) => {
+        if (r.ok && r.newer) notify({ type: 'update', latest: r.latest, url: r.url })
+      })
+    setTimeout(runUpdateCheck, 60_000)
+    setInterval(runUpdateCheck, 6 * 60 * 60 * 1000)
+
+    screen.on('display-added', () => {
+      log.info('display added')
+      operator?.webContents.send('displays:changed')
+      placeOutput()
+    })
+    screen.on('display-removed', () => {
+      log.info('display removed')
+      operator?.webContents.send('displays:changed')
+      placeOutput()
+    })
   })
-  screen.on('display-removed', () => {
-    log.info('display removed')
-    operator?.webContents.send('displays:changed')
-    placeOutput()
+  .catch((e) => {
+    // a throw in the startup code above is a rejection, not an uncaught exception
+    log.error('startup failed:', e)
+    if (!started) startupFailed(e)
+    else notify({ type: 'mainError' })
   })
-})
 
 app.on('before-quit', () => {
   quitting = true

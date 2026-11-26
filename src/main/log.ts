@@ -12,6 +12,7 @@ import { app } from 'electron'
 import { appendFileSync, existsSync, mkdirSync, renameSync, rmSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { loggableError } from '@shared/loggableError'
 
 type Level = 'debug' | 'info' | 'warn' | 'error'
 const ORDER: Record<Level, number> = { debug: 0, info: 1, warn: 2, error: 3 }
@@ -98,7 +99,7 @@ function write(level: Level, parts: unknown[]): void {
     parts
       .map((p) =>
         p instanceof Error
-          ? `${p.name}: ${p.message}${(p as NodeJS.ErrnoException).code ? ` (${(p as NodeJS.ErrnoException).code})` : ''}`
+          ? loggableError(p) // never the raw message: it can hold file names, command lines or quoted file text
           : typeof p === 'string'
             ? p
             : safeJson(p)
