@@ -7,7 +7,8 @@ import { useApp } from '../store'
 import { syncPlanSummary } from '../liveControl'
 import { Field, TYPE_ICON, fmtMin, confirmDel, itemIcon } from '../../components/ui'
 import { addMinutes, runSheetHtml } from '../../lib/print'
-import { itemSourceMissing } from '../../lib/planRefs'
+import { itemSourceMissing, playsTrack } from '../../lib/planRefs'
+import { DEFAULT_ITEM_TRACK } from '@shared/tracks'
 import { ItemEditor, SongPicker, ScripturePicker, MediaPicker, PresentationPicker } from './plan/ItemEditor'
 
 const today = () => localDate()
@@ -180,7 +181,7 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
   }
 
   const printSheet = async (mode: 'pdf' | 'print') => {
-    const html = runSheetHtml(plan, { people: s.people, teams: s.teams, lang: s.settings.uiLang, churchName: s.settings.churchName })
+    const html = runSheetHtml(plan, { people: s.people, teams: s.teams, lang: s.settings.uiLang, churchName: s.settings.churchName, songs: s.songs })
     if (mode === 'pdf') {
       const f = await window.api.print.pdf(html, `${plan.date || 'plan'} ${plan.title}.pdf`.replace(/[\\/:*?"<>|]/g, '-'))
       if (f) s.toast(t('common.savedTo', { file: f }))
@@ -314,8 +315,12 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
                     ⋮⋮
                   </span>
                   <span className="small muted">{start}</span>
-                  <span className="type-ico" title={itemSourceMissing(it, s) ? t('plans.sourceMissing') : undefined}>
+                  <span
+                    className="type-ico"
+                    title={itemSourceMissing(it, s) ? t('plans.sourceMissing') : playsTrack(it, s.songs) ? t('track.pill') : undefined}
+                  >
                     {itemSourceMissing(it, s) ? '⚠' : itemIcon(it, s.media)}
+                    {!itemSourceMissing(it, s) && playsTrack(it, s.songs) && <span aria-label={t('track.pill')}>🎧</span>}
                   </span>
                   <input
                     className="input"
@@ -409,7 +414,14 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
         <SongPicker
           onClose={() => setPicker(null)}
           onPick={(song) => {
-            addItem({ id: uid(), type: 'song', title: (s.settings.uiLang === 'es' && song.titleEs) || songName(song), refId: song.id, durationMin: 5 })
+            addItem({
+              id: uid(),
+              type: 'song',
+              title: (s.settings.uiLang === 'es' && song.titleEs) || songName(song),
+              refId: song.id,
+              durationMin: 5,
+              ...(song.track ? { track: DEFAULT_ITEM_TRACK } : {})
+            })
             setPicker(null)
           }}
         />

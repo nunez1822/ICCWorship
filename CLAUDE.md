@@ -101,3 +101,7 @@ Run reports go in `docs/e2e_testing/results/` (git-ignored); don't commit them.
 - `confirm()` dialogs are cancelled when the tool call ends. Stub `window.confirm = () => true` in the same
   `browser_run_code_unsafe` call that clicks the button.
 - Never click **🖨️ Print**: the native print dialog hangs the MCP. Check the **📄 PDF** instead (same HTML).
+- Freezing or crashing the operator page: queue the answer first (`queueMessageBox(0)` = "Restart the window"),
+  start an endless loop from a `setTimeout` so the call returns (a frozen page never answers the MCP again), and
+  crash it with CDP `Page.crash` from a plain Node script, not through the MCP (it may close the crashed page, which
+  quits the app). The operator page stopped for 10 s (a debugger breakpoint too) gets a "not responding" question.

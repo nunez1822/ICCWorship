@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vite-plus/test'
-import { isAllowedHost, isSafeId, isSameOrigin, parseRange, pickPublicState, sanitizeSettingsPatch, validateCommand, wsMessageText } from '@shared/security'
+import {
+  isAllowedHost,
+  isSafeId,
+  isSameOrigin,
+  parseRange,
+  permissionAllowed,
+  pickPublicState,
+  sanitizeSettingsPatch,
+  validateCommand,
+  wsMessageText
+} from '@shared/security'
 import { DEFAULT_THEMES } from '@shared/defaults'
 import type { LiveState } from '@shared/types'
 import { stripTags } from '@shared/textDecode'
@@ -177,6 +187,10 @@ describe('pickPublicState', () => {
     expect(out.slides[1].media).toBe('/file/token')
     expect(out.planItems[0]).toEqual({ id: 'i1', type: 'song', title: 'Song', durationMin: 4, person: 'Ana' })
     expect(out.video).toEqual({ playing: true })
+    expect(Object.keys(out.video!)).toEqual(['playing']) // no `track` key for a video
+    // a backing track is labelled as music on the stage and phones — its file path still stays on this PC
+    const music = pickPublicState({ ...state, video: { ...state.video!, src: 'media://local/tracks%2Fs-1.ogg', track: true } }, () => undefined)
+    expect(music.video).toEqual({ playing: true, track: true })
     expect(out.slideIndex).toBe(1)
   })
   it('never sends local file paths or anything not on the list', () => {
@@ -211,6 +225,43 @@ describe('sanitizeSettingsPatch', () => {
   it('never lets the renderer set the PIN or unknown keys', () => {
     expect(sanitizeSettingsPatch({ remotePin: '' })).toEqual({})
     expect(sanitizeSettingsPatch({ __proto__: { x: 1 }, nope: 1 })).toEqual({})
+  })
+})
+
+describe('sound output settings', () => {
+  it('saves a device id and label, and the empty value for the Windows default', () => {
+    expect(sanitizeSettingsPatch({ audioOutputId: 'a1b2', audioOutputLabel: 'Speakers (Realtek)' })).toEqual({
+      audioOutputId: 'a1b2',
+      audioOutputLabel: 'Speakers (Realtek)'
+    })
+    expect(sanitizeSettingsPatch({ audioOutputId: '', audioOutputLabel: '' })).toEqual({ audioOutputId: '', audioOutputLabel: '' })
+  })
+  it('drops values that are not short strings', () => {
+    expect(sanitizeSettingsPatch({ audioOutputId: 5, audioOutputLabel: 'x'.repeat(301) })).toEqual({})
+    expect(sanitizeSettingsPatch({ audioOutputId: 'x'.repeat(501) })).toEqual({})
+  })
+})
+
+describe('permissionAllowed', () => {
+  const check = { check: true, trusted: true }
+  it('allows full screen and clipboard writes as before', () => {
+    expect(permissionAllowed('fullscreen', { check: false, trusted: false })).toBe(true)
+    expect(permissionAllowed('clipboard-sanitized-write', { check: true, trusted: false })).toBe(true)
+  })
+  it('lets the app’s own pages list and choose sound outputs', () => {
+    expect(permissionAllowed('speaker-selection', check)).toBe(true)
+  })
+  it('never grants the microphone or camera — not even the check that would show their names — nor anything to other pages', () => {
+    expect(permissionAllowed('media', { ...check, mediaType: 'audio' })).toBe(false)
+    // a request for media is getUserMedia: refused even for our own pages
+    expect(permissionAllowed('media', { check: false, trusted: true, mediaType: 'audio' })).toBe(false)
+    expect(permissionAllowed('media', { ...check, mediaType: 'video' })).toBe(false)
+    expect(permissionAllowed('media', { ...check, mediaType: 'unknown' })).toBe(false)
+    expect(permissionAllowed('media', check)).toBe(false)
+    expect(permissionAllowed('speaker-selection', { check: true, trusted: false })).toBe(false)
+    expect(permissionAllowed('media', { check: true, trusted: false, mediaType: 'audio' })).toBe(false)
+    expect(permissionAllowed('geolocation', check)).toBe(false)
+    expect(permissionAllowed('notifications', check)).toBe(false)
   })
 })
 

@@ -34,6 +34,7 @@ class LiveStore extends EventEmitter {
     this.state.bilingualOrder = s.bilingualOrder
     this.state.logoPath = s.logoPath
     this.state.churchName = s.churchName
+    if (s.audioOutputId || s.audioOutputLabel) this.state.audioOutput = { id: s.audioOutputId || undefined, label: s.audioOutputLabel || undefined }
   }
 
   update(patch: Partial<LiveState>): LiveState {

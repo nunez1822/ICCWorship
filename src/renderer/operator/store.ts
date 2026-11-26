@@ -3,6 +3,7 @@ import type { BibleVersionInfo, LiveState, MediaItem, Person, PrayerRequest, Pre
 import i18n from '../i18n'
 import { localDate } from '@shared/dates'
 import { loggableError } from '@shared/loggableError'
+import { normalizeTrack } from '@shared/tracks'
 
 export type Page = 'live' | 'plans' | 'songs' | 'bible' | 'media' | 'themes' | 'people' | 'reports' | 'settings'
 
@@ -73,7 +74,9 @@ function normalizeSong(x: Song): Song {
     tags: x.tags ?? [],
     sections: (x.sections ?? []).map((z) => ({ ...z, en: z.en ?? '', es: z.es ?? '' })),
     arrangement: x.arrangement ?? [],
-    linesPerSlide: x.linesPerSlide || 4
+    linesPerSlide: x.linesPerSlide || 4,
+    // keeps fields it doesn't know (a newer version's), drops broken timing
+    track: normalizeTrack(x.track)
   }
 }
 let listening = false
@@ -143,7 +146,11 @@ export const useApp = create<AppState>((set, get) => ({
         set({ progress: p })
         if (p?.error && !wasError) void reportMediaProblem(get().live?.video?.src || get().live?.slides[get().live?.slideIndex ?? -1]?.media, get().toast)
       })
-      api.output.onStatus((s) => set({ outputOpen: s.open }))
+      api.output.onStatus((s) => {
+        // the projector window plays all sound: closing it mid-video / mid-song stops the sound — say so
+        if (!s.open && get().outputOpen && get().live?.video?.playing) get().toast(i18n.t('live.outputClosedSound'), 'err', 10_000)
+        set({ outputOpen: s.open })
+      })
       api.db.onWriteError((e) => get().toast(i18n.t('errors.saveFailed', { what: e.name, reason: e.message }), 'err'))
       // safety net: an action that fails without its own error handling (e.g. saving a
       // file to a folder that no longer exists) must not fail silently
@@ -169,6 +176,7 @@ export const useApp = create<AppState>((set, get) => ({
           })
         else if (e.type === 'diagnostics') toast(i18n.t(e.ok ? 'about.diagSaved' : 'about.diagFailed'), e.ok ? 'ok' : 'err')
         else if (e.type === 'openFailed') toast(i18n.t(e.what === 'logs' ? 'about.openLogsFailed' : 'about.noticesMissing'), 'err')
+        else if (e.type === 'soundOutputMissing') toast(i18n.t('errors.soundOutputMissing', { label: e.label || '?' }), 'err', 15_000)
       })
     }
     // damaged data files found at startup: say so (and where the damaged copy was kept)
@@ -177,9 +185,12 @@ export const useApp = create<AppState>((set, get) => ({
     }
     // data written by a newer ICCWorship: shown as a banner (App)
     set({ dataStatus: await api.app.dataStatus() })
-    // this window was restarted after a crash: what the operator has to know
+    // this window was restarted after a crash or a freeze: what the operator has to know
     for (const n of await api.app.notices()) {
-      if (n === 'operatorRecovered') get().toast(i18n.t('recovery.operatorRecovered'), 'err', 30_000)
+      if (n !== 'operatorRecovered') continue
+      get().toast(i18n.t('recovery.operatorRecovered'), 'err', 30_000)
+      // the music played on while this window was down: the lyrics catch up with it (see followTick)
+      afterRecovery.followCatchUp = true
     }
   },
 
@@ -265,13 +276,37 @@ export const useApp = create<AppState>((set, get) => ({
   }
 }))
 
+/** The message of an Error (or error-like object from IPC) or string, without Electron's "Error invoking remote
+ *  method…" prefix; '' for anything else. */
+function errorMessage(e: unknown): string {
+  const raw = typeof e === 'string' ? e : typeof (e as Error | null)?.message === 'string' ? (e as Error).message : ''
+  return raw.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+}
+
+/** Did main refuse because the data is open read-only (written by a newer ICCWorship)? */
+export const isReadOnlyError = (e: unknown): boolean => errorMessage(e) === 'read-only'
+
+const toastReadOnly = () => useApp.getState().toast(i18n.t('data.readOnlyAction'), 'err', 10_000)
+
+/**
+ * Before starting work that ends in a save (making a backing track takes a while): if the data is open read-only,
+ * say so now and return true — don't let the operator wait for something that can't be kept.
+ */
+export function refuseWhileReadOnly(): boolean {
+  if (!useApp.getState().dataStatus?.readOnly) return false
+  toastReadOnly()
+  return true
+}
+
+/** set when this window was restarted after a problem (read and cleared by liveControl's followTick) */
+export const afterRecovery = { followCatchUp: false }
+
 /** Tell the operator an action failed (instead of failing silently). */
 export function toastError(e: unknown): void {
-  // an Error (or error-like object from IPC) or a string; anything else gets the generic message, never "[object Object]"
-  const raw = typeof e === 'string' ? e : typeof (e as Error | null)?.message === 'string' ? (e as Error).message : ''
-  const msg = raw.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+  // anything that isn't an error or a string gets the generic message, never "[object Object]"
+  const msg = errorMessage(e)
   // data from a newer version is open read-only: say what that means instead of a technical message
-  if (msg === 'read-only') return useApp.getState().toast(i18n.t('data.readOnlyAction'), 'err', 10_000)
+  if (msg === 'read-only') return toastReadOnly()
   useApp.getState().toast(`⚠ ${msg || i18n.t('errors.generic')}`, 'err', 8000)
 }
 

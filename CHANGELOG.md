@@ -7,6 +7,8 @@ All notable changes to ICCWorship are documented here. The format is based on
 ## [Unreleased]
 
 ### Security
+- The app's windows no longer learn the names of the computer's microphones and cameras (they never could use
+  them). Listing and choosing the sound output works as before.
 - **The phone/stage server can no longer be crashed from the Wi-Fi.** Before, a malformed video range request
   or WebSocket message from any device could stop ICCWorship mid-service.
 - **An empty remote PIN no longer lets anyone in.** ICCWorship now always makes sure a PIN exists.
@@ -35,6 +37,35 @@ All notable changes to ICCWorship are documented here. The format is based on
   and connects by itself as soon as a place is free.
 
 ### Added
+- **Backing tracks.** No musicians? Give a song an instrumental (Songs → 🎵 Backing track): the music plays through the
+  projector window under the lyrics while you advance them. Space on the last slide takes the text off and lets the
+  music finish (the outro); the next Space moves on. Esc fades the music out, Space brings lyrics and music back where
+  they were; a song started under the Logo stays silent until the cover lifts; a projector restart picks the music up
+  where it was. **Show with track** on the Songs page, and per plan item: play it or not, its volume, and "go to the
+  next item when finished". Adding a track to a song never turns it on in plans that already have the song. The plan,
+  the Live page and the printed run sheet mark songs that play a track (🎧). Tracks are stored small (Opus,
+  ~1.2 MB per minute) in `Documents\ICCWorship\tracks`. Songs up to 20 minutes; a longer recording (a whole
+  service) is turned away at once, before it is decoded.
+- **Lyrics that follow the music** (recorded timing, like ProPresenter's Timeline): Songs → ⏱ Record timing, play
+  the track and press Space as each slide should appear, then fine-tune any time. Live, the intro shows no text
+  ("first line in 0:08" on the top bar and the stage display, for the choir), each slide comes up with the music, a
+  seek moves the lyrics with it, and the volunteer can still move by hand (the music never pulls them backwards). A
+  song changed since (another order, more lines) stops following with a message; a typo fix doesn't. "Follow the
+  timing" can be switched off on the Live page. While recording, no key moves the live screen.
+- **Remove the voice** from a stereo recording to make a backing track — classic center-channel removal (like
+  Audacity's "Vocal Reduction" or Audition's "Center Channel Extractor"), **no AI, offline**. Choose Less / Normal /
+  More and compare a 20-second sample (Original ⇄ Without voice) before saving. It takes out what is in the center
+  (usually the lead voice) between 150 Hz and 8 kHz, so bass and kick stay; backing vocals, reverb and wide voices
+  stay too. Mono files and files whose two channels are the same are explained instead of processed. A 6-minute song
+  takes a few seconds; the operator window keeps responding.
+- **"No sound" is never silent any more.** All sound (videos, audio files) plays through the projector window. If a
+  video or audio item goes live while the projector window is off, a message says so with an **Open projector**
+  button, and closing the projector while something plays says that the sound stopped.
+- FLAC and Opus audio files can be added to the media library and played.
+- **Choose the sound output** (Settings → Screens → 🔊 Sound output), e.g. the cable to the sound desk instead of the
+  projector's own speakers, with a **Test sound** button. The projector switches to it before anything plays; if that
+  output is unplugged, sound plays through the Windows default and a message says so. A restore keeps this
+  computer's choice. The app still can't use the microphone or camera.
 - **Data versions.** ICCWorship now records which version wrote the data. Data from 1.0 is upgraded
   automatically after a safety backup (`before-migrate-….zip`). Data written by a **newer** version opens
   **read-only**: an older copy (say, a portable one on a USB stick) can still run the service, but changes are not
@@ -68,6 +99,21 @@ All notable changes to ICCWorship are documented here. The format is based on
   in the install folder, next to `ICCWorship.exe`).
 
 ### Changed
+- **Data version 2** (backing tracks). Data is upgraded automatically after a safety backup. An older copy of
+  ICCWorship (e.g. a portable one) then opens this data **read-only**: it can still run a service but can't save
+  changes or make backups that would lose the tracks.
+- Backups and backing tracks: **Back up now** includes the backing tracks (take it to another PC). Automatic backups
+  leave them out — each track is kept once in `backups\tracks\` instead of in every hourly copy — and restoring an
+  automatic backup never deletes tracks (missing ones come back from `backups\tracks\`).
+  A track that disappears from `tracks\` while a song still uses it (antivirus, a sync problem, tidying folders)
+  comes back from `backups\tracks\` at the next start or hourly backup, and its copy there is never thrown away.
+  Unused tracks are only cleaned up when the song list is known to be complete. Tracks found when the sample songs
+  are added to an empty data folder (data lost or half synced), or when the song list had to be recovered from an
+  older copy or was missing, are never cleaned up until a backup is restored, even after the list is saved again.
+  Backups and restores stream the files, so a large track library never has to fit in memory; they check the free
+  disk space first, and **Back up now** says when the drive is full instead of failing silently. Over 4 GB of tracks,
+  Back up now saves the data without them and says to copy the tracks folder too. Only the newest 2 safety copies
+  that hold all the tracks are kept.
 - Contributors: development now uses **pnpm** and **Vite+** (`vp`): one `pnpm check` runs formatting (Oxfmt), lint
   (Oxlint, type-aware) and type checks, replacing npm, ESLint, Prettier and `tsc`. A pre-commit hook fixes formatting.
   See CONTRIBUTING.md.
@@ -76,6 +122,12 @@ All notable changes to ICCWorship are documented here. The format is based on
 - The untested macOS and Linux build targets. ICCWorship is a Windows app.
 
 ### Fixed
+- **A frozen ICCWorship window now says so.** If the main window stops responding (it hangs rather than crashes), a
+  message asks **Restart the window** or **Keep waiting** — the projector, the music and the phone remote keep
+  running, and the question goes away by itself if the window recovers. Before, it stayed frozen with no way out.
+- **The live keys work right after clicking a checkbox, slider or dropdown.** Before, Space ticked the box again
+  (e.g. "Loop") instead of moving to the next slide, and ↓ on the Live page's plan list could switch to another plan.
+  Controls reached with Tab keep their own keys, for keyboard users.
 - **Copy system info** (Settings → About) now waits for the copy to finish and shows an error if it fails, instead of
   always saying "copied".
 - An unexpected error now shows the generic error message instead of "[object Object]".

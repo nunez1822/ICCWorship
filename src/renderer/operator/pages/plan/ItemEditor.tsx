@@ -9,6 +9,7 @@ import { buildItem } from '../../../lib/buildSlides'
 import { toMediaUrl } from '../../../lib/media'
 import { filterSongs, songSecondTitle } from '../../../lib/songSearch'
 import { songName } from '@shared/slides'
+import { DEFAULT_ITEM_TRACK, normalizeItemTrack } from '@shared/tracks'
 
 export function ItemEditor({ item, planDate, onClose, onSave }: { item: PlanItem; planDate?: string; onClose: () => void; onSave: (i: PlanItem) => void }) {
   const { t } = useTranslation()
@@ -55,7 +56,15 @@ export function ItemEditor({ item, planDate, onClose, onSave }: { item: PlanItem
 
           {it.type === 'song' && (
             <Field label={t('types.song')}>
-              <select className="select" value={it.refId} onChange={(e) => set({ refId: e.target.value })}>
+              <select
+                className="select"
+                value={it.refId}
+                onChange={(e) => {
+                  // another song with a backing track: it plays, as when a song is added to a plan
+                  const next = s.songs.find((x) => x.id === e.target.value)
+                  set({ refId: e.target.value, track: next?.track ? (it.track ?? DEFAULT_ITEM_TRACK) : it.track })
+                }}
+              >
                 {s.songs.map((x) => (
                   <option key={x.id} value={x.id}>
                     {songName(x)}
@@ -64,6 +73,34 @@ export function ItemEditor({ item, planDate, onClose, onSave }: { item: PlanItem
                 ))}
               </select>
             </Field>
+          )}
+          {it.type === 'song' && s.songs.find((x) => x.id === it.refId)?.track && (
+            <div className="row wrap">
+              <label className="check">
+                <input type="checkbox" checked={!!it.track?.play} onChange={(e) => set({ track: { ...defTrack(it), play: e.target.checked } })} /> 🎧{' '}
+                {t('track.playInPlan')}
+              </label>
+              {it.track?.play && (
+                <>
+                  <label className="check">
+                    <input type="checkbox" checked={!!it.track.autoNext} onChange={(e) => set({ track: { ...defTrack(it), autoNext: e.target.checked } })} />{' '}
+                    {t('item.autoNext')}
+                  </label>
+                  <label className="check">
+                    🔊
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={it.track.volume ?? 1}
+                      aria-label={t('track.volume')}
+                      onChange={(e) => set({ track: { ...defTrack(it), volume: +e.target.value } })}
+                    />
+                  </label>
+                </>
+              )}
+            </div>
           )}
 
           {it.type === 'scripture' && (
@@ -285,6 +322,8 @@ export function ItemEditor({ item, planDate, onClose, onSave }: { item: PlanItem
   )
 }
 
+/** the item's backing-track options with every field set (absent = off) */
+const defTrack = (it: PlanItem): NonNullable<PlanItem['track']> => normalizeItemTrack(it.track) ?? { play: false, volume: 1, autoNext: false }
 const defVideo = (it: PlanItem) => it.video || { loop: false, autoNext: false, volume: 1 }
 
 function swap<T>(arr: T[], a: number, b: number): T[] {

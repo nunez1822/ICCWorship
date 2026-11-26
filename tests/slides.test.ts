@@ -10,6 +10,8 @@ import {
   stripChords,
   formatClock,
   targetTimeToday,
+  slidesTimingKey,
+  timedSlideAt,
   upcomingSlideIndex
 } from '@shared/slides'
 import type { PassageResult, Slide, Song } from '@shared/types'
@@ -203,5 +205,37 @@ describe('upcomingSlideIndex', () => {
   it('with nothing cleared it starts at the first slide', () => {
     expect(upcomingSlideIndex({ slides, slideIndex: -1 })).toBe(0)
     expect(upcomingSlideIndex({ slides, slideIndex: -1, clearedFrom: 9 })).toBe(0)
+  })
+})
+
+describe('slidesTimingKey (does recorded timing still fit the slides?)', () => {
+  const sec = (id: string, label: string, es: string) => ({ id, type: 'verse' as const, label, en: '', es })
+  const base = song({ sections: [sec('a', 'V1', 'Uno\nDos\n\nTres\nCuatro'), sec('b', 'C', 'Coro\nCoro')] })
+  const key = (s: Song) => slidesTimingKey(songToSlides(s, { ccliLicense: '123' }))
+  it('stays the same when only words change (a typo fixed during worship) or the CCLI footer does', () => {
+    const typo = song({ sections: [sec('a', 'V1', 'Uno\nDoss\n\nTres\nCuatro'), sec('b', 'C', 'Coro\nCoro')] })
+    expect(key(typo)).toBe(key(base))
+    expect(slidesTimingKey(songToSlides(base, { ccliLicense: '999' }))).toBe(key(base))
+  })
+  it('changes when the layout changes: order, lines per slide, a line more', () => {
+    expect(key({ ...base, arrangement: ['b', 'a'] })).not.toBe(key(base))
+    expect(key({ ...base, linesPerSlide: 4 })).not.toBe(key(base))
+    expect(key(song({ sections: [sec('a', 'V1', 'Uno\nDos\n\nTres\nCuatro'), sec('b', 'C', 'Coro\nCoro\nCoro')] }))).not.toBe(key(base))
+  })
+  it('is short', () => {
+    expect(key(base)).toMatch(/^\d+-[0-9a-f]{1,8}$/)
+  })
+})
+
+describe('timedSlideAt', () => {
+  const t = [5, 9, 14]
+  it('is −1 in the intro, then the slide whose start the music reached (a little early)', () => {
+    expect(timedSlideAt(t, 0)).toBe(-1)
+    expect(timedSlideAt(t, 4.7)).toBe(-1)
+    expect(timedSlideAt(t, 4.85)).toBe(0)
+    expect(timedSlideAt(t, 10)).toBe(1)
+    expect(timedSlideAt(t, 99)).toBe(2)
+    expect(timedSlideAt([0, 4], 0)).toBe(0)
+    expect(timedSlideAt([], 3)).toBe(-1)
   })
 })

@@ -30,7 +30,8 @@
 **Steps**
 1. Click on an empty area of the Live page, press `?`.
 **Expected**
-- "Keyboard shortcuts" dialog lists Space, arrows, Ctrl+→, B, C, L, Esc, P, 1, 2, 3. Esc closes it.
+- "Keyboard shortcuts" dialog lists Space, arrows, Ctrl+→, B, C, L, Esc, P ("Play / pause video or music"), 1, 2, 3.
+  Esc closes it.
 
 ### TC-FR-05 · Projector window toggle  `P1`
 **Steps**

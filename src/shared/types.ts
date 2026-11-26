@@ -38,8 +38,27 @@ export interface Song {
   arrangement: string[]
   linesPerSlide: number
   key?: string
+  /** an instrumental to sing with (see @shared/tracks) */
+  track?: SongTrack
   createdAt: number
   updatedAt: number
+}
+
+/** How much of the center (lead voice) "Remove the voice" took out */
+export type VoicePreset = 'less' | 'normal' | 'more'
+
+export interface SongTrack {
+  /** data-relative media:// URL of the Ogg/Opus file in <data root>/tracks/ */
+  url: string
+  /** the file it was made from (shown in the editor) */
+  sourceName: string
+  /** made with "Remove the voice" (vs. a file that already had no singing) */
+  vocalsRemoved: boolean
+  preset?: VoicePreset
+  /** recorded timing: timings[i] = the second slide i starts (timings[0] > 0 = an intro without text) */
+  timings?: number[]
+  /** the slide layout the timing was recorded for (slidesTimingKey) — a different layout stops following */
+  timingsKey?: string
 }
 
 /* ---------------- Slides ---------------- */
@@ -152,6 +171,9 @@ export interface PlanItem {
   slides?: { text: BiText; title?: BiText; media?: string }[]
   countdown?: CountdownConfig
   video?: { loop: boolean; autoNext: boolean; volume: number }
+  /** a song's backing track in this service: absent = it does not play (attaching a track to a song never
+   *  changes existing plans) */
+  track?: { play: boolean; volume: number; autoNext: boolean }
   /** seconds between auto-advance for announcement loops (0 = manual) */
   loopSeconds?: number
   durationMin: number
@@ -291,6 +313,10 @@ export interface Settings {
   lastUpdateCheck?: number
   /** troubleshooting: turn off GPU acceleration (takes effect after a restart) */
   disableHwAccel?: boolean
+  /** where videos, audio and backing tracks play ('' / unset = the Windows default). The id is what Chromium
+   *  reported on this PC; the label finds the device again when the id changes (ids are per page and profile). */
+  audioOutputId?: string
+  audioOutputLabel?: string
 }
 
 /* ---------------- Live state ---------------- */
@@ -309,6 +335,8 @@ export interface VideoState {
   /** bump to issue a seek */
   seekSeq: number
   seekTo: number
+  /** a song's backing track: plays on (from a hidden <audio>) while the operator moves through the lyrics */
+  track?: boolean
 }
 
 export interface PlanSummaryItem {
@@ -340,15 +368,26 @@ export interface LiveState {
   video?: VideoState
   /** error: the projector could not load/play the video (missing file, damaged, unsupported) */
   /** src: the media:// url the projector was playing (so a restarted projector resumes the right video) */
-  videoProgress?: { current: number; duration: number; error?: boolean; src?: string }
+  /** itemId / seekSeq: what the projector was playing when it reported (a late report from before a seek or from
+   *  the previous item is ignored by "follow the timing"); load: the report made when the file opened (position 0) */
+  videoProgress?: { current: number; duration: number; error?: boolean; src?: string; itemId?: string; seekSeq?: number; load?: boolean }
   /** song shown by the live item (plan item or Show now) — lets edits refresh the screen */
   songId?: string
   /** slide that was live before Clear all (Esc) — Space resumes there */
   clearedFrom?: number
+  /** Next on the last lyric slide while the backing track plays: the text is off, the music finishes (the outro);
+   *  the next Next goes to the next item */
+  outro?: boolean
+  /** the song's backing track plays its intro: no text until the first line (recorded timing), at `firstAt` seconds */
+  intro?: { firstAt: number }
+  /** the operator turned "follow the timing" off for the live song */
+  followOff?: boolean
   itemStartedAt?: number
   serviceStartedAt?: number
   logoPath?: string
   churchName?: string
+  /** the sound output chosen in Settings (pushed by main, like the logo) — the projector plays through it */
+  audioOutput?: { id?: string; label?: string }
   seq: number
 }
 

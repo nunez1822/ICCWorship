@@ -74,7 +74,9 @@ describe('translations', () => {
       'media.method': ['powerpoint', 'libreoffice', 'pdf', 'text', 'images'],
       help: ['next', 'prev', 'nextItem', 'prevItem', 'black', 'clearText', 'logo', 'clearAll', 'video', 'en', 'es', 'both', 'help'],
       stageQuick: ['wrap', 'slow', 'repeat', 'louder'],
-      themes: ['bold', 'shadow', 'outline', 'uppercase']
+      themes: ['bold', 'shadow', 'outline', 'uppercase'],
+      // print.ts reads these directly (the run sheet is printed in the plan's language)
+      runSheet: ['time', 'item', 'who', 'min', 'notes', 'team', 'total', 'printed', 'position', 'person', 'status', 'track']
     }
     const missing: string[] = []
     for (const [fam, keys] of Object.entries(families)) for (const k of keys) if (!EN.has(`${fam}.${k}`)) missing.push(`${fam}.${k}`)

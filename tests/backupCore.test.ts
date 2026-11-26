@@ -11,15 +11,26 @@ import {
   parseAutoName,
   restoredMeta,
   safetyBackupsToDelete,
-  staleBackupTemps
+  staleBackupTemps,
+  staleTrackTemps,
+  trackMirrorPlan,
+  backupRoom,
+  MAX_BACKUP_BYTES
 } from '../src/shared/backupCore'
-import { checkSchema, runMigrations, SCHEMA_VERSION, type Migration } from '@shared/migrations'
+import { checkSchema, MIGRATIONS, runMigrations, SCHEMA_VERSION, type Migration } from '@shared/migrations'
 
 describe('backup manifest', () => {
   it('accepts backups from 1.0 and from now', () => {
-    expect(checkManifest({ app: 'ICCWorship', version: 1, createdAt: 'x' })).toEqual({ ok: true, format: 1, schemaVersion: undefined })
-    expect(checkManifest(makeManifest('1.1.0'))).toEqual({ ok: true, format: 1, schemaVersion: SCHEMA_VERSION })
+    expect(checkManifest({ app: 'ICCWorship', version: 1, createdAt: 'x' })).toEqual({ ok: true, format: 1, schemaVersion: undefined, hasTracks: false })
+    expect(checkManifest(makeManifest('1.1.0'))).toEqual({ ok: true, format: 1, schemaVersion: SCHEMA_VERSION, hasTracks: false })
     expect(makeManifest('1.1.0').schemaVersion).toBe(SCHEMA_VERSION)
+  })
+  it('says whether the backup holds the backing tracks (only then does a restore replace tracks/)', () => {
+    expect(makeManifest('1.2.0', true).hasTracks).toBe(true)
+    expect(checkManifest(makeManifest('1.2.0', true))).toMatchObject({ ok: true, hasTracks: true })
+    // 1.1 backups, and an older version's backup of newer data, have no such field: tracks/ is left alone
+    expect(checkManifest({ app: 'ICCWorship', format: 1, schemaVersion: 1 })).toMatchObject({ ok: true, hasTracks: false })
+    expect(checkManifest({ app: 'ICCWorship', format: 1, hasTracks: 'yes' })).toMatchObject({ ok: true, hasTracks: false })
   })
   it('refuses other files and backups made by a newer layout', () => {
     expect(checkManifest(null)).toEqual({ ok: false, error: 'not-a-backup' })
@@ -63,6 +74,32 @@ describe('safety backups', () => {
     ]
     expect(safetyBackupsToDelete(files).sort()).toEqual(['before-restore-0.zip', 'before-restore-1.zip', 'before-restore-2.zip'])
   })
+  it('keeps only the newest 2 that hold every backing track (they can be GBs)', () => {
+    const files = [
+      { name: 'before-restore-tracks-a.zip', mtime: 1 },
+      { name: 'before-restore-tracks-b.zip', mtime: 2 },
+      { name: 'before-restore-x.zip', mtime: 3 },
+      { name: 'before-restore-tracks-c.zip', mtime: 4 },
+      { name: 'before-migrate-1.zip', mtime: 5 }
+    ]
+    expect(safetyBackupsToDelete(files)).toEqual(['before-restore-tracks-a.zip'])
+    // they don't take the places of the data-only ones: 5 of those stay as well
+    const many = Array.from({ length: 6 }, (_, i) => ({ name: `before-restore-${i}.zip`, mtime: i + 10 }))
+    expect(safetyBackupsToDelete([...files, ...many]).sort()).toEqual(['before-restore-0.zip', 'before-restore-tracks-a.zip', 'before-restore-x.zip'])
+  })
+})
+
+describe('room for a backup', () => {
+  const MB = 1024 * 1024
+  it('needs the files plus the reserve free on that disk', () => {
+    expect(backupRoom(100 * MB, 500 * MB, 300 * MB)).toBe('ok')
+    expect(backupRoom(100 * MB, 399 * MB, 300 * MB)).toBe('no-space')
+    expect(backupRoom(100 * MB, 101 * MB, 0)).toBe('ok')
+  })
+  it('refuses what no .zip can hold (no Zip64), whatever the free space', () => {
+    expect(backupRoom(MAX_BACKUP_BYTES + 1, Infinity, 0)).toBe('too-large')
+    expect(MAX_BACKUP_BYTES).toBeLessThan(2 ** 32)
+  })
 })
 
 describe('restoring settings from another PC', () => {
@@ -73,9 +110,65 @@ describe('restoring settings from another PC', () => {
     )
     expect(merged).toEqual({ churchName: 'Old', uiLang: 'en', remotePin: '123456', serverPort: 7272, disableHwAccel: true })
   })
+  it('keeps this computer’s sound output (another PC has other speakers)', () => {
+    const merged = mergeRestoredSettings(
+      { churchName: 'Old', audioOutputId: 'abc', audioOutputLabel: 'Speakers (Old PC)' },
+      { churchName: 'New', audioOutputId: 'xyz', audioOutputLabel: 'Line out (Sound desk)' }
+    )
+    expect(merged).toEqual({ churchName: 'Old', audioOutputId: 'xyz', audioOutputLabel: 'Line out (Sound desk)' })
+    expect(mergeRestoredSettings({ audioOutputId: 'abc', audioOutputLabel: 'Old' }, {})).toEqual({})
+  })
+})
+
+describe('backing tracks kept beside the backups', () => {
+  it('copies new tracks once, and retires the ones the church deleted', () => {
+    expect(trackMirrorPlan(['a-1.ogg', 'b-2.ogg', 'junk.txt'], ['a-1.ogg', 'c-3.ogg'], [], '2026-11-26', new Set(['a-1.ogg', 'b-2.ogg']))).toEqual({
+      copy: ['b-2.ogg'],
+      retire: ['c-3.ogg'],
+      dropDirs: []
+    })
+  })
+  it('never retires the copy of a track a song still uses, even when tracks/ lost the file', () => {
+    // antivirus, a sync problem or a tidy-up removed d-4.ogg from tracks/: the copy here is the only one left
+    const plan = trackMirrorPlan(['a-1.ogg'], ['a-1.ogg', 'c-3.ogg', 'd-4.ogg'], [], '2026-11-26', new Set(['a-1.ogg', 'd-4.ogg']))
+    expect(plan.retire).toEqual(['c-3.ogg'])
+  })
+  it('retires nothing when the songs list may be incomplete (damaged, recovered, just seeded)', () => {
+    expect(trackMirrorPlan([], ['a-1.ogg', 'c-3.ogg'], [], '2026-11-26', null).retire).toEqual([])
+    // still copies new tracks and drops old gone- folders
+    const plan = trackMirrorPlan(['b-2.ogg'], [], ['gone-2026-11-01'], '2026-11-26', null)
+    expect(plan.copy).toEqual(['b-2.ogg'])
+    expect(plan.dropDirs).toEqual(['gone-2026-11-01'])
+  })
+  it('finds the half-written track copies a power cut left behind (a day old), never one being written', () => {
+    const now = Date.UTC(2026, 10, 26)
+    const day = 24 * 60 * 60_000
+    const files = [
+      { name: 'a-1.ogg.tmp', mtime: now - 2 * day },
+      { name: 'b-2.ogg.tmp', mtime: now - 60_000 },
+      { name: 'c-3.ogg', mtime: now - 9 * day },
+      { name: 'notes.txt.tmp', mtime: now - 9 * day },
+      { name: 'D-4.OGG.TMP', mtime: now - 9 * day }
+    ]
+    expect(staleTrackTemps(files, now)).toEqual(['a-1.ogg.tmp'])
+  })
+  it('keeps a deleted track 15 days (automatic backups go back 14), then lets it go', () => {
+    const dirs = ['gone-2026-11-10', 'gone-2026-11-11', 'gone-2026-11-26', 'other', 'gone-junk']
+    expect(trackMirrorPlan([], [], dirs, '2026-11-26', new Set()).dropDirs).toEqual(['gone-2026-11-10'])
+    expect(trackMirrorPlan([], [], ['gone-2026-02-10'], '2026-03-01', new Set()).dropDirs).toEqual(['gone-2026-02-10'])
+  })
 })
 
 describe('schema versions and migrations', () => {
+  it('upgrades schema 1 data (1.1) to schema 2 without changing songs or plans', () => {
+    const songs = [{ id: 's', title: 'x' }]
+    const files: Record<string, unknown> = { meta: { seeded: 1, schemaVersion: 1 }, songs }
+    const done = runMigrations({ read: (n) => files[n], write: (n, v) => (files[n] = v) }, 1, MIGRATIONS, 2)
+    expect(done).toEqual(['2: songs may have a backing track (tracks/ folder)'])
+    expect(files.songs).toBe(songs)
+    expect(files.meta).toEqual({ seeded: 1, schemaVersion: 2 })
+    expect(SCHEMA_VERSION).toBe(2)
+  })
   it('knows old, current and newer data', () => {
     expect(checkSchema(undefined)).toEqual({ kind: 'migrate', from: 0 })
     expect(checkSchema(SCHEMA_VERSION)).toEqual({ kind: 'current' })
