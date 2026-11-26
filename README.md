@@ -104,13 +104,15 @@ same time**, switchable live with one key.
 - **Moving to a new computer:** on the old PC, Settings → Backup → **Back up now** to a USB stick. Install ICCWorship
   on the new PC and choose **Restore** with that file. **The pictures, videos and sound you added (and the logo) are
   inside that backup**, because the media library keeps its own copy of everything you add (in
-  `Documents\ICCWorship\media`), and so are the **backing tracks**. If they are over 4 GB together, the backup says
-  so and leaves them out: copy the `media` and `tracks` folders to the stick as well.
+  `Documents\ICCWorship\media`), and so are the **backing tracks**. If that is too big for one backup file (over
+  4 GB) or for the stick, the backup leaves the media out first (then the tracks), and says which folders to copy as
+  well, and where.
   (With Settings → Backup → "Keep a copy of added pictures, videos and sound…" turned off, items link to the original
   file instead: copy those files to the same folder path on the new PC.)
 - Automatic backups leave the media library and the backing tracks out (they would make every hourly copy large):
-  each track is kept once in `Documents\ICCWorship\backups\tracks`, and restoring a backup never deletes tracks or
-  media files.
+  each track is kept once in `Documents\ICCWorship\backups\tracks`. Restoring a backup never deletes media files,
+  and restoring an automatic backup never deletes tracks (a "Back up now" copy holds the tracks, and restoring it
+  puts back exactly its tracks).
 - Nothing is uploaded anywhere — see [PRIVACY.md](PRIVACY.md).
 
 ## Your first Sunday (5 minutes)

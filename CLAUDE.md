@@ -18,7 +18,8 @@ usually operated by a volunteer during a live service, so reliability and simpli
   `src/main/server.ts`). The phone/stage server is reachable by anyone on the church Wi-Fi.
 - **Trust boundaries** (see `src/shared/security.ts`, unit tested in `tests/security.test.ts`):
   - IPC channels live in `src/main/ipc/handlers.ts` (invoke) and `listeners.ts` (send). `registerIpc` only accepts
-    the app's own pages. These objects are the IPC contract: the preload is typed from them, so add a channel there
+    the app's own pages (`isAppPageUrl` in `src/main/appUrl.ts`, which also guards what `app://iccworship` serves;
+    unit tested in `tests/appUrl.test.ts`). These objects are the IPC contract: the preload is typed from them, so add a channel there
     and call it from `src/preload/index.ts` with `invoke()` / `send()` (main → page messages: `MainEvents` in
     `src/shared/ipcEvents.ts`, sent with `send()` from `src/main/appState.ts`).
   - An id that becomes a file name must pass `isSafeId`; deletes and writes use `within()` (`src/main/pathGuard.ts`).
@@ -35,14 +36,15 @@ usually operated by a volunteer during a live service, so reliability and simpli
   Media inside the data folder is referenced data-relative (`dataMediaUrl`) and resolved with `mediaFile()`. Added
   pictures/videos/sound and the logo are copied into `<data>/media/` (`src/shared/mediaLibrary.ts`, `media:copyIn`);
   `MediaItem.path` is then `media/<id>.<ext>`, so never treat it as an absolute path (use `toMediaUrl` + `mediaStatus`).
-- **Logging:** use `log` from `src/main/log.ts` (`%APPDATA%\ICCWorship\logs`; test runs: `<ICCWORSHIP_DATA>/.userdata/logs`). Log ids, counts, error codes and short messages, **never** lyrics,
+- **Logging:** use `log` from `src/main/log.ts` (`%APPDATA%\ICCWorship\logs`; portable exe: `ICCWorship Data\.app\logs`;
+  test runs: `<ICCWORSHIP_DATA>/.userdata/logs`). Log ids, counts, error codes and short messages, **never** lyrics,
   people, prayer requests, request URLs or payloads. Logs are attached to public bug reports.
 
 ## Layout
 - `src/main/`: Electron main process.
   - `index.ts`: startup, lifecycle and last-resort error handling only. `windows.ts` (windows), `windowGuards.ts`
     (crash/freeze recovery), `ipc/` (every IPC channel), `pages.ts` (loading our pages, trusted senders),
-    `hardening.ts`, `mediaProtocol.ts`, `dialogs.ts`, `menu.ts`, `help.ts`, `appState.ts` (window refs, `notify`),
+    `appUrl.ts` / `appProtocol.ts` (serving the pages from `app://iccworship`), `hardening.ts`, `mediaProtocol.ts`, `dialogs.ts`, `menu.ts`, `help.ts`, `appState.ts` (window refs, `notify`),
     `env.ts` (development and test switches, which a packaged app ignores), `serverControl.ts` (restarting the LAN
     server), `machineLock.ts` (one running copy across the installed and portable ones).
   - `live.ts`: live state, the single source of truth for what's on screen.

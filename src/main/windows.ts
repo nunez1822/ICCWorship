@@ -13,17 +13,16 @@ import { log } from './log'
 import { loadPage } from './pages'
 import { guardOperator, guards, guardWindow } from './windowGuards'
 import { readWindowState, rememberLive, saveWindowState } from './session'
-import { restoreWindowState } from '@shared/windowState'
+import { operatorWorkAreas, restoreWindowState } from '@shared/windowState'
 
 const OPERATOR_MIN = { width: 1100, height: 680 }
 
 export function createOperator(): void {
-  // the size and place it had last time, if that is still on a screen (else maximized, as on the first run)
-  const state = restoreWindowState(
-    readWindowState(),
-    screen.getAllDisplays().map((d) => d.workArea),
-    OPERATOR_MIN
-  )
+  // the size and place it had last time, if that is still on a screen other than the projector's (else maximized, as
+  // on the first run)
+  const s = getSettings()
+  const projector = s.outputEnabled && !process.env.ICCWORSHIP_WINDOWED ? pickOutputDisplay(s) : null
+  const state = restoreWindowState(readWindowState(), operatorWorkAreas(screen.getAllDisplays(), screen.getPrimaryDisplay().id, projector?.id), OPERATOR_MIN)
   const operator = new BrowserWindow({
     width: 1480,
     height: 920,
@@ -138,6 +137,7 @@ export function createOutput(): void {
 export function restartOutput(): void {
   guards.output.budget.reset()
   guards.output.failed = false
+  guards.output.safe = false
   if (open(wins.output)) loadPage(wins.output, 'output')
   else createOutput()
 }

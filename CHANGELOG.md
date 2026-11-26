@@ -47,34 +47,39 @@ All notable changes to ICCWorship are documented here. The format is based on
   back. Deleting an item from the library removes its copy, unless a plan slide, the logo or the screen still uses it
   (replacing the logo removes the old one's copy the same way). Turn it off in
   Settings → Backup for a very large video library on another drive (items then link to the original file, as
-  before). A backup too big for one file, or for the USB stick, leaves the media out and says which folder to copy.
+  before). A backup too big for one file, or for the USB stick, leaves the media out (then the tracks) and says
+  which folders to copy, and where.
   Restoring a backup on the same computer doesn't unpack media files that are already there.
 - **"Ready for Sunday?"** (Live page → ✅): one click before the service checks the plan (deleted songs or media,
   video and picture files that moved, Bible versions), the projector window and second screen, the sound output,
   the phone remote and stage display, the logo file, and how recent the last **Back up now** copy is (the automatic
-  backups stay on the same computer) — each problem with a button to fix it.
+  backups stay on the same computer) — each problem with a button to fix it. A projector window that gave up after
+  repeated crashes (or shows only black) is caught too, with **Restart projector**.
 - Each release also includes a **software bill of materials** (`ICCWorship-x.y.z.sbom.cdx.json`, CycloneDX) listing
   every third-party package inside the app, with a GitHub attestation like the installers'.
 - **Automatic updates for the installed version.** With "Check for new versions" on (Settings → About), the
   installed ICCWorship also downloads a new version by itself — it never starts while a service may be running, and
-  a download running when one starts is stopped (the next check resumes it) — and installs it when you close the app
-  with nothing on screen, or right away with **Restart now** when nothing is live. Closing it mid-song never installs.
-  Untick "Download new versions…" (or the check) to only be told: that also stops a download and keeps a downloaded
-  one from installing. The download is checked against the release's SHA-512. The portable version only tells you.
+  a download running when one starts is stopped (it is tried again after the service) — and installs it when you
+  close the app with nothing on screen, or right away with **Restart now** when nothing is on screen. Closing it
+  mid-song never installs. Untick "Download new versions…" (or the check) to only be told: that also stops a
+  download and keeps a downloaded one from installing. The download is checked against the release's SHA-512, and
+  no id for your computer is sent. The portable version only tells you.
 - **Put it back after a crash.** If ICCWorship closes unexpectedly (a crash, a power cut, Windows restarting for an
   update) during a plan item, the next start offers it back: one click on **▶ Put it back** shows that item again on
   the slide it was on (or the one Esc cleared). Nothing goes on screen by itself, it does nothing if something else is
-  live by then, and a normal quit — or shutting Windows down with nothing on screen — leaves nothing to offer.
+  live by then, and a normal quit — or shutting Windows down with no service running — leaves nothing to offer.
+  Choosing Quit after the window crashed mid-service offers it back too.
 - **The portable version is truly portable now.** `ICCWorship-Portable-x.y.z.exe` keeps the data, settings,
   backups and logs in an `ICCWorship Data` folder beside the exe, so it runs from a USB stick and leaves nothing on
   the computer. (Before, it used `Documents\ICCWorship` on whichever PC it ran on.)
   *Upgrading from portable 1.0:* until there is an `ICCWorship Data` folder beside the exe, it keeps using the data in
   `Documents\ICCWorship` and says how to move it. On a write-protected stick it opens the stick's data read-only
-  (a red bar says nothing is saved); with no data and nowhere to write, it uses Documents and says so.
+  (a red bar says nothing is saved); with no data and nowhere to write, it uses Documents and says so. When this
+  computer also has data in Documents that the portable copy doesn't show, it says so once.
 - **Only one ICCWorship runs at a time**, also across the installed and a portable copy: opening a second one says
   the other is already open, instead of starting a second projector window over the live one.
 - The main window opens at the size and place it had last time (maximized the first time), never on a screen that
-  is no longer connected.
+  is no longer connected, nor on the projector's screen.
 - **Backing tracks.** No musicians? Give a song an instrumental (Songs → 🎵 Backing track): the music plays through the
   projector window under the lyrics while you advance them. Space on the last slide takes the text off and lets the
   music finish (the outro); the next Space moves on. Esc fades the music out, Space brings lyrics and music back where

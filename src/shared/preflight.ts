@@ -8,7 +8,7 @@
 
 export type CheckLevel = 'ok' | 'warn' | 'error'
 /** what the check's button does (the page maps it to an action) */
-export type CheckAction = 'openOutput' | 'screens' | 'plans' | 'backupNow' | 'phone' | 'sound' | 'logo'
+export type CheckAction = 'openOutput' | 'restartOutput' | 'screens' | 'plans' | 'backupNow' | 'phone' | 'sound' | 'logo'
 
 export interface Check {
   id: string
@@ -34,6 +34,8 @@ export interface PreflightInput {
   plan?: { title: string; date: string; items: number }
   itemProblems: ItemProblem[]
   outputOpen: boolean
+  /** the projector window is there but stopped after crashing, or shows only the black safe page */
+  outputFailed?: boolean
   displays: number
   /** the projector is set to show on this PC's main screen (or only one screen exists) */
   outputOnMainScreen: boolean
@@ -88,6 +90,7 @@ export function preflight(i: PreflightInput): Check[] {
 
   // the screens
   if (!i.outputOpen) add({ id: 'output', level: 'error', key: 'outputClosed', action: 'openOutput' })
+  else if (i.outputFailed) add({ id: 'output', level: 'error', key: 'outputFailed', action: 'restartOutput' })
   else if (i.displays < 2) add({ id: 'output', level: 'warn', key: 'oneScreen', action: 'screens' })
   else if (i.outputOnMainScreen) add({ id: 'output', level: 'warn', key: 'outputOnMain', action: 'screens' })
   else add({ id: 'output', level: 'ok', key: 'outputOk', params: { count: i.displays } })

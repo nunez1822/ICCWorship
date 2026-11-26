@@ -180,7 +180,9 @@ export function SettingsPage() {
                     if (st.copyMediaToLibrary === false) return void s.setSettings({ logoPath: p })
                     const r = await window.api.media.copyIn(p).catch(() => ({ ok: false as const, error: 'failed' as const }))
                     if (!r.ok) s.toast(t(r.error === 'no-space' ? 'media.copyNoSpace' : 'media.copyFailed', { name: fileName(p) }), 'err')
-                    void s.setSettings({ logoPath: r.ok ? r.path : p })
+                    await s.setSettings({ logoPath: r.ok ? r.path : p })
+                    // not saved (setSettings said why): nothing points to the copy
+                    if (r.ok && useApp.getState().settings.logoPath !== r.path) void window.api.media.discardCopy(r.path)
                   }}
                 >
                   📂 {t('settings.chooseLogo')}

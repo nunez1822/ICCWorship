@@ -179,6 +179,7 @@ export const useApp = create<AppState>((set, get) => ({
             label: i18n.t('updates.restartNow'),
             run: () => void installUpdate(toast)
           })
+        else if (e.type === 'updateInstallFailed') toast(i18n.t(e.reason === 'live' ? 'updates.notWhileLive' : 'updates.installFailed'), 'err', 15_000)
         else if (e.type === 'diagnostics') toast(i18n.t(e.ok ? 'about.diagSaved' : 'about.diagFailed'), e.ok ? 'ok' : 'err')
         else if (e.type === 'openFailed') toast(i18n.t(e.what === 'logs' ? 'about.openLogsFailed' : 'about.noticesMissing'), 'err')
         else if (e.type === 'soundOutputMissing') toast(i18n.t('errors.soundOutputMissing', { label: e.label || '?' }), 'err', 15_000)
@@ -194,6 +195,7 @@ export const useApp = create<AppState>((set, get) => ({
     for (const n of await api.app.notices()) {
       if (n === 'portableFallback') get().toast(i18n.t('data.portableFallback'), 'err', 30_000)
       if (n === 'portableDocuments') get().toast(i18n.t('data.portableDocuments'), 'info', 60_000)
+      if (n === 'portableDocumentsAlso') get().toast(i18n.t('data.portableDocumentsAlso'), 'info', 60_000)
       if (n !== 'operatorRecovered') continue
       get().toast(i18n.t('recovery.operatorRecovered'), 'err', 30_000)
       // the music played on while this window was down: the lyrics catch up with it (see followTick)

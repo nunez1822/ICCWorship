@@ -196,7 +196,8 @@ export function trackMirrorPlan(
 /**
  * `<track>.ogg.tmp` files in tracks/ or backups/tracks/ (or `<id>.<ext>.tmp` in media/, with `isName` =
  * isLibraryFileName) left by a save or copy that was cut off (crash, power cut). Nothing else ever removes them (they
- * aren't track or library files). Only those older than `maxAgeMs`: never one being written.
+ * aren't track or library files). Only those older than `maxAgeMs` (a copy is dated when it is made, see
+ * copyFileAtomic; main also skips the .tmp files it is writing right now).
  */
 export function staleTrackTemps(
   files: { name: string; mtime: number }[],

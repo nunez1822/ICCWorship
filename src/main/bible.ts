@@ -15,7 +15,7 @@ import {
   type Versification
 } from '@shared/bibleCore'
 import type { BibleVersionInfo, Lang, PassageResult, Verse } from '@shared/types'
-import { bibleDataDir, resourcesDir } from './paths'
+import { bibleDataDir, dataRoot, resourcesDir } from './paths'
 import { isSafeId } from '@shared/security'
 import { within } from './pathGuard'
 import { log } from './log'
@@ -42,8 +42,9 @@ function loadAll(): void {
       fullSource.set(id, 'builtin')
     }
   }
-  const dir = bibleDataDir()
-  for (const f of readdirSync(dir)) {
+  // listed only if it exists: creating it here fails on a write-protected stick (portable, read-only)
+  const dir = join(dataRoot(), 'data', 'bibles')
+  for (const f of existsSync(dir) ? readdirSync(dir) : []) {
     if (!f.endsWith('.json')) continue
     try {
       const data = loadJson<FullBible | PartialBible>(join(dir, f))

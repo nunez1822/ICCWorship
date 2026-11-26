@@ -16,6 +16,8 @@ export type AppEvent =
   | { type: 'update'; latest: string; url: string }
   /** the installed app downloaded a new version: it installs when ICCWorship closes (or "Restart now") */
   | { type: 'updateReady'; version: string }
+  /** "Restart now" didn't install: something went on screen meanwhile, or the installer didn't start */
+  | { type: 'updateInstallFailed'; reason: 'live' | 'failed' }
   | { type: 'diagnostics'; ok: boolean }
   | { type: 'menu'; action: 'shortcuts' | 'about' }
   | { type: 'openFailed'; what: 'logs' | 'notices' }

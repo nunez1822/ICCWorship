@@ -2,7 +2,10 @@ import './bootstrap' // must stay the first import: it adjusts app paths before 
 /**
  * The main process: startup, last-resort error handling and app lifecycle. Everything else lives in its own module:
  *   windows.ts (windows) · windowGuards.ts (crash & freeze recovery) · ipc/ (every IPC channel, typed)
- *   pages.ts (loading our pages, trusted senders) · hardening.ts · mediaProtocol.ts · dialogs.ts · menu.ts · help.ts
+ *   pages.ts (loading our pages) · appUrl.ts / appProtocol.ts (app:// pages and isAppPageUrl, the trusted-sender
+ *   check) · hardening.ts · mediaProtocol.ts · dialogs.ts · menu.ts · help.ts · env.ts (development and test
+ *   switches) · serverControl.ts · session.ts (resume after a crash, window place) · bootstrap.ts / portable.ts
+ *   (where the data is) · machineLock.ts (one running copy)
  */
 import { app, dialog, powerMonitor, protocol, screen } from 'electron'
 import { db, getSettings, prepareData, seedIfEmpty } from './db'
@@ -24,7 +27,7 @@ import { registerIpc } from './ipc'
 import { restartServer } from './serverControl'
 import { broadcastLive, createOperator, createOutput, forwardCommand, placeOutput } from './windows'
 import { pauseHeartbeats, resumeHeartbeats } from './windowGuards'
-import { endSession, startSession } from './session'
+import { endSession, firstTimeHere, startSession } from './session'
 import { isTestProfile, location } from './bootstrap'
 import { machineLock } from './machineLock'
 
@@ -97,6 +100,12 @@ app
     }
     log.info(`ICCWorship ${app.getVersion()} starting (Electron ${process.versions.electron}, ${process.platform} ${process.getSystemVersion()})`)
     if (location.mode === 'portable') log.info('portable: data beside the exe')
+    if (location.mode === 'portable' && location.documentsAlso && firstTimeHere('documents-data-noticed')) {
+      // this PC also has data in Documents (the installed copy's, or portable 1.0's) that this copy doesn't show:
+      // say so once, so a church never thinks its songs are gone
+      log.info('portable: this computer also has data in Documents')
+      pendingNotices.push('portableDocumentsAlso')
+    }
     if (location.mode === 'portable-readonly') log.warn('portable: the data beside the exe is write-protected, opened read-only')
     if (location.mode === 'portable-documents') {
       // no "ICCWorship Data" folder yet, and this PC has data in Documents (portable 1.0 kept it there): keep it
@@ -189,10 +198,11 @@ app
 
 app.on('before-quit', () => {
   lifecycle.quitting = true
+  // first, so nothing below that throws can leave electron-updater's default (install at quit) in place
+  updatesBeforeQuit() // a downloaded update installs only if still wanted and nothing is on screen
   log.info('quitting')
   db().flush()
   endSession()
-  updatesBeforeQuit() // a downloaded update installs only if still wanted and nothing is on screen
   stopServer()
 })
 

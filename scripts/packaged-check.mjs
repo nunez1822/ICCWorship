@@ -106,7 +106,8 @@ try {
 // its data, profile and logs in "ICCWorship Data" beside the exe, and touches nothing else.
 {
   const exeDir = mkdtempSync(join(tmpdir(), 'iccworship-portable-'))
-  const penv = { ...process.env, PORTABLE_EXECUTABLE_DIR: exeDir, ICCWORSHIP_WINDOWED: '1' }
+  // (the launcher also names the app it unpacked: only ICCWorship's own portable launcher counts)
+  const penv = { ...process.env, PORTABLE_EXECUTABLE_DIR: exeDir, PORTABLE_EXECUTABLE_APP_FILENAME: 'ICCWorship', ICCWORSHIP_WINDOWED: '1' }
   delete penv.ICCWORSHIP_DATA
   delete penv.ICCWORSHIP_TEST_PROFILE
   delete penv.ELECTRON_RENDERER_URL

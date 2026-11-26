@@ -40,10 +40,12 @@ import { exportDiagnosticsInteractive, newIssueUrl, openFolder, openLogs, openNo
 import { buildMenu } from '../menu'
 import { audioOutputOf, restartServer } from '../serverControl'
 import { createOutput, createStageWindow, listDisplays, placeOutput, restartOutput } from '../windows'
+import { guards } from '../windowGuards'
 import { testSound } from './testSound'
 import { takeResumeOffer } from '../session'
 import { location } from '../bootstrap'
 import { copyIntoLibrary, deleteCopyIfUnused, removeMediaItem } from '../mediaLibrary'
+import { isLibraryPath } from '@shared/mediaLibrary'
 
 type FileFilter = { name: string; extensions: string[] }
 
@@ -132,7 +134,11 @@ export function createHandlers() {
     'displays:list': () => listDisplays(),
     'output:open': () => createOutput(),
     'output:close': () => wins.output?.close(),
-    'output:status': () => ({ open: !!wins.output }),
+    /** failed: the window is there but stopped after crashing, or shows the black safe page ("Restart projector") */
+    'output:status': () => {
+      const w = wins.output
+      return { open: !!w, failed: !!w && (!!guards.output.failed || !!guards.output.safe || w.webContents.isCrashed()) }
+    },
     'output:replace': () => placeOutput(),
     'stage:open': () => createStageWindow(),
 
@@ -177,6 +183,10 @@ export function createHandlers() {
 
     /* ---------------- media library: keep a copy of what is added (see @shared/mediaLibrary) ---------------- */
     'media:copyIn': (path: string) => copyIntoLibrary(path),
+    /** a copy whose item (or logo) couldn't be saved after all: delete it, unless something does use that file */
+    'media:discardCopy': (path: string) => {
+      if (typeof path === 'string' && isLibraryPath(path)) deleteCopyIfUnused({ id: '', path })
+    },
 
     /* ---------------- presentations ---------------- */
     'pres:detect': () => detectConverters(),
@@ -239,9 +249,13 @@ export function createHandlers() {
     /* ---------------- printing: the HTML comes from the operator page; rendered with JavaScript off, in a throw-away session ---------------- */
     'print:pdf': async (html: string, name: string): Promise<string | null> => {
       const win = new BrowserWindow({ show: false, webPreferences: PRINT_PREFS })
-      await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
-      const pdf = await win.webContents.printToPDF({ printBackground: true, pageSize: 'Letter' })
-      win.destroy()
+      let pdf: Buffer
+      try {
+        await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
+        pdf = await win.webContents.printToPDF({ printBackground: true, pageSize: 'Letter' })
+      } finally {
+        if (!win.isDestroyed()) win.destroy() // a failed export must not leave a hidden window running
+      }
       const r = await saveDialog({ defaultPath: name, filters: [{ name: 'PDF', extensions: ['pdf'] }] })
       if (r.canceled || !r.filePath) return null
       writeFileSync(r.filePath, pdf)
@@ -250,8 +264,15 @@ export function createHandlers() {
     },
     'print:print': async (html: string): Promise<void> => {
       const win = new BrowserWindow({ show: false, webPreferences: PRINT_PREFS })
-      await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
-      win.webContents.print({ printBackground: true }, () => win.destroy())
+      try {
+        await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
+      } catch (e) {
+        win.destroy()
+        throw e
+      }
+      win.webContents.print({ printBackground: true }, () => {
+        if (!win.isDestroyed()) win.destroy()
+      })
     },
 
     /* ---------------- e2e (registered only for `pnpm e2e:launch`, see registerIpc) ---------------- */

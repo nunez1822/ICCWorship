@@ -30,6 +30,8 @@ describe('appFile (app://iccworship → built pages)', () => {
     expect(appFile(`${APP_ORIGIN}/pdfjs-wasm/LICENSE_QCMS`, root)).toBeNull()
     expect(appFile(`${APP_ORIGIN}/.vite/license.json`, root)).toBeNull()
     expect(appFile('app://evil/index.html', root)).toBeNull()
+    expect(appFile('app://user:pw@iccworship/index.html', root)).toBeNull()
+    expect(appFile('app://iccworship:80/index.html', root)).toBeNull()
     expect(appFile('file:///C:/index.html', root)).toBeNull()
     expect(appFile(`${APP_ORIGIN}/%E0%A4%A.html`, root)).toBeNull() // malformed escape
     expect(appFile('not a url', root)).toBeNull()
@@ -47,6 +49,11 @@ describe('isAppPageUrl (the IPC trust boundary)', () => {
     expect(isAppPageUrl(`${APP_ORIGIN}/remote.html`)).toBe(false)
     expect(isAppPageUrl(`${APP_ORIGIN}/icon.svg`)).toBe(false)
     expect(isAppPageUrl('app://evil/index.html')).toBe(false)
+    // a user name or password before the host (app://evil%2f@iccworship/…) and a port are not our page
+    expect(isAppPageUrl('app://evil%2f@iccworship/index.html')).toBe(false)
+    expect(isAppPageUrl('app://user:pw@iccworship/index.html')).toBe(false)
+    expect(isAppPageUrl('app://iccworship:80/index.html')).toBe(false)
+    expect(isAppPageUrl('http://user@localhost:5173/index.html', 'http://localhost:5173')).toBe(false)
     expect(isAppPageUrl('file:///C:/app/out/renderer/index.html')).toBe(false)
     expect(isAppPageUrl('http://192.168.1.5:7272/index.html')).toBe(false)
     expect(isAppPageUrl('not a url')).toBe(false)

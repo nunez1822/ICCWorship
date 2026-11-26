@@ -1,4 +1,5 @@
-import { Children, cloneElement, isValidElement, useEffect, useId, type ReactElement, type ReactNode } from 'react'
+import { Children, cloneElement, isValidElement, useEffect, useId, useRef, type ReactElement, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { MediaItem, PlanItem, PlanItemType } from '@shared/types'
 
 /**
@@ -17,12 +18,20 @@ export function Modal(p: { title: ReactNode; onClose: () => void; children: Reac
     return () => window.removeEventListener('keydown', k, true)
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- only onClose is used; `p` is a new object every render
   }, [p.onClose])
+  const { t } = useTranslation()
+  const titleId = useId()
+  const box = useRef<HTMLDivElement>(null)
+  // focus moves into the dialog when it opens: a key pressed now must not also press the button that opened it
+  // behind the dialog (the live shortcuts — Space, B, L… — still work, as on every page)
+  useEffect(() => {
+    if (box.current && !box.current.contains(document.activeElement)) box.current.focus()
+  }, [])
   return (
     <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && p.dismissable !== false && p.onClose()}>
-      <div className={`modal ${p.wide ? 'wide' : ''}`} role="dialog">
+      <div ref={box} className={`modal ${p.wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
         <div className="modal-head">
-          <h2>{p.title}</h2>
-          <button className="btn ghost icon-btn" onClick={p.onClose} aria-label="close">
+          <h2 id={titleId}>{p.title}</h2>
+          <button className="btn ghost icon-btn" onClick={p.onClose} aria-label={t('common.close')}>
             ✕
           </button>
         </div>

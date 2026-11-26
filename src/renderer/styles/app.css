@@ -542,6 +542,10 @@ table.table {
   flex-direction: column;
   animation: pop 0.16s ease both;
 }
+/* focused only so keys don't reach the button behind it: no focus ring around the whole dialog */
+.modal:focus {
+  outline: none;
+}
 .modal.wide {
   width: min(1100px, calc(100vw - 40px));
 }

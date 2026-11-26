@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
-import { copyFileAtomic, renameSyncWithRetry, writeFileAtomic, writeFileAtomicAsync, writeStreamAtomic } from '../src/main/atomicWrite'
+import { copyFileAtomic, isBeingWritten, renameSyncWithRetry, writeFileAtomic, writeFileAtomicAsync, writeStreamAtomic } from '../src/main/atomicWrite'
 
 const track = Buffer.from(Array.from({ length: 200_000 }, (_, i) => (i * 7919) % 251))
 
@@ -19,6 +19,18 @@ describe('atomic copies and streams', () => {
     await copyFileAtomic(join(dir, 'a.ogg'), join(dir, 'b.ogg'))
     expect(readFileSync(join(dir, 'b.ogg')).equals(track)).toBe(true)
     expect(existsSync(join(dir, 'b.ogg.tmp'))).toBe(false)
+  })
+
+  it('a copy is dated now (not the source date), and its .tmp counts as being written until it is done', async () => {
+    const src = join(dir, 'old.mp4')
+    writeFileSync(src, track)
+    const old = new Date('2020-01-01T00:00:00Z')
+    utimesSync(src, old, old)
+    const p = copyFileAtomic(src, join(dir, 'media.mp4'))
+    expect(isBeingWritten(join(dir, 'media.mp4.tmp'))).toBe(true)
+    await p
+    expect(isBeingWritten(join(dir, 'media.mp4.tmp'))).toBe(false)
+    expect(Date.now() - statSync(join(dir, 'media.mp4')).mtimeMs).toBeLessThan(60_000)
   })
 
   it('a failed copy leaves nothing behind', async () => {

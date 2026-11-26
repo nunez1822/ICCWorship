@@ -46,13 +46,13 @@ export function ReadyCheck({ onClose }: { onClose: () => void }) {
   }, [])
 
   const act = async (a: CheckAction) => {
-    if (a === 'openOutput') {
-      await window.api.output.open()
+    if (a === 'openOutput' || a === 'restartOutput') {
+      await (a === 'openOutput' ? window.api.output.open() : window.api.output.restart())
       return void setTimeout(() => void run(), 800)
     }
     if (a === 'backupNow') {
       // the same messages as Settings → Backup (also when the media library or the tracks had to stay out)
-      if (await backupNow()) useApp.setState({ settings: await window.api.settings.get() }) // main noted when (lastManualBackup)
+      await backupNow()
       return void run()
     }
     onClose()
@@ -62,6 +62,7 @@ export function ReadyCheck({ onClose }: { onClose: () => void }) {
 
   const ACTION_LABEL: Record<CheckAction, string> = {
     openOutput: t('ready.actOpenOutput'),
+    restartOutput: t('ready.actRestartOutput'),
     screens: t('ready.actSettings'),
     sound: t('ready.actSettings'),
     phone: t('ready.actSettings'),

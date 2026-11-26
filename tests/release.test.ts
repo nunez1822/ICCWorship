@@ -14,6 +14,10 @@ describe('nextVersion', () => {
     expect(() => nextVersion('1.2.0', 'big')).toThrow(/patch, minor, major/)
     expect(() => nextVersion('1.2', 'patch')).toThrow(/x\.y\.z/)
   })
+  it('refuses leading zeros (not semver: 1.01.0 would compare wrongly)', () => {
+    expect(() => nextVersion('1.0.0', '1.01.0')).toThrow(/patch, minor, major/)
+    expect(nextVersion('1.0.9', '1.0.10')).toBe('1.0.10')
+  })
 })
 
 const CHANGELOG = `# Changelog

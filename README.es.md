@@ -102,12 +102,14 @@ mostrar en un idioma o **en ambos a la vez**, cambiando en vivo con una sola tec
 - **Cambiar de computadora:** en la PC anterior, Ajustes → Copia de seguridad → **Hacer copia ahora** a una memoria USB.
   Instale ICCWorship en la nueva PC y elija **Restaurar** con ese archivo. **Las imágenes, videos y sonidos que agregó
   (y el logo) van dentro de esa copia**, porque la biblioteca de medios guarda su propia copia de todo lo que agrega
-  (en `Documentos\ICCWorship\media`), igual que las **pistas de acompañamiento**. Si juntos pasan de 4 GB, la copia lo
-  avisa y los deja fuera: copie también las carpetas `media` y `tracks` a la memoria.
+  (en `Documentos\ICCWorship\media`), igual que las **pistas de acompañamiento**. Si eso es demasiado para un solo
+  archivo de copia (más de 4 GB) o para la memoria, la copia deja fuera primero los medios (luego las pistas) y dice
+  qué carpetas copiar además, y adónde.
   (Si desactiva Ajustes → Copia de seguridad → "Guardar una copia de las imágenes, videos y sonidos…", los elementos
   enlazan al archivo original: copie esos archivos a la misma carpeta en la nueva PC.)
-- Las copias automáticas dejan fuera la biblioteca de medios y las pistas (harían grande cada copia de cada hora), y
-  restaurar una copia nunca borra pistas ni archivos de medios.
+- Las copias automáticas dejan fuera la biblioteca de medios y las pistas (harían grande cada copia de cada hora).
+  Restaurar una copia nunca borra archivos de medios, y restaurar una copia automática nunca borra pistas (una copia
+  de "Hacer copia ahora" lleva las pistas, y al restaurarla deja exactamente sus pistas).
 - No se sube nada a ningún lugar — vea [PRIVACY.md](PRIVACY.md).
 
 ## Su primer domingo (5 minutos)

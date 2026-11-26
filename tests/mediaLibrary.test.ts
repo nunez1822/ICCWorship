@@ -48,4 +48,10 @@ describe('libraryFileToDelete', () => {
     // another file in the plans doesn't hold it
     expect(libraryFileToDelete(item, { ...none, elsewhere: [[{ media: 'media://local/media%2Fm2.mp4' }]] })).toBe('media/m1.mp4')
   })
+  it('keeps a copy another item, the logo or a presentation links to by its full path in the data folder', () => {
+    const abs = 'C:\\Users\\x\\Documents\\ICCWorship\\media\\m1.mp4'
+    expect(libraryFileToDelete(item, { ...none, media: [{ id: 'm2', path: abs }] })).toBeNull()
+    expect(libraryFileToDelete(item, { ...none, logoPath: abs })).toBeNull()
+    expect(libraryFileToDelete(item, { ...none, elsewhere: [[], [{ slides: [{ image: abs }] }]] })).toBeNull()
+  })
 })

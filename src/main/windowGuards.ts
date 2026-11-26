@@ -4,7 +4,6 @@
 // finally stops retrying; the operator is told every time.
 import { app, type BrowserWindow } from 'electron'
 import { Heartbeat, ReloadBudget } from '@shared/recovery'
-import { onScreen } from '@shared/updatePolicy'
 import { lifecycle, notify, open, pendingNotices, wins } from './appState'
 import { db } from './db'
 import { messageBox } from './dialogs'
@@ -12,11 +11,22 @@ import { t } from './i18n'
 import { live } from './live'
 import { log } from './log'
 import { loadPage } from './pages'
-import { endSession, flushSession } from './session'
+import { endSession, flushSession, quitKeepingOffer } from './session'
 
 export type Guarded = 'output' | 'stage'
 const winOf = (kind: Guarded) => (kind === 'output' ? wins.output : wins.stage)
-export const guards: Record<Guarded, { budget: ReloadBudget; beat: Heartbeat; unresponsive?: ReturnType<typeof setTimeout>; failed?: boolean }> = {
+export const guards: Record<
+  Guarded,
+  {
+    budget: ReloadBudget
+    beat: Heartbeat
+    unresponsive?: ReturnType<typeof setTimeout>
+    /** gave up restarting it */
+    failed?: boolean
+    /** the projector shows the plain black safe page after repeated crashes */
+    safe?: boolean
+  }
+> = {
   output: { budget: new ReloadBudget(), beat: new Heartbeat(() => killFrozen('output')) },
   stage: { budget: new ReloadBudget(), beat: new Heartbeat(() => killFrozen('stage')) }
 }
@@ -41,8 +51,10 @@ export function recover(kind: Guarded, reason: string): void {
     g.failed = true // "Restart projector" / "Open stage display" start it again
     return notify({ type: 'windowFailed', window: kind })
   }
-  if (kind === 'output') loadPage(win, 'output', step === 'safe' ? '#safe' : '')
-  else loadPage(win, 'stage', '#local')
+  if (kind === 'output') {
+    g.safe = step === 'safe'
+    loadPage(win, 'output', g.safe ? '#safe' : '')
+  } else loadPage(win, 'stage', '#local')
   notify({ type: 'windowRecovered', window: kind, safe: step === 'safe' })
 }
 
@@ -55,6 +67,7 @@ export function guardWindow(win: BrowserWindow, kind: Guarded): void {
   const g = guards[kind]
   g.budget.reset()
   g.failed = false
+  g.safe = false
   g.beat.stop()
   clearUnresponsive(kind)
   win.webContents.on('render-process-gone', (_e, d) => {
@@ -186,19 +199,24 @@ export function guardOperator(win: BrowserWindow): void {
     if (r.response === 0 && !win.isDestroyed()) {
       pendingNotices.push('operatorRecovered')
       loadPage(win, 'index')
-    } else app.quit()
+    } else {
+      // quitting after a crash mid-service is still an interrupted service: offer the place back at the next start
+      if (live.serviceRunning()) quitKeepingOffer()
+      app.quit()
+    }
   })
   // the volunteer is clicking a window that doesn't answer: ask now rather than after the heartbeat's 10 s
   win.on('unresponsive', () => {
     log.warn('operator window unresponsive')
     if (!operatorBusy) void askAboutFrozenOperator()
   })
-  // Windows shutdown / log off skips before-quit: save now. With nothing on screen it is a normal end of the day (no
-  // "closed unexpectedly" offer next time); mid-service (a forced restart for an update) the place is offered back.
+  // Windows shutdown / log off skips before-quit: save now. With no service running it is a normal end of the day (no
+  // "closed unexpectedly" offer next time); mid-service (a forced restart for an update, also with the screen cleared
+  // by Esc during the sermon) the place is offered back.
   win.on('session-end', () => {
     log.info('Windows session ending: saving')
     db().flush()
-    if (onScreen(live.state)) flushSession()
+    if (live.serviceRunning()) flushSession()
     else endSession()
   })
 }

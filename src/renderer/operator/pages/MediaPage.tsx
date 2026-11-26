@@ -73,16 +73,21 @@ export function MediaPage() {
         else s.toast(t(r.error === 'no-space' ? 'media.copyNoSpace' : 'media.copyFailed', { name: fileName(p) }), 'err', 10_000)
       }
       setBusy(`${t('common.working')} ${fileName(p)}`)
-      const thumb = await makeThumb(stored, kind)
-      await s.save('media', {
-        id: uid(),
-        name: fileName(p).replace(/\.[^.]+$/, ''),
-        path: stored,
-        source: stored !== p ? p : undefined,
-        kind,
-        thumb,
-        addedAt: Date.now()
-      } satisfies MediaItem)
+      try {
+        const thumb = await makeThumb(stored, kind)
+        await s.save('media', {
+          id: uid(),
+          name: fileName(p).replace(/\.[^.]+$/, ''),
+          path: stored,
+          source: stored !== p ? p : undefined,
+          kind,
+          thumb,
+          addedAt: Date.now()
+        } satisfies MediaItem)
+      } catch (e) {
+        if (stored !== p) void window.api.media.discardCopy(stored) // no item points to the copy
+        throw e
+      }
       known.add(p.toLowerCase())
       n++
     }
@@ -331,13 +336,19 @@ function Library() {
             className="btn ghost"
             onClick={async () => {
               if (!confirmDel(t('media.confirmRemove') + usedInPlansNote(s.plans, item.id, t))) return
-              await s.remove('media', item.id)
-              setSel(undefined)
-              // it was the background on screen right now: fall back immediately
+              // it is the background on screen right now: fall back first, so the screen no longer holds its copy
+              // when main decides whether to delete it
               const l = useApp.getState().live
               if (l?.background?.value === toMediaUrl(item.path)) {
-                void updateLive({ background: themeBackground(l.theme, useApp.getState().media) })
+                await updateLive({
+                  background: themeBackground(
+                    l.theme,
+                    useApp.getState().media.filter((m) => m.id !== item.id)
+                  )
+                })
               }
+              await s.remove('media', item.id)
+              setSel(undefined)
             }}
           >
             🗑️ {t('media.remove')}

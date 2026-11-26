@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vite-plus/test'
-import { automaticCheckDue, installNow, installOnQuit, isLive, mayDownload, onScreen, UPDATE_CHECK_EVERY_MS, type UpdatePhase } from '@shared/updatePolicy'
+import {
+  automaticCheckDue,
+  CLEARED_STILL_LIVE_MS,
+  installNow,
+  installOnQuit,
+  isLive,
+  mayDownload,
+  onScreen,
+  UPDATE_CHECK_EVERY_MS,
+  type UpdatePhase
+} from '@shared/updatePolicy'
 
 const NOW = 1_800_000_000_000
 const idle: UpdatePhase = { phase: 'idle' }
@@ -17,7 +27,12 @@ describe('isLive', () => {
     expect(isLive({ slideIndex: -1, message: { text: 'x', seq: 1 } }, NOW)).toBe(true)
     expect(isLive({ slideIndex: -1, message: { text: 'x', seq: 1, until: NOW + 1000 } }, NOW)).toBe(true)
     expect(isLive({ slideIndex: -1, message: { text: 'x', seq: 1, until: NOW - 1000 } }, NOW)).toBe(false) // ran out
-    expect(isLive({ slideIndex: -1, clearedFrom: 3 })).toBe(true)
+    expect(isLive({ slideIndex: -1, clearedFrom: 3 }, NOW, NOW - 60_000)).toBe(true)
+  })
+  it('a cleared screen stops counting a while after something was last on screen (a service ended with Esc)', () => {
+    expect(isLive({ slideIndex: -1, clearedFrom: 3 }, NOW, NOW - CLEARED_STILL_LIVE_MS + 1000)).toBe(true) // a long sermon
+    expect(isLive({ slideIndex: -1, clearedFrom: 3 }, NOW, NOW - CLEARED_STILL_LIVE_MS)).toBe(false)
+    expect(isLive({ slideIndex: -1, clearedFrom: 3 }, NOW)).toBe(false) // nothing was on screen this run
   })
 })
 
@@ -66,9 +81,10 @@ describe('mayDownload', () => {
 })
 
 describe('installNow', () => {
-  it('installs a downloaded update only when nothing is live', () => {
-    expect(installNow({ live: false, phase: ready })).toBe('install')
-    expect(installNow({ live: true, phase: ready })).toBe('live')
-    expect(installNow({ live: false, phase: idle })).toBe('not-ready')
+  it('installs a downloaded update only when nothing is on screen and updates are still on', () => {
+    expect(installNow({ allowed: true, onScreen: false, phase: ready })).toBe('install')
+    expect(installNow({ allowed: true, onScreen: true, phase: ready })).toBe('live')
+    expect(installNow({ allowed: true, onScreen: false, phase: idle })).toBe('not-ready')
+    expect(installNow({ allowed: false, onScreen: false, phase: ready })).toBe('not-ready') // turned off after downloading
   })
 })

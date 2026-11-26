@@ -7,8 +7,9 @@ name: Release
 #      an SBOM and the self-update files (latest.yml, .blockmap).
 #   3. A maintainer downloads and tries the draft's files, then publishes it. Releases are immutable once published,
 #      and installed copies with automatic updates on download it.
-# Pushing a vx.y.z tag by hand still works. "Run workflow" rebuilds the current version's tag (the tagged commit,
-# so it only helps when the failure was outside the code, e.g. a runner problem): see CONTRIBUTING.md → Releasing.
+# Pushing a vx.y.z tag by hand still works. "Run workflow" (or "Re-run all jobs" on the release's run) rebuilds the
+# current version's tag (the tagged commit, so it only helps when the failure was outside the code, e.g. a runner
+# problem): see CONTRIBUTING.md → Releasing. A push to main that doesn't change the version releases nothing.
 on:
   push:
     branches: [main]
@@ -43,17 +44,38 @@ jobs:
       - id: v
         env:
           GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ github.event.before }}
         run: |
           version=$(node -p "require('./package.json').version")
+          # a plain x.y.z (no leading zeros): it goes into the tag, file names and electron-updater's version compare
+          if ! printf '%s' "${version}" | grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'; then echo "::error::package.json version ${version} is not x.y.z"; exit 1; fi
           tag="v${version}"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          # "Run workflow", or "Re-run all jobs" on a release run whose first attempt already made the tag
+          rebuild=false
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] || [ "${GITHUB_RUN_ATTEMPT:-1}" -gt 1 ]; then rebuild=true; fi
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             # a maintainer pushed the tag by hand: it must name this version
             if [ "${GITHUB_REF_NAME}" != "${tag}" ]; then echo "::error::Tag ${GITHUB_REF_NAME} does not match package.json version ${version}"; exit 1; fi
             echo "release=true" >> "$GITHUB_OUTPUT"
-          elif gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" >/dev/null 2>&1; then
-            if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            exit 0
+          fi
+          if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+            # only a push that changed the version releases: a dependency bump merged while the release's own run waits
+            # (or after its tag job failed) must not tag ITS commit with the release's version
+            prev=""
+            if [ -n "${BEFORE}" ] && [ "${BEFORE}" != "0000000000000000000000000000000000000000" ]; then
+              prev=$(gh api -H "Accept: application/vnd.github.raw+json" "repos/${GITHUB_REPOSITORY}/contents/package.json?ref=${BEFORE}" 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version" 2>/dev/null || true)
+            fi
+            if [ "${prev}" = "${version}" ]; then
+              echo "package.json changed but not its version (${version}): nothing to release"
+              echo "release=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" >/dev/null 2>&1; then
+            if [ "${rebuild}" = "true" ]; then
               # a published release can't be replaced (immutable releases): building it again would only fail at the end
               draft=$(gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" --json isDraft -q .isDraft 2>/dev/null || echo none)
               if [ "${draft}" = "false" ]; then echo "::error::${tag} is already published. Release a new patch version instead (pnpm release:prepare patch)."; exit 1; fi
@@ -116,7 +138,9 @@ jobs:
       # the software bill of materials written by scripts/licenses.mjs (what ships inside the app)
       - name: SBOM
         shell: bash
-        run: cp out/sbom.cdx.json "dist/ICCWorship-${{ needs.tag.outputs.version }}.sbom.cdx.json"
+        env:
+          VERSION: ${{ needs.tag.outputs.version }}
+        run: cp out/sbom.cdx.json "dist/ICCWorship-${VERSION}.sbom.cdx.json"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

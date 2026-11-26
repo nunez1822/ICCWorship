@@ -11,7 +11,7 @@ import { arch, homedir, release, totalmem, type as osType } from 'node:os'
 import { join } from 'node:path'
 import { COLLECTIONS, db, getSettings } from './db'
 import { dataDir, dataRoot } from './paths'
-import { location } from './bootstrap'
+import { isPortableExe, location } from './bootstrap'
 import { logDir, redact } from './log'
 
 const DAY = 24 * 60 * 60 * 1000
@@ -20,7 +20,7 @@ export function systemInfo(): Record<string, unknown> {
   return {
     app: `ICCWorship ${app.getVersion()}`,
     packaged: app.isPackaged,
-    portable: !!process.env.PORTABLE_EXECUTABLE_DIR,
+    portable: isPortableExe,
     dataMode: location.mode, // where the data is (portable.ts): beside the exe, read-only, Documents…
     electron: process.versions.electron,
     chrome: process.versions.chrome,

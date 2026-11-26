@@ -10,9 +10,12 @@ had to compare file paths.
 ## Decision
 Register a standard, secure custom scheme, `app://iccworship/`, served by `protocol.handle` from `out/renderer` only
 (`src/main/appUrl.ts`, `appProtocol.ts`):
-- only the built pages' own file types, only inside that folder (traversal → 404), with `nosniff` and `no-store`;
+- only the built pages' own file types, only inside that folder (traversal → 404), with `nosniff` (no
+  `Cache-Control`: `protocol.handle` responses never enter Chromium's HTTP cache, and `no-store` could stop the V8
+  code cache that the scheme's `codeCache` privilege turns on);
 - the IPC sender check accepts exactly `app://iccworship/index.html`, `output.html` and `stage.html`
-  (`isAppPageUrl`, unit tested; it compares scheme and host because `URL.origin` is `"null"` for custom schemes);
+  (`isAppPageUrl`, unit tested; it compares scheme and host because `URL.origin` is `"null"` for custom schemes, and
+  refuses a URL with a user name, password or port);
 - the `GrantFileProtocolExtraPrivileges` fuse is **off**, checked by `scripts/packaged-check.mjs`.
 
 This is what Electron's security checklist recommends and what VS Code does (`vscode-file://`).

@@ -1,6 +1,7 @@
 // Pure helpers for `pnpm release:prepare` (scripts/release-prepare.mjs). Unit tested in tests/release.test.ts.
 
-const VERSION = /^(\d+)\.(\d+)\.(\d+)$/
+// semver's x.y.z: no leading zeros ("1.01.0" would compare wrongly in electron-updater and name a bad tag)
+const VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
 
 /** the next version: 'patch' | 'minor' | 'major', or an explicit x.y.z that must be higher than the current one */
 export function nextVersion(current, kind) {

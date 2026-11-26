@@ -85,7 +85,7 @@ const api = {
   output: {
     open: () => invoke('output:open'),
     close: () => invoke('output:close'),
-    status: (): Promise<{ open: boolean }> => invoke('output:status'),
+    status: (): Promise<{ open: boolean; failed: boolean }> => invoke('output:status'),
     replace: () => invoke('output:replace'),
     onStatus: (cb: (s: { open: boolean }) => void) => on('output:status', cb),
     /** reload the projector page (and leave "safe" mode after repeated crashes) */
@@ -131,7 +131,9 @@ const api = {
   /** the media library's own copies (src/main/mediaLibrary.ts) */
   media: {
     /** copy a picture / video / sound file into the data folder → its stored path ("media/<id>.<ext>") */
-    copyIn: (path: string) => invoke('media:copyIn', path)
+    copyIn: (path: string) => invoke('media:copyIn', path),
+    /** a copy whose item couldn't be saved: delete it again (kept if anything uses that file) */
+    discardCopy: (path: string) => invoke('media:discardCopy', path)
   },
   pres: {
     detect: (): Promise<{ powerpoint: boolean; libreoffice: string | null }> => invoke('pres:detect'),
@@ -150,8 +152,16 @@ const api = {
   },
   backup: {
     create: (): Promise<
-      /** tracksLeftOut: too many backing tracks for one .zip — saved without them */
-      | { ok: true; path: string; files: number; bytes: number; tracksLeftOut?: boolean; mediaLeftOut?: boolean }
+      /** tracksLeftOut / mediaLeftOut: saved without those folders, because of leftOutBecause */
+      | {
+          ok: true
+          path: string
+          files: number
+          bytes: number
+          tracksLeftOut?: boolean
+          mediaLeftOut?: boolean
+          leftOutBecause?: 'too-large' | 'no-space'
+        }
       /** nothing was saved: no room on that drive, more than one .zip can hold, or the write failed */
       | { ok: false; error: 'no-space' | 'too-large' | 'failed' }
       | null

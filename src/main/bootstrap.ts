@@ -6,7 +6,7 @@
 import { app, crashReporter } from 'electron'
 import { existsSync, mkdirSync, readFileSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { dataLocation, type DataLocation } from './portable'
+import { dataLocation, portableExeDir, type DataLocation } from './portable'
 import { dataRoot, setPortableRoot } from './paths'
 
 // Test runs (smoke, e2e, packaged-check) set ICCWORSHIP_TEST_PROFILE as well as pointing ICCWORSHIP_DATA at a
@@ -45,9 +45,12 @@ function canWrite(dir: string): boolean {
     return false
   }
 }
+/** this is ICCWorship's portable exe (whatever its data mode): it never updates itself */
+export const isPortableExe = app.isPackaged && !!portableExeDir(process.env, process.execPath)
 export const location: DataLocation = dataLocation({
   env: process.env,
   isPackaged: app.isPackaged,
+  execPath: process.execPath,
   exists: existsSync,
   canWrite,
   documentsHasData: () => existsSync(join(app.getPath('documents'), 'ICCWorship', 'data', 'meta.json'))

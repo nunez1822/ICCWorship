@@ -256,7 +256,8 @@ An error's message can quote what a page was reading (a SyntaxError quotes the J
 **Expected**
 - `app://iccworship` (not `file://`).
 - `200`, `404`, `404`, `404`, `refused`: only the built pages' own files are served, never main's code or anything
-  outside. (The encoded slashes matter: a plain `../` or `%2e%2e/` is resolved by the URL parser before the handler
+  outside. (`app://user:pw@iccworship/index.html` and `app://iccworship:80/…` are not served either, and never count
+  as our page for the IPC check: `tests/appUrl.test.ts`.) (The encoded slashes matter: a plain `../` or `%2e%2e/` is resolved by the URL parser before the handler
   sees it, so it would 404 even without the guard; `out/main/index.js` exists, so only the guard makes these 404.)
 - The `file://` fetch is refused by Chromium from any non-`file:` page whatever the fuse says: the fuse itself is
   checked in step 3.

@@ -54,6 +54,9 @@ describe('preflight', () => {
     expect(byId({ ...ready, displays: 1 }, 'output')).toMatchObject({ level: 'warn', key: 'oneScreen' })
     expect(byId({ ...ready, outputOnMainScreen: true }, 'output')?.key).toBe('outputOnMain')
   })
+  it('a projector window that stopped after crashing, or shows only black (safe mode), is an error', () => {
+    expect(byId({ ...ready, outputFailed: true }, 'output')).toMatchObject({ level: 'error', key: 'outputFailed', action: 'restartOutput' })
+  })
   it('sound: only reported when the plan plays something, or the chosen output is gone', () => {
     expect(byId(ready, 'sound')).toBeUndefined()
     expect(byId({ ...ready, planHasSound: true }, 'sound')).toMatchObject({ level: 'ok', key: 'soundDefault' })
@@ -67,6 +70,13 @@ describe('preflight', () => {
     expect(byId({ ...ready, lastBackupAt: NOW - 9 * DAY }, 'backup')?.level).toBe('ok')
     // `count` (not `days`): i18next picks the plural form from it
     expect(byId({ ...ready, lastBackupAt: NOW - 15 * DAY }, 'backup')).toMatchObject({ level: 'warn', key: 'oldBackup', params: { count: 15 } })
+    // the boundary: 14 full days is old, a little less is not
+    expect(byId({ ...ready, lastBackupAt: NOW - 14 * DAY }, 'backup')).toMatchObject({ level: 'warn', params: { count: 14 } })
+    expect(byId({ ...ready, lastBackupAt: NOW - 13.9 * DAY }, 'backup')?.level).toBe('ok')
+  })
+  it('with no plan selected, nothing is said about items', () => {
+    const r = preflight({ ...ready, plan: undefined, itemProblems: [{ title: 'x', kind: 'missing' }] })
+    expect(r.some((c) => ['items', 'missing', 'files', 'blank', 'warnings'].includes(c.id))).toBe(false)
   })
   it('a missing logo file is worth a look', () => {
     expect(byId({ ...ready, logoMissing: true }, 'logo')).toMatchObject({ level: 'warn', action: 'logo' })

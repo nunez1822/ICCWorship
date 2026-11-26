@@ -71,7 +71,8 @@ Fixtures: `sample.mp4` (5 s color bars + tone), `sample.jpg`, `sample.mp3` (4 s 
 3. Add a file with the copy setting off (TC-MED-08 step 2), and remove that card.
 **Expected**
 - Cards disappear, and both copies in `.e2e-data/media/` are deleted. The theme shows the built-in gradient (as the
-  Themes page shows "—"): a theme doesn't keep a removed item's file.
+  Themes page shows "—"): a theme doesn't keep a removed item's file. The picture that was the background on screen
+  (Use as background) is replaced on the projector by the theme's background first, so its copy is deleted too.
 - 3: the original file on disk still exists (ICCWorship never deletes the church's own files).
 
 ### TC-MED-10 · FLAC and Opus audio files play  `P2`

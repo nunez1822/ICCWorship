@@ -7,6 +7,7 @@
  * something recently on screen becomes an offer the operator can accept with one click.
  */
 import type { LiveState } from './types'
+import { onScreen } from './updatePolicy'
 
 export interface LiveSnapshot {
   planId: string
@@ -77,6 +78,8 @@ export function snapshotChanged(a: LiveSnapshot | undefined, b: LiveSnapshot | u
 export class LiveRecorder {
   /** what session.json says now (undefined: nothing live) */
   private written: LiveSnapshot | undefined
+  /** `written` is still the last run's offer (kept in the file for a second crash), not a place from this run */
+  private fromLastRun = false
   /** the place waiting to be written (null: nothing waiting; { snap: undefined }: "nothing live" waiting) */
   private pending: { snap: LiveSnapshot | undefined } | null = null
   private timer: unknown
@@ -84,7 +87,8 @@ export class LiveRecorder {
 
   constructor(
     private io: {
-      write: (live: LiveSnapshot | undefined) => void
+      /** false when the file couldn't be written: the place stays waiting and is tried again at the next change */
+      write: (live: LiveSnapshot | undefined) => boolean | void
       now: () => number
       setTimer: (fn: () => void, ms: number) => unknown
       clearTimer: (t: unknown) => void
@@ -92,13 +96,24 @@ export class LiveRecorder {
     private delayMs = 1000
   ) {}
 
+  /** the file already holds the last run's offer (startSession wrote it back) */
+  seed(offer: LiveSnapshot | undefined): void {
+    this.written = offer
+    this.fromLastRun = !!offer
+  }
+
   /** the live state changed */
-  remember(l: Parameters<typeof snapshotOf>[0]): void {
+  remember(l: Parameters<typeof snapshotOf>[0] & Partial<Pick<LiveState, 'video' | 'layers' | 'message'>>): void {
     if (this.ended) return
-    const snap = snapshotOf(l, this.io.now())
+    const now = this.io.now()
+    const snap = snapshotOf(l, now)
+    // The last run's offer stays until something else is really shown: a plan item, or a Show-now item (which has no
+    // place to offer, but makes the old one wrong). A theme or language change with nothing on screen keeps it.
+    if (!snap && this.fromLastRun && !this.pending && !onScreen(l, now)) return
     // compare with what will be on disk: the waiting place if there is one (even "nothing live"), else the written one
-    if (!snapshotChanged(this.pending ? this.pending.snap : this.written, snap)) return
-    this.pending = { snap }
+    if (snapshotChanged(this.pending ? this.pending.snap : this.written, snap)) this.pending = { snap }
+    else if (!this.pending) return
+    // (a place still waiting without a timer is one whose write failed: try again now)
     this.timer ??= this.io.setTimer(() => {
       this.timer = undefined
       this.flush()
@@ -110,9 +125,11 @@ export class LiveRecorder {
     if (this.timer !== undefined) this.io.clearTimer(this.timer)
     this.timer = undefined
     if (!this.pending || this.ended) return
-    this.written = this.pending.snap
+    const p = this.pending
+    if (this.io.write(p.snap) === false) return // stays waiting
     this.pending = null
-    this.io.write(this.written)
+    this.written = p.snap
+    this.fromLastRun = false
   }
 
   /** the run ended normally: nothing more is written */

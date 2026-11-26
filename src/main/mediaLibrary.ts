@@ -7,7 +7,7 @@ import { mkdirSync, statSync, unlinkSync } from 'node:fs'
 import { statfs } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 import { libraryFileName, libraryFileToDelete, MEDIA_DIR } from '@shared/mediaLibrary'
-import type { MediaItem, ServicePlan } from '@shared/types'
+import type { MediaItem, Presentation, ServicePlan } from '@shared/types'
 import { copyFileAtomic } from './atomicWrite'
 import { afterBackups } from './backup'
 import { assertWritable, db, getSettings } from './db'
@@ -71,7 +71,7 @@ export function deleteCopyIfUnused(owner: Pick<MediaItem, 'id' | 'path'>): void 
     libraryFileToDelete(owner, {
       media: store.list<MediaItem>('media'),
       logoPath: getSettings().logoPath,
-      elsewhere: [store.list<ServicePlan>('plans'), live.state]
+      elsewhere: [store.list<ServicePlan>('plans'), store.list<Presentation>('presentations'), live.state]
     })
   if (!toDelete()) return
   afterBackups(() => {

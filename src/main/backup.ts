@@ -32,7 +32,7 @@ import {
   staleTrackTemps,
   trackMirrorPlan
 } from '@shared/backupCore'
-import { copyFileAtomic, renameSyncWithRetry, writeFileAtomic, writeStreamAtomic } from './atomicWrite'
+import { copyFileAtomic, isBeingWritten, renameSyncWithRetry, writeFileAtomic, writeStreamAtomic } from './atomicWrite'
 import { ZipError, ZipReader, type ZipEntry } from './zipReader'
 import { songsListIsComplete, tracksInUse } from './tracks'
 import { log } from './log'
@@ -81,10 +81,12 @@ type BackupResult = {
   path: string
   files: number
   bytes: number
-  /** the tracks were too many for one .zip: this backup holds the data only (they stay in tracks/ and backups/tracks/) */
+  /** the backing tracks (tracks/) had to stay out of this backup (they stay in tracks/ and backups/tracks/) */
   tracksLeftOut?: boolean
-  /** the media library (media/) was too big for one .zip: this backup holds everything but it */
+  /** the media library (media/) had to stay out of this backup */
   mediaLeftOut?: boolean
+  /** why something stayed out: over 4 GB for one .zip, or not enough room on the target's drive */
+  leftOutBecause?: 'too-large' | 'no-space'
 }
 export type BackupError = 'no-space' | 'too-large' | 'failed'
 
@@ -200,29 +202,32 @@ const reserveFor = (target: string) =>
 /**
  * "Back up now": everything, the media library and backing tracks included (the copy to take to another PC or a USB
  * stick). When that is too much for one .zip (over 4 GB) or for the room on the target's disk (a small USB stick), the
- * media library is left out first (`mediaLeftOut`), then the tracks too (`tracksLeftOut`): the operator is told to
- * copy those folders as well — a church with a big library must never be left with no backup at all.
+ * media library is left out first (`mediaLeftOut`), then the tracks instead, then both (`tracksLeftOut`), and
+ * `leftOutBecause` says why: the operator is told which folders to copy as well, and where — a church with a big
+ * library must never be left with no backup at all.
  */
 export function createBackup(target: string): Promise<BackupResult | { ok: false; error: BackupError }> {
   return exclusive(async () => {
-    const noRoom = (e: unknown) => e instanceof BackupRoomError
+    const tries = [
+      { tracks: true, media: true },
+      { tracks: true, media: false },
+      { tracks: false, media: true },
+      { tracks: false, media: false }
+    ]
+    let because: BackupRoomError['reason'] | undefined
     try {
-      try {
-        const { writes: _writes, ...r } = await writeBackup(target, true, reserveFor(target), true)
-        return r
-      } catch (e) {
-        if (!noRoom(e)) throw e
-        log.warn(`backup with the media library: ${(e as BackupRoomError).reason}, saving without it`)
+      for (const [n, a] of tries.entries()) {
+        try {
+          const { writes: _writes, ...r } = await writeBackup(target, a.tracks, reserveFor(target), a.media)
+          if (!because) return r
+          return { ...r, mediaLeftOut: !a.media || undefined, tracksLeftOut: !a.tracks || undefined, leftOutBecause: because }
+        } catch (e) {
+          if (!(e instanceof BackupRoomError) || n === tries.length - 1) throw e
+          because = e.reason
+          log.warn(`backup (tracks ${a.tracks ? 'in' : 'out'}, media ${a.media ? 'in' : 'out'}): ${e.reason}, trying with less`)
+        }
       }
-      try {
-        const { writes: _writes, ...r } = await writeBackup(target, true, reserveFor(target))
-        return { ...r, mediaLeftOut: true }
-      } catch (e) {
-        if (!noRoom(e)) throw e
-        log.warn(`backup with the backing tracks: ${(e as BackupRoomError).reason}, saving without them`)
-        const { writes: _writes, ...r } = await writeBackup(target, false, reserveFor(target))
-        return { ...r, tracksLeftOut: true, mediaLeftOut: true }
-      }
+      throw new Error('unreachable')
     } catch (e) {
       if (e instanceof BackupRoomError) {
         log.warn('backup not made:', e.reason)
@@ -594,7 +599,7 @@ function removeStaleTrackTemps(dir: string, isName?: (name: string) => boolean):
     })
     for (const name of staleTrackTemps(files, Date.now(), undefined, isName)) {
       const f = join(dir, name)
-      if (!within(dir, f)) continue
+      if (!within(dir, f) || isBeingWritten(f)) continue // (a large copy still going)
       try {
         unlinkSync(f)
       } catch {

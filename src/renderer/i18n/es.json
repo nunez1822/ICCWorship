@@ -14,6 +14,7 @@
     "add": "Agregar",
     "savedTo": "Guardado: {{file}}",
     "cancel": "Cancelar",
+    "close": "Cerrar",
     "create": "Crear",
     "delete": "Eliminar",
     "edit": "Editar",
@@ -509,7 +510,6 @@
     "portableReadOnly": "portátil, solo lectura: la carpeta junto al exe está protegida contra escritura, no se guarda nada",
     "copyMediaHelp": "Así las copias de seguridad y una computadora nueva los tienen, y mover o borrar el archivo original no rompe nada. Desactívelo para una biblioteca de videos muy grande en otra unidad: esos elementos enlazan entonces al archivo original.",
     "copyMedia": "Guardar una copia de las imágenes, videos y sonidos agregados en la carpeta de ICCWorship",
-    "backupNoMedia": "Copia guardada SIN la biblioteca de medios ({{files}} archivos, {{size}} MB): sus imágenes y videos pasan de 4 GB, demasiado para un solo archivo de copia. Copie también la carpeta media (en la carpeta de datos) a la misma unidad.",
     "portableData": "portátil: los datos viajan con ICCWorship-Portable.exe (la carpeta “ICCWorship Data” a su lado)",
     "title": "Ajustes",
     "general": "General",
@@ -552,7 +552,18 @@
     "backupHelp": "Todo (cantos, servicios, personas, versículos pegados, diapositivas importadas, pistas de acompañamiento, y las imágenes, videos y sonidos de la biblioteca de medios) en un solo .zip — guárdelo en una memoria USB. ICCWorship también hace copias automáticas (sin los medios ni las pistas) al iniciar y cada hora.",
     "backupNow": "Hacer copia ahora",
     "backupDone": "Copia guardada ({{files}} archivos, {{size}} MB)",
-    "backupNoTracks": "Copia guardada SIN la biblioteca de medios ni las pistas de acompañamiento ({{files}} archivos, {{size}} MB): juntas pasan de 4 GB, demasiado para un solo archivo de copia. Copie también las carpetas media y tracks (en la carpeta de datos) a la misma unidad.",
+    "backupLeftOut": {
+      "tooLarge": {
+        "media": "Copia guardada SIN la biblioteca de medios ({{files}} archivos, {{size}} MB): con sus imágenes y videos pasaría de 4 GB, demasiado para un solo archivo de copia. Copie también la carpeta media (en la carpeta de datos) a la misma unidad.",
+        "tracks": "Copia guardada SIN las pistas de acompañamiento ({{files}} archivos, {{size}} MB): con ellas pasaría de 4 GB, demasiado para un solo archivo de copia. Copie también la carpeta tracks (en la carpeta de datos) a la misma unidad.",
+        "both": "Copia guardada SIN la biblioteca de medios ni las pistas de acompañamiento ({{files}} archivos, {{size}} MB): con ellas pasaría de 4 GB, demasiado para un solo archivo de copia. Copie también las carpetas media y tracks (en la carpeta de datos) a la misma unidad."
+      },
+      "noSpace": {
+        "media": "Copia guardada SIN la biblioteca de medios ({{files}} archivos, {{size}} MB): sus imágenes y videos no caben en esa unidad. Copie la carpeta media (en la carpeta de datos) a una unidad con más espacio.",
+        "tracks": "Copia guardada SIN las pistas de acompañamiento ({{files}} archivos, {{size}} MB): no caben en esa unidad. Copie la carpeta tracks (en la carpeta de datos) a una unidad con más espacio.",
+        "both": "Copia guardada SIN la biblioteca de medios ni las pistas de acompañamiento ({{files}} archivos, {{size}} MB): no caben en esa unidad. Copie las carpetas media y tracks (en la carpeta de datos) a una unidad con más espacio."
+      }
+    },
     "backupError": {
       "no-space": "No hay suficiente espacio libre en esa unidad para la copia. No se guardó nada. Elija otra unidad (una memoria USB) o libere espacio.",
       "too-large": "Los datos y las pistas de acompañamiento son demasiado grandes para un solo archivo de copia (más de 4 GB). No se guardó nada. Quite las pistas que ya no use e intente de nuevo.",
@@ -731,7 +742,7 @@
     "hwAccelHelp": "Solo si el proyector se pone negro, parpadea o se congela en esta computadora. Se aplica al reiniciar ICCWorship."
   },
   "updates": {
-    "waitingLive": "ICCWorship {{version}} está disponible. Se descarga cuando no haya nada en pantalla.",
+    "waitingLive": "ICCWorship {{version}} está disponible. Se descarga más tarde, después del servicio.",
     "title": "Actualizaciones",
     "toggle": "Buscar versiones nuevas una vez al día",
     "help": "Pregunta a GitHub si hay una versión nueva de ICCWorship — nunca durante un servicio, y no se envía nada sobre usted.",
@@ -746,11 +757,13 @@
     "restartNow": "Reiniciar ahora",
     "notWhileLive": "No mientras haya algo en pantalla. La actualización se instala cuando cierre ICCWorship.",
     "notReady": "La actualización todavía no se ha descargado.",
+    "installFailed": "No se pudo instalar la actualización ahora. ICCWorship sigue funcionando y lo intentará de nuevo en la próxima comprobación.",
     "downloadFailed": "No se pudo descargar la versión nueva. ICCWorship lo intentará de nuevo en la próxima comprobación."
   },
   "data": {
     "readOnlyLocked": "La carpeta “ICCWorship Data” junto al exe portátil está protegida contra escritura (¿una memoria USB bloqueada?), así que ICCWorship la abrió en solo lectura: puede hacer el servicio, pero los cambios NO se guardan. Desbloquee la memoria y reinicie para guardar cambios.",
     "portableDocuments": "Este ICCWorship portátil usa sus datos de Documentos\\ICCWorship en esta computadora (donde los guardaban las versiones anteriores). Para llevar los datos con el exe, cree una carpeta llamada “ICCWorship Data” junto al exe y copie en ella todo lo de Documentos\\ICCWorship.",
+    "portableDocumentsAlso": "Este ICCWorship portátil usa los datos de la carpeta “ICCWorship Data” junto al exe. Esta computadora también tiene datos de ICCWorship en Documentos\\ICCWorship (de la app instalada o de una versión portátil anterior), que esta copia no muestra. Para llevar esos datos con el exe, haga una copia de seguridad de ambos y luego copie todo lo de Documentos\\ICCWorship en “ICCWorship Data”.",
     "portableFallback": "El ICCWorship portátil no puede escribir en su carpeta (una memoria USB bloqueada o una carpeta de solo lectura), así que esta vez sus datos se guardan en Documentos\\ICCWorship en esta computadora.",
     "readOnly": "No se pudieron preparar sus datos de forma segura, así que ICCWorship los abrió en solo lectura: puede dirigir el servicio, pero los cambios NO se guardan. Libere espacio en disco y reinicie.",
     "readOnlyNewer": "Estos datos los guardó una versión más nueva de ICCWorship. Esta versión anterior puede mostrarlos, pero los cambios — incluido el registro CCLI — NO se guardan. Instale la versión más reciente.",
@@ -900,6 +913,7 @@
     "itemsWarn_one": "{{count}} elemento quizás no se vea como se espera: {{names}}",
     "itemsWarn_other": "{{count}} elementos quizás no se vean como se espera: {{names}}",
     "outputClosed": "La ventana del proyector está cerrada: no se verá nada en la pantalla.",
+    "outputFailed": "La ventana del proyector se detuvo tras fallar una y otra vez (o solo muestra negro, en modo seguro): no se vería nada en la pantalla. Reiníciela.",
     "oneScreen": "Solo hay una pantalla conectada: el proyector se ve en una ventana pequeña. ¿Está conectado el proyector o el televisor?",
     "outputOnMain": "El proyector está configurado para mostrarse en la pantalla de esta computadora.",
     "outputOk": "La ventana del proyector está abierta en la segunda pantalla ({{count}} pantallas conectadas).",
@@ -915,6 +929,7 @@
     "backupOk": "Hay una copia reciente de “Hacer copia ahora”.",
     "updateReady": "ICCWorship {{version}} ya está descargado: se instala cuando cierre la app sin nada en pantalla, nunca durante el servicio.",
     "actOpenOutput": "Abrir proyector",
+    "actRestartOutput": "Reiniciar proyector",
     "actSettings": "Ajustes",
     "actPlan": "Abrir plan",
     "actBackup": "Hacer copia ahora"

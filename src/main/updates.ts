@@ -1,7 +1,8 @@
 /**
  * Updates (Settings → About → Updates). Off by default: the app is offline-first.
  *
- * - Checking: once a day when turned on (or "Check now"). Nothing about the church or the computer is sent.
+ * - Checking: once a day when turned on (or "Check now"). Nothing about the church or the computer is sent (the
+ *   per-install id electron-updater would send in a header is replaced by zeros, see getUpdater).
  * - The INSTALLED app (NSIS) can also update itself, like VS Code or Slack: with "Download and install updates" on,
  *   electron-updater downloads the new installer from this project's GitHub release (checked against the SHA-512 in
  *   the release's latest.yml) and installs it when ICCWorship closes with nothing on screen, or on "Restart now".
@@ -17,8 +18,9 @@ import { join } from 'node:path'
 import { autoUpdater, type AppUpdater } from 'electron-updater'
 import { isNewerVersion } from '@shared/version'
 import { loggableError } from '@shared/loggableError'
-import { automaticCheckDue, installNow, installOnQuit, isLive, mayDownload, onScreen, type UpdatePhase } from '@shared/updatePolicy'
-import { notify } from './appState'
+import { automaticCheckDue, installNow, installOnQuit, mayDownload, onScreen, type UpdatePhase } from '@shared/updatePolicy'
+import { lifecycle, notify } from './appState'
+import { isPortableExe } from './bootstrap'
 import { getSettings, setSettings } from './db'
 import { live } from './live'
 import { log } from './log'
@@ -31,7 +33,7 @@ export type UpdateResult =
   | { ok: false; error: string }
   | { ok: false; skipped: true }
 
-const liveNow = () => isLive(live.state)
+const liveNow = () => live.serviceRunning()
 /** both settings: "Check for new versions" and, under it, "Download and install" */
 const autoUpdateOn = () => {
   const s = getSettings()
@@ -39,6 +41,8 @@ const autoUpdateOn = () => {
 }
 
 const UPDATER_CODE = /\bERR_[A-Z_]{1,60}\b/
+/** Chromium's network errors (net::ERR_INTERNET_DISCONNECTED…): electron-updater passes them on as a plain message */
+const NET_CODE = /\bnet::ERR_[A-Z_]{1,60}\b/
 /** a short, safe code for the log and the UI: an HTTP error's message can carry the whole web page it got */
 function updateError(e: unknown): string {
   if (e instanceof Error && e.name === 'TimeoutError') return 'timeout'
@@ -46,6 +50,8 @@ function updateError(e: unknown): string {
   if (typeof status === 'number') return `http-${status}`
   const code = (e as { code?: unknown } | null)?.code
   if (typeof code === 'string' && UPDATER_CODE.test(code)) return code // electron-updater's ERR_UPDATER_… codes
+  const net = e instanceof Error ? NET_CODE.exec(e.message)?.[0] : undefined
+  if (net) return net
   return loggableError(e)
 }
 /** the first line of an updater message, without the URLs it names (CLAUDE.md: no request URLs in the log) */
@@ -62,11 +68,12 @@ const TEST_FEED = app.isPackaged ? undefined : process.env.ICCWORSHIP_TEST_UPDAT
 /** The installed app can update itself; the portable exe and developer runs can only check. */
 export function canSelfUpdate(): boolean {
   if (TEST_FEED) return true
-  return app.isPackaged && !process.env.PORTABLE_EXECUTABLE_DIR && existsSync(join(process.resourcesPath, 'app-update.yml'))
+  return app.isPackaged && !isPortableExe && existsSync(join(process.resourcesPath, 'app-update.yml'))
 }
 
 let phase: UpdatePhase = { phase: 'idle' }
-export const updatePhase = (): UpdatePhase => phase
+/** where the update is, as the operator sees it: a downloaded one doesn't install while updates are turned off */
+export const updatePhase = (): UpdatePhase => (phase.phase === 'ready' && !autoUpdateOn() ? { phase: 'idle' } : phase)
 
 /** a check or download we are awaiting (its failure is logged there, not again by the 'error' event) */
 let awaiting = 0
@@ -85,6 +92,7 @@ function newToken(): Token | undefined {
   }
 }
 let download: { token: Token | undefined; why?: string } | null = null
+const LIVE_STOP = 'something went live'
 
 function cancelDownload(why: string): void {
   if (phase.phase !== 'downloading' || !download?.token || download.token.cancelled) return
@@ -103,6 +111,9 @@ async function getUpdater(): Promise<AppUpdater> {
   autoUpdater.allowPrerelease = false
   autoUpdater.allowDowngrade = false
   autoUpdater.disableWebInstaller = true // we only ship full installers
+  // electron-updater sends a random id, kept in userData/.updaterId, with every request (for staged rollouts, which
+  // we don't use). It would let GitHub link one computer's checks together: send zeros instead (requestHeaders win)
+  autoUpdater.requestHeaders = { 'x-user-staging-id': '00000000-0000-0000-0000-000000000000' }
   if (TEST_FEED) {
     autoUpdater.forceDevUpdateConfig = true
     autoUpdater.updateConfigPath = TEST_FEED
@@ -113,8 +124,12 @@ async function getUpdater(): Promise<AppUpdater> {
     info: () => {},
     debug: () => {},
     warn: (m: unknown) => log.warn('updater:', firstLine(m)),
-    // error texts carry URLs and stacks: keep only electron-updater's ERR_… code
-    error: (m: unknown) => log.warn('updater error:', m instanceof Error ? updateError(m) : UPDATER_CODE.exec(String(m))?.[0] || 'error')
+    // error texts carry URLs and stacks: keep only electron-updater's ERR_… code. A differential download that
+    // falls back to the full file (every update from a release without a blockmap) is not an error
+    error: (m: unknown) =>
+      String(m).startsWith('Cannot download differentially')
+        ? log.info('updater: downloading the whole installer (no differential download)')
+        : log.warn('updater error:', m instanceof Error ? updateError(m) : UPDATER_CODE.exec(String(m))?.[0] || NET_CODE.exec(String(m))?.[0] || 'error')
   }
   // its built-in 'error' listener logs the whole stack (with the feed URL). A failed check or download we await is
   // logged there; the rest (e.g. starting the installer at quit) here
@@ -124,7 +139,7 @@ async function getUpdater(): Promise<AppUpdater> {
   })
   // a service started while downloading: stop (the next check starts it again)
   live.on('change', () => {
-    if (phase.phase === 'downloading' && liveNow()) cancelDownload('something went live')
+    if (phase.phase === 'downloading' && liveNow()) cancelDownload(LIVE_STOP)
   })
   autoUpdater.on('download-progress', (p) => {
     if (phase.phase === 'downloading') phase = { ...phase, percent: Math.round(p.percent) }
@@ -154,6 +169,8 @@ function startDownload(u: AppUpdater, version: string): 'live' | undefined {
       if (d.why) {
         phase = { phase: 'idle' }
         log.info(`update download stopped: ${d.why}`)
+        // stopped by a service starting: try again at the next automatic check after it, not a day later
+        if (d.why === LIVE_STOP) setSettings({ lastUpdateCheck: 0 })
       } else {
         phase = { phase: 'failed', version }
         log.warn('update download failed:', updateError(e))
@@ -186,7 +203,8 @@ export async function checkForUpdates(opts: { manual: boolean }): Promise<Update
   awaiting++
   try {
     const r = canSelfUpdate() ? await checkWithUpdater() : await checkWithApi()
-    setSettings({ lastUpdateCheck: Date.now() })
+    // a download that waits for the service to end is tried again at the next automatic check, not a day later
+    if (!r.deferred) setSettings({ lastUpdateCheck: Date.now() })
     log.info('update check:', r.latest ? `latest ${r.latest}${r.newer ? ' (newer)' : ''}` : 'no release found')
     return r
   } catch (e) {
@@ -223,13 +241,29 @@ async function checkWithApi(): Promise<Extract<UpdateResult, { ok: true }>> {
 
 /** "Restart now": install the downloaded update (never while something is on screen) */
 export function installUpdate(): { ok: boolean; error?: 'live' | 'not-ready' } {
-  const decision = installNow({ live: liveNow(), phase })
+  const decision = installNow({ allowed: autoUpdateOn(), onScreen: onScreen(live.state), phase })
   if (decision !== 'install' || !updater) return { ok: false, error: decision === 'live' ? 'live' : 'not-ready' }
   log.info(`installing update ${phase.phase === 'ready' ? phase.version : ''} now`)
   if (TEST_FEED) return { ok: true } // a test feed's "installer" is never run
   const u = updater
   // reply first; quitAndInstall closes the app (before-quit saves everything), runs the installer silently and
   // starts the new version
-  setTimeout(() => u.quitAndInstall(true, true), 300)
+  setTimeout(() => {
+    // the phone remote may have put something on screen meanwhile
+    if (onScreen(live.state)) {
+      log.info('update not installed: something went on screen')
+      notify({ type: 'updateInstallFailed', reason: 'live' })
+      return
+    }
+    u.quitAndInstall(true, true)
+    // electron-updater quits right away when the installer starts; still running means it didn't (the downloaded
+    // file is gone, or the installer couldn't start): say so instead of nothing happening
+    setTimeout(() => {
+      if (lifecycle.quitting) return
+      log.warn('update installer did not start')
+      phase = { phase: 'failed', version: phase.phase === 'ready' ? phase.version : '' }
+      notify({ type: 'updateInstallFailed', reason: 'failed' })
+    }, 3000)
+  }, 300)
   return { ok: true }
 }

@@ -9,6 +9,15 @@ export type WindowState = { bounds?: Rect; maximized: boolean }
 /** at least this much of the window must be on a screen, or it is placed fresh */
 const MIN_VISIBLE = { width: 160, height: 80 }
 
+/**
+ * The screens the operator window may open on. Never the projector's: the projector window covers it full screen and
+ * always on top, so the operator window would be hidden behind it — or, if it ever showed, seen by the congregation.
+ * (A monitor used at the office during the week is often Sunday's projector, at the same coordinates.)
+ */
+export function operatorWorkAreas(displays: { id: number; workArea: Rect }[], primaryId: number, projectorId: number | undefined): Rect[] {
+  return displays.filter((d) => d.id === primaryId || d.id !== projectorId).map((d) => d.workArea)
+}
+
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
 const isRect = (r: unknown): r is Rect =>
   !!r && typeof r === 'object' && num((r as Rect).x) && num((r as Rect).y) && num((r as Rect).width) && num((r as Rect).height)

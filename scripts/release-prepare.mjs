@@ -68,15 +68,19 @@ try {
 }
 
 let pushed = false
+let branched = false
 /** something failed half-way: back to main, without the half-made release branch */
 function undo(e) {
   console.error(`✗ ${e instanceof Error ? e.message.split('\n')[0] : e}`)
+  // why it failed (a rejected push, credentials, the pre-commit hook): the command's own output
+  const why = String(e?.stderr || e?.stdout || '').trim()
+  if (why) console.error(why.replace(/^/gm, '  '))
   try {
     run('git', 'reset', '--hard') // the tree was clean when this started (checked above): only our two edits go
     run('git', 'switch', 'main')
-    run('git', 'branch', '-D', branch)
+    if (branched) run('git', 'branch', '-D', branch)
   } catch {
-    console.error(`  could not switch back to main by itself: run git switch main && git branch -D ${branch}`)
+    console.error(`  could not switch back to main by itself: run git switch main${branched ? ` && git branch -D ${branch}` : ''}`)
   }
   if (pushed) console.error(`  ${branch} was already pushed: open its PR on GitHub, or delete it (git push origin --delete ${branch})`)
   process.exit(1)
@@ -84,6 +88,7 @@ function undo(e) {
 
 try {
   run('git', 'switch', '-c', branch)
+  branched = true
   writeFileSync(pkgFile, setPackageVersion(pkgText, version))
   writeFileSync(logFile, cut.text)
   run('git', 'add', 'package.json', 'CHANGELOG.md')

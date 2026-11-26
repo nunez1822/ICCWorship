@@ -308,14 +308,32 @@ projector first — earlier crashes in the last minute count toward the limit.
   than 6 hours old → no toast. The item was deleted from the plan in between → clicking says it is no longer in the
   plan.
 - Windows shutting down (Electron's `session-end`) with nothing on screen counts as a normal quit (no toast next
-  time); with a slide on screen (a forced restart mid-service) the item is offered back.
+  time); with a slide on screen, or a slide cleared with **Esc** less than 2 hours ago (a forced restart during the
+  sermon), the item is offered back. A screen cleared more than 2 hours before the shutdown counts as a normal quit.
 
 ### TC-RES-35 · The operator window opens where it was left  `P2`
 **Steps**
 1. Un-maximize the operator window, move and resize it. Quit normally; launch with `--keep`.
 2. Maximize it; quit; launch again.
 3. Edit `.e2e-data/.userdata/window-state.json` so `bounds.x` is far off any screen (e.g. `9000`); launch again.
+4. (Two screens, run without `ICCWORSHIP_WINDOWED`.) With the projector off, move the operator window onto the second
+   screen and quit. Turn the projector on in Settings (it uses that second screen), quit, launch again.
 **Expected**
 - 1: it opens at the same size and place. 2: it opens maximized.
 - 3: it opens on a visible screen (never off-screen or on an unplugged projector).
+- 4: it opens on the main screen, never under the full-screen projector window on the projector's screen.
 - The first run ever (no `window-state.json`) opens maximized, as before.
+
+### TC-RES-36 · The offer is kept or replaced correctly after a crash  `P1`
+**Steps**
+1. Go live on a plan item, kill the app, launch with `--keep`. Ignore the "closed unexpectedly" toast.
+2. From Bible, **Show now** a verse (a Show-now item, not in the plan). Wait 2 s. Kill the app; launch again.
+3. Go live on a plan item. Make the operator window crash twice in a row (CDP `Page.crash` from a Node script, see
+   the gotchas in CLAUDE.md), so the "the window crashed again" box appears; queue `queueMessageBox(1)` (**Quit**)
+   before the second crash. Launch again.
+4. With nothing on screen, change the display language (Live page) only, then kill the app; launch again.
+**Expected**
+- 2: no toast. The verse on screen replaced the old offer, so the item from step 1 is not offered hours later.
+- 3: the toast offers the item that was on screen: quitting after the operator window crashed mid-service is still an
+  interrupted service.
+- 4 (after an offer is showing): the offer survives (a change that shows nothing doesn't replace it).

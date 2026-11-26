@@ -14,6 +14,7 @@
     "add": "Add",
     "savedTo": "Saved: {{file}}",
     "cancel": "Cancel",
+    "close": "Close",
     "create": "Create",
     "delete": "Delete",
     "edit": "Edit",
@@ -509,7 +510,6 @@
     "portableReadOnly": "portable, read-only: the folder beside the exe is write-protected, nothing is saved",
     "copyMediaHelp": "Then backups and a new computer have them, and moving or deleting the original file breaks nothing. Turn it off for a very large video library on another drive: those items then link to the original file.",
     "copyMedia": "Keep a copy of added pictures, videos and sound in the ICCWorship folder",
-    "backupNoMedia": "Backup saved WITHOUT the media library ({{files}} files, {{size}} MB): its pictures and videos are over 4 GB, too much for one backup file. Copy the media folder (in the data folder) to the same drive too.",
     "portableData": "portable: the data travels with ICCWorship-Portable.exe (the “ICCWorship Data” folder beside it)",
     "title": "Settings",
     "general": "General",
@@ -552,7 +552,18 @@
     "backupHelp": "Everything (songs, plans, people, pasted verses, imported slides, backing tracks, and the pictures, videos and sound in the media library) goes in one .zip — save it to a USB drive. ICCWorship also makes automatic backups (without the media and tracks) when it starts and every hour.",
     "backupNow": "Back up now",
     "backupDone": "Backup saved ({{files}} files, {{size}} MB)",
-    "backupNoTracks": "Backup saved WITHOUT the media library and the backing tracks ({{files}} files, {{size}} MB): together they are over 4 GB, too much for one backup file. Copy the folders media and tracks (in the data folder) to the same drive too.",
+    "backupLeftOut": {
+      "tooLarge": {
+        "media": "Backup saved WITHOUT the media library ({{files}} files, {{size}} MB): with its pictures and videos it would be over 4 GB, too much for one backup file. Copy the media folder (in the data folder) to the same drive too.",
+        "tracks": "Backup saved WITHOUT the backing tracks ({{files}} files, {{size}} MB): with them it would be over 4 GB, too much for one backup file. Copy the tracks folder (in the data folder) to the same drive too.",
+        "both": "Backup saved WITHOUT the media library and the backing tracks ({{files}} files, {{size}} MB): with them it would be over 4 GB, too much for one backup file. Copy the folders media and tracks (in the data folder) to the same drive too."
+      },
+      "noSpace": {
+        "media": "Backup saved WITHOUT the media library ({{files}} files, {{size}} MB): there isn't room for its pictures and videos on that drive. Copy the media folder (in the data folder) to a drive with more room.",
+        "tracks": "Backup saved WITHOUT the backing tracks ({{files}} files, {{size}} MB): there isn't room for them on that drive. Copy the tracks folder (in the data folder) to a drive with more room.",
+        "both": "Backup saved WITHOUT the media library and the backing tracks ({{files}} files, {{size}} MB): there isn't room for them on that drive. Copy the folders media and tracks (in the data folder) to a drive with more room."
+      }
+    },
     "backupError": {
       "no-space": "Not enough free space on that drive for the backup. Nothing was saved. Pick another drive (a USB stick) or free up space.",
       "too-large": "The data and backing tracks are too large for one backup file (over 4 GB). Nothing was saved. Remove backing tracks you no longer use and try again.",
@@ -731,7 +742,7 @@
     "hwAccelHelp": "Only if the projector goes black, flickers or freezes on this computer. Takes effect after restarting ICCWorship."
   },
   "updates": {
-    "waitingLive": "ICCWorship {{version}} is available. It downloads when nothing is on screen.",
+    "waitingLive": "ICCWorship {{version}} is available. It downloads later, after the service.",
     "title": "Updates",
     "toggle": "Check for new versions once a day",
     "help": "Asks GitHub whether a newer ICCWorship exists — never during a service, and nothing about you is sent.",
@@ -746,11 +757,13 @@
     "restartNow": "Restart now",
     "notWhileLive": "Not while something is on screen. The update installs when you close ICCWorship.",
     "notReady": "The update is not downloaded yet.",
+    "installFailed": "The update could not be installed now. ICCWorship keeps running and tries again at the next check.",
     "downloadFailed": "The new version could not be downloaded. ICCWorship will try again at the next check."
   },
   "data": {
     "readOnlyLocked": "The “ICCWorship Data” folder beside the portable exe is write-protected (a locked USB stick?), so ICCWorship opened it read-only: you can run the service, but changes are NOT saved. Unlock the stick and restart to save changes.",
     "portableDocuments": "This portable ICCWorship is using your data in Documents\\ICCWorship on this computer (where earlier versions kept it). To carry the data with the exe instead, create a folder named “ICCWorship Data” beside the exe and copy everything from Documents\\ICCWorship into it.",
+    "portableDocumentsAlso": "This portable ICCWorship uses the data in the “ICCWorship Data” folder beside the exe. This computer also has ICCWorship data in Documents\\ICCWorship (from the installed app or an earlier portable version), which this copy doesn’t show. To carry that data with the exe instead, back up both, then copy everything from Documents\\ICCWorship into “ICCWorship Data”.",
     "portableFallback": "The portable ICCWorship can't write to the folder it is in (a locked USB stick or a read-only folder), so this time your data is kept in Documents\\ICCWorship on this computer.",
     "readOnly": "Your data could not be safely prepared, so ICCWorship opened it read-only: you can run the service, but changes are NOT saved. Free some disk space and restart.",
     "readOnlyNewer": "This data was saved by a newer ICCWorship. This older version can show it, but changes — including the CCLI song log — are NOT saved. Please install the latest version.",
@@ -900,6 +913,7 @@
     "itemsWarn_one": "{{count}} item may not show as expected: {{names}}",
     "itemsWarn_other": "{{count}} items may not show as expected: {{names}}",
     "outputClosed": "The projector window is closed: nothing will show on the screen.",
+    "outputFailed": "The projector window stopped after failing again and again (or shows only black, in safe mode): nothing would show on the screen. Restart it.",
     "oneScreen": "Only one screen is connected: the projector shows in a small window. Is the projector or TV plugged in?",
     "outputOnMain": "The projector is set to show on this computer's own screen.",
     "outputOk": "The projector window is open on the second screen ({{count}} screens connected).",
@@ -915,6 +929,7 @@
     "backupOk": "There is a recent “Back up now” copy.",
     "updateReady": "ICCWorship {{version}} is downloaded: it installs when you close the app with nothing on screen, never during the service.",
     "actOpenOutput": "Open projector",
+    "actRestartOutput": "Restart projector",
     "actSettings": "Settings",
     "actPlan": "Open plan",
     "actBackup": "Back up now"

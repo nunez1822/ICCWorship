@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test'
 import { LiveRecorder, RESUME_MAX_AGE_MS, resumeOfferFrom, snapshotChanged, snapshotOf, type LiveSnapshot } from '@shared/session'
-import { restoreWindowState } from '@shared/windowState'
+import { operatorWorkAreas, restoreWindowState } from '@shared/windowState'
 
 const NOW = 1_800_000_000_000
 const onScreen = { planId: 'p1', itemId: 'i3', itemIndex: 2, slideIndex: 4, itemTitle: 'Cuán grande es Él', planTitle: 'Domingo', clearedFrom: undefined }
@@ -78,6 +78,17 @@ describe('restoreWindowState', () => {
       maximized: false
     })
   })
+  it("never opens on the projector's screen (the office monitor in the week is Sunday's projector)", () => {
+    const displays = [
+      { id: 1, workArea: laptop },
+      { id: 2, workArea: projector }
+    ]
+    const areas = operatorWorkAreas(displays, 1, 2)
+    expect(areas).toEqual([laptop])
+    expect(restoreWindowState({ bounds: { x: 2000, y: 10, width: 1200, height: 700 }, maximized: false }, areas, min)).toEqual({ maximized: false })
+    expect(operatorWorkAreas(displays, 1, undefined)).toEqual([laptop, projector]) // projector off: both screens
+    expect(operatorWorkAreas(displays, 1, 1)).toEqual([laptop, projector]) // projector chosen on the main screen
+  })
   it('never restores onto a screen that is gone (the projector, unplugged)', () => {
     expect(restoreWindowState({ bounds: { x: 2000, y: 10, width: 1200, height: 700 }, maximized: false }, [laptop], min)).toEqual({ maximized: false })
   })
@@ -101,9 +112,14 @@ describe('restoreWindowState', () => {
 describe('LiveRecorder', () => {
   function setup() {
     const writes: (LiveSnapshot | undefined)[] = []
+    const io = { fail: false }
     let timer: (() => void) | null = null
     const r = new LiveRecorder({
-      write: (l) => writes.push(l),
+      write: (l) => {
+        if (io.fail) return false
+        writes.push(l)
+        return true
+      },
       now: () => NOW,
       setTimer: (fn) => (timer = fn),
       clearTimer: () => (timer = null)
@@ -113,7 +129,7 @@ describe('LiveRecorder', () => {
       timer = null
       fn?.()
     }
-    return { r, writes, tick }
+    return { r, writes, tick, io }
   }
   const off = { ...onScreen, slideIndex: -1 }
 
@@ -157,5 +173,52 @@ describe('LiveRecorder', () => {
     r.remember({ ...onScreen, slideIndex: 8 })
     r.flush()
     expect(writes).toHaveLength(1)
+  })
+
+  describe("the last run's offer (seeded)", () => {
+    const lastRun = snapshotOf({ ...onScreen, itemId: 'old', slideIndex: 2 }, NOW - 60_000)!
+    const showNow = { ...onScreen, itemId: 'adhoc-1', itemIndex: -1, slideIndex: 0 }
+    it('stays through changes that show nothing (theme, language), for a second crash', () => {
+      const { r, writes, tick } = setup()
+      r.seed(lastRun)
+      r.remember({ ...onScreen, slideIndex: -1 })
+      tick()
+      expect(writes).toEqual([])
+    })
+    it('is replaced by a Show-now item on screen, which has no place to offer', () => {
+      const { r, writes, tick } = setup()
+      r.seed(lastRun)
+      r.remember(showNow)
+      tick()
+      expect(writes).toEqual([undefined])
+    })
+    it('is replaced by a plan item put on screen', () => {
+      const { r, writes, tick } = setup()
+      r.seed(lastRun)
+      r.remember(onScreen)
+      tick()
+      expect(writes.map((w) => w?.itemId)).toEqual(['i3'])
+    })
+    it('once replaced, a Show-now item on screen is still "nothing to offer"', () => {
+      const { r, writes, tick } = setup()
+      r.seed(lastRun)
+      r.remember(onScreen)
+      tick()
+      r.remember(showNow)
+      tick()
+      expect(writes.at(-1)).toBeUndefined()
+    })
+  })
+
+  it('a failed write stays waiting and is tried again at the next change', () => {
+    const { r, writes, tick, io } = setup()
+    io.fail = true
+    r.remember(onScreen)
+    tick()
+    expect(writes).toEqual([])
+    io.fail = false
+    r.remember(onScreen) // same place: still written, the file has the old one
+    tick()
+    expect(writes.map((w) => w?.slideIndex)).toEqual([4])
   })
 })

@@ -71,7 +71,8 @@ Every PR gets, from CI:
   reviewers and testers can run a PR without building it.
 - `changelog`: a PR that changes the app must add a line under `[Unreleased]` in `CHANGELOG.md`, or carry the
   `no-changelog` label (for changes users won't notice: refactors, tests, CI). A maintainer applies the label;
-  contributors from forks can't, so just say so in the PR.
+  contributors from forks can't, so just say so in the PR. (The label is created once per repository:
+  `gh label create no-changelog -d "No user-visible change"`.)
 - `dependency-review`: no new dependency with a known vulnerability or a licence outside the allowed list.
 - CodeQL and OpenSSF Scorecard (on `main`) report under Security → Code scanning.
 
@@ -93,8 +94,10 @@ Commit messages and PRs can be in English or Spanish; both are fine.
    **draft** release with: both exes, `SHA256SUMS.txt`, build provenance, an SBOM (`.sbom.cdx.json`, attested too)
    and the self-update files (`latest.yml`, `.blockmap`).
 
-   **If the run fails:** **Run workflow** (Actions → Release) rebuilds the *tagged commit*, so it only helps when the
-   failure had nothing to do with the code (a runner or network problem). When the code or the workflow needs a fix,
+   A merge that changes `package.json` without changing the version (a dependency bump) releases nothing.
+
+   **If the run fails:** **Re-run jobs** on that run, or **Run workflow** (Actions → Release), rebuilds the *tagged
+   commit*, so it only helps when the failure had nothing to do with the code (a runner or network problem). When the code or the workflow needs a fix,
    merge the fix to `main`, delete the unpublished tag (`git push origin :refs/tags/vX.Y.Z`, and delete its draft
    release if there is one), then **Run workflow** on `main`: it tags `main` as it is now and builds that. Never
    reuse the number of a *published* release (the workflow refuses): release a patch instead. A rebuild replaces its

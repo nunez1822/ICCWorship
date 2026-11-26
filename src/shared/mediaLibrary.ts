@@ -42,8 +42,9 @@ export function isLibraryPath(stored: string | undefined): boolean {
 
 /**
  * A media item is being deleted: its library copy, if nothing else still shows it — another library item, the logo,
- * or anything in `elsewhere` (the plans: announcement / header / prayer slides keep the picture's media:// URL; and
- * the live state: the file may be on the projector right now). Library file names are random ids, so the name
+ * or anything in `elsewhere` (the plans: announcement / header / prayer slides keep the picture's media:// URL; the
+ * presentations: picture slides linked from the data folder; and the live state: the file may be on the projector
+ * right now). Another item, the logo or a presentation may also name the same file by its full path. Library file names are random ids, so the name
  * appearing anywhere in that data means it is still used.
  *
  * Themes don't keep a copy: a theme whose background item was removed shows the built-in gradient
@@ -59,6 +60,13 @@ export function libraryFileToDelete(
   if (rest.media.some((m) => m.id !== item.id && same(m.path))) return null
   if (same(rest.logoPath)) return null
   const file = item.path.split(/[\\/]/).pop()!.toLowerCase()
-  if (rest.elsewhere && JSON.stringify(rest.elsewhere).toLowerCase().includes(file)) return null
+  // by name too: another item or the logo may link to the same file by its full path (picked from the data folder)
+  const others = rest.media.filter((m) => m.id !== item.id).map((m) => m.path)
+  if (
+    JSON.stringify([others, rest.logoPath ?? '', rest.elsewhere ?? []])
+      .toLowerCase()
+      .includes(file)
+  )
+    return null
   return item.path
 }

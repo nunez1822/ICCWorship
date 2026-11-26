@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events'
 import type { LiveState } from '@shared/types'
+import { isLive, onScreen } from '@shared/updatePolicy'
 import { getSettings, getTheme } from './db'
 
 /**
@@ -9,6 +10,13 @@ import { getSettings, getTheme } from './db'
  */
 class LiveStore extends EventEmitter {
   state: LiveState
+  /** when something was last on screen this run (epoch ms) */
+  lastOnScreenAt: number | undefined
+
+  /** a service may be running (see isLive): updates wait, and a Windows shutdown now is an interrupted service */
+  serviceRunning(now = Date.now()): boolean {
+    return isLive(this.state, now, this.lastOnScreenAt)
+  }
 
   constructor() {
     super()
@@ -38,7 +46,10 @@ class LiveStore extends EventEmitter {
   }
 
   update(patch: Partial<LiveState>): LiveState {
+    const was = onScreen(this.state)
     this.state = { ...this.state, ...patch, seq: this.state.seq + 1 }
+    // on screen until now (a video that played for 40 minutes, then Esc), or from now
+    if (was || onScreen(this.state)) this.lastOnScreenAt = Date.now()
     this.emit('change', this.state)
     return this.state
   }

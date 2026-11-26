@@ -1,5 +1,6 @@
 /**
- * A small file logger (no dependency). Logs live in %APPDATA%\ICCWorship\logs\main.log, rotate at 1 MB and keep
+ * A small file logger (no dependency). Logs live in the profile's logs folder (%APPDATA%\ICCWorship\logs\main.log;
+ * the portable exe: ICCWorship Data\.app\logs; test runs: <ICCWORSHIP_DATA>\.userdata\logs), rotate at 1 MB and keep
  * 5 old files. They exist so a church can attach them to a bug report, so they must never hold private data:
  *
  *   LOG ONLY ids, counts, collection names, error codes and short messages. NEVER log song text, people,

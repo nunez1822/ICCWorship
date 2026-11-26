@@ -26,7 +26,9 @@ export function registerAppProtocol(): void {
     if (!st?.isFile()) return notFound()
     const type = APP_TYPES[extname(file).toLowerCase()]
     const stream = Readable.toWeb(createReadStream(file)) as ReadableStream
-    // nosniff: a file is only ever run as the type it is; no-store: a new version is never mixed with a cached old one
-    return new Response(stream, { status: 200, headers: { 'Content-Type': type, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' } })
+    // nosniff: a file is only ever run as the type it is. (No Cache-Control: these responses never go into Chromium's
+    // HTTP cache, an update restarts every page, and no-store could keep V8 from caching the compiled scripts that
+    // codeCache is there for.)
+    return new Response(stream, { status: 200, headers: { 'Content-Type': type, 'X-Content-Type-Options': 'nosniff' } })
   })
 }

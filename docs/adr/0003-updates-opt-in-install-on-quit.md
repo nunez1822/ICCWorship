@@ -11,13 +11,23 @@ mid-service, and many churches don't want software changing under them on a Sund
 - The update check is **off by default** (Settings → About → "Check for new versions once a day").
 - With it on, the **installed** app (NSIS) also downloads the new version with `electron-updater` (on by default under
   the check, can be unticked) and **installs it when ICCWorship closes**, or on "Restart now".
-- **Nothing starts while a service may be running** (something on screen, or a screen cleared mid-item with Esc):
-  no automatic check, no download start, no "Restart now" (`src/shared/updatePolicy.ts`). A manual "Check now" still
-  asks, and says the download waits. A download running when a service starts is cancelled; the next check resumes.
+- **Nothing starts while a service may be running** (something on screen, or a screen cleared mid-item with Esc
+  less than 2 hours after something was last on screen): no automatic check, no download start
+  (`src/shared/updatePolicy.ts`). Esc keeps its place until something else goes live, hence the time limit: a
+  service ended with Esc on a laptop left open must not block updates until a restart. A manual "Check now" still
+  asks, and says the download waits. A download that waited, or was cancelled because a service started, is tried
+  again at the next automatic check after the service (6-hourly), not a day later; electron-updater starts a
+  cancelled download from the beginning.
+- **"Restart now"** is an explicit click: it installs unless something is on screen right now (a screen cleared with
+  Esc doesn't stop it), checked again just before the installer starts. If the installer doesn't start, the operator
+  is told and the app keeps running.
 - **The install at quit is decided at quit** (`beforeQuit()` in `src/main/updates.ts`; electron-updater reads
   `autoInstallOnAppQuit` then): only if both settings are still on and nothing is on screen. Closing the app mid-song
   (or answering Quit to "the window crashed") never installs; a service usually ends with Esc and then closing the
-  app, which does. Turning either setting off cancels a download too.
+  app, which does. Turning either setting off cancels a download too, and hides a downloaded one ("is ready",
+  "Restart now") until updates are on again.
+- **No tracking id:** electron-updater sends a random per-install id (kept in `userData/.updaterId`) with every
+  request, for staged rollouts. We send zeros instead (`requestHeaders`), so GitHub can't link one computer's checks.
 - The download is the installer named in the release's `latest.yml`; `electron-updater` refuses it unless its
   SHA-512 matches. Releases are built by CI with provenance and are immutable once published.
 - The **portable** exe can't replace itself: it only checks (GitHub API) and links to the release page.
@@ -31,10 +41,12 @@ mid-service, and many churches don't want software changing under them on a Sund
   with nothing on screen; the next day's check finds it already downloaded.
 - Publishing a draft release is what ships it: installed copies with updates on download it within a day. Test the
   draft first (CONTRIBUTING → Releasing).
-- Staged rollouts and a beta channel are possible later (`allowPrerelease`, a `beta` channel file).
+- A beta channel is possible later (`allowPrerelease`, a `beta` channel file). Staged rollouts
+  (`stagingPercentage`) would need a real per-install id, which we chose not to send.
 
 ## Alternatives considered
-- **Notify only** (what 1.0 did): safe but most churches would stay on old versions with known bugs.
+- **Notify only** (what the update check did before this change; 1.0 had none): safe but most churches would stay
+  on old versions with known bugs.
 - **Silent auto-update by default:** industry norm, wrong for an offline-first app run during live services.
 - **Squirrel.Windows:** electron-builder recommends NSIS; its Squirrel target is legacy and needs a separate update
   path (Electron's built-in `autoUpdater`) instead of `electron-updater`.

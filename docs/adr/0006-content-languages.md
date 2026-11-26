@@ -9,8 +9,11 @@ The data model is bilingual by construction: `BiText { en, es }`, song sections 
 data migrations, but it touches nearly every part of the app (slides, songs, Bible, stage, remote, themes, import).
 
 ## Decision
-Keep English + Spanish for content in 1.x. The **interface** language list stays open to more translations (a new
-`src/renderer/i18n/<lang>.json`), but projector content keeps the two fixed slots.
+Keep English + Spanish for content in 1.x. The **interface** language list stays open to more translations, but
+projector content keeps the two fixed slots. A new interface language needs more than a new
+`src/renderer/i18n/<lang>.json`: `Settings.uiLang` shares the content type `Lang = 'en' | 'es'` (checked by
+`SETTING_CHECKS` with `oneOf(LANGS)`), and `src/main/i18n.ts` and `src/renderer/i18n/index.ts` list `{ en, es }`. So
+`uiLang` must first get its own type and list.
 
 ## Consequences
 - A church with another pair can type its languages into the `en` / `es` slots today; labels will say

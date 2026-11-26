@@ -41,7 +41,8 @@ export function appFile(url: string, root: string): string | null {
   } catch {
     return null
   }
-  if (u.protocol !== `${APP_SCHEME}:` || u.host !== APP_HOST) return null
+  // (host includes any port; a user name or password never belongs in our URLs)
+  if (u.protocol !== `${APP_SCHEME}:` || u.host !== APP_HOST || u.username || u.password) return null
   let rel: string
   try {
     rel = decodeURIComponent(u.pathname)
@@ -70,7 +71,7 @@ export function isAppPageUrl(url: string, devUrl?: string): boolean {
   } catch {
     return false
   }
-  const page = (APP_PAGES as readonly string[]).includes(u.pathname.slice(1))
+  const page = (APP_PAGES as readonly string[]).includes(u.pathname.slice(1)) && !u.username && !u.password
   if (devUrl) {
     try {
       return page && u.origin === new URL(devUrl).origin

@@ -21,6 +21,9 @@ function filesOf(built: Awaited<ReturnType<typeof buildItem>>): string[] {
   return urls.filter((u): u is string => !!u?.startsWith('media://'))
 }
 
+/** a header with no slides of its own only labels a section of the plan; one with slides goes live like any item */
+const isSectionLabel = (item: PlanItem) => item.type === 'header' && !item.slides?.length
+
 async function soundOutputConnected(chosen: string, id: string | undefined): Promise<boolean> {
   if (!chosen) return true
   try {
@@ -41,7 +44,7 @@ export async function gatherPreflight(): Promise<PreflightInput> {
   const needs: { item: PlanItem; url: string }[] = []
   let planHasSound = false
   for (const item of plan?.items || []) {
-    if (item.type === 'header') continue
+    if (isSectionLabel(item)) continue
     if (itemSourceMissing(item, s)) {
       itemProblems.push({ title: item.title, kind: 'missing' })
       continue
@@ -50,7 +53,8 @@ export async function gatherPreflight(): Promise<PreflightInput> {
     if (item.type === 'media' && s.media.find((m) => m.id === item.refId)?.kind !== 'image') planHasSound = true
     try {
       const built = await buildItem(item, ctx)
-      // nothing to show at all (a notes item may be empty on purpose: it never reaches the screen)
+      // nothing to show at all (an empty sermon-notes item is allowed: the preacher may simply talk, with nothing
+      // on the projector)
       if (!built.slides.length && item.type !== 'notes') itemProblems.push({ title: item.title, kind: 'blank' })
       else if (built.warning) itemProblems.push({ title: item.title, kind: 'warning' })
       if (built.slides.some((x) => x.kind === 'video')) planHasSound = true
@@ -73,9 +77,10 @@ export async function gatherPreflight(): Promise<PreflightInput> {
   return {
     now: Date.now(),
     today: localDate(),
-    plan: plan ? { title: plan.title, date: plan.date, items: plan.items.filter((i) => i.type !== 'header').length } : undefined,
+    plan: plan ? { title: plan.title, date: plan.date, items: plan.items.filter((i) => !isSectionLabel(i)).length } : undefined,
     itemProblems,
     outputOpen: out.open,
+    outputFailed: out.failed,
     displays: displays.length,
     outputOnMainScreen: !outputDisplay || outputDisplay.primary,
     sound: { chosen: chosenSound, connected: await soundOutputConnected(chosenSound, st?.audioOutputId) },

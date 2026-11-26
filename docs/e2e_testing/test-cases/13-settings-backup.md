@@ -267,27 +267,31 @@
 **Steps**
 1. Install an older release (`ICCWorship-Setup-<old>.exe`) while a newer one is published. Settings → About →
    tick "Check for new versions once a day"; leave "Download new versions and install them when ICCWorship closes" ticked.
-2. Put a song live; click 🔎 Check now. Clear the screen (Esc — the item is still live, paused) and **Clear all**
-   so nothing is live; Check now again; wait.
-3. Put a song live and click **Restart now** on the toast; clear the screen and click it again.
+2. Put a song live; click 🔎 Check now. Press **Esc** (the screen is cleared but the item keeps its place: still a
+   service for 2 hours) and Check now again. Quit, relaunch with nothing on screen, Check now again; wait.
+3. Put a song live and click **Restart now** on the toast; press Esc and click it again.
 4. With an update downloaded again (reinstall the old release, steps 1–2): put a song live and **close the window**
    (or Quit in the "window crashed" question); relaunch.
 5. With an update downloaded: untick "Download new versions…", then quit with nothing on screen.
 6. Untick it while "Downloading… n%" shows; separately, put a song live while it downloads.
 **Expected**
-- 2: while live, Check now says "ICCWorship x.y.z is available. It downloads when nothing is on screen." and
-  nothing downloads; once nothing is live, "Downloading ICCWorship x.y.z… n%", then a toast
+- 2: while live, and after Esc, Check now says "ICCWorship x.y.z is available. It downloads later, after the
+  service." and nothing downloads. After the relaunch, "Downloading ICCWorship x.y.z… n%", then a toast
   "ICCWorship x.y.z is ready. It installs when you close ICCWorship with nothing on screen." with **Restart now**.
-- 3: while live, "Not while something is on screen…"; otherwise the app closes, installs silently and opens the new
-  version with all data. Quitting normally with nothing on screen installs it too.
+  (Left running after Esc, the automatic check downloads it once the screen has been cleared for 2 hours.)
+- 3: while live, "Not while something is on screen…"; after Esc (nothing on screen) the app closes, installs silently
+  and opens the new version with all data. Quitting normally with nothing on screen installs it too. If the installer
+  can't start, a toast says "The update could not be installed now…" and the app keeps running.
 - 4: **nothing installs**: the old version starts again at once (`main.log`: `update x.y.z not installed at this
   quit`). It installs at a later quit with nothing on screen.
-- 5: nothing installs; the old version is still there.
+- 5: unticking hides the "is ready" line and its **Restart now**; nothing installs; the old version is still there.
 - 6: the download stops (`update download stopped: updates turned off` / `something went live`); with updates still
-  on, the next check (or Check now with nothing live) starts it again.
+  on, the next automatic check after the service (or Check now with nothing live) starts it again — the same day, not
+  a day later.
 - Unticking "Download new versions…" makes Check now show the "is available" button (download page) instead.
 - `main.log` has `update check: latest x.y.z (newer)`, `downloading update x.y.z`, `update x.y.z downloaded…` and no
-  web page text or URLs (updater errors are logged as short `ERR_UPDATER_…` codes).
+  web page text or URLs (updater errors are logged as short `ERR_UPDATER_…` or `net::ERR_…` codes; a download that
+  can't be differential logs `downloading the whole installer`, not an error).
 ### TC-BAK-15 · A manual backup carries the backing tracks; restoring it brings them back  `P1`
 **Pre:** a song with a backing track (TC-SONG-12)
 **Steps**
@@ -411,7 +415,10 @@ presentations)
    user), with no `ICCWorship Data` beside it, and run it.
 5. Copy the exe alone to an empty folder on a PC that already has data in `Documents\ICCWorship` (e.g. from the
    installed app or portable 1.0), and run it.
-6. With the installed ICCWorship open, run the portable exe (and the other way round).
+6. With the installed ICCWorship open, run the portable exe from step 1's folder (the one with `ICCWorship Data`),
+   and the other way round.
+7. On that PC (data in `Documents\ICCWorship`), run the exe from step 1's folder (it has its own `ICCWorship Data`);
+   quit and run it again.
 **Expected**
 - An `ICCWorship Data` folder appears beside the exe with `data\`, `backups\` and `.app\logs\main.log`; nothing new in
   `Documents\ICCWorship` or `%APPDATA%\ICCWorship`.
@@ -423,9 +430,15 @@ presentations)
   folder is left behind.
 - 5: it opens the data in `Documents\ICCWorship` (no sample songs, the same PIN); a toast says how to move it beside
   the exe; About says "portable, using Documents\ICCWorship…". Creating `ICCWorship Data` beside the exe makes the
-  next start portable.
+  next start portable. (In a folder it can't write to, as in step 4, it uses Documents with step 4's toast instead:
+  it never suggests creating a folder it couldn't.)
 - 6: a message "ICCWorship is already running" / "ICCWorship ya está abierto"; the second copy doesn't start (no
-  second projector window).
+  second projector window). A portable copy that uses Documents or the installed copy's profile (steps 3–5) instead
+  brings the open window to the front and doesn't start either.
+- 7: it uses its own `ICCWorship Data`, and a toast says this computer also has data in `Documents\ICCWorship` that
+  this copy doesn't show. The second run doesn't say it again.
+- The installed app started from another program's portable exe (which passes on `PORTABLE_EXECUTABLE_DIR`) still
+  uses `Documents\ICCWorship`: only ICCWorship's own portable launcher counts.
 - `pnpm packaged-check` covers the first expectation automatically ("portable: data, settings and logs are kept
   beside the exe").
 
@@ -443,10 +456,13 @@ presentations)
 - 2: the files are back; the video plays, the image shows, the logo shows. A restore never deletes files from
   `media/` that the backup doesn't have.
 - Automatic backups (`auto-…zip`) never contain `media/`.
-- 3: "Backup saved WITHOUT the media library…" (the tracks are still in it, unless they are too big too).
-- 4 (manual): **Back up now** to a USB stick with less room than the media library but enough for the data → the
-  same "saved WITHOUT the media library…" message (never "Nothing was saved"). Too small even for the data and
-  tracks → saved without them too; only a stick too small for the data itself fails.
+- 3: "Backup saved WITHOUT the media library… over 4 GB… Copy the media folder… to the same drive too." (the tracks
+  are still in it). If the tracks are what doesn't fit, the media stays in and the message names the tracks folder;
+  only when neither fits are both left out.
+- 4 (manual): **Back up now** to a USB stick with less room than the media library but enough for the data →
+  "Backup saved WITHOUT the media library…: there isn't room for its pictures and videos on that drive. Copy the
+  media folder… to a drive with more room." (never "Nothing was saved", and never "to the same drive"). Too small
+  even for the data and tracks → saved without them too; only a stick too small for the data itself fails.
 - Restoring a backup on the same PC (media already in `media/`) needs no room for the media again, and doesn't
   touch those files (a video playing meanwhile keeps playing).
 
