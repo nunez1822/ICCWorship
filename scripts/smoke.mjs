@@ -487,7 +487,7 @@ try {
     } finally {
       await appM.close().catch(() => {})
     }
-    const upgraded = JSON.parse(readFileSync(metaFile, 'utf8')).schemaVersion === 1
+    const upgraded = JSON.parse(readFileSync(metaFile, 'utf8')).schemaVersion === 2 // SCHEMA_VERSION (src/shared/migrations.ts)
     const safety = readdirSync(join(data, 'backups')).some((f) => f.startsWith('before-migrate-'))
     console.log('1.0 data upgraded after a safety backup:', upgraded && safety ? '✓' : `✗ upgraded=${upgraded} safety=${safety}`)
     if (!upgraded || !safety) errors.push('1.0 data was not upgraded safely')

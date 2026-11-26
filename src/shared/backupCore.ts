@@ -2,6 +2,7 @@
  * The rules behind backups, without any file access (unit tested in tests/backupCore.test.ts).
  */
 import { SCHEMA_VERSION } from '@shared/migrations'
+import { isTrackFileName } from '@shared/tracks'
 
 /** Version of the backup .zip layout itself (not of the data inside it). */
 export const BACKUP_FORMAT = 1
@@ -13,13 +14,21 @@ export interface BackupManifest {
   schemaVersion: number
   appVersion: string
   createdAt: string
+  /**
+   * The backup holds the backing tracks (tracks/). Manual backups do; automatic and before-migrate backups don't
+   * (the tracks are kept once in backups/tracks/ instead of in every hourly zip). Restoring a backup WITHOUT tracks
+   * leaves tracks/ as it is (and fills in missing ones from backups/tracks/) — it never deletes them.
+   */
+  hasTracks?: boolean
 }
 
-export function makeManifest(appVersion: string, now = new Date()): BackupManifest {
-  return { app: 'ICCWorship', format: BACKUP_FORMAT, schemaVersion: SCHEMA_VERSION, appVersion, createdAt: now.toISOString() }
+export function makeManifest(appVersion: string, hasTracks = false, now = new Date()): BackupManifest {
+  return { app: 'ICCWorship', format: BACKUP_FORMAT, schemaVersion: SCHEMA_VERSION, appVersion, createdAt: now.toISOString(), hasTracks }
 }
 
-export type ManifestCheck = { ok: true; format: number; schemaVersion?: number } | { ok: false; error: 'not-a-backup' | 'newer-format' | 'newer-schema' }
+export type ManifestCheck =
+  | { ok: true; format: number; schemaVersion?: number; hasTracks: boolean }
+  | { ok: false; error: 'not-a-backup' | 'newer-format' | 'newer-schema' }
 
 /** 1.0.x wrote { app, version: 1 }; later versions { app, format, schemaVersion, … }. */
 export function checkManifest(raw: unknown): ManifestCheck {
@@ -31,7 +40,8 @@ export function checkManifest(raw: unknown): ManifestCheck {
   // zip's own meta.json is missing or says otherwise
   const schemaVersion = typeof m.schemaVersion === 'number' ? m.schemaVersion : undefined
   if (schemaVersion !== undefined && schemaVersion > SCHEMA_VERSION) return { ok: false, error: 'newer-schema' }
-  return { ok: true, format, schemaVersion }
+  // only a backup that says so replaces tracks/ (1.0/1.1 backups, and an older version's backup of newer data, don't)
+  return { ok: true, format, schemaVersion, hasTracks: (raw as { hasTracks?: unknown }).hasTracks === true }
 }
 
 /* ------------------------------ restore ------------------------------ */
@@ -119,6 +129,36 @@ export function safetyBackupsToDelete(files: { name: string; mtime: number }[], 
     out.push(...mine.slice(keep).map((f) => f.name))
   }
   return out
+}
+
+/* ------------------------------ backing tracks kept beside the backups ------------------------------ */
+
+/** how long a track the church deleted stays in backups/tracks/gone-<day>/ (automatic backups go back 14 days) */
+export const TRACK_MIRROR_KEEP_DAYS = 15
+
+const dayNumber = (day: string) => Date.UTC(+day.slice(0, 4), +day.slice(5, 7) - 1, +day.slice(8, 10)) / 86_400_000
+
+/**
+ * Automatic backups leave the tracks out; each track file is copied once into backups/tracks/ instead (a track
+ * never changes after it is written). Returns which tracks to copy there, which copies to retire into
+ * gone-<today>/ (the church deleted that track), and which gone-<day> folders are old enough to delete.
+ */
+export function trackMirrorPlan(
+  tracks: readonly string[],
+  mirror: readonly string[],
+  goneDirs: readonly string[],
+  today: string
+): { copy: string[]; retire: string[]; dropDirs: string[] } {
+  const t = new Set(tracks.filter(isTrackFileName))
+  const m = new Set(mirror.filter(isTrackFileName))
+  return {
+    copy: [...t].filter((n) => !m.has(n)),
+    retire: [...m].filter((n) => !t.has(n)),
+    dropDirs: goneDirs.filter((d) => {
+      const day = /^gone-(\d{4}-\d{2}-\d{2})$/.exec(d)?.[1]
+      return !!day && dayNumber(today) - dayNumber(day) > TRACK_MIRROR_KEEP_DAYS
+    })
+  }
 }
 
 /** Settings that describe this computer, not the church: a restore (maybe from another PC) keeps them. */

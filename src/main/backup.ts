@@ -1,13 +1,15 @@
 import JSZip from 'jszip'
 import { app } from 'electron'
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statfsSync, statSync, unlinkSync } from 'node:fs'
-import { dirname, join, relative, resolve, sep } from 'node:path'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statfsSync, statSync, unlinkSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
+import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import { backupDir, dataRoot } from './paths'
 import { dataStatus, db, getSettings } from './db'
 import { localDate, localStamp } from '@shared/dates'
 import { checkSchema, runMigrations, SCHEMA_VERSION } from '@shared/migrations'
 import { reload as reloadBibles } from './bible'
-import { RESTORE_DIRS, restoreTarget } from './restorePath'
+import { isTracksEntry, RESTORE_DIRS, restoreTarget, TRACKS_DIR } from './restorePath'
+import { isTrackFileName, referencedTrackFiles } from '@shared/tracks'
 import {
   autoBackupDecision,
   autoBackupName,
@@ -21,7 +23,8 @@ import {
   parseAutoName,
   restoredMeta,
   safetyBackupsToDelete,
-  staleBackupTemps
+  staleBackupTemps,
+  trackMirrorPlan
 } from '@shared/backupCore'
 import { writeFileAtomic, writeFileAtomicAsync } from './atomicWrite'
 import { log } from './log'
@@ -56,8 +59,12 @@ function exclusive<T>(fn: () => Promise<T>): Promise<T> {
 
 type BackupResult = { ok: boolean; path: string; files: number; bytes: number }
 
-/** `writes`: the store's write count when the files were read (saves after that are not in this backup) */
-async function writeBackup(target: string): Promise<BackupResult & { writes: number }> {
+/**
+ * `writes`: the store's write count when the files were read (saves after that are not in this backup).
+ * `tracks`: include the backing tracks (manual backups, and the safety copy before a restore that replaces them).
+ * Track files are already compressed (Opus): stored as they are. Files are read without blocking the main process.
+ */
+async function writeBackup(target: string, tracks: boolean): Promise<BackupResult & { writes: number }> {
   const store = db()
   store.flush()
   const writes = store.writeCount
@@ -67,11 +74,14 @@ async function writeBackup(target: string): Promise<BackupResult & { writes: num
   const zip = new JSZip()
   let files = 0
   for (const inc of INCLUDE) {
+    const isTracks = inc === TRACKS_DIR
+    if (isTracks && !tracks) continue
     for (const f of walk(join(root, inc))) {
       const rel = relative(root, f).split(sep).join('/')
       const name = /^data\/([^/]+)\.json$/.exec(rel)?.[1]
       if (name && recovered.has(name)) continue // added below
-      zip.file(rel, readFileSync(f))
+      if (isTracks && !isTrackFileName(basename(f))) continue
+      zip.file(rel, await readFile(f), isTracks ? { compression: 'STORE' } : undefined)
       files++
     }
   }
@@ -79,16 +89,17 @@ async function writeBackup(target: string): Promise<BackupResult & { writes: num
     zip.file(`data/${name}.json`, json)
     files++
   }
-  zip.file(MANIFEST, JSON.stringify(makeManifest(app.getVersion())))
+  zip.file(MANIFEST, JSON.stringify(makeManifest(app.getVersion(), tracks)))
   const buf = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 6 } })
   mkdirSync(dirname(target), { recursive: true })
   await writeFileAtomicAsync(target, buf)
   return { ok: true, path: target, files, bytes: buf.length, writes }
 }
 
+/** "Back up now": everything, backing tracks included (the copy to take to another PC or a USB stick) */
 export function createBackup(target: string): Promise<BackupResult> {
   return exclusive(async () => {
-    const { writes: _writes, ...r } = await writeBackup(target)
+    const { writes: _writes, ...r } = await writeBackup(target, true)
     return r
   })
 }
@@ -97,7 +108,7 @@ export function createBackup(target: string): Promise<BackupResult> {
 export function createSafetyBackup(kind: 'before-restore' | 'before-migrate'): Promise<string> {
   return exclusive(async () => {
     const path = freeName(backupDir(), `${kind}-${stamp()}`)
-    await writeBackup(path)
+    await writeBackup(path, false) // an upgrade never touches tracks/
     pruneSafetyBackups()
     return path
   })
@@ -199,6 +210,8 @@ async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: Restor
       const dest = restoreTarget(root, name)
       if (!dest) continue
       const rel = relative(root, dest)
+      // tracks/ is replaced only by a backup that says it holds the tracks
+      if (isTracksEntry(rel) && !m.hasTracks) continue
       const tmp = join(staging, rel)
       mkdirSync(dirname(tmp), { recursive: true })
       writeFileAtomic(tmp, await entry.async('nodebuffer'))
@@ -257,13 +270,13 @@ async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: Restor
       )
     )
 
-    // 6. safety copy of what is there now, then replace file by file
+    // 6. safety copy of what is there now (with the tracks if they are about to be replaced), then replace file by file
     const safety = freeName(backupDir(), `before-restore-${stamp()}`)
-    await writeBackup(safety)
+    await writeBackup(safety, m.hasTracks)
     pruneSafetyBackups()
     db().reset()
     try {
-      replaceFrom(root, staged)
+      replaceFrom(root, staged, m.hasTracks)
     } catch (e) {
       log.error('restore failed while replacing files; putting the safety backup back', e)
       let putBackOk = true
@@ -280,6 +293,7 @@ async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: Restor
     }
     db().reset()
     reloadBibles()
+    fillMissingTracks(root)
     return { ok: true, safetyBackup: safety }
   } finally {
     // the restore's answer is already decided: a folder antivirus still holds must not turn it into an error
@@ -300,8 +314,9 @@ function removeLeftoverTempDirs(root: string): void {
  * Write every staged file into place, then remove every file the backup doesn't have (except kept-aside
  * .corrupt copies). That includes every .bak: JsonStore falls back to <name>.json.bak when <name>.json is
  * missing or damaged, so a .bak left behind would bring back the data from before the restore.
+ * tracks/ is replaced only when `replaceTracks` (the backup holds the tracks); otherwise it is left as it is.
  */
-function replaceFrom(root: string, staged: Map<string, string>): void {
+function replaceFrom(root: string, staged: Map<string, string>, replaceTracks: boolean): void {
   for (const [rel, tmp] of staged) {
     const dest = join(root, rel)
     mkdirSync(dirname(dest), { recursive: true })
@@ -309,6 +324,7 @@ function replaceFrom(root: string, staged: Map<string, string>): void {
   }
   const keep = new Set([...staged.keys()].map((r) => r.toLowerCase()))
   for (const inc of INCLUDE) {
+    if (inc === TRACKS_DIR && !replaceTracks) continue
     for (const f of walk(join(root, inc), [], true)) {
       const rel = relative(root, f)
       if (!keep.has(rel.toLowerCase()) && !keptOnRestore(rel)) unlinkSync(f)
@@ -320,20 +336,88 @@ async function putBack(root: string, safetyZip: string): Promise<void> {
   const zip = await JSZip.loadAsync(readFileSync(safetyZip))
   const staged = new Map<string, string>()
   const tmpDir = join(root, `restore-undo-${Date.now()}`)
+  let hasTracks = false
+  try {
+    hasTracks = JSON.parse((await zip.file(MANIFEST)?.async('string')) ?? '{}')?.hasTracks === true
+  } catch {
+    /* no readable manifest: leave tracks/ alone */
+  }
   try {
     for (const name of Object.keys(zip.files)) {
       const entry = zip.files[name]
       const dest = entry.dir || name === MANIFEST ? null : restoreTarget(root, name)
       if (!dest) continue
       const rel = relative(root, dest)
+      if (isTracksEntry(rel) && !hasTracks) continue
       const tmp = join(tmpDir, rel)
       mkdirSync(dirname(tmp), { recursive: true })
       writeFileAtomic(tmp, await entry.async('nodebuffer'))
       staged.set(rel, tmp)
     }
-    replaceFrom(root, staged)
+    replaceFrom(root, staged, hasTracks)
   } finally {
     removeTempDir(tmpDir)
+  }
+}
+
+/* ------------------------------ backing tracks beside the backups ------------------------------ */
+// Automatic backups leave the backing tracks out (they would make every hourly zip as big as all the tracks).
+// Instead each track is copied ONCE into backups/tracks/ (tracks never change after they are written); a track the
+// church deletes moves to backups/tracks/gone-<day>/ and is kept 15 days, as long as the automatic backups go back.
+
+const mirrorDir = () => join(backupDir(), 'tracks')
+
+/** Bring backups/tracks/ up to date. Never fails the backup that calls it. */
+export function mirrorTracks(): void {
+  try {
+    const src = join(dataRoot(), TRACKS_DIR)
+    const dst = mirrorDir()
+    const tracks = existsSync(src) ? readdirSync(src) : []
+    if (!tracks.length && !existsSync(dst)) return
+    mkdirSync(dst, { recursive: true })
+    const entries = readdirSync(dst, { withFileTypes: true })
+    const today = localDate()
+    const plan = trackMirrorPlan(
+      tracks,
+      entries.filter((e) => e.isFile()).map((e) => e.name),
+      entries.filter((e) => e.isDirectory()).map((e) => e.name),
+      today
+    )
+    for (const n of plan.copy) {
+      // copy to .tmp, then rename: a half-copied file must never look like a finished copy
+      copyFileSync(join(src, n), join(dst, n + '.tmp'))
+      renameSync(join(dst, n + '.tmp'), join(dst, n))
+    }
+    if (plan.retire.length) mkdirSync(join(dst, `gone-${today}`), { recursive: true })
+    for (const n of plan.retire) renameSync(join(dst, n), join(dst, `gone-${today}`, n))
+    for (const d of plan.dropDirs) rmSync(join(dst, d), { recursive: true, force: true })
+    if (plan.copy.length || plan.retire.length) log.info(`backing tracks kept beside the backups: +${plan.copy.length} -${plan.retire.length}`)
+  } catch (e) {
+    log.warn('could not keep a copy of the backing tracks', (e as NodeJS.ErrnoException).code || 'error')
+  }
+}
+
+/** After a restore: a track a restored song uses but tracks/ lacks comes back from backups/tracks/ if it is there. */
+function fillMissingTracks(root: string): void {
+  try {
+    const songs = JSON.parse(stripBom(readFileSync(join(root, 'data', 'songs.json'), 'utf8')))
+    if (!Array.isArray(songs)) return
+    const dir = join(root, TRACKS_DIR)
+    const m = mirrorDir()
+    const gone = existsSync(m) ? readdirSync(m, { withFileTypes: true }).filter((e) => e.isDirectory() && e.name.startsWith('gone-')) : []
+    let n = 0
+    for (const name of referencedTrackFiles(songs)) {
+      const dest = join(dir, name)
+      if (existsSync(dest)) continue
+      const from = [join(m, name), ...gone.map((g) => join(m, g.name, name))].find((f) => existsSync(f))
+      if (!from) continue
+      mkdirSync(dir, { recursive: true })
+      copyFileSync(from, dest)
+      n++
+    }
+    if (n) log.info('backing tracks brought back from backups/tracks:', n)
+  } catch (e) {
+    log.warn('could not check the restored backing tracks', (e as NodeJS.ErrnoException).code || 'error')
   }
 }
 
@@ -358,6 +442,7 @@ let writesAtLastAuto = -1
 export async function autoBackup(): Promise<void> {
   const store = db()
   if (store.readOnly) return // data from a newer version: leave its backups alone
+  mirrorTracks()
   const dir = backupDir()
   const now = new Date()
   const today = localDate(now)
@@ -382,7 +467,7 @@ export async function autoBackup(): Promise<void> {
   const time = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`
   // the count when the files were READ: a save made while the zip was being written is not in this backup
   // and must make the next hourly run happen
-  const { writes } = await exclusive(() => writeBackup(join(dir, autoBackupName(today, time))))
+  const { writes } = await exclusive(() => writeBackup(join(dir, autoBackupName(today, time)), false))
   writesAtLastAuto = writes
   for (const old of autoBackupsToDelete(readdirSync(dir))) {
     try {

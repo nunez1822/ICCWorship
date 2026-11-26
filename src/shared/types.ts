@@ -38,8 +38,27 @@ export interface Song {
   arrangement: string[]
   linesPerSlide: number
   key?: string
+  /** an instrumental to sing with (see @shared/tracks) */
+  track?: SongTrack
   createdAt: number
   updatedAt: number
+}
+
+/** How much of the center (lead voice) "Remove the voice" took out */
+export type VoicePreset = 'less' | 'normal' | 'more'
+
+export interface SongTrack {
+  /** data-relative media:// URL of the Ogg/Opus file in <data root>/tracks/ */
+  url: string
+  /** the file it was made from (shown in the editor) */
+  sourceName: string
+  /** made with "Remove the voice" (vs. a file that already had no singing) */
+  vocalsRemoved: boolean
+  preset?: VoicePreset
+  /** recorded timing: timings[i] = the second slide i starts (timings[0] > 0 = an intro without text) */
+  timings?: number[]
+  /** the slide layout the timing was recorded for (slidesTimingKey) — a different layout stops following */
+  timingsKey?: string
 }
 
 /* ---------------- Slides ---------------- */
@@ -152,6 +171,9 @@ export interface PlanItem {
   slides?: { text: BiText; title?: BiText; media?: string }[]
   countdown?: CountdownConfig
   video?: { loop: boolean; autoNext: boolean; volume: number }
+  /** a song's backing track in this service: absent = it does not play (attaching a track to a song never
+   *  changes existing plans) */
+  track?: { play: boolean; volume: number; autoNext: boolean }
   /** seconds between auto-advance for announcement loops (0 = manual) */
   loopSeconds?: number
   durationMin: number

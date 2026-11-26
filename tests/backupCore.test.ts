@@ -11,15 +11,23 @@ import {
   parseAutoName,
   restoredMeta,
   safetyBackupsToDelete,
-  staleBackupTemps
+  staleBackupTemps,
+  trackMirrorPlan
 } from '../src/shared/backupCore'
-import { checkSchema, runMigrations, SCHEMA_VERSION, type Migration } from '@shared/migrations'
+import { checkSchema, MIGRATIONS, runMigrations, SCHEMA_VERSION, type Migration } from '@shared/migrations'
 
 describe('backup manifest', () => {
   it('accepts backups from 1.0 and from now', () => {
-    expect(checkManifest({ app: 'ICCWorship', version: 1, createdAt: 'x' })).toEqual({ ok: true, format: 1, schemaVersion: undefined })
-    expect(checkManifest(makeManifest('1.1.0'))).toEqual({ ok: true, format: 1, schemaVersion: SCHEMA_VERSION })
+    expect(checkManifest({ app: 'ICCWorship', version: 1, createdAt: 'x' })).toEqual({ ok: true, format: 1, schemaVersion: undefined, hasTracks: false })
+    expect(checkManifest(makeManifest('1.1.0'))).toEqual({ ok: true, format: 1, schemaVersion: SCHEMA_VERSION, hasTracks: false })
     expect(makeManifest('1.1.0').schemaVersion).toBe(SCHEMA_VERSION)
+  })
+  it('says whether the backup holds the backing tracks (only then does a restore replace tracks/)', () => {
+    expect(makeManifest('1.2.0', true).hasTracks).toBe(true)
+    expect(checkManifest(makeManifest('1.2.0', true))).toMatchObject({ ok: true, hasTracks: true })
+    // 1.1 backups, and an older version's backup of newer data, have no such field: tracks/ is left alone
+    expect(checkManifest({ app: 'ICCWorship', format: 1, schemaVersion: 1 })).toMatchObject({ ok: true, hasTracks: false })
+    expect(checkManifest({ app: 'ICCWorship', format: 1, hasTracks: 'yes' })).toMatchObject({ ok: true, hasTracks: false })
   })
   it('refuses other files and backups made by a newer layout', () => {
     expect(checkManifest(null)).toEqual({ ok: false, error: 'not-a-backup' })
@@ -83,7 +91,31 @@ describe('restoring settings from another PC', () => {
   })
 })
 
+describe('backing tracks kept beside the backups', () => {
+  it('copies new tracks once, and retires the ones the church deleted', () => {
+    expect(trackMirrorPlan(['a-1.ogg', 'b-2.ogg', 'junk.txt'], ['a-1.ogg', 'c-3.ogg'], [], '2026-11-26')).toEqual({
+      copy: ['b-2.ogg'],
+      retire: ['c-3.ogg'],
+      dropDirs: []
+    })
+  })
+  it('keeps a deleted track 15 days (automatic backups go back 14), then lets it go', () => {
+    const dirs = ['gone-2026-11-10', 'gone-2026-11-11', 'gone-2026-11-26', 'other', 'gone-junk']
+    expect(trackMirrorPlan([], [], dirs, '2026-11-26').dropDirs).toEqual(['gone-2026-11-10'])
+    expect(trackMirrorPlan([], [], ['gone-2026-02-10'], '2026-03-01').dropDirs).toEqual(['gone-2026-02-10'])
+  })
+})
+
 describe('schema versions and migrations', () => {
+  it('upgrades schema 1 data (1.1) to schema 2 without changing songs or plans', () => {
+    const songs = [{ id: 's', title: 'x' }]
+    const files: Record<string, unknown> = { meta: { seeded: 1, schemaVersion: 1 }, songs }
+    const done = runMigrations({ read: (n) => files[n], write: (n, v) => (files[n] = v) }, 1, MIGRATIONS, 2)
+    expect(done).toEqual(['2: songs may have a backing track (tracks/ folder)'])
+    expect(files.songs).toBe(songs)
+    expect(files.meta).toEqual({ seeded: 1, schemaVersion: 2 })
+    expect(SCHEMA_VERSION).toBe(2)
+  })
   it('knows old, current and newer data', () => {
     expect(checkSchema(undefined)).toEqual({ kind: 'migrate', from: 0 })
     expect(checkSchema(SCHEMA_VERSION)).toEqual({ kind: 'current' })

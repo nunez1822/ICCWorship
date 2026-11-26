@@ -175,3 +175,24 @@ describe('JsonStore and backups of recovered files', () => {
     expect(store.writeCount).toBe(1)
   })
 })
+
+describe('JsonStore.isHealthy (may files be deleted based on this list?)', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'iccw-store-'))
+  })
+  afterEach(() => rmSync(dir, { recursive: true, force: true }))
+
+  it('is true only for a list read undamaged from its own file', () => {
+    writeFileSync(join(dir, 'songs.json'), '[{"id":"a"}]')
+    expect(new JsonStore(dir).isHealthy('songs')).toBe(true)
+  })
+  it('is false for a list recovered from .bak, a missing file or an unreadable one', () => {
+    writeFileSync(join(dir, 'songs.json'), '[{"id":"a"},{"i')
+    writeFileSync(join(dir, 'songs.json.bak'), '[{"id":"a"}]')
+    expect(new JsonStore(dir).isHealthy('songs')).toBe(false)
+    expect(new JsonStore(dir).isHealthy('plans')).toBe(false) // no plans.json at all
+    writeFileSync(join(dir, 'media.json'), '{{{')
+    expect(new JsonStore(dir).isHealthy('media')).toBe(false)
+  })
+})

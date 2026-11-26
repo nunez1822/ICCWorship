@@ -200,6 +200,16 @@ export class JsonStore {
     return out
   }
 
+  /**
+   * Was this collection read from its own file, undamaged (not recovered from .bak, not unreadable)? Reads it
+   * first if needed. Anything that deletes files based on a collection's content (unused backing tracks) must
+   * check this: a damaged or older list could be missing what still needs them.
+   */
+  isHealthy(name: string): boolean {
+    this.read(name, [])
+    return this.healthy.has(name) && !this.fromBak.has(name) && !this.problems.some((p) => p.name === name)
+  }
+
   /** A data file was changed outside the store (a Bible, slide images): count it, so the hourly backup runs. */
   noteExternalWrite(): void {
     if (!this.readOnly) this.writeCount++

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test'
 import { join, resolve } from 'node:path'
-import { restoreTarget } from '../src/main/restorePath'
+import { isTracksEntry, restoreTarget } from '../src/main/restorePath'
 
 describe('restoreTarget (backup restore paths)', () => {
   const root = resolve('/church-data')
@@ -21,5 +21,20 @@ describe('restoreTarget (backup restore paths)', () => {
     expect(restoreTarget(root, 'cache/other/x.png')).toBeNull()
     expect(restoreTarget(root, 'datax/songs.json')).toBeNull()
     expect(restoreTarget(root, 'data')).toBeNull()
+  })
+
+  it('restores backing tracks, and only track files directly in tracks/', () => {
+    expect(restoreTarget(root, 'tracks/abc-123.ogg')).toBe(join(root, 'tracks', 'abc-123.ogg'))
+    expect(restoreTarget(root, 'tracks/evil.exe')).toBeNull()
+    expect(restoreTarget(root, 'tracks/sub/abc-123.ogg')).toBeNull()
+    expect(restoreTarget(root, 'tracks/abc.ogg')).toBeNull()
+    expect(restoreTarget(root, 'tracks/../data/songs.json')).toBe(join(root, 'data', 'songs.json')) // resolves into data/: allowed like data/songs.json
+    expect(restoreTarget(root, 'tracks/../../evil.ogg')).toBeNull()
+  })
+
+  it('knows which entries are tracks', () => {
+    expect(isTracksEntry('tracks/abc-1.ogg')).toBe(true)
+    expect(isTracksEntry(join('tracks', 'abc-1.ogg'))).toBe(true)
+    expect(isTracksEntry('data/songs.json')).toBe(false)
   })
 })

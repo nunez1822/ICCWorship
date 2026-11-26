@@ -6,11 +6,15 @@
  *   ("media://local/cache%2Fpresentations%2F…") so a backup restored on another PC keeps working. Older
  *   absolute paths stay valid (main remaps them when the folder moved), so 0 → 1 changes no data.
  *
+ * - Schema 2 (1.2): songs may have a backing track (`song.track`, files in <data root>/tracks/, plan items say
+ *   whether it plays: `item.track`). Nothing to convert — the version is bumped so that an older ICCWorship opens
+ *   this data read-only instead of making backups without tracks/ (restoring one of those would delete them).
+ *
  * To change the data format: bump SCHEMA_VERSION and add a migration that turns version N-1 data into N.
  * Migrations are pure (they get a read/write context), run in order, and must be idempotent — they can run
  * again after an interrupted start, and on old backups being restored.
  */
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 
 export interface MigrationContext {
   /** a data file's parsed content (e.g. 'songs', 'settings', 'meta'), or undefined if missing */
@@ -31,6 +35,13 @@ export const MIGRATIONS: Migration[] = [
     describe: 'version the data; presentation slides may be stored relative to the data folder',
     run: () => {
       /* nothing to convert: old absolute slide paths keep working */
+    }
+  },
+  {
+    to: 2,
+    describe: 'songs may have a backing track (tracks/ folder)',
+    run: () => {
+      /* nothing to convert: songs without a track stay as they are */
     }
   }
 ]

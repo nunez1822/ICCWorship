@@ -76,6 +76,12 @@ All notable changes to ICCWorship are documented here. The format is based on
   in the install folder, next to `ICCWorship.exe`).
 
 ### Changed
+- **Data version 2** (backing tracks). Data is upgraded automatically after a safety backup. An older copy of
+  ICCWorship (e.g. a portable one) then opens this data **read-only**: it can still run a service but can't save
+  changes or make backups that would lose the tracks.
+- Backups and backing tracks: **Back up now** includes the backing tracks (take it to another PC). Automatic backups
+  leave them out — each track is kept once in `backups\tracks\` instead of in every hourly copy — and restoring an
+  automatic backup never deletes tracks (missing ones come back from `backups\tracks\`).
 - Contributors: development now uses **pnpm** and **Vite+** (`vp`): one `pnpm check` runs formatting (Oxfmt), lint
   (Oxlint, type-aware) and type checks, replacing npm, ESLint, Prettier and `tsc`. A pre-commit hook fixes formatting.
   See CONTRIBUTING.md.

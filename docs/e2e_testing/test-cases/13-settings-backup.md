@@ -48,6 +48,7 @@
 1. `queueSaveFile('<repo>/.e2e-data/backup.zip')` → **Back up now**.
 **Expected**
 - Toast "Backup saved (N files, x MB)"; the zip exists and contains `iccworship-backup.json` and `data/songs.json`.
+- `iccworship-backup.json` has `"schemaVersion": 2` and `"hasTracks": true` (a manual backup carries the backing tracks).
 
 ### TC-BAK-02 · Restore replaces data with the backup  `P0`
 **Pre:** TC-BAK-01
@@ -175,8 +176,8 @@
 **Steps**
 1. Quit. Remove `schemaVersion` from `.e2e-data/data/meta.json` (as 1.0 wrote it). Launch `--keep`.
 **Expected**
-- A `before-migrate-….zip` appears in the backups folder; `meta.json` now has `"schemaVersion": 1`; everything works as before.
-- The log has `data upgraded: 1: …`.
+- A `before-migrate-….zip` appears in the backups folder; `meta.json` now has `"schemaVersion": 2`; everything works as before.
+- The log has `data upgraded: 1: …; 2: …` (from 1.1 data — `"schemaVersion": 1` — only `2: …`).
 
 ### TC-BAK-10 · Automatic backup when the disk is nearly full  `P2` (manual)
 **Steps**
@@ -202,7 +203,7 @@
 2. Restore the copy.
 **Expected**
 - "Tema propio" is still on the Themes page next to the built-in themes; no sample songs or sample plan appear.
-- `.e2e-data/data/meta.json` exists with a `seeded` time and `"schemaVersion": 1`.
+- `.e2e-data/data/meta.json` exists with a `seeded` time and `"schemaVersion": 2`.
 
 ### TC-BAK-13 · No restore while the data is read-only  `P1`
 **Pre:** TC-BAK-08 step 1 (data from a newer version, red bar showing).
@@ -242,3 +243,24 @@
   then Test sound): the beep still plays (default speakers) and the toast says “Gone” isn't connected; the Settings
   list shows "Gone (not connected)" with a warning under it.
 
+### TC-BAK-15 · A manual backup carries the backing tracks; restoring it brings them back  `P1`
+**Pre:** a song with a backing track (TC-SONG-12)
+**Steps**
+1. **Back up now** to `.e2e-data/backup-tracks.zip`. 2. Settings → song → **Remove** the backing track.
+3. Restore `backup-tracks.zip`.
+**Expected**
+- Step 1: the zip has `tracks/<songId>-<digits>.ogg`, stored uncompressed (same size as the file in `.e2e-data/tracks/`).
+- Step 3: the song has its backing track again and it plays (Show with track → `videoProgress.current` advances).
+
+### TC-BAK-16 · Automatic backups leave the tracks out but keep one copy beside them  `P1`
+**Pre:** a song with a backing track
+**Steps**
+1. Quit and relaunch with `--keep` (an automatic backup runs at start-up if today has none — delete today's
+   `auto-….zip` first). 2. Look in `.e2e-data/backups/`.
+3. Remove the song's track (song editor → ⋯ → Remove), restore the newest `auto-….zip`.
+**Expected**
+- The `auto-….zip` has **no** `tracks/` entries and its manifest says `"hasTracks": false`.
+- `.e2e-data/backups/tracks/` holds a copy of the track file (copied once, not again on the next backup).
+- Step 3: the restored song points to its track again, and the file is back in `.e2e-data/tracks/` (taken from
+  `backups/tracks/`). The log says `backing tracks brought back from backups/tracks: 1`.
+- Restoring an automatic backup never deletes tracks that exist now (tracks/ is left as it is).

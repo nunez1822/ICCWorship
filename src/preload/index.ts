@@ -111,6 +111,15 @@ const api = {
     /** absolute path of a file dropped from Windows Explorer */
     pathOf: (f: File): string => webUtils.getPathForFile(f)
   },
+  /** backing tracks (see src/main/tracks.ts): the renderer never names a file to write or delete */
+  tracks: {
+    /** the bytes of an audio file the user picked in a dialog (≤ 200 MB) */
+    readPicked: (path: string): Promise<Uint8Array> => invoke('tracks:readPicked', path),
+    /** store an encoded Ogg/Opus track for a song → its media:// URL */
+    save: (songId: string, bytes: Uint8Array): Promise<string> => invoke('tracks:save', songId, bytes),
+    /** delete the song's track files it no longer uses (after Replace / Remove) */
+    prune: (songId: string): Promise<void> => invoke('tracks:prune', songId)
+  },
   pres: {
     detect: (): Promise<{ powerpoint: boolean; libreoffice: string | null }> => invoke('pres:detect'),
     import: (path: string, prefer?: 'powerpoint' | 'libreoffice' | 'text', reuseId?: string): Promise<ImportOutcome> =>

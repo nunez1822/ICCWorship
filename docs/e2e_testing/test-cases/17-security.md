@@ -222,3 +222,21 @@ An error's message can quote what a page was reading (a SyntaxError quotes the J
 - Step 2 lists the sound outputs **with** their names (allowed only for choosing where sound plays).
 - In a dev build the log shows `permission request: media (audio)` refused and `permission check: speaker-selection`.
 
+### TC-SEC-20 · Saving a backing track checks the song id and the file  `P0`
+**Steps**
+1. In the operator page:
+   `await window.api.tracks.save('../../evil', new Uint8Array([0x4f,0x67,0x67,0x53,1]))`,
+   `await window.api.tracks.save('song1', new Uint8Array([0x49,0x44,0x33,0x03,0]))` (an mp3 header),
+   `await window.api.tracks.save('song1', 'text')`.
+2. `await window.api.tracks.readPicked('C:/Windows/win.ini')` (a file not picked in a dialog).
+**Expected**
+- Each call rejects (`bad-id`, `bad-track`, `bad-track`, `forbidden`); nothing is written outside
+  `.e2e-data/tracks/` and no file named `evil` appears anywhere.
+
+### TC-SEC-21 · Removing backing tracks never takes a path from the page  `P0`
+**Steps**
+1. `await window.api.tracks.prune('..\\data')`, `await window.api.tracks.prune('songs')`,
+   `await window.api.db.remove('songs', '../../data/settings')`.
+**Expected**
+- No file outside `.e2e-data/tracks/` is deleted (`data/songs.json`, `data/settings.json` still there); the calls
+  either do nothing or reject. Only files named `<that song id>-<digits>.ogg` the song no longer uses are ever removed.

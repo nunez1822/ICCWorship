@@ -15,12 +15,13 @@ import {
   type MenuItemConstructorOptions
 } from 'electron'
 import { createReadStream, existsSync, statSync, writeFileSync, readFileSync, type Stats } from 'node:fs'
+import { readFile, stat } from 'node:fs/promises'
 import { dirname, extname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Readable } from 'node:stream'
 import type { LiveState, RemoteCommand, VideoEndedCommand } from '@shared/types'
 import { parseRange, permissionAllowed, sanitizeSettingsPatch, validateCommand } from '@shared/security'
-import { COLLECTIONS, dataStatus, db, ensurePin, getSettings, isCollection, prepareData, seedIfEmpty, setSettings } from './db'
+import { assertWritable, COLLECTIONS, dataStatus, db, ensurePin, getSettings, isCollection, prepareData, seedIfEmpty, setSettings } from './db'
 import * as bible from './bible'
 import { live } from './live'
 import { serverInfo, setCommandHandler, startServer, stopServer } from './server'
@@ -36,6 +37,8 @@ import { setMainLang, t } from './i18n'
 import { Heartbeat, ReloadBudget } from '@shared/recovery'
 import { exportDiagnostics, systemInfoText } from './diagnostics'
 import { checkForUpdates, RELEASES_URL } from './updates'
+import { cleanupOrphanTracks, pruneTrack, saveTrack } from './tracks'
+import { MAX_SOURCE_BYTES } from '@shared/tracks'
 
 // media:// serves local media files to the app's own pages. corsEnabled + "Access-Control-Allow-Origin: *" are
 // needed: PDF import fetch()es media:// from a file:// page, and thumbnails load with crossOrigin="anonymous".
@@ -640,7 +643,10 @@ function registerIpc(): void {
   })
   h('db:remove', (_e, c: string, id: string) => {
     if (c === 'presentations') deletePresentation(id)
-    else if (isCollection(c)) db().remove(c, id)
+    else if (isCollection(c)) {
+      db().remove(c, id)
+      if (c === 'songs') pruneTrack(id) // its backing track goes with it (unless it is playing right now)
+    }
   })
 
   // settings — only known settings with valid values are saved (see sanitizeSettingsPatch)
@@ -821,6 +827,18 @@ function registerIpc(): void {
     return r.filePath
   })
 
+  // backing tracks: the renderer reads the picked audio file, decodes and encodes it, and hands back Ogg bytes
+  h('tracks:readPicked', async (_e, p: unknown) => {
+    if (!isGranted(p)) throw new Error('forbidden') // only a file the user picked in a dialog
+    if ((await stat(p)).size > MAX_SOURCE_BYTES) throw new Error('too-large')
+    return new Uint8Array(await readFile(p))
+  })
+  h('tracks:save', (_e, songId: unknown, bytes: unknown) => saveTrack(songId, bytes))
+  h('tracks:prune', (_e, songId: unknown) => {
+    assertWritable()
+    pruneTrack(songId)
+  })
+
   // presentations
   h('pres:detect', () => detectConverters())
   h('pres:import', (_e, path: string, prefer?: 'powerpoint' | 'libreoffice' | 'text', reuseId?: string) => importPresentation(path, prefer, reuseId))
@@ -979,6 +997,7 @@ app
         }`
       )
     seedIfEmpty()
+    cleanupOrphanTracks() // backing tracks no song uses any more (only when the songs list was read healthy)
     setMainLang(getSettings().uiLang)
     buildMenu()
     live.init()

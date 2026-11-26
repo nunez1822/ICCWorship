@@ -3,6 +3,7 @@ import type { BibleVersionInfo, LiveState, MediaItem, Person, PrayerRequest, Pre
 import i18n from '../i18n'
 import { localDate } from '@shared/dates'
 import { loggableError } from '@shared/loggableError'
+import { normalizeTrack } from '@shared/tracks'
 
 export type Page = 'live' | 'plans' | 'songs' | 'bible' | 'media' | 'themes' | 'people' | 'reports' | 'settings'
 
@@ -73,7 +74,9 @@ function normalizeSong(x: Song): Song {
     tags: x.tags ?? [],
     sections: (x.sections ?? []).map((z) => ({ ...z, en: z.en ?? '', es: z.es ?? '' })),
     arrangement: x.arrangement ?? [],
-    linesPerSlide: x.linesPerSlide || 4
+    linesPerSlide: x.linesPerSlide || 4,
+    // keeps fields it doesn't know (a newer version's), drops broken timing
+    track: normalizeTrack(x.track)
   }
 }
 let listening = false
