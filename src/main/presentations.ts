@@ -13,6 +13,7 @@ import { log } from './log'
 import { db } from './db'
 import { dataMediaUrl, toMediaUrl } from './mediaPath'
 import { assertWritable } from './db'
+import { writeFileAtomic } from './atomicWrite'
 
 const run = promisify(execFile)
 
@@ -170,7 +171,7 @@ export function savePdfPages(args: { id: string; name: string; sourcePath: strin
   const out = cacheDir('presentations', args.id)
   const slides: PresentationSlide[] = args.pages.map((buf, i) => {
     const f = join(out, `page${String(i + 1).padStart(3, '0')}.png`)
-    writeFileSync(f, Buffer.from(buf))
+    writeFileAtomic(f, Buffer.from(buf))
     return { image: dataMediaUrl(f) }
   })
   return save({ id: args.id, name: args.name, sourcePath: args.sourcePath, method: args.method, slides, importedAt: Date.now() })

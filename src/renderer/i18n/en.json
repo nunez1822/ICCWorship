@@ -557,6 +557,7 @@
       "newer-schema": "That backup was made by a newer ICCWorship. Install the latest version to restore it.",
       "damaged-backup": "That backup is damaged (a data file in it can’t be read). Nothing was changed.",
       "restore-failed": "The restore could not finish, so your previous data was put back. Close other programs that may use the files (OneDrive, antivirus) and try again.",
+      "read-only": "This data is open read-only because a newer ICCWorship wrote it, so no backup can be restored here. Restore it with the newer version.",
       "forbidden": "That file can’t be restored from here. Use Restore… to pick it."
     }
   },
@@ -592,6 +593,7 @@
   },
   "remote": {
     "enterPin": "Enter the PIN shown in ICCWorship → Settings",
+    "pinLabel": "PIN (numbers only)",
     "wrongPin": "Wrong PIN",
     "locked": "Too many wrong PINs — wait {{seconds}} s and try again",
     "connect": "Connect",

@@ -137,7 +137,8 @@ function checkMediaFiles(slides: Slide[], background?: Background | null): void 
   void api()
     .files.mediaStatus(media)
     .then((st0) => {
-      const missing = st0.filter((x) => !x.exists).map((x, i) => x.path || media[i])
+      // index into `media` before filtering: the fallback must name the item that is missing
+      const missing = st0.flatMap((x, i) => (x.exists ? [] : [x.path || media[i]]))
       if (missing.length) st().toast(t('errors.mediaMissing', { file: missing.join(', ') }), 'err', 10_000)
     })
 }

@@ -5,10 +5,22 @@ import { dirname, join, relative, resolve, sep } from 'node:path'
 import { backupDir, dataRoot } from './paths'
 import { db, getSettings } from './db'
 import { localDate, localStamp } from '@shared/dates'
-import { checkSchema, runMigrations } from '@shared/migrations'
+import { checkSchema, runMigrations, SCHEMA_VERSION } from '@shared/migrations'
 import { reload as reloadBibles } from './bible'
 import { RESTORE_DIRS, restoreTarget } from './restorePath'
-import { autoBackupName, autoBackupsToDelete, checkManifest, makeManifest, mergeRestoredSettings, parseAutoName, safetyBackupsToDelete } from './backupCore'
+import {
+  autoBackupName,
+  autoBackupsToDelete,
+  checkManifest,
+  isTransientCopy,
+  keptOnRestore,
+  makeManifest,
+  mergeRestoredSettings,
+  mustParseOnRestore,
+  parseAutoName,
+  restoredMeta,
+  safetyBackupsToDelete
+} from '@shared/backupCore'
 import { writeFileAtomic, writeFileAtomicAsync } from './atomicWrite'
 import { log } from './log'
 
@@ -18,14 +30,14 @@ const MANIFEST = 'iccworship-backup.json'
 /** don't let an automatic backup fill the last of the disk (saving the church's data needs it more) */
 const MIN_FREE_BYTES = 300 * 1024 * 1024
 
-function walk(dir: string, out: string[] = []): string[] {
+/** Every file under `dir`. Without `all`, .tmp / .bak copies are left out (what a backup holds). */
+function walk(dir: string, out: string[] = [], all = false): string[] {
   if (!existsSync(dir)) return out
   for (const f of readdirSync(dir)) {
     const p = join(dir, f)
     const st = statSync(p)
-    if (st.isDirectory()) walk(p, out)
-    // .tmp: a save in progress; .bak: the previous version of a file that is in the backup itself
-    else if (!f.endsWith('.tmp') && !f.endsWith('.bak')) out.push(p)
+    if (st.isDirectory()) walk(p, out, all)
+    else if (all || !isTransientCopy(f)) out.push(p)
   }
   return out
 }
@@ -85,7 +97,7 @@ function pruneSafetyBackups(): void {
 }
 
 /* ------------------------------ restore ------------------------------ */
-export type RestoreError = 'not-a-backup' | 'newer-format' | 'newer-schema' | 'damaged-backup' | 'restore-failed'
+export type RestoreError = 'not-a-backup' | 'newer-format' | 'newer-schema' | 'damaged-backup' | 'restore-failed' | 'read-only'
 
 /**
  * Restore = replace. The backup is unpacked into a staging folder first and fully checked (it must be ours,
@@ -101,6 +113,10 @@ export function restoreBackup(zipPath: string): Promise<{ ok: boolean; error?: R
 const stripBom = (t: string) => (t.charCodeAt(0) === 0xfeff ? t.slice(1) : t)
 
 async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: RestoreError; safetyBackup?: string }> {
+  // Data written by a newer ICCWorship is open read-only: replacing it with an older backup would destroy the
+  // newer data, and the store would stay read-only afterwards (every later edit lost at quit). Use the newer
+  // version to restore.
+  if (db().readOnly) return { ok: false, error: 'read-only' }
   let zip: JSZip
   try {
     zip = await JSZip.loadAsync(readFileSync(zipPath))
@@ -126,7 +142,8 @@ async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: Restor
     const staged = new Map<string, string>() // path relative to root → staged file
     for (const name of Object.keys(zip.files)) {
       const entry = zip.files[name]
-      if (entry.dir || name === MANIFEST) continue
+      // a backup never holds .tmp / .bak copies; one that does (hand-made) must not bring back old data
+      if (entry.dir || name === MANIFEST || isTransientCopy(name)) continue
       const dest = restoreTarget(root, name)
       if (!dest) continue
       const rel = relative(root, dest)
@@ -135,10 +152,17 @@ async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: Restor
       writeFileAtomic(tmp, await entry.async('nodebuffer'))
       staged.set(rel, tmp)
     }
-    // 2. every data file must be readable JSON (kept-aside .bak / .corrupt copies aren't checked)
+    // 2. every data file must be readable JSON, Bibles in data/bibles/ included (kept-aside .corrupt copies
+    //    aren't checked): a damaged backup changes nothing
     const json = (rel: string) => JSON.parse(stripBom(readFileSync(staged.get(rel)!, 'utf8')))
+    const stage = (rel: string, value: unknown) => {
+      const f = staged.get(rel) ?? join(staging, rel)
+      mkdirSync(dirname(f), { recursive: true })
+      writeFileAtomic(f, JSON.stringify(value, null, 1))
+      staged.set(rel, f)
+    }
     for (const rel of staged.keys()) {
-      if (/^data[\\/][^\\/]+\.json$/.test(rel)) {
+      if (mustParseOnRestore(rel)) {
         try {
           json(rel)
         } catch {
@@ -160,25 +184,28 @@ async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: Restor
             const rel = join('data', `${name}.json`)
             return staged.has(rel) ? json(rel) : undefined
           },
-          write: (name, value) => {
-            const rel = join('data', `${name}.json`)
-            const f = staged.get(rel) ?? join(staging, rel)
-            mkdirSync(dirname(f), { recursive: true })
-            writeFileAtomic(f, JSON.stringify(value, null, 1))
-            staged.set(rel, f)
-          }
+          write: (name, value) => stage(join('data', `${name}.json`), value)
         },
         check.from
       )
     }
-    // 4. this computer's own settings win (screens, server port, PIN — the backup may be from another PC)
+    // 4. a backup comes from a church that was already set up: the restored data must never look like a first
+    //    run (that would replace its custom themes with the built-in ones and add sample songs and plans)
+    const restored = restoredMeta(staged.has(metaRel) ? json(metaRel) : undefined, SCHEMA_VERSION)
+    if (restored) stage(metaRel, restored)
+    // 5. this computer's own settings win (screens, server port, PIN — the backup may be from another PC). A
+    //    backup without settings still keeps them: otherwise the restore would delete this PC's PIN and port.
     const settingsRel = join('data', 'settings.json')
-    if (staged.has(settingsRel)) {
-      const merged = mergeRestoredSettings(json(settingsRel), getSettings() as unknown as Record<string, unknown>)
-      writeFileAtomic(staged.get(settingsRel)!, JSON.stringify(merged, null, 1))
-    }
+    const restoredSettings = staged.has(settingsRel) ? json(settingsRel) : {}
+    stage(
+      settingsRel,
+      mergeRestoredSettings(
+        restoredSettings && typeof restoredSettings === 'object' && !Array.isArray(restoredSettings) ? restoredSettings : {},
+        getSettings() as unknown as Record<string, unknown>
+      )
+    )
 
-    // 5. safety copy of what is there now, then replace file by file
+    // 6. safety copy of what is there now, then replace file by file
     const safety = freeName(backupDir(), `before-restore-${stamp()}`)
     await writeBackup(safety)
     pruneSafetyBackups()
@@ -204,7 +231,11 @@ async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: Restor
   }
 }
 
-/** Write every staged file into place, then remove files the backup doesn't have (except .corrupt copies). */
+/**
+ * Write every staged file into place, then remove every file the backup doesn't have (except kept-aside
+ * .corrupt copies). That includes every .bak: JsonStore falls back to <name>.json.bak when <name>.json is
+ * missing or damaged, so a .bak left behind would bring back the data from before the restore.
+ */
 function replaceFrom(root: string, staged: Map<string, string>): void {
   for (const [rel, tmp] of staged) {
     const dest = join(root, rel)
@@ -213,10 +244,9 @@ function replaceFrom(root: string, staged: Map<string, string>): void {
   }
   const keep = new Set([...staged.keys()].map((r) => r.toLowerCase()))
   for (const inc of INCLUDE) {
-    for (const f of walk(join(root, inc))) {
+    for (const f of walk(join(root, inc), [], true)) {
       const rel = relative(root, f)
-      // .bak files of the replaced data are removed too (walk() skips them, so remove them here)
-      if (!keep.has(rel.toLowerCase()) && !/\.corrupt-/.test(rel)) unlinkSync(f)
+      if (!keep.has(rel.toLowerCase()) && !keptOnRestore(rel)) unlinkSync(f)
     }
   }
 }

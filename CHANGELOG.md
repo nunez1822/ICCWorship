@@ -69,8 +69,12 @@ All notable changes to ICCWorship are documented here. The format is based on
 
 ### Fixed
 - **Restoring a backup now replaces the data** instead of mixing it with the current data (songs added after the
-  backup no longer survived a restore). The backup is fully checked before anything is touched, a damaged
-  backup changes nothing, and if replacing fails half-way the previous data is put back.
+  backup no longer survived a restore). The backup is fully checked before anything is touched (Bible files
+  included), a damaged backup changes nothing, and if replacing fails half-way the previous data is put back.
+  Leftover `.bak` copies can no longer bring back data the backup doesn't have, and a backup without its
+  `meta.json` no longer replaces the church's custom themes with the built-in ones.
+- Data opened read-only (written by a newer version) can't be replaced by restoring a backup; the app says to
+  restore it with the newer version.
 - A restore (maybe of another computer's backup) keeps **this** computer's screen, phone-remote and PIN settings.
 - PowerPoint/PDF slides restored on another computer (another user name or drive) showed as missing. Converted
   slides are now stored relative to the data folder, and slides from 1.0 backups are found too.
@@ -85,9 +89,9 @@ All notable changes to ICCWorship are documented here. The format is based on
 - Typing a new port in Settings → Remote no longer restarts the server on every keystroke; it applies on Enter.
 - Creating or importing a Bible version whose abbreviation can't be used (no letters or digits, or too long) no
   longer writes a file named ".json"; it now says why instead.
-- After restoring a backup, phones and stage screens use the restored PIN right away (phones still connected with
-  the old PIN are disconnected). A backup made before PINs existed gets a new PIN, and the menu bar follows the
-  restored language.
+- Restoring a backup keeps this computer's PIN, so phones and stage screens stay connected (even when the backup has
+  no PIN or no settings at all), and the menu bar follows the restored language.
+- A repeated error message now stays up for its full time instead of disappearing almost at once.
 - A phone that opens the PC by a name the server doesn't answer (for example with a router's own suffix such as
   `.fritz.box`) now sees a hint in English and Spanish to use the address or QR code from Settings, instead of a
   bare "Forbidden".

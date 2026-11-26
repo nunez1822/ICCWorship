@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { autoBackupsToDelete, checkManifest, makeManifest, mergeRestoredSettings, parseAutoName, safetyBackupsToDelete } from '../src/main/backupCore'
+import {
+  autoBackupsToDelete,
+  checkManifest,
+  isTransientCopy,
+  keptOnRestore,
+  makeManifest,
+  mergeRestoredSettings,
+  mustParseOnRestore,
+  parseAutoName,
+  restoredMeta,
+  safetyBackupsToDelete
+} from '../src/shared/backupCore'
 import { checkSchema, runMigrations, SCHEMA_VERSION, type Migration } from '@shared/migrations'
 
 describe('backup manifest', () => {
@@ -82,5 +93,47 @@ describe('schema versions and migrations', () => {
     expect(order).toEqual([2, 3])
     expect(files.meta).toEqual({ seeded: 1, schemaVersion: 3 })
     expect(files.songs).toEqual([{ id: 'a', x: 1 }])
+  })
+})
+
+describe('restore file rules', () => {
+  it('never restores .tmp / .bak copies', () => {
+    expect(isTransientCopy('data/songs.json.bak')).toBe(true)
+    expect(isTransientCopy('data/songs.json.tmp')).toBe(true)
+    expect(isTransientCopy('data/songs.json')).toBe(false)
+  })
+
+  it('checks every data .json, Bibles in sub-folders included', () => {
+    expect(mustParseOnRestore('data/songs.json')).toBe(true)
+    expect(mustParseOnRestore('data\\bibles\\placeholder.json')).toBe(true)
+    expect(mustParseOnRestore('data/bibles/placeholder.json')).toBe(true)
+    expect(mustParseOnRestore('data/songs.json.corrupt-2026-01-01')).toBe(false)
+    expect(mustParseOnRestore('cache/presentations/abc/page001.png')).toBe(false)
+    expect(mustParseOnRestore('cache\\presentations\\abc\\x.json')).toBe(false)
+  })
+
+  it('removes leftover .bak copies but keeps kept-aside .corrupt copies and saves in progress', () => {
+    // a .bak left behind would be read when its .json is missing: the pre-restore data would come back
+    expect(keptOnRestore('data/usage.json.bak')).toBe(false)
+    expect(keptOnRestore('data/usage.json')).toBe(false)
+    expect(keptOnRestore('data/songs.json.corrupt-2026-01-01T10-00-00-000Z')).toBe(true)
+    expect(keptOnRestore('data/songs.json.tmp')).toBe(true)
+  })
+})
+
+describe('restored meta', () => {
+  it('a backup without meta.json is marked seeded (never a first run: custom themes stay)', () => {
+    expect(restoredMeta(undefined, 1, 123)).toEqual({ seeded: 123, schemaVersion: 1 })
+    expect(restoredMeta(null, 1, 123)).toEqual({ seeded: 123, schemaVersion: 1 })
+    expect(restoredMeta([], 1, 123)).toEqual({ seeded: 123, schemaVersion: 1 })
+  })
+
+  it('keeps what the backup recorded and stamps the current schema', () => {
+    expect(restoredMeta({ schemaVersion: 1 }, 1, 123)).toEqual({ seeded: 123, schemaVersion: 1 })
+    expect(restoredMeta({ seeded: 5, schemaVersion: 0, other: 'x' }, 1, 123)).toEqual({ seeded: 5, schemaVersion: 1, other: 'x' })
+  })
+
+  it('leaves a complete meta.json alone', () => {
+    expect(restoredMeta({ seeded: 5, schemaVersion: 1 }, 1, 123)).toBeNull()
   })
 })

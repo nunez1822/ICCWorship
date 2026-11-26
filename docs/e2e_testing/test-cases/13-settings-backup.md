@@ -58,7 +58,8 @@
 - The confirm says the restore **replaces** all data (pasted Bible verses and anything imported after the backup too)
   and that this computer's screen, remote and PIN settings are kept.
 - Operator reloads; the deleted song is back and "Después de la copia" is **gone** (replace, not merge).
-- The PIN is unchanged. A safety zip "before-restore-…" appears in the backups list.
+- The PIN is unchanged, and a phone on `/remote` before the restore stays connected (the server is not restarted).
+  A safety zip "before-restore-…" appears in the backups list.
 - The projector and stage windows were not reloaded (what was live stays on screen).
 
 ### TC-BAK-03 · Automatic backups  `P2`
@@ -110,15 +111,17 @@
 - (Same rule, not driven in tests because it opens Explorer: 📂 Open logs folder and 📂 Open data folder show
   "Could not open the logs/data folder." if Windows can't open it.)
 
-### TC-BAK-04 · Restoring a backup without a PIN keeps the phones working  `P1`
-**Pre:** TC-BAK-01; phone connected to `/remote` (TC-REM-02)
+### TC-BAK-04 · Restoring a backup without a PIN or settings keeps the phones working  `P1`
+**Pre:** TC-BAK-01; phone connected to `/remote` (TC-REM-02). Note the PIN and port (Settings).
 **Steps**
 1. Copy `backup.zip` and, in the copy's `data/settings.json`, delete `"remotePin"` (an old backup from before PINs).
 2. **Restore…** → accept confirm → `queueOpenFiles([<the copy>])` queued before clicking.
-3. Settings → note the PIN. Phone → open `/remote#pin=<that PIN>`.
+3. Make a second copy with `data/settings.json` removed entirely; restore it the same way.
 **Expected**
-- Step 2: the phone connected with the old PIN is disconnected (it asks for the PIN again on reload).
-- Step 3: Settings shows a new 6-digit PIN (never an empty one) and the phone connects with it.
+- After each restore Settings shows the same 6-digit PIN and port as before (this PC's PIN is kept, never emptied),
+  and the phone stays connected without asking for the PIN again.
+- After step 3 the church settings (name, languages…) are back to their defaults, so the welcome dialog shows again
+  (no sample songs or plans are added), but the screen, remote and PIN settings are still this PC's.
 
 ### TC-BAK-05 · Restore follows the backup's language in the menu  `P2`
 **Steps**
@@ -138,6 +141,8 @@
 **Setup (node):** a backup zip whose `data/songs.json` is `[{"id":` (truncated). **Steps** — Restore… it.
 **Expected**
 - "That backup is damaged… Nothing was changed." Songs are as before; no `restore-staging-*` folder is left in `.e2e-data/`.
+- Same result for a backup whose only damaged file is a Bible (`data/bibles/<abbr>.json` truncated to `{"verses":`):
+  the Bible pasted on this PC still opens and shows its verses afterwards.
 
 ### TC-BAK-08 · Data from a newer version opens read-only  `P0`
 **Steps**
@@ -148,6 +153,7 @@
 - The service runs normally (projector, remote). Trying to delete a presentation or save a pasted Bible verse
   says "Not saved: this data is open read-only".
 - After quitting, `songs.json`, `usage.json` and `meta.json` are byte-for-byte unchanged; no automatic backup was added.
+- Restoring is refused while read-only: see TC-BAK-13.
 
 ### TC-BAK-09 · Data from 1.0 is upgraded safely  `P1`
 **Steps**
@@ -161,3 +167,32 @@
 1. Run from a small USB stick or a nearly full drive (less than 300 MB free) with `ICCWORSHIP_DATA` pointing there.
 **Expected**
 - No automatic backup is written; the log says "automatic backup skipped: the disk is nearly full"; saving songs still works.
+
+### TC-BAK-11 · Restore doesn't bring back data from leftover .bak copies  `P1`
+**Pre:** a fresh data folder (`npm run e2e:launch`) where no song has been shown live yet, so there is no `usage.json`.
+**Steps**
+1. `queueSaveFile('<repo>/.e2e-data/early.zip')` → **Back up now** (the zip has no `data/usage.json`).
+2. Show two different songs live (each logs CCLI usage, so `usage.json` and `usage.json.bak` now exist).
+3. Restore `early.zip`.
+**Expected**
+- In `.e2e-data/data/` neither `usage.json` nor `usage.json.bak` exists, and no `.bak` is left for any file the backup
+  doesn't have. Reports → CCLI shows no usage.
+- Any `*.corrupt-*` copies that were in the folder are still there.
+
+### TC-BAK-12 · A backup without meta.json keeps the church's themes  `P1`
+**Pre:** a custom theme "Tema propio" exists (Themes page) and was saved before TC-BAK-01's backup.
+**Steps**
+1. Copy `backup.zip`; in the copy remove `data/meta.json` and set `data/songs.json` to `[]`.
+2. Restore the copy.
+**Expected**
+- "Tema propio" is still on the Themes page next to the built-in themes; no sample songs or sample plan appear.
+- `.e2e-data/data/meta.json` exists with a `seeded` time and `"schemaVersion": 1`.
+
+### TC-BAK-13 · No restore while the data is read-only  `P1`
+**Pre:** TC-BAK-08 step 1 (data from a newer version, red bar showing).
+**Steps**
+1. Settings → Backup → **Restore…** any backup (or one from the backups list).
+**Expected**
+- Red toast "This data is open read-only because a newer ICCWorship wrote it, so no backup can be restored here…"
+  ("Estos datos están abiertos en solo lectura…" in Spanish). No reload, no new `before-restore-…` zip, and every
+  file in `.e2e-data/data/` is byte-for-byte unchanged.

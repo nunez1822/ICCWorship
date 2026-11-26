@@ -123,8 +123,10 @@ const api = {
     create: (): Promise<{ ok: boolean; path: string; files: number; bytes: number } | null> => invoke('backup:create'),
     restore: (
       path?: string
-    ): Promise<{ ok: boolean; error?: 'not-a-backup' | 'newer-format' | 'newer-schema' | 'damaged-backup' | 'restore-failed' | 'forbidden' } | null> =>
-      invoke('backup:restore', path),
+    ): Promise<{
+      ok: boolean
+      error?: 'not-a-backup' | 'newer-format' | 'newer-schema' | 'damaged-backup' | 'restore-failed' | 'read-only' | 'forbidden'
+    } | null> => invoke('backup:restore', path),
     list: (): Promise<{ name: string; path: string; size: number; date: number }[]> => invoke('backup:list')
   },
   print: {

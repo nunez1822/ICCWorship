@@ -34,6 +34,31 @@ export function checkManifest(raw: unknown): ManifestCheck {
   return { ok: true, format, schemaVersion }
 }
 
+/* ------------------------------ restore ------------------------------ */
+
+/** .tmp: a save in progress; .bak: the previous version of a file. A backup holds neither. */
+export const isTransientCopy = (name: string): boolean => /\.(tmp|bak)$/i.test(name)
+
+/** Restored files that must parse before anything is replaced: every .json under data/, Bibles included. */
+export const mustParseOnRestore = (rel: string): boolean => /^data[\\/](?:.+[\\/])?[^\\/]+\.json$/i.test(rel)
+
+/**
+ * Files a restore leaves in place although the backup doesn't have them: kept-aside copies of damaged files
+ * (they may be the only copy of something) and saves in progress (never read as data). Everything else that
+ * the backup lacks — .bak copies included — is removed.
+ */
+export const keptOnRestore = (rel: string): boolean => /\.corrupt-/i.test(rel) || /\.tmp$/i.test(rel)
+
+/**
+ * The meta.json to stage for a restore, or null if the backup's is fine. A backup always comes from a church
+ * that was set up, so the result is always marked `seeded` (else the next start would treat it as a first run).
+ */
+export function restoredMeta(raw: unknown, schemaVersion: number, now = Date.now()): Record<string, unknown> | null {
+  const meta = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null
+  if (meta && meta.seeded && meta.schemaVersion === schemaVersion) return null
+  return { ...meta, seeded: meta?.seeded || now, schemaVersion }
+}
+
 /* ------------------------------ automatic backups ------------------------------ */
 
 /** auto-2026-11-24.zip (1.0.x, daily) or auto-2026-11-24-0930.zip (hourly) → its date and time */

@@ -806,21 +806,22 @@ function registerIpc(): void {
       // a file picked in a dialog this session, or one of the backups in Documents\ICCWorship\backups
       p = path as string
     } else return { ok: false, error: 'forbidden' }
+    const before = getSettings()
     const res = await restoreBackup(p)
     log.info('backup restore', res.ok ? 'ok' : `failed: ${res.error}`)
     if (res.ok) {
       // The restored data is in place: refresh what main holds, tell every window, reload only the operator (the
-      // projector and stage keep showing what is live — reloading them mid-service gains nothing). An old backup
-      // may have no PIN (the server would then refuse every device), and phones still connected with the previous
-      // PIN must be dropped: restart the server on the restored PIN/port.
+      // projector and stage keep showing what is live — reloading them mid-service gains nothing). The restore
+      // keeps this PC's PIN, port and server switch, so phones and stage screens stay connected; the server is
+      // restarted only if one of them did change (e.g. there was no PIN and a new one had to be made).
       if (ensurePin()) log.info('restored settings had no remote PIN: made a new one')
-      seedIfEmpty()
+      seedIfEmpty() // restored meta is always marked seeded: this only keeps the built-in themes up to date
       const s = getSettings()
       setMainLang(s.uiLang)
       buildMenu()
       live.update({ logoPath: s.logoPath, churchName: s.churchName })
       BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('settings:changed', s))
-      await restartServer()
+      if (before.remotePin !== s.remotePin || before.serverPort !== s.serverPort || before.serverEnabled !== s.serverEnabled) await restartServer()
       // reply first, then reload: reloading before the answer arrives destroys the page that is waiting for it
       setTimeout(() => operator?.webContents.reload(), 150)
     }

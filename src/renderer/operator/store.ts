@@ -53,6 +53,8 @@ interface AppState {
 }
 
 let toastId = 0
+/** when each visible toast goes away, and its timer */
+const toastTimers = new Map<number, { until: number; timer: ReturnType<typeof setTimeout> }>()
 
 /** Tell the operator why a live video/image isn't showing: missing file or unplayable. */
 export async function reportMediaProblem(url: string | undefined, toast: AppState['toast']): Promise<void> {
@@ -237,11 +239,29 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   toast(text, kind = 'ok', ms, action) {
-    // the same message twice in a row (one action reported by two checks, a double click) is shown once
-    if (get().toasts.some((x) => x.text === text)) return
+    const duration = ms ?? (kind === 'err' ? 6000 : 4500)
+    const hide = (id: number, after: number) => {
+      const prev = toastTimers.get(id)
+      if (prev) clearTimeout(prev.timer)
+      const timer = setTimeout(() => {
+        toastTimers.delete(id)
+        set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
+      }, after)
+      toastTimers.set(id, { until: Date.now() + after, timer })
+    }
+    // the same message twice in a row (one action reported by two checks, a double click) is shown once — but a
+    // repeat keeps it up for the full time again (a failure that happens again must not vanish a second later)
+    const same = get().toasts.find((x) => x.text === text)
+    if (same) {
+      const left = (toastTimers.get(same.id)?.until ?? 0) - Date.now()
+      hide(same.id, Math.max(left, duration))
+      // an error repeating an info message with the same text is shown as an error
+      if (kind === 'err' && same.kind !== 'err') set((s) => ({ toasts: s.toasts.map((t) => (t.id === same.id ? { ...t, kind } : t)) }))
+      return
+    }
     const id = ++toastId
     set((s) => ({ toasts: [...s.toasts, { id, text, kind, action }] }))
-    setTimeout(() => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), ms ?? (kind === 'err' ? 6000 : 4500))
+    hide(id, duration)
   }
 }))
 

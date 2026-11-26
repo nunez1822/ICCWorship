@@ -58,7 +58,9 @@ Stop the app: `taskkill /F /IM electron.exe`. Relaunch keeping data: `npm run e2
 **Expected**
 - Operator shows a clear "file missing" message (toast "⚠ File not found: …"); the projector shows the theme background or black — not a frozen frame or an error page.
 - While the item stays live, the video panel keeps a red "The projector can't play this video…" line (it does not disappear with the toast).
-- Double-click the same item again while it is live: the message appears **again** (not only the first time).
+- Double-click the same item again while it is live: the message appears **again** (not only the first time). If
+  the first message is still showing, it is not doubled but stays up for its full time again (it doesn't vanish a
+  second later).
 - `Space` moves on to the next item normally.
 
 ### TC-RES-08 · Restore a backup made on another computer  `P1`
