@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { isAllowedHost, isSafeId, isSameOrigin, parseRange, pickPublicState, sanitizeSettingsPatch, validateCommand } from '@shared/security'
+import { describe, expect, it } from 'vite-plus/test'
+import { isAllowedHost, isSafeId, isSameOrigin, parseRange, pickPublicState, sanitizeSettingsPatch, validateCommand, wsMessageText } from '@shared/security'
 import { DEFAULT_THEMES } from '@shared/defaults'
 import type { LiveState } from '@shared/types'
 import { stripTags } from '@shared/textDecode'
@@ -88,6 +88,30 @@ describe('isSameOrigin', () => {
     expect(isSameOrigin('null', '192.168.1.20:7272')).toBe(false)
     expect(isSameOrigin('file://', '192.168.1.20:7272')).toBe(false)
     expect(isSameOrigin('http://192.168.1.20:7272', undefined)).toBe(false)
+  })
+})
+
+describe('wsMessageText', () => {
+  const json = '{"type":"command","cmd":{"type":"next"}} ñ ✓'
+  const bytes = new TextEncoder().encode(json)
+
+  it('decodes a single buffer', () => {
+    expect(wsMessageText(Buffer.from(json))).toBe(json)
+    expect(wsMessageText(bytes)).toBe(json)
+  })
+
+  it('decodes an ArrayBuffer', () => {
+    expect(wsMessageText(bytes.slice().buffer)).toBe(json)
+  })
+
+  it('joins fragments, even when a character is split across them', () => {
+    const split = bytes.indexOf(0xc3) + 1 // inside the two bytes of "ñ"
+    expect(wsMessageText([bytes.subarray(0, split), bytes.subarray(split)])).toBe(json)
+    expect(wsMessageText([])).toBe('')
+  })
+
+  it('never throws on invalid UTF-8', () => {
+    expect(wsMessageText(new Uint8Array([0x7b, 0xff, 0x7d]))).toBe('{�}')
   })
 })
 

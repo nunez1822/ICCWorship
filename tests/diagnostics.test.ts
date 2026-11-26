@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { redact } from '../src/main/log'
 
 // The diagnostics zip is posted publicly: its building blocks must never carry identifying data.

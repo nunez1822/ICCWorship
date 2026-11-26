@@ -104,7 +104,7 @@
   `system.json` of a diagnostics export says features are software/disabled). Untick it afterwards.
 
 ### TC-SET-11 · Help buttons that can't open something say so  `P2`
-`npm run build` doesn't create the licences file (only `npm run build:win` / `build:dir` do), so a test run has none.
+`pnpm build` doesn't create the licences file (only `pnpm build:win` / `build:dir` do), so a test run has none.
 **Steps**
 1. Check `out/THIRD_PARTY_NOTICES.md` does **not** exist (rename it away if it does).
 2. Settings → About → 📜 Open-source licences. 3. Help menu (press Alt) → Open-source licences.
@@ -114,6 +114,17 @@
 - `main.log` has `open-source notices file missing`. Rename the file back if you moved it.
 - (Same rule, not driven in tests because it opens Explorer: 📂 Open logs folder and 📂 Open data folder show
   "Could not open the logs/data folder." if Windows can't open it.)
+
+### TC-SET-12 · Copy system info  `P2`
+**Pre:** default
+**Steps**
+1. Settings → About → 📋 Copy system info.
+2. Paste (Ctrl+V) into any text box, e.g. the song search box; clear it afterwards.
+**Expected**
+- Green toast "Copied — paste it into your report." / "Copiado — péguelo en su reporte." only **after** the copy is done.
+- The pasted text starts `app: ICCWorship x.y.z`, has one `key: value` line per item (`packaged: false`,
+  `memoryGB: <number>`, `displays: [...]` as JSON, `dataFolder:` without the Windows user name) and **no** `gpu` line.
+- (Not driven in tests: if Windows can't copy, a red toast "Could not copy the system info." — never "Copied".)
 
 ### TC-BAK-04 · Restoring a backup without a PIN or settings keeps the phones working  `P1`
 **Pre:** TC-BAK-01; phone connected to `/remote` (TC-REM-02). Note the PIN and port (Settings).
@@ -173,7 +184,7 @@
 - No automatic backup is written; the log says "automatic backup skipped: the disk is nearly full"; saving songs still works.
 
 ### TC-BAK-11 · Restore doesn't bring back data from leftover .bak copies  `P1`
-**Pre:** a fresh data folder (`npm run e2e:launch`) where no song has been shown live yet, so there is no `usage.json`.
+**Pre:** a fresh data folder (`pnpm e2e:launch`) where no song has been shown live yet, so there is no `usage.json`.
 **Steps**
 1. `queueSaveFile('<repo>/.e2e-data/early.zip')` → **Back up now** (the zip has no `data/usage.json`).
 2. Show two different songs live (each logs CCLI usage, so `usage.json` and `usage.json.bak` now exist).
@@ -206,7 +217,7 @@
 
 ### TC-BAK-14 · A backup made while a data file is damaged keeps the good data  `P1`
 **Steps**
-1. `npm run e2e:launch`, finish the welcome, quit. Copy `.e2e-data/data/songs.json` to `songs.json.bak`, then
+1. `pnpm e2e:launch`, finish the welcome, quit. Copy `.e2e-data/data/songs.json` to `songs.json.bak`, then
    truncate `songs.json` to `[{"id":` (damaged). Launch `--keep`.
 2. Songs page: the songs are there (recovered from the `.bak`). **Back up now** to `.e2e-data/tmp/recovered.zip`.
 3. Restore `recovered.zip`.

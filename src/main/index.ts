@@ -257,7 +257,7 @@ const newIssueUrl = () => `${REPO_URL}/issues/new?template=bug_report.yml&versio
 function noticesPath(): string {
   return app.isPackaged ? join(process.resourcesPath, 'THIRD_PARTY_NOTICES.md') : join(app.getAppPath(), 'out', 'THIRD_PARTY_NOTICES.md')
 }
-/** false when the file isn't there (e.g. `npm run dev` before `node scripts/licenses.mjs`): the caller says so */
+/** false when the file isn't there (e.g. `pnpm dev` before `node scripts/licenses.mjs`): the caller says so */
 async function openNotices(): Promise<boolean> {
   const p = noticesPath()
   if (!existsSync(p)) {
@@ -554,7 +554,7 @@ const granted = new Set<string>()
 const grant = (p: string) => granted.add(resolve(p).toLowerCase())
 const isGranted = (p: unknown): p is string => typeof p === 'string' && granted.has(resolve(p).toLowerCase())
 
-// E2E test hook — only when started by `npm run e2e:launch` (ICCWORSHIP_E2E=1, never in a packaged app):
+// E2E test hook — only when started by `pnpm e2e:launch` (ICCWORSHIP_E2E=1, never in a packaged app):
 // native file dialogs cannot be driven by Playwright, so a tester can queue the path the next dialog should "pick".
 const openQueue: string[][] = []
 const saveQueue: string[] = []
@@ -581,7 +581,7 @@ async function saveDialog(opts: Electron.SaveDialogOptions): Promise<Electron.Sa
 /* ------------------------------ IPC ------------------------------ */
 function registerIpc(): void {
   // Every channel checks that the call comes from one of our own pages.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- each handler declares its own argument types
+  // oxlint-disable-next-line @typescript-eslint/no-explicit-any -- each handler declares its own argument types
   const h = (channel: string, fn: (e: Electron.IpcMainInvokeEvent, ...args: any[]) => unknown) =>
     ipcMain.handle(channel, (e, ...args) => {
       if (!isTrustedSender(e.senderFrame)) {
@@ -590,7 +590,7 @@ function registerIpc(): void {
       }
       return fn(e, ...args)
     })
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- each listener declares its own argument types
+  // oxlint-disable-next-line @typescript-eslint/no-explicit-any -- each listener declares its own argument types
   const on = (channel: string, fn: (e: Electron.IpcMainEvent, ...args: any[]) => void) =>
     ipcMain.on(channel, (e, ...args) => {
       if (isTrustedSender(e.senderFrame)) fn(e, ...args)
@@ -858,8 +858,9 @@ function registerIpc(): void {
   // help & diagnostics
   h('app:openLogs', () => openLogs())
   h('app:exportDiagnostics', (_e, includeCrashDumps: unknown) => exportDiagnosticsInteractive(includeCrashDumps === true))
-  h('app:copySystemInfo', () => {
-    clipboard.writeText(systemInfoText())
+  h('app:copySystemInfo', async () => {
+    // Electron 45's clipboard.writeText is async: wait for it, so a failure reaches the operator as a toast
+    await clipboard.writeText(systemInfoText())
     return true
   })
   h('app:openNotices', () => openNotices())

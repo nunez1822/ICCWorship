@@ -42,7 +42,7 @@ export function systemInfoText(): string {
   const s = systemInfo()
   const lines = Object.entries(s)
     .filter(([k]) => k !== 'gpu')
-    .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
+    .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
   return lines.join('\n')
 }
 

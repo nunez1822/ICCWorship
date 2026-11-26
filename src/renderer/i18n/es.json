@@ -321,6 +321,7 @@
     "importErr": {
       "empty": "No se encontró texto bíblico en ese archivo. Use una Biblia completa en XML OSIS o USFX, o una Biblia JSON de ICCWorship.",
       "unsupported": "Ese archivo no tiene un formato de Biblia que ICCWorship pueda leer (OSIS, USFX o JSON de ICCWorship).",
+      "damaged": "Ese archivo de Biblia está dañado o incompleto. Expórtelo o descárguelo de nuevo.",
       "id-taken": "Esa abreviatura pertenece a una Biblia incluida. Elija otra abreviatura.",
       "bad-id": "Esa abreviatura no se puede usar. Use hasta 64 letras o números (por ejemplo LBLA o NVI)."
     },
@@ -673,6 +674,7 @@
     "diagFailed": "No se pudo guardar el archivo de diagnóstico.",
     "copyInfo": "Copiar información del sistema",
     "copied": "Copiado — péguelo en su reporte.",
+    "copyFailed": "No se pudo copiar la información del sistema.",
     "openLogs": "Abrir carpeta de registros",
     "openLogsFailed": "No se pudo abrir la carpeta de registros.",
     "includeDumps": "Incluir volcados de fallos (pueden contener texto que estaba en pantalla)",

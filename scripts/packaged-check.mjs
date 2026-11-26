@@ -5,7 +5,7 @@
  * this is the only check that exercises what users install: asar packaging, and the Electron fuses set in
  * electron-builder.yml (checked below), including asar integrity validation (the app would not start otherwise).
  *
- *   npm run build:dir && node scripts/packaged-check.mjs [path\to\ICCWorship.exe]
+ *   pnpm build:dir && node scripts/packaged-check.mjs [path\to\ICCWorship.exe]
  */
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
@@ -18,7 +18,7 @@ const root = resolve(import.meta.dirname, '..')
 const exe = resolve(process.argv[2] || join(root, 'dist', 'win-unpacked', 'ICCWorship.exe'))
 const port = process.env.PACKAGED_CDP_PORT || '9223'
 if (!existsSync(exe)) {
-  console.error(`Not found: ${exe}\nRun "npm run build:dir" first.`)
+  console.error(`Not found: ${exe}\nRun "pnpm build:dir" first.`)
   process.exit(1)
 }
 
@@ -46,8 +46,6 @@ const data = mkdtempSync(join(tmpdir(), 'iccworship-packaged-'))
 const env = { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_TEST_PROFILE: '1', ICCWORSHIP_WINDOWED: '1' }
 delete env.ELECTRON_RENDERER_URL
 const child = spawn(exe, [`--remote-debugging-port=${port}`], { env, stdio: 'inherit' })
-let exited = null
-child.on('exit', (code) => (exited = code))
 
 /** True once React has rendered something into #root (windows load asynchronously). */
 const rendered = (p) =>
@@ -61,7 +59,7 @@ const rendered = (p) =>
 let browser
 try {
   for (let i = 0; i < 60 && !browser; i++) {
-    if (exited !== null) throw new Error(`the app exited during startup (code ${exited})`)
+    if (child.exitCode !== null) throw new Error(`the app exited during startup (code ${child.exitCode})`)
     browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`).catch(() => null)
     if (!browser) await sleep(500)
   }
@@ -101,7 +99,7 @@ try {
 } finally {
   await browser?.close().catch(() => {})
   // kill the whole process tree: Electron helpers would otherwise keep files in dist/ locked
-  if (exited === null) spawnSync('taskkill', ['/T', '/F', '/PID', String(child.pid)], { stdio: 'ignore' })
+  if (child.exitCode === null) spawnSync('taskkill', ['/T', '/F', '/PID', String(child.pid)], { stdio: 'ignore' })
   await sleep(500)
   rmSync(data, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
 }

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vite-plus/test'
 import { Heartbeat, ReloadBudget } from '@shared/recovery'
 import { isNewerVersion } from '@shared/version'
 
@@ -31,7 +31,7 @@ describe('Heartbeat', () => {
     const onStall = vi.fn()
     const h = new Heartbeat(onStall, 8000, () => clock.t)
     const tick = (ms: number) => {
-      for (let end = clock.t + ms; clock.t < end;) {
+      for (const end = clock.t + ms; clock.t < end;) {
         clock.t += 1000
         h.check()
       }

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { createActionQueue } from '@renderer/lib/actionQueue'
 
 describe('live action queue', () => {

@@ -65,7 +65,7 @@ const DEV_PREFIXES = [
 ]
 
 /**
- * Development only (`npm run dev`): may the LAN server forward this path to the Vite dev server? Vite answers for
+ * Development only (`pnpm dev`): may the LAN server forward this path to the Vite dev server? Vite answers for
  * every file in the workspace (`/@fs/<any path>`, the operator pages, `.e2e-data`), so only the stage/remote pages,
  * their own folders, Vite's client and the shared code (`/@fs/…/src/shared/`, `/@fs/…/node_modules/`) pass.
  * Compared case-sensitively (Windows would serve `/OPERATOR/…` too), and escapes like `%2f` or `..` never pass.
@@ -125,6 +125,19 @@ export const MAX_MESSAGE_LENGTH = 500
 const MAX_TEXT = MAX_MESSAGE_LENGTH
 const SIMPLE = new Set(['next', 'prev', 'nextItem', 'prevItem', 'black', 'clearText', 'logo', 'clearAll', 'clearMessage', 'videoToggle'])
 const DISPLAY_LANGS: readonly DisplayLang[] = ['es', 'en', 'both']
+
+/**
+ * A WebSocket message as text. With the default binaryType `ws` passes one (reassembled) Buffer, but its type also
+ * allows a Buffer array or an ArrayBuffer, which String() would turn into "1,2,3" or "[object ArrayBuffer]": decode
+ * all three properly. Never throws: invalid UTF-8 becomes U+FFFD.
+ */
+export function wsMessageText(raw: Uint8Array | ArrayBuffer | readonly Uint8Array[]): string {
+  const decoder = new TextDecoder()
+  if (!Array.isArray(raw)) return decoder.decode(raw as Uint8Array | ArrayBuffer)
+  let text = ''
+  for (const part of raw as readonly Uint8Array[]) text += decoder.decode(part, { stream: true })
+  return text + decoder.decode()
+}
 
 /** Returns a clean copy of a command from a phone or the stage window, or null if it isn't one we accept. */
 export function validateCommand(raw: unknown): RemoteCommand | null {

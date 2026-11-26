@@ -6,19 +6,19 @@
  * Sources:
  *  1. Renderer bundle: Vite's own licence report (renderer.build.license in electron.vite.config.mts).
  *  2. Main-process runtime dependencies (ws, qrcode, jszip and their trees). They are not bundled but copied
- *     into app.asar from node_modules: every non-dev package in package-lock.json.
+ *     into app.asar from node_modules: every production dependency and its tree.
  *  3. Extra shipped files with their own licences (pdf.js wasm decoders, if present in the build).
  *  4. NOTICE.md (public-domain Bible texts).
  * Electron and Chromium licences are shipped by electron-builder itself (LICENSE.electron.txt, LICENSES.chromium.html).
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
 const out = join(root, 'out')
 const viteReport = join(out, 'renderer', '.vite', 'license.json')
 if (!existsSync(viteReport)) {
-  console.error(`Missing ${viteReport}: run "npm run build" first.`)
+  console.error(`Missing ${viteReport}: run "pnpm build" first.`)
   process.exit(1)
 }
 
@@ -35,12 +35,35 @@ function licenseText(dir) {
   return f ? readFileSync(join(dir, f), 'utf8').trim() : undefined
 }
 
-const lock = JSON.parse(readFileSync(join(root, 'package-lock.json'), 'utf8'))
-for (const [path, pkg] of Object.entries(lock.packages)) {
-  // devOptional = dev dependency AND optional dependency of a production package: it is installed and shipped
-  if (!path || pkg.dev || pkg.link) continue
-  const name = pkg.name || path.slice(path.lastIndexOf('node_modules/') + 'node_modules/'.length)
-  add({ name, version: pkg.version || '0.0.0', identifier: pkg.license, text: licenseText(join(root, path)) })
+/** The folder Node would load `name` from when required inside `fromDir`: the nearest node_modules/<name> upwards. */
+function resolvePackageDir(name, fromDir) {
+  for (let dir = fromDir; ; dir = dirname(dir)) {
+    const candidate = join(dir, 'node_modules', name)
+    if (existsSync(join(candidate, 'package.json'))) return candidate
+    if (dir === root || dirname(dir) === dir) return undefined
+  }
+}
+
+// Production dependencies and everything they pull in (dependencies + installed optionalDependencies), walked
+// through node_modules the way Node resolves them: the same set electron-builder copies into app.asar.
+const rootPkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
+const visited = new Set()
+const queue = Object.keys(rootPkg.dependencies || {}).map((name) => ({ name, from: root, optional: false }))
+while (queue.length) {
+  const { name, from, optional } = queue.shift()
+  const dir = resolvePackageDir(name, from)
+  if (!dir) {
+    if (optional) continue // an optional dependency for another platform, not installed here
+    console.error(`Missing dependency ${name} (needed by ${from}): run "pnpm install" first.`)
+    process.exit(1)
+  }
+  if (visited.has(dir)) continue
+  visited.add(dir)
+  const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
+  const identifier = typeof pkg.license === 'string' ? pkg.license : pkg.license?.type
+  add({ name: pkg.name || name, version: pkg.version || '0.0.0', identifier, text: licenseText(dir) })
+  for (const dep of Object.keys(pkg.dependencies || {})) queue.push({ name: dep, from: dir, optional: false })
+  for (const dep of Object.keys(pkg.optionalDependencies || {})) queue.push({ name: dep, from: dir, optional: true })
 }
 
 const missing = [...entries.values()].filter((e) => !e.text)

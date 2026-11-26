@@ -321,6 +321,7 @@
     "importErr": {
       "empty": "No Bible text was found in that file. Use a complete OSIS or USFX XML Bible, or an ICCWorship JSON Bible.",
       "unsupported": "That file isn't a Bible format ICCWorship can read (OSIS, USFX or ICCWorship JSON).",
+      "damaged": "That Bible file is damaged or incomplete. Export it again, or download it again.",
       "id-taken": "That abbreviation belongs to a built-in Bible. Choose another abbreviation.",
       "bad-id": "That abbreviation can't be used. Use up to 64 letters or numbers (for example LBLA or NVI)."
     },
@@ -673,6 +674,7 @@
     "diagFailed": "Could not save the diagnostics file.",
     "copyInfo": "Copy system info",
     "copied": "Copied — paste it into your report.",
+    "copyFailed": "Could not copy the system info.",
     "openLogs": "Open logs folder",
     "openLogsFailed": "Could not open the logs folder.",
     "includeDumps": "Include crash dumps (may contain text that was on screen)",

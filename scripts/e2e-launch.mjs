@@ -2,10 +2,10 @@
 /**
  * Starts ICCWorship for manual / AI-driven end-to-end testing (Playwright MCP).
  *
- *   npm run e2e:launch            → fresh, empty test data every time
- *   npm run e2e:launch -- --keep  → keep the data from the previous run
- *   npm run e2e:launch -- --fullscreen → let the projector go full-screen on a 2nd monitor
- *   npm run e2e:launch -- --packaged   → run the installed-style build (dist/win-unpacked, from `npm run build:dir`)
+ *   pnpm e2e:launch               → fresh, empty test data every time
+ *   pnpm e2e:launch --keep        → keep the data from the previous run
+ *   pnpm e2e:launch --fullscreen  → let the projector go full-screen on a 2nd monitor
+ *   pnpm e2e:launch --packaged    → run the installed-style build (dist/win-unpacked, from `pnpm build:dir`)
  *                                       instead of the dev build. A packaged app ignores ICCWORSHIP_E2E (see
  *                                       src/main/index.ts), so the window.api.e2e dialog hooks don't exist there:
  *                                       only cases without native file dialogs can run against it.
@@ -13,7 +13,7 @@
  * - Uses its own data folder (.e2e-data/) so your real Documents\ICCWorship is never touched.
  * - Opens Chrome DevTools Protocol on http://localhost:9222 so Playwright MCP can attach:
  *     claude mcp add playwright-iccworship -- npx @playwright/mcp@latest --cdp-endpoint http://localhost:9222
- * - Run `npm run build` first (the launcher uses the built app in out/).
+ * - Run `pnpm build` first (the launcher uses the built app in out/).
  */
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, rmSync, mkdirSync } from 'node:fs'
@@ -28,7 +28,7 @@ const port = process.env.E2E_CDP_PORT || '9222'
 const packaged = args.includes('--packaged')
 const packagedExe = join(root, 'dist', 'win-unpacked', 'ICCWorship.exe')
 if (packaged ? !existsSync(packagedExe) : !existsSync(join(root, 'out', 'main', 'index.js'))) {
-  console.error(packaged ? 'Build the packaged app first:  npm run build:dir' : 'Build first:  npm run build')
+  console.error(packaged ? 'Build the packaged app first:  pnpm build:dir' : 'Build first:  pnpm build')
   process.exit(1)
 }
 if (!args.includes('--keep')) rmSync(data, { recursive: true, force: true })

@@ -68,7 +68,7 @@ export function App() {
       offSettings()
       offMenu()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- subscribe once; setPage is a stable store action
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- subscribe once; setPage is a stable store action
   }, [])
 
   useEffect(() => {

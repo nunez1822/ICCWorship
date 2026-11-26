@@ -50,7 +50,7 @@ function Output() {
     // error event) while the operator reset its progress — report the error again, so the
     // operator is told every time instead of only the first.
     if (v.error && !state?.videoProgress?.error) window.api.live.videoProgress({ current: 0, duration: 0, error: true })
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the error flag is read as a snapshot; re-running on it would replay play/pause
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- the error flag is read as a snapshot; re-running on it would replay play/pause
   }, [state?.video, state?.seq])
 
   // Stable on purpose: a new callback each render made React detach and re-attach the

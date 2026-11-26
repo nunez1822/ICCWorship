@@ -275,8 +275,20 @@ export function importBibleText(content: string, meta: { id: string; name: strin
       .trim()
 
   if (trimmed.startsWith('{')) {
-    const j = JSON.parse(trimmed) as { books: BookArray }
-    return { ...meta, books: j.books }
+    // A parser error quotes the file's text and means nothing to a volunteer: report a short code instead
+    let j: { books?: unknown }
+    try {
+      j = JSON.parse(trimmed) as { books?: unknown }
+    } catch {
+      throw new Error('damaged')
+    }
+    // books → chapters → verses (a verse may be empty or null): anything else would break the verse count and
+    // lookups with a technical message, so it is damaged too
+    const isVerse = (v: unknown) => typeof v === 'string' || v === null
+    const isChapter = (c: unknown) => Array.isArray(c) && c.every(isVerse)
+    const isBook = (b: unknown) => Array.isArray(b) && b.every(isChapter)
+    if (!Array.isArray(j?.books) || !j.books.every(isBook)) throw new Error('damaged')
+    return { ...meta, books: j.books as BookArray }
   }
   if (/<osis/i.test(trimmed.slice(0, 2000))) {
     const osisIds = BOOKS.map((b) => b.osis)
@@ -340,4 +352,4 @@ export function importBibleText(content: string, meta: { id: string; name: strin
 }
 
 /** The short error codes that creating or importing a Bible throws; the operator UI has `bible.importErr.<code>` for each. */
-export const BIBLE_ERRORS: readonly string[] = ['empty', 'unsupported', 'id-taken', 'bad-id']
+export const BIBLE_ERRORS: readonly string[] = ['empty', 'unsupported', 'damaged', 'id-taken', 'bad-id']

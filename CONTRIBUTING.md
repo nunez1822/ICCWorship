@@ -18,28 +18,32 @@ reported privately (see [SECURITY.md](SECURITY.md)).
 - **Never commit copyrighted lyrics or Bible texts.** Users paste or import those on their own computer. Test
   fixtures use placeholder text.
 - Keep it **offline-first**: no feature may require the internet to run a service.
-- Every user-visible string goes through i18n in **both** English and Spanish (`npm test` checks this).
+- Every user-visible string goes through i18n in **both** English and Spanish (`pnpm test` checks this).
 - Keep the operator UI simple enough for a volunteer who has never used it. A failure during a service must
   never be silent: show a message, never a crash or a frozen screen.
 
 ## Development setup
-Requirements: Windows 10/11, **Node.js 22.12 or newer** (see `.nvmrc`) and Git.
+Requirements: Windows 10/11, **Node.js 22.22.1 or newer** (see `.node-version`), **pnpm** and Git. The easiest way to get
+the right Node and pnpm is the [Vite+ CLI](https://viteplus.dev/guide/) (`vp`): it reads `.node-version` and
+`package.json#packageManager`. Or install pnpm with `corepack enable pnpm`.
 
 ```bash
-npm install
-npm run dev        # hot-reload development
-npm test           # unit tests: must pass
-npm run typecheck  # must pass
-npm run lint       # must pass
-npm run format     # Prettier formats the code; CI checks it
-npm run build && npm run smoke   # end-to-end check with screenshots (smoke-shots/)
+pnpm install       # dependencies; also turns on the pre-commit hook
+pnpm dev           # hot-reload development
+pnpm test          # unit tests: must pass
+pnpm check         # format + lint + type check in one pass: must pass (pnpm check --fix fixes what it can)
+pnpm build && pnpm smoke   # end-to-end check with screenshots (smoke-shots/)
 ```
 
-**TypeScript 7.** `npm run typecheck` uses TypeScript 7 (`tsc`, installed as `@typescript/native`). TypeScript 7
-has no JavaScript API yet, so the package named `typescript` is Microsoft's TypeScript 6 compatibility package
-(`@typescript/typescript6`, command `tsc6`): ESLint's TypeScript plugin needs it. Keep both until typescript-eslint
-supports TypeScript 7 (expected with TypeScript 7.1); `tsconfig.json` must not use `baseUrl` (removed in 7.0). In
-VS Code, install the `TypeScriptTeam.native-preview` extension to get TypeScript 7 in the editor.
+**Toolchain.** Tests, lint, formatting and type checks all come from [Vite+](https://viteplus.dev) (`vp`), configured
+in `vite.config.ts`: Vitest for tests, Oxlint (type-aware) for lint, Oxfmt (Prettier-compatible) for formatting, and
+tsrs (TypeScript 7) for type checks. The app is built by electron-vite (`electron.vite.config.mts`), which runs on
+Vite+'s Vite core; don't use `vp dev` / `vp build`, they run plain Vite. `tsconfig.json` must not use `baseUrl`.
+In VS Code, install the Oxc extension (`oxc.oxc-vscode`) for lint and format on save, and
+`TypeScriptTeam.native-preview` for TypeScript 7.
+
+**Pre-commit hook.** `pnpm install` turns on a Git hook that runs `vp check --fix` on staged files, so formatting
+and simple lint fixes happen on commit. Skip it once with `VP_GIT_HOOKS=0 git commit …`.
 
 The whole codebase was reformatted with Prettier once. To keep `git blame` useful, run
 `git config blame.ignoreRevsFile .git-blame-ignore-revs` once in your clone.
@@ -61,14 +65,14 @@ Playwright MCP servers in `.mcp.json`.
 1. Fork, then create a branch from `main` (`fix/…`, `feat/…`, `docs/…`, `chore/…`).
 2. One topic per PR, with a short description and, for UI changes, a screenshot.
 3. Add a line to `CHANGELOG.md` under **[Unreleased]** for anything a user would notice.
-4. CI (type check, lint, format check, tests, build) must be green. The smoke test on Windows also runs but isn't
+4. CI (`vp check`: format, lint, type check; tests; build) must be green. The smoke test on Windows also runs but isn't
    required yet. `main` is protected: every change lands through a pull request and is **squash-merged**, so the
    PR title becomes the commit message. Write it as a clear sentence.
 
 Commit messages and PRs can be in English or Spanish; both are fine.
 
 ## Releasing (maintainers)
-1. Open a release PR: bump `version` in `package.json` and `package-lock.json` (`npm version X.Y.Z --no-git-tag-version`),
+1. Open a release PR: bump `version` in `package.json` (`pnpm version X.Y.Z --no-git-tag-version`),
    and move the `[Unreleased]` notes in `CHANGELOG.md` under a new `[X.Y.Z] - YYYY-MM-DD` heading. Merge it.
 2. Create the tag on GitHub, from the merged commit on `main`:
    `gh api repos/nunez1822/ICCWorship/git/refs -f ref=refs/tags/vX.Y.Z -f sha=<main sha>`.

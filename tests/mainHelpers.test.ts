@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { join } from 'node:path'
 import { newPin, within } from '../src/main/pathGuard'
 import { redact } from '../src/main/log'

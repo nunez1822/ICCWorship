@@ -121,19 +121,20 @@ The same works for NVI, RVR1960, NIV or any other version.
 
 ## Develop
 
-Requirements: Windows 10/11, [Node.js](https://nodejs.org) 22.12+ and Git.
+Requirements: Windows 10/11, [Node.js](https://nodejs.org) 22.22.1+ (stay on Node 22, see `.node-version`),
+[pnpm](https://pnpm.io) and Git. The [Vite+ CLI](https://viteplus.dev/guide/) (`vp`) can install the right Node and pnpm.
 
 ```bash
-npm install            # install dependencies (downloads Electron)
-npm run dev            # run with hot reload
-npm test               # unit tests (scripture parser, slides, importers, translations…)
-npm run build          # production bundle in out/
-npm run smoke          # launches the built app and clicks through a whole service, saving screenshots
-npm run build:win      # Windows installer + portable exe in dist/
-npm run bibles         # rebuild resources/bibles/*.json from the open-bibles project
+pnpm install           # install dependencies (see CONTRIBUTING.md for Node and pnpm)
+pnpm dev               # run with hot reload
+pnpm test              # unit tests (scripture parser, slides, importers, translations…)
+pnpm build             # production bundle in out/
+pnpm smoke             # launches the built app and clicks through a whole service, saving screenshots
+pnpm build:win         # Windows installer + portable exe in dist/
+pnpm bibles            # rebuild resources/bibles/*.json from the open-bibles project
 ```
 
-If `npm install` skipped Electron's download, run `node node_modules/electron/install.js`.
+Electron downloads its binary the first time it runs; to fetch it ahead of time, run `node node_modules/electron/install.js`.
 
 **Tech:** Electron + React + TypeScript (electron-vite), Zustand, i18next, plain JSON storage,
 a tiny `http` + `ws` server for the remote/stage, pdf.js, JSZip. No native modules — it builds

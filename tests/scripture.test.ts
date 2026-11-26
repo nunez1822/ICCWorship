@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { findBook } from '@shared/books'
@@ -10,6 +10,7 @@ import {
   searchFull,
   versificationFrom,
   importBibleText,
+  BIBLE_ERRORS,
   type FullBible,
   type PartialBible
 } from '@shared/bibleCore'
@@ -212,5 +213,17 @@ describe('bible importer', () => {
     const xml = `<usfx><book id="JHN"><c id="3"/><v id="16"/>Porque de tal manera<ve/></book></usfx>`
     const b = importBibleText(xml, { id: 'x', name: 'X', abbrev: 'X', lang: 'es' })
     expect(b.books[42][2][15]).toBe('Porque de tal manera')
+  })
+  it('reports a damaged JSON Bible with a short code, never the parser message (which quotes the file)', () => {
+    const meta = { id: 'x', name: 'X', abbrev: 'X', lang: 'en' as const }
+    expect(() => importBibleText('{"books": [[["Lorem ipsum', meta)).toThrow(/^damaged$/)
+    expect(() => importBibleText('{"name": "no books"}', meta)).toThrow(/^damaged$/)
+    // books that aren't books → chapters → verses
+    expect(() => importBibleText('{"books": [1, 2]}', meta)).toThrow(/^damaged$/)
+    expect(() => importBibleText('{"books": [[null]]}', meta)).toThrow(/^damaged$/)
+    expect(() => importBibleText('{"books": [[[1]]]}', meta)).toThrow(/^damaged$/)
+    // well-formed, with an empty and a missing verse
+    expect(importBibleText('{"books": [[["Lorem", "", null]], []]}', meta).books[0][0]).toHaveLength(3)
+    expect(BIBLE_ERRORS).toContain('damaged')
   })
 })

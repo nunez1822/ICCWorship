@@ -1,0 +1,23 @@
+# pnpm settings (the project is a single package, not a monorepo).
+
+# A flat node_modules, as electron-builder recommends for pnpm: it copies the main process's runtime dependencies
+# (ws, qrcode, jszip) into app.asar, and electron.vite.config.mts reads node_modules/pdfjs-dist/wasm directly.
+nodeLinker: hoisted
+
+# Install scripts are off unless listed here. electron-winstaller's only picks a 7-Zip binary for Squirrel installers,
+# which we don't build (electron-builder.yml: nsis + portable). Electron itself has no install script: it downloads its
+# binary on first run (or `node node_modules/electron/install.js`).
+allowBuilds:
+  electron-winstaller: false
+
+overrides:
+  minimatch@^9.0.0: ^11.0.1
+  minimatch@^10.0.0: ^11.0.1
+  vite@*: 'catalog:'
+
+# Vite+ (vp) and the Vite it bundles. Every `vite` in the tree (electron-vite, @vitejs/plugin-react…) resolves to
+# Vite+'s core, whose version encodes the Vite version (8.3.8001 = Vite 8.3.8). Always update both entries together
+# (Dependabot groups them).
+catalog:
+  vite: npm:@voidzero-dev/vite-plus-core@8.3.8001
+  vite-plus: 1.8.0

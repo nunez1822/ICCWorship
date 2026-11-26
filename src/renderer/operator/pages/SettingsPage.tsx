@@ -260,8 +260,7 @@ export function SettingsPage() {
                   {server.urls.map((u) => (
                     <div key={u} className="small">
                       📱 <b>{u}/remote</b>
-                      <br />
-                      🎤 <b>{u}/stage</b>
+                      <br />🎤 <b>{u}/stage</b>
                     </div>
                   ))}
                   {!server.urls.length && (
@@ -404,7 +403,15 @@ export function SettingsPage() {
               >
                 📦 {t('about.exportDiagnostics')}
               </button>
-              <button className="btn sm" onClick={() => void window.api.app.copySystemInfo().then(() => s.toast(t('about.copied')))}>
+              <button
+                className="btn sm"
+                onClick={() =>
+                  void window.api.app
+                    .copySystemInfo()
+                    .then(() => s.toast(t('about.copied')))
+                    .catch(() => s.toast(t('about.copyFailed'), 'err'))
+                }
+              >
                 📋 {t('about.copyInfo')}
               </button>
               <button className="btn sm" onClick={() => void window.api.app.openLogs().then((ok) => ok || s.toast(t('about.openLogsFailed'), 'err'))}>

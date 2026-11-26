@@ -6,13 +6,17 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     groups:
+      # Vite+ and its Vite core (the `vite` alias in pnpm-workspace.yaml's catalog) must move together. Dependabot
+      # matches the dependency's name, which for the alias is `vite`, not the package it points to: list both.
+      vite-plus:
+        patterns: [vite-plus, vite, '@voidzero-dev/*']
       # Minor and patch updates of everything except Electron, in one weekly PR.
       npm-minor-patch:
         update-types: [minor, patch]
         exclude-patterns: [electron]
     # Electron majors arrive as their own PR: upgrade at least every second major (see SECURITY.md).
     ignore:
-      # The app targets Node 22 (.nvmrc, engines): types for a newer Node would allow APIs it doesn't have.
+      # The app targets Node 22 (.node-version, engines): types for a newer Node would allow APIs it doesn't have.
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
 

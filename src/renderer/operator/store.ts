@@ -267,7 +267,9 @@ export const useApp = create<AppState>((set, get) => ({
 
 /** Tell the operator an action failed (instead of failing silently). */
 export function toastError(e: unknown): void {
-  const msg = String((e as Error)?.message || e || '').replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+  // an Error (or error-like object from IPC) or a string; anything else gets the generic message, never "[object Object]"
+  const raw = typeof e === 'string' ? e : typeof (e as Error | null)?.message === 'string' ? (e as Error).message : ''
+  const msg = raw.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
   // data from a newer version is open read-only: say what that means instead of a technical message
   if (msg === 'read-only') return useApp.getState().toast(i18n.t('data.readOnlyAction'), 'err', 10_000)
   useApp.getState().toast(`⚠ ${msg || i18n.t('errors.generic')}`, 'err', 8000)

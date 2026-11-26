@@ -20,8 +20,8 @@ Do **not** fix bugs during the run — record them. Read `docs/e2e_testing/READM
 - List the selected IDs to the user in one line before starting.
 
 ## 3. Start the app (fresh data)
-1. If `out/` is missing or any file in `src/` is newer than `out/main/index.js`, run `npm run build`.
-2. Run `npm run e2e:launch` **in the background** (it keeps running). Then wait until
+1. If `out/` is missing or any file in `src/` is newer than `out/main/index.js`, run `pnpm build`.
+2. Run `pnpm e2e:launch` **in the background** (it keeps running). Then wait until
    `curl -s http://localhost:9222/json/version` succeeds (poll with an until-loop, max ~30 s).
 3. `browser_tabs` action `list` (iccworship-app) → identify tabs by URL: `index.html` operator, `output.html` projector.
    The MCP often starts on the **projector** tab — `browser_tabs` action `select` the operator tab's index before
@@ -30,8 +30,8 @@ Do **not** fix bugs during the run — record them. Read `docs/e2e_testing/READM
 5. Cases marked **Pre: fresh** need a restart: stop the app (kill the background task / `taskkill /F /IM electron.exe`)
    and launch again.
 6. Argument `packaged` (can be combined with the others, e.g. `packaged live`) tests the installed-style build
-   instead: in step 1 run `npm run build:dir` (if `dist/win-unpacked/ICCWorship.exe` is missing or older than
-   `src/`), in step 2 run `npm run e2e:launch -- --packaged`, and stop it with `taskkill /F /T /IM ICCWorship.exe`.
+   instead: in step 1 run `pnpm build:dir` (if `dist/win-unpacked/ICCWorship.exe` is missing or older than
+   `src/`), in step 2 run `pnpm e2e:launch --packaged`, and stop it with `taskkill /F /T /IM ICCWorship.exe`.
    A packaged app ignores `ICCWORSHIP_E2E`, so the `window.api.e2e` dialog hooks don't exist there: mark cases
    that need a native file dialog ⚠️ Blocked — packaged instead of running them. Say in the report that the run
    used the packaged build.

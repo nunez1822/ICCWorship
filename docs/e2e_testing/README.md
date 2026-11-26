@@ -5,7 +5,7 @@ executed by an AI agent (Claude Code) that drives the real app through **Playwri
 While the app is a prototype this is much faster to maintain than coded specs, and every case
 is written so it can later be turned 1-to-1 into a Playwright test file.
 
-> Unit tests (`npm test`) and the scripted smoke run (`npm run smoke`) still exist — these
+> Unit tests (`pnpm test`) and the scripted smoke run (`pnpm smoke`) still exist — these
 > markdown cases cover the *user journeys* that are slow to code by hand.
 
 ## Is this normal for open-source projects?
@@ -38,7 +38,7 @@ tests/fixtures/                    ← sample pptx, pdf, mp4, mp3, jpg, OpenLyri
 
 ## One-time setup
 
-1. `npm install`
+1. `pnpm install`
 2. Open this folder in Claude Code. It will ask to approve the two project MCP servers from `.mcp.json`
    (`iccworship-app` and `iccworship-phone`) — approve both. Restart the session if they don't appear.
 3. Microsoft Edge must be installed (it is on every Windows 10/11 PC) — it plays the phone.
@@ -58,16 +58,16 @@ Easiest — in Claude Code:
 Manually:
 
 ```powershell
-npm run build
-npm run e2e:launch          # fresh test data each time; add -- --keep to reuse it
+pnpm build
+pnpm e2e:launch             # fresh test data each time; add --keep to reuse it
 ```
 
 To test **the installed-style build** (asar packaging, Electron fuses) instead of the dev build, run
-`npm run build:dir` and then `npm run e2e:launch -- --packaged`. A packaged app ignores `ICCWORSHIP_E2E` (a
+`pnpm build:dir` and then `pnpm e2e:launch --packaged`. A packaged app ignores `ICCWORSHIP_E2E` (a
 security measure), so the `window.api.e2e` dialog hooks don't exist there and only cases without native file
 dialogs can run against it. Stop it with Ctrl+C (the launcher ends the whole
 process tree) or `taskkill /F /T /IM ICCWorship.exe`. For a quick automated check that the packaged app starts, its
-windows render and its fuses are set, run `npm run packaged-check` (CI runs it too).
+windows render and its fuses are set, run `pnpm packaged-check` (CI runs it too).
 
 Then ask Claude to "use the iccworship-app tools to run TC-LIVE-01 … ". Stop the app with Ctrl+C.
 
@@ -95,7 +95,7 @@ Then ask Claude to "use the iccworship-app tools to run TC-LIVE-01 … ". Stop t
 
 - **Start state.** Unless a case says otherwise, start from a *fresh* launch and finish the welcome
   dialog with church name **"E2E Test Church"** and language **English** (button inside the dialog).
-  Cases marked **Pre: fresh** need a restart (`npm run e2e:launch`).
+  Cases marked **Pre: fresh** need a restart (`pnpm e2e:launch`).
 - **Labels.** UI text is given as `English / Español`. Prefer accessible names (`browser_snapshot`) over CSS.
 - **Projector checks.** Verify the projector by switching to the `output.html` tab and taking a snapshot
   or screenshot — never trust the operator's preview alone.
@@ -106,7 +106,7 @@ Then ask Claude to "use the iccworship-app tools to run TC-LIVE-01 … ". Stop t
   await window.api.e2e.queueSaveFile('C:/path/to/ICCWorship/.e2e-data/out.zip')             // save dialog
   await window.api.e2e.queueMessageBox(0)                                                   // next message box: button 0
   ```
-  (only available when started with `npm run e2e:launch`). Use absolute paths.
+  (only available when started with `pnpm e2e:launch`). Use absolute paths.
 - **Confirm boxes** (`window.confirm`): the MCP cancels them when the tool call ends, so accept them by stubbing
   `window.confirm = () => true` in the same `browser_run_code_unsafe` call that clicks the button.
 - **Print**: don't click 🖨️ Print in automated runs — the native print dialog hangs the MCP. Check the 📄 PDF

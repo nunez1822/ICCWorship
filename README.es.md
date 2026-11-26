@@ -121,9 +121,11 @@ Lo mismo funciona para NVI, RVR1960, NIV o cualquier otra versión.
 
 ## Desarrollo
 
-Requisitos: Windows 10/11, [Node.js](https://nodejs.org) 22.12 o más nuevo y Git.
-Vea la sección **Develop** del [README en inglés](README.md#develop): `npm install`, `npm run dev`,
-`npm test`, `npm run build:win`.
+Requisitos: Windows 10/11, [Node.js](https://nodejs.org) 22.22.1 o más nuevo (quédese en Node 22, vea
+`.node-version`), [pnpm](https://pnpm.io) y Git. El [CLI de Vite+](https://viteplus.dev/guide/) (`vp`) puede instalar
+la versión correcta de Node y pnpm.
+Vea la sección **Develop** del [README en inglés](README.md#develop): `pnpm install`, `pnpm dev`,
+`pnpm test`, `pnpm build:win`.
 
 ## Contribuir
 

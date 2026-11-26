@@ -8,7 +8,7 @@ import { hostname, networkInterfaces } from 'node:os'
 import { WebSocketServer, WebSocket } from 'ws'
 import QRCode from 'qrcode'
 import type { LiveState, RemoteCommand } from '@shared/types'
-import { isAllowedHost, isDevProxyPath, isSameOrigin, parseRange, pickPublicState, validateCommand } from '@shared/security'
+import { isAllowedHost, isDevProxyPath, isSameOrigin, parseRange, pickPublicState, validateCommand, wsMessageText } from '@shared/security'
 import { live } from './live'
 import { getSettings } from './db'
 import { PinGuard } from './pinGuard'
@@ -402,7 +402,7 @@ async function doStart(opts: { rendererDir: string; devUrl?: string }, my: numbe
         if (role !== 'remote') return
         let msg: { type?: unknown; cmd?: unknown }
         try {
-          msg = JSON.parse(String(raw))
+          msg = JSON.parse(wsMessageText(raw))
         } catch {
           return
         }
