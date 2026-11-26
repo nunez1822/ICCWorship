@@ -2,7 +2,7 @@
 <!-- One topic per PR. Link the issue: "Fixes #123". -->
 
 ## Checklist
-- [ ] `npm run typecheck`, `npm test` and `npm run build` pass
+- [ ] `pnpm check`, `pnpm test` and `pnpm build` pass
 - [ ] Every new user-visible string is in **both** `en.json` and `es.json`
 - [ ] No copyrighted lyrics or Bible text added (fixtures use placeholder text)
 - [ ] Still works fully offline

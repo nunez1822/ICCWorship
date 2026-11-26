@@ -11,7 +11,7 @@ usually operated by a volunteer during a live service, so reliability and simpli
   ships; users paste/import the rest on their own machine. Test fixtures use placeholder text.
 - **Offline-first**: nothing needed to run a service may require the internet.
 - **Every user-visible string goes through i18n in both languages**: `src/renderer/i18n/en.json` and `es.json`
-  (same keys; `npm test` checks parity).
+  (same keys; `pnpm test` checks parity).
 - Keep the operator UI simple enough for a first-time volunteer. A failure during a service must never be silent:
   show a toast or message, never a crash or a frozen screen.
 - Any user text shown on phones, stage or projector must render as text, never as HTML (see `escapeHtml` in
@@ -51,20 +51,23 @@ usually operated by a volunteer during a live service, so reliability and simpli
 - `src/shared/`: pure logic (types, slides, scripture references, song import, dates). **Pure logic goes here, with
   a unit test in `tests/`.**
 - Data lives in `Documents\ICCWorship` (`ICCWORSHIP_DATA` overrides it; e2e runs use `.e2e-data/`).
-- Node.js 22.12+ is required (Electron 45 and Vitest 5); see `.nvmrc`.
+- Node.js 22.22.1+ is required (Electron 45, Vitest 5 and the `vp staged` hook); see `.nvmrc`. pnpm is the package manager
+  (version pinned in `package.json#packageManager`).
 
 ## Commands
 ```bash
-npm run dev          # hot-reload development
-npm test             # unit tests. Use this, not `npx vitest` (see scripts/test.mjs: Windows drive-letter case issue)
-npm run typecheck    # must pass
-npm run lint         # ESLint: must pass (no errors)
-npm run format       # Prettier: format everything (CI runs format:check)
-npm run build        # needed before e2e:launch / smoke
-npm run e2e:launch   # app with fresh test data + CDP on :9222 for Playwright MCP (add -- --keep to reuse data)
-npm run smoke        # scripted end-to-end check with screenshots
+pnpm install         # dependencies; also turns on the pre-commit hook (vp staged → vp check --fix)
+pnpm dev             # hot-reload development (electron-vite)
+pnpm test            # unit tests. Use this, not `vp test` / `npx vitest` (see scripts/test.mjs: Windows drive-letter case issue)
+pnpm check           # vp check: format (Oxfmt) + lint (Oxlint, type-aware) + type check (tsrs). Must pass
+pnpm check --fix     # …and fix what it can (pnpm format = formatting only)
+pnpm build           # needed before e2e:launch / smoke (electron-vite, not `vp build`)
+pnpm e2e:launch      # app with fresh test data + CDP on :9222 for Playwright MCP (add --keep to reuse data)
+pnpm smoke           # scripted end-to-end check with screenshots
 ```
-`npm test`, `npm run typecheck`, `npm run lint` and `npm run format:check` must pass before any commit.
+The toolchain is Vite+ (`vp`), configured in `vite.config.ts` (tests, lint, format, hook). The app is still built by
+electron-vite (`electron.vite.config.mts`): `vp dev` / `vp build` would run plain Vite and are not used.
+`pnpm check` and `pnpm test` must pass before any commit.
 Contributor workflow (branches, squash-merged PRs, CHANGELOG, releases) is in [CONTRIBUTING.md](CONTRIBUTING.md):
 `main` is protected, so every change goes through a pull request with green CI, and anything a user would notice
 gets a line under `[Unreleased]` in `CHANGELOG.md`.

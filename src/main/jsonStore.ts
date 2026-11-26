@@ -168,6 +168,7 @@ export class JsonStore {
 
   /** Write everything pending now — including saves that failed earlier and wait for a retry. */
   flush(): void {
+    // oxlint-disable-next-line unicorn/no-useless-spread -- a failed flushOne schedules a retry timer: walking the live keys would revisit it forever
     for (const name of [...this.timers.keys()]) {
       const t = this.timers.get(name)
       if (t) clearTimeout(t)

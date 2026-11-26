@@ -29,6 +29,7 @@ export class ErrorBoundary extends Component<Props, { failed: boolean }> {
     if (!this.state.failed) return
     const a = prev.resetKeys || []
     const b = this.props.resetKeys || []
+    // oxlint-disable-next-line react/no-did-update-set-state -- guarded reset when resetKeys change (the standard error-boundary pattern); it can't loop
     if (a.length !== b.length || a.some((v, i) => !Object.is(v, b[i]))) this.setState({ failed: false })
   }
 

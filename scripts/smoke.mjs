@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * End-to-end smoke test: launches the built app (npm run build first) with a
+ * End-to-end smoke test: launches the built app (pnpm build first) with a
  * throw-away data folder, walks through a mini service and saves screenshots.
  *
  *   node scripts/smoke.mjs [screenshotDir]
@@ -11,6 +11,9 @@ import { request as httpRequest } from 'node:http'
 import { WebSocket as WsClient } from 'ws'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+
+/** A ws message as text: one Buffer by default, but the type also allows a Buffer array or an ArrayBuffer. */
+const wsText = (d) => (Array.isArray(d) ? Buffer.concat(d) : Buffer.isBuffer(d) ? d : Buffer.from(d)).toString('utf8')
 
 const root = resolve(import.meta.dirname, '..')
 const shots = resolve(process.argv[2] || join(root, 'smoke-shots'))
@@ -42,7 +45,7 @@ const wsConnect = (port, pin, opts = {}, onOpen) =>
     const timer = setTimeout(() => done({ error: 'timeout' }), 5000)
     ws.on('open', () => onOpen?.(ws))
     ws.on('message', (d) => {
-      const m = JSON.parse(String(d))
+      const m = JSON.parse(wsText(d))
       if (m.type === 'hello' && !m.authed) done({ rejected: true })
       if (m.type === 'state') done({ state: m.state })
     })
@@ -193,7 +196,7 @@ try {
       const seen = await new Promise((res) => {
         const msgs = []
         const ws = new WsClient(`ws://127.0.0.1:${port}/ws?role=stage&pin=${pinNow}`)
-        ws.on('message', (d) => msgs.push(String(d)))
+        ws.on('message', (d) => msgs.push(wsText(d)))
         ws.on('error', () => {})
         setTimeout(() => {
           ws.terminate()

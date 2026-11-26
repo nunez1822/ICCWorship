@@ -673,6 +673,7 @@
     "diagFailed": "Could not save the diagnostics file.",
     "copyInfo": "Copy system info",
     "copied": "Copied — paste it into your report.",
+    "copyFailed": "Could not copy the system info.",
     "openLogs": "Open logs folder",
     "openLogsFailed": "Could not open the logs folder.",
     "includeDumps": "Include crash dumps (may contain text that was on screen)",

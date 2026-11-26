@@ -29,7 +29,7 @@ All notable changes to ICCWorship are documented here. The format is based on
 - Logs no longer copy error messages that can contain a file's text or name (a damaged Bible file, a
   presentation that failed to convert, a media file): they record only short error codes.
 - Logs no longer record the IP addresses of phones and stage screens that connect.
-- `npm run dev` (contributors only): the phone/stage server forwards only the stage and remote pages' own files to
+- `pnpm dev` (contributors only): the phone/stage server forwards only the stage and remote pages' own files to
   the development server, so other files in the project folder (including test data) can't be read from the Wi-Fi.
 - At most 32 phones and stage screens can be connected at once. One more is told so, instead of "Wrong PIN",
   and connects by itself as soon as a place is free.
@@ -67,10 +67,18 @@ All notable changes to ICCWorship are documented here. The format is based on
 - The app now includes the licences of the open-source software it is built with (`THIRD_PARTY_NOTICES.md`
   in the install folder, next to `ICCWorship.exe`).
 
+### Changed
+- Contributors: development now uses **pnpm** and **Vite+** (`vp`): one `pnpm check` runs formatting (Oxfmt), lint
+  (Oxlint, type-aware) and type checks, replacing npm, ESLint, Prettier and `tsc`. A pre-commit hook fixes formatting.
+  See CONTRIBUTING.md.
+
 ### Removed
 - The untested macOS and Linux build targets. ICCWorship is a Windows app.
 
 ### Fixed
+- **Copy system info** (Settings → About) now waits for the copy to finish and shows an error if it fails, instead of
+  always saying "copied".
+- An unexpected error now shows the generic error message instead of "[object Object]".
 - **Restoring a backup now replaces the data** instead of mixing it with the current data (songs added after the
   backup no longer survived a restore). The backup is fully checked before anything is touched (Bible files
   included), a damaged backup changes nothing, and if replacing fails half-way the previous data is put back.

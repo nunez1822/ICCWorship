@@ -3,7 +3,7 @@
 Sunday morning failures: the laptop crashes, a data file is damaged, a USB stick with media is
 gone, the port is busy, Wi-Fi drops. The app must keep data safe and let the team recover fast.
 
-Stop the app: `taskkill /F /IM electron.exe`. Relaunch keeping data: `npm run e2e:launch -- --keep`.
+Stop the app: `taskkill /F /IM electron.exe`. Relaunch keeping data: `pnpm e2e:launch --keep`.
 
 ### TC-RES-01 · Hard crash mid-service, relaunch  `P0`
 **Steps**
@@ -47,7 +47,7 @@ Stop the app: `taskkill /F /IM electron.exe`. Relaunch keeping data: `npm run e2
 
 ### TC-RES-06 · Starting the app twice  `P1`
 **Steps**
-1. App running. In a second terminal: `E2E_CDP_PORT=9223 npm run e2e:launch -- --keep`.
+1. App running. In a second terminal: `E2E_CDP_PORT=9223 pnpm e2e:launch --keep`.
 **Expected**
 - No second set of windows; the existing operator window comes to the front; data untouched.
 
@@ -233,7 +233,7 @@ projector first — earlier crashes in the last minute count toward the limit.
 ### TC-RES-29 · An error outside a page offers a reload instead of a blank window  `P2` (manual, dev build)
 **Steps**
 1. Temporarily add `throw new Error('e2e')` at the top of the `App` component's render in
-   `src/renderer/operator/App.tsx`; `npm run dev`. Remove it afterwards.
+   `src/renderer/operator/App.tsx`; `pnpm dev`. Remove it afterwards.
 **Expected**
 - The window shows "This window had a problem" with ↻ Reload window / Try again — never a blank window.
 - The projector and phone remote keep working; `main.log` has one `operator: Error` line (not two).

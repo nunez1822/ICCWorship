@@ -8,7 +8,7 @@
  * Output: resources/bibles/{kjv,rv1909}.json  →  { id, name, abbrev, lang, copyright, books: string[][][] }
  * books[bookIndex][chapterIndex][verseIndex] = verse text (0-based indexes, canonical 66-book order)
  *
- * Usage: npm run bibles   (downloads into scripts/.cache if missing)
+ * Usage: pnpm bibles   (downloads into scripts/.cache if missing)
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'

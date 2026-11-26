@@ -194,7 +194,7 @@ Logs are attached to public bug reports.
 ### TC-SEC-17 · A custom data folder doesn't move the app's profile  `P2`
 `ICCWORSHIP_DATA` is a user setting (data on another drive); only test runs get a separate profile.
 **Steps**
-1. Quit every ICCWorship. In PowerShell: `$env:ICCWORSHIP_DATA = "$env:TEMP\icc-data"; npx electron .` (after `npm run build`).
+1. Quit every ICCWorship. In PowerShell: `$env:ICCWORSHIP_DATA = "$env:TEMP\icc-data"; pnpm exec electron .` (after `pnpm build`).
 2. Quit it, then look inside `%TEMP%\icc-data`.
 **Expected**
 - The data (`data\`, `backups\`…) is in `%TEMP%\icc-data`, but there is **no** `.userdata` folder there: logs stay in

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { PinGuard } from '../src/main/pinGuard'
 
 const MIN = 60_000

@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { isDevProxyPath } from '@shared/security'
 
-describe('isDevProxyPath (npm run dev: what the LAN server forwards to Vite)', () => {
+describe('isDevProxyPath (pnpm dev: what the LAN server forwards to Vite)', () => {
   it('forwards the stage/remote pages, their code and Vite client', () => {
     for (const p of [
       '/stage.html',

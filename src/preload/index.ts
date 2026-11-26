@@ -144,7 +144,7 @@ const api = {
     pdf: (html: string, name: string): Promise<string | null> => invoke('print:pdf', html, name),
     print: (html: string): Promise<void> => invoke('print:print', html)
   },
-  /** test-only (npm run e2e:launch): pre-answer the next native file dialog */
+  /** test-only (pnpm e2e:launch): pre-answer the next native file dialog */
   e2e: {
     queueOpenFiles: (paths: string[]): Promise<void> => invoke('e2e:queueOpen', paths),
     queueSaveFile: (path: string): Promise<void> => invoke('e2e:queueSave', path),

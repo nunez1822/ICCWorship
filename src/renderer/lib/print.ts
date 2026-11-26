@@ -1,6 +1,6 @@
 import type { Person, ServicePlan, Team, Lang, SongUsage } from '@shared/types'
 
-const esc = (s: unknown) =>
+const esc = (s: string | number | null | undefined) =>
   String(s ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

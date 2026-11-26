@@ -21,21 +21,20 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      # Vite+ (vp): Node from .nvmrc, pnpm from package.json#packageManager, then `vp install` (frozen lockfile)
+      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
         with:
           node-version-file: .nvmrc
-          cache: npm
+          cache: true
       - name: Cache Electron download
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~\AppData\Local\electron\Cache
-          key: electron-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm run format:check
-      - run: npm test
-      - run: npm run build
+          key: electron-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      # format (Oxfmt) + lint (Oxlint, type-aware) + type check, in one pass
+      - run: vp check
+      - run: vp run test
+      - run: vp run build
 
   # Builds the installed-style app (asar, fuses), checks its fuses and that it starts. Not required: it is slower, and it guards
   # packaging changes rather than everyday code.
@@ -44,17 +43,17 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      # Vite+ (vp): Node from .nvmrc, pnpm from package.json#packageManager, then `vp install` (frozen lockfile)
+      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
         with:
           node-version-file: .nvmrc
-          cache: npm
+          cache: true
       - name: Cache Electron download
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~\AppData\Local\electron\Cache
-          key: electron-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - run: npm ci
-      - run: npm run build:dir
+          key: electron-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - run: vp run build:dir
       - run: node scripts/packaged-check.mjs
 
   # End-to-end smoke test of the built app. Not a required check yet: it uses fixed waits and
@@ -64,18 +63,18 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      # Vite+ (vp): Node from .nvmrc, pnpm from package.json#packageManager, then `vp install` (frozen lockfile)
+      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
         with:
           node-version-file: .nvmrc
-          cache: npm
+          cache: true
       - name: Cache Electron download
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~\AppData\Local\electron\Cache
-          key: electron-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - run: npm ci
-      - run: npm run build
-      - run: npm run smoke
+          key: electron-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - run: vp run build
+      - run: vp run smoke
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

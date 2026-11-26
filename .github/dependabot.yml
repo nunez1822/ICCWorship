@@ -6,6 +6,9 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     groups:
+      # Vite+ and its Vite core (the `vite` alias in pnpm-workspace.yaml's catalog) must move together.
+      vite-plus:
+        patterns: [vite-plus, '@voidzero-dev/*']
       # Minor and patch updates of everything except Electron, in one weekly PR.
       npm-minor-patch:
         update-types: [minor, patch]
