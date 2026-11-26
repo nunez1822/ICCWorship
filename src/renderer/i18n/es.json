@@ -46,7 +46,8 @@
     "outputOn": "Proyector encendido",
     "outputOff": "Proyector apagado",
     "outputTip": "Abrir o cerrar la ventana del proyector",
-    "remotesTip": "Teléfonos / pantallas de escenario conectados"
+    "remotesTip": "Teléfonos / pantallas de escenario conectados",
+    "music": "🎵 Suena la música"
   },
   "types": {
     "song": "Canto",
@@ -588,7 +589,7 @@
     "clearText": "Ocultar texto (deja el fondo)",
     "logo": "Pantalla con logo sí/no",
     "clearAll": "Limpiar todo",
-    "video": "Reproducir / pausar video",
+    "video": "Reproducir / pausar video o música",
     "en": "Pantalla en inglés",
     "es": "Pantalla en español",
     "both": "Pantalla en ambos idiomas",
@@ -622,13 +623,14 @@
     "plan": "Servicio",
     "messages": "Mensajes",
     "screenMessage": "Mensaje en pantalla",
-    "clearMessage": "Quitar mensaje"
+    "clearMessage": "Quitar mensaje",
+    "music": "Música"
   },
   "stage": {
     "offline": "Conectando con ICCWorship…",
     "full": "Hay demasiados teléfonos y pantallas conectados. Cierre ICCWorship en otro dispositivo; esta pantalla se conectará sola.",
     "now": "Ahora",
-    "videoLeft": "Resta del video",
+    "videoLeft": "Tiempo restante",
     "item": "Elemento",
     "service": "Servicio",
     "black": "La pantalla está en negro",
@@ -712,5 +714,49 @@
     "readOnlyAction": "No se guardó: estos datos están abiertos en solo lectura (vea la barra roja abajo).",
     "openBackups": "Abrir carpeta de copias",
     "openBackupsFailed": "No se pudo abrir la carpeta de copias de seguridad."
+  },
+  "track": {
+    "title": "Pista de acompañamiento",
+    "label": "🎵 Pista de acompañamiento",
+    "add": "Agregar pista de acompañamiento…",
+    "none": "Sin pista de acompañamiento. Agregue una pista instrumental para cantar sin músicos.",
+    "replace": "Reemplazar…",
+    "remove": "Quitar",
+    "confirmRemove": "¿Quitar la pista de acompañamiento de «{{title}}»? Los planes que la usan mostrarán solo la letra.",
+    "removed": "Pista de acompañamiento quitada.",
+    "preview": "Escuchar",
+    "stop": "Detener",
+    "headphones": "Suena por el sonido de esta computadora — use audífonos durante un servicio.",
+    "vocalsRemoved": "voz quitada",
+    "showWithTrack": "Mostrar con pista",
+    "playInPlan": "Reproducir la pista de acompañamiento",
+    "volume": "Volumen de la pista",
+    "pill": "Reproduce la pista de acompañamiento",
+    "modalTitle": "Agregar pista de acompañamiento",
+    "source": "Archivo de audio",
+    "chooseFile": "Elegir un archivo…",
+    "fromLibrary": "— o de la biblioteca de medios —",
+    "question": "¿Este archivo ya está sin voz?",
+    "useAsIs": "Sí — usarlo tal cual",
+    "useAsIsHelp": "Una versión instrumental o de karaoke (por ejemplo, de MultiTracks o la instrumental del álbum).",
+    "notes": "Use solo grabaciones que tenga derecho a usar. Escuchar aquí suena por el sonido de esta computadora: use audífonos o hágalo antes del servicio.",
+    "liveWarning": "⚠ Hay algo en vivo: lo que reproduzca aquí puede escucharse en el salón.",
+    "reading": "Leyendo el archivo…",
+    "encoding": "Preparando la pista… {{pct}}%",
+    "saved": "🎵 Pista de acompañamiento lista.",
+    "confirmCancel": "¿Dejar de preparar la pista de acompañamiento?",
+    "songGone": "⚠ La canción se borró mientras tanto: la pista no se guardó.",
+    "musicStill": "🎵 La música sigue — Espacio = siguiente elemento",
+    "paused": "⏸ Música en pausa — presione P para reproducir",
+    "err": {
+      "format": "⚠ No se puede abrir este archivo (dañado, o un formato como WMA, ALAC o AIFF). Use MP3, M4A, WAV, FLAC u OGG.",
+      "memory": "⚠ No hay memoria suficiente para este archivo. Cierre otros programas o use un archivo más corto.",
+      "too-long": "⚠ El archivo dura más de {{max}} minutos.",
+      "too-large": "⚠ El archivo pesa más de 200 MB.",
+      "encoder": "⚠ El codificador de audio no está disponible en este equipo: aquí no se puede preparar la pista.",
+      "empty": "⚠ Este archivo no tiene audio.",
+      "failed": "⚠ No se pudo preparar la pista de acompañamiento.",
+      "canceled": "Cancelado."
+    }
   }
 }

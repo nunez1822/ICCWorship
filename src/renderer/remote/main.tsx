@@ -125,7 +125,7 @@ function Remote() {
         </button>
         {state.video ? (
           <button className="r-btn" onClick={() => send({ type: 'videoToggle' })}>
-            {state.video.playing ? '⏸' : '▶'} {t('remote.video')}
+            {state.video.playing ? '⏸' : '▶'} {state.video.track ? `🎵 ${t('remote.music')}` : t('remote.video')}
           </button>
         ) : (
           <button className="r-btn" onClick={() => send({ type: 'clearAll' })}>

@@ -335,6 +335,8 @@ export interface VideoState {
   /** bump to issue a seek */
   seekSeq: number
   seekTo: number
+  /** a song's backing track: plays on (from a hidden <audio>) while the operator moves through the lyrics */
+  track?: boolean
 }
 
 export interface PlanSummaryItem {
@@ -371,6 +373,9 @@ export interface LiveState {
   songId?: string
   /** slide that was live before Clear all (Esc) — Space resumes there */
   clearedFrom?: number
+  /** Next on the last lyric slide while the backing track plays: the text is off, the music finishes (the outro);
+   *  the next Next goes to the next item */
+  outro?: boolean
   itemStartedAt?: number
   serviceStartedAt?: number
   logoPath?: string

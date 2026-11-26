@@ -155,6 +155,8 @@ export function App() {
   // so the bar never says "Off air" over a black screen or "ON AIR" under the logo
   const cover = liveState?.layers.black ? 'black' : liveState?.layers.logo ? 'logo' : null
   const isLive = !!liveState && liveState.slideIndex >= 0 && !cover
+  // the lyrics are off but the backing track still plays (the outro): the bar says so instead of "Off air"
+  const musicOnly = !!liveState?.outro && !!liveState.video?.track
 
   return (
     <div className="shell">
@@ -168,12 +170,18 @@ export function App() {
           </div>
         </div>
         <div className="status-strip">
-          {!cover && (
+          {!cover && !musicOnly && (
             <span className={`pill ${isLive ? 'live' : ''}`}>
               <span className={`dot ${isLive ? 'live' : ''}`} style={isLive ? { background: '#fff' } : undefined} /> {isLive ? t('top.onAir') : t('top.offAir')}
             </span>
           )}
           {liveState?.itemTitle && liveState.slideIndex >= 0 && <span className="pill">{liveState.itemTitle}</span>}
+          {/* the lyrics are off but the backing track still plays (the outro) */}
+          {!cover && musicOnly && (
+            <span className="pill gold" title={t('track.musicStill')}>
+              {t('top.music')}
+            </span>
+          )}
           {/* a cover is up: the audience does not see the slide the operator is moving through */}
           {cover === 'black' && (
             <span className="pill live" title={t('top.coverHelp')}>

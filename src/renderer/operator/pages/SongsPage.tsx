@@ -17,6 +17,8 @@ import { usedInPlansNote } from '../../lib/planRefs'
 import { Field, Modal, confirmDel } from '../../components/ui'
 import { SlideView } from '../../components/SlideView'
 import { filterSongs } from '../../lib/songSearch'
+import { DEFAULT_ITEM_TRACK } from '@shared/tracks'
+import { BackingTrackCard } from './songs/BackingTrack'
 
 const TYPES: SectionType[] = ['verse', 'chorus', 'pre', 'bridge', 'tag', 'intro', 'ending', 'other']
 
@@ -125,7 +127,11 @@ function SongEditor({ song, onDeleted }: { song: Song; onDeleted: () => void }) 
     if (!plan) return s.toast(t('songs.noActivePlan'), 'err')
     await s.save('plans', {
       ...plan,
-      items: [...plan.items, { id: uid(), type: 'song', title: songName(song), refId: song.id, durationMin: 5 }],
+      // a song with a backing track plays it in this service (switch it off in the item's options)
+      items: [
+        ...plan.items,
+        { id: uid(), type: 'song', title: songName(song), refId: song.id, durationMin: 5, ...(song.track ? { track: DEFAULT_ITEM_TRACK } : {}) }
+      ],
       updatedAt: Date.now()
     })
     void syncPlanSummary()
@@ -148,6 +154,14 @@ function SongEditor({ song, onDeleted }: { song: Song; onDeleted: () => void }) 
         <button className="btn live" onClick={() => void showAdhoc({ title: songName(song), type: 'song', slides, songId: song.id })}>
           ● {t('common.showNow')}
         </button>
+        {song.track && (
+          <button
+            className="btn live"
+            onClick={() => void showAdhoc({ title: songName(song), type: 'song', slides, songId: song.id, track: { src: song.track!.url, volume: 1 } })}
+          >
+            🎵 {t('track.showWithTrack')}
+          </button>
+        )}
         <button className="btn" onClick={() => void addToPlan()}>
           ＋ {t('songs.addToPlan')}
         </button>
@@ -335,6 +349,7 @@ function SongEditor({ song, onDeleted }: { song: Song; onDeleted: () => void }) 
               )}
             </div>
           </div>
+          <BackingTrackCard song={song} />
         </div>
         <div className="col" style={{ position: 'sticky', top: 0, alignSelf: 'start' }}>
           <div className="section-title">
@@ -429,7 +444,9 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: (id?: s
       if (choice === 'skip') continue
       if (choice === 'replace') {
         // same library entry (plans keep pointing at it), new words
-        await s.save('songs', { ...song, id: existing.id, createdAt: existing.createdAt })
+        // the new words replace the old ones; the song's backing track stays (recorded timing too: a later layout
+        // change just stops following, with a message)
+        await s.save('songs', { ...song, id: existing.id, createdAt: existing.createdAt, ...(existing.track ? { track: existing.track } : {}) })
         songEdited(existing.id) // on screen right now? show the new words
         last = existing.id
       } else {

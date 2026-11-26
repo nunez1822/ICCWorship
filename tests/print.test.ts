@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test'
 import { csvCell, dedupeUsage, runSheetHtml, usageCsv } from '@renderer/lib/print'
-import type { Person, ServicePlan, SongUsage, Team } from '@shared/types'
+import type { Person, ServicePlan, SongUsage, Team, Song } from '@shared/types'
 
 describe('CCLI CSV', () => {
   it('neutralises spreadsheet formulas (CSV injection)', () => {
@@ -50,6 +50,25 @@ describe('run sheet team', () => {
   })
   it('drops slots whose person was deleted', () => {
     expect(html).not.toContain('Lights')
+  })
+  it('tells the sound person which songs play a backing track', () => {
+    const songs = [
+      { id: 's1', track: { url: 'u', sourceName: '', vocalsRemoved: false } },
+      { id: 's2' } // no track: the plan's option alone isn't enough
+    ] as Song[]
+    const withSongs: ServicePlan = {
+      ...plan,
+      items: [
+        { id: 'i1', type: 'song', title: 'With track', refId: 's1', durationMin: 4, track: { play: true, volume: 1, autoNext: false } },
+        { id: 'i2', type: 'song', title: 'Band plays', refId: 's1', durationMin: 4, track: { play: false, volume: 1, autoNext: false } },
+        { id: 'i3', type: 'song', title: 'No file', refId: 's2', durationMin: 4, track: { play: true, volume: 1, autoNext: false } },
+        { id: 'i4', type: 'song', title: 'Older plan', refId: 's1', durationMin: 4 } // added before the track: stays silent
+      ]
+    }
+    const out = runSheetHtml(withSongs, { people: [], teams: [], lang: 'es', churchName: 'ICC', songs })
+    expect(out.match(/🎧 pista de acompañamiento/g)).toHaveLength(1)
+    expect(out.indexOf('🎧')).toBeGreaterThan(out.indexOf('With track'))
+    expect(out.indexOf('🎧')).toBeLessThan(out.indexOf('Band plays'))
   })
 })
 

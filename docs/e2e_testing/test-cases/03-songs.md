@@ -1,5 +1,11 @@
 # 03 · Songs
 
+Backing-track fixture: `tests/fixtures/sample-stereo.mp3` — 12 s, 1 kHz tone in the center (both channels) plus a
+440 Hz tone on the left only, placeholder audio made with
+`ffmpeg -f lavfi -i "sine=frequency=1000:duration=12" -f lavfi -i "sine=frequency=440:duration=12" -filter_complex
+"[0:a]volume=0.35[c];[1:a]volume=0.35[l];[c][l]amerge=inputs=2,pan=stereo|c0=c0+c1|c1=c0[out]" -map "[out]"
+-c:a libmp3lame -b:a 192k -joint_stereo 0 sample-stereo.mp3`. `sample.mp3` is mono.
+
 ### TC-SONG-01 · Create a bilingual song  `P0` 📸
 **Steps**
 1. Songs → **New song**. Title (English) `E2E Song`, Title (Spanish) `Canto E2E`.
@@ -79,3 +85,40 @@
 **Expected**
 - The text is inserted where it was dropped (dropping text into a text box works as in any program). The page
   does not navigate anywhere.
+
+### TC-SONG-12 · Add a backing track that already has no singing ("Use as is")  `P1`
+**Setup** (once; the "Track Test" song used by the backing-track cases — placeholder lyrics):
+```js
+await window.api.db.upsert('songs', { id: 'track-test', title: 'Track Test', titleEs: 'Prueba de pista', tags: [], linesPerSlide: 2,
+  arrangement: [], createdAt: Date.now(), updatedAt: Date.now(),
+  sections: [{ id: 'v1', type: 'verse', label: 'Verse 1', en: 'Line one\nLine two\n\nLine three\nLine four\n\nLine five\nLine six', es: '' }] })
+await window.api.e2e.queueOpenFiles(['<repo>/tests/fixtures/sample-stereo.mp3'])
+```
+Reload the operator (`location.reload()`), then do TC-SONG-12.
+**Steps**
+1. Songs → "Track Test" → under the arrangement, **🎵 Backing track** → **＋ Add backing track…**.
+2. **📂 Choose a file…** (the queued `sample-stereo.mp3`). 3. **✓ Yes — use it as is**.
+**Expected**
+- The window shows a progress bar, then the toast "🎵 Backing track ready." and closes. A click beside the window
+  while it works does not close it.
+- The card shows "▶ Listen · sample-stereo.mp3 · Replace… · Remove"; **🎵 Show with track** appears next to Show now.
+- `(await window.api.db.list('songs')).find(s => s.id === 'track-test').track` →
+  `{ url: 'media://local/tracks%2Ftrack-test-<digits>.ogg', sourceName: 'sample-stereo.mp3', vocalsRemoved: false }`,
+  and the file is in `.e2e-data/tracks/` (about 240 KB).
+- The file plays properly: `const a = new Audio(url)` → `a.duration` ≈ 12 (within 0.05 s); setting `a.currentTime = 7`
+  plays from there; `decodeAudioData` of it gives 576000 samples per channel (12 s × 48 kHz).
+
+### TC-SONG-13 · Remove a backing track  `P2`
+**Pre:** TC-SONG-12
+**Steps**
+1. Songs → "Track Test" → **Remove** → accept the confirm (stub `window.confirm = () => true` in the same call).
+**Expected**
+- Toast "Backing track removed."; the card says "No backing track…"; **Show with track** is gone.
+- The `.ogg` file is gone from `.e2e-data/tracks/` (unless the song was on screen: then it goes once it is off screen).
+
+### TC-SONG-14 · Deleting a song deletes its backing track  `P2`
+**Pre:** TC-SONG-12 (a song with a track that is not on screen)
+**Steps**
+1. Delete "Track Test" (stub the confirm).
+**Expected**
+- The song is gone and so is its `.ogg` in `.e2e-data/tracks/`. Other songs' tracks are untouched.

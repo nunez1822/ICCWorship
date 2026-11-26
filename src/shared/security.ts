@@ -178,7 +178,8 @@ export interface PublicState {
   planTitle?: string
   planItems: Pick<PlanSummaryItem, 'id' | 'title' | 'type' | 'person' | 'durationMin'>[]
   layers: { black: boolean; clearText: boolean; logo: boolean }
-  video?: { playing: boolean }
+  /** track: a song's backing track (music), not a video */
+  video?: { playing: boolean; track?: true }
   stageMessage?: LiveState['stageMessage']
   displayLang: DisplayLang
   bilingualOrder: BilingualOrder
@@ -214,7 +215,7 @@ export function pickPublicState(s: LiveState, mediaUrl: (u: string | undefined) 
     planTitle: s.planTitle,
     planItems: s.planItems.map((i) => ({ id: i.id, title: i.title, type: i.type, person: i.person, durationMin: i.durationMin })),
     layers: { black: s.layers.black, clearText: s.layers.clearText, logo: s.layers.logo },
-    video: s.video ? { playing: s.video.playing } : undefined,
+    video: s.video ? { playing: s.video.playing, ...(s.video.track ? { track: true as const } : {}) } : undefined,
     stageMessage: s.stageMessage,
     displayLang: s.displayLang,
     bilingualOrder: s.bilingualOrder

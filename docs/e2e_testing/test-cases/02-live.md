@@ -116,3 +116,58 @@ to a time of day, which would hide a rebuild). Welcome is live.
 - The preview clock keeps counting down from where it was. It never jumps back to 5:00, and the thumbnails don't
   flicker or reload.
 - The projector switches language as in TC-LIVE-03.
+
+### TC-LIVE-15 · A song's backing track plays under all its lyric slides  `P0`
+**Pre:** TC-SONG-12; projector on
+**Steps**
+1. Songs → "Track Test" → **🎵 Show with track**. 2. Go to Live; press `Space` twice.
+**Expected**
+- The music plays from the projector: `window.api.live.get()` → `video.track === true`, `video.playing === true`, and
+  `videoProgress.current` grows between two reads 1 s apart — on every slide (it doesn't stop when the slide changes).
+- The Live page media bar says "🎵 Backing track" and has no Loop box.
+
+### TC-LIVE-16 · Esc stops the music; Space brings the lyrics and the music back  `P1`
+**Pre:** TC-LIVE-15, music at about 0:04
+**Steps**
+1. `Esc`. 2. `Space`.
+**Expected**
+- Step 1: the projector fades the music out within about a second (no hard cut); `video` is gone from the live state.
+- Step 2: the same slide comes back and the music continues near where it was (`video.seekTo` ≈ the position at Esc).
+
+### TC-LIVE-17 · A song started under the Logo stays silent until the cover lifts  `P1`
+**Pre:** "Track Test" in the active plan with "Play the backing track" on (TC-PLAN-13 steps 1–2)
+**Steps**
+1. Press `L` (logo). 2. Double-click the "Track Test" plan item. 3. Press `L` again.
+**Expected**
+- Step 2: `video.playing === false` (nothing heard while the audience sees the logo). Step 3: the music starts.
+
+### TC-LIVE-18 · "Go to the next item when finished"  `P1`
+**Pre:** TC-PLAN-13 steps 1–2, with **Go to the next item when finished** ticked in the item's options
+**Steps**
+1. Double-click the "Track Test" item and let the 12 s track play to its end.
+**Expected**
+- The next plan item goes live by itself. Without the box ticked, the music just stops and the lyrics stay.
+
+### TC-LIVE-19 · Space on the last slide lets the music finish (outro)  `P1`
+**Pre:** TC-LIVE-15
+**Steps**
+1. Press `Space` until the last lyric slide, then once more. 2. `←`. 3. `Space`, `Space`.
+**Expected**
+- Step 1: the text goes off but the music keeps playing; the top bar shows "🎵 Music playing" (not "Off air") and the
+  media bar "🎵 Music still playing — Space = next item". `live.get().outro === true`.
+- Step 2: the last slide comes back. Step 3: the outro again, then the next plan item.
+
+### TC-LIVE-20 · Entering a song part-way waits for P  `P2`
+**Pre:** TC-PLAN-13 steps 1–2 (the track plays in the plan)
+**Steps**
+1. Click the "Track Test" item, then double-click its 3rd thumbnail (not the first).
+**Expected**
+- The 3rd slide is on screen, the music is paused at 0:00 and the media bar says "⏸ Music paused — press P to play".
+  `P` starts it.
+
+### TC-LIVE-21 · Clicking another slide of the live song keeps the music going  `P2`
+**Pre:** "Track Test" live from its plan item, music at about 0:05
+**Steps**
+1. Double-click the live "Track Test" plan item again, then click its 2nd thumbnail.
+**Expected**
+- The slides change but the music doesn't restart (`videoProgress.current` keeps growing from ~5).

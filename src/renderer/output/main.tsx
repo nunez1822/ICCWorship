@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import type { LiveState } from '@shared/types'
 import { SlideView } from '../components/SlideView'
 import { ErrorBoundary, errorSummary } from '../components/ErrorBoundary'
@@ -14,10 +14,17 @@ import '../lib/noDropNavigation'
  */
 const SAFE_MODE = location.hash.includes('safe')
 
-/** The projector window. Renders exactly what main says is live, and plays videos with sound. */
+/** how long a backing track fades out when it leaves the screen (Esc, another item) instead of cutting off */
+const FADE_MS = 1000
+
+type TrackEntry = { key: string; src: string; fading: boolean }
+
+/** The projector window. Renders exactly what main says is live, and plays videos and backing tracks with sound. */
 function Output() {
   const [state, setState] = useState<LiveState | null>(null)
-  const video = useRef<HTMLVideoElement | null>(null)
+  const video = useRef<HTMLMediaElement | null>(null)
+  /** the backing track's hidden <audio> (a song's slides are text: never at the same time as a slide video) */
+  const audio = useRef<HTMLMediaElement | null>(null)
   const lastSeek = useRef(0)
   const stateRef = useRef<LiveState | null>(null)
   stateRef.current = state
@@ -34,8 +41,28 @@ function Output() {
   // the sound output was changed in Settings: move what is playing there now
   const outputKey = `${state?.audioOutput?.id || ''}|${state?.audioOutput?.label || ''}`
   useEffect(() => {
-    if (video.current) void applySink(video.current, stateRef.current?.audioOutput)
+    for (const el of [video.current, audio.current]) if (el) void applySink(el, stateRef.current?.audioOutput)
   }, [outputKey])
+
+  // Backing tracks: the live one, plus ones fading out. A track that leaves (Esc, another item) keeps its element
+  // — same key, so React keeps the very same <audio> — and fades out over a second instead of cutting off.
+  const [tracks, setTracks] = useState<TrackEntry[]>([])
+  const trackSrc = state?.video?.track ? state.video.src : undefined
+  const trackKey = trackSrc ? `${state?.itemId ?? ''}|${trackSrc}` : null
+  useEffect(() => {
+    setTracks((prev) => {
+      const others = prev.filter((t) => t.key !== trackKey).map((t) => (t.fading ? t : { ...t, fading: true }))
+      if (!trackKey || !trackSrc) return others
+      // the same track back during its fade (Esc, then Space at once): it continues instead of a second copy
+      const again = prev.find((t) => t.key === trackKey)
+      return [...others, again ? { ...again, fading: false } : { key: trackKey, src: trackSrc, fading: false }]
+    })
+  }, [trackKey, trackSrc])
+  useEffect(() => {
+    if (!tracks.some((t) => t.fading)) return
+    const timer = setTimeout(() => setTracks((p) => p.filter((t) => !t.fading)), FADE_MS + 200)
+    return () => clearTimeout(timer)
+  }, [tracks])
 
   // hide expired messages
   useEffect(() => {
@@ -43,10 +70,10 @@ function Output() {
     return () => clearInterval(t)
   }, [])
 
-  // drive the <video> element from live state
+  // drive the <video> (or the backing track's <audio>) from live state
   useEffect(() => {
-    const v = video.current
     const vs = state?.video
+    const v = vs?.track ? audio.current : video.current
     if (!v || !vs) return
     v.loop = vs.loop
     v.volume = Math.max(0, Math.min(1, vs.volume))
@@ -73,10 +100,10 @@ function Output() {
   // Stable on purpose: a new callback each render made React detach and re-attach the
   // <video> on every state change, which reset lastSeek and jumped the video back to
   // the last seek point (and paused it there when it ended).
-  const attachVideo = useCallback(
-    (el: HTMLVideoElement | null) => {
-      if (video.current === el) return
-      video.current = el
+  const attach = useCallback(
+    (el: HTMLMediaElement | null, ref: RefObject<HTMLMediaElement | null>) => {
+      if (ref.current === el) return
+      ref.current = el
       if (!el) return
       const src = () => el.getAttribute('src') || undefined
       // A pending operator seek (e.g. Space after Esc resumes the video where it was) still applies: the effect
@@ -111,6 +138,11 @@ function Output() {
       }
       const vs = stateRef.current?.video
       if (vs) {
+        // an element mounted after the state arrived (a backing track's <audio>) applies a pending seek itself
+        if (vs.seekSeq !== lastSeek.current) {
+          lastSeek.current = vs.seekSeq
+          if (vs.seekSeq > 0) el.currentTime = vs.seekTo
+        }
         el.loop = vs.loop
         el.volume = vs.volume
         if (vs.playing) void play(el)
@@ -118,6 +150,13 @@ function Output() {
     },
     [play]
   )
+  const attachVideo = useCallback((el: HTMLVideoElement | null) => attach(el, video), [attach])
+  const attachTrack = useCallback((el: HTMLMediaElement) => attach(el, audio), [attach])
+  /** a fading track stops reporting: its progress and "ended" belong to what is live now */
+  const detachTrack = useCallback((el: HTMLMediaElement) => {
+    if (audio.current === el) audio.current = null
+    el.ontimeupdate = el.onloadedmetadata = el.onerror = el.onended = null
+  }, [])
 
   if (SAFE_MODE || !state?.theme) return <div className="output-root" />
   const slide = state.slideIndex >= 0 ? state.slides[state.slideIndex] : null
@@ -144,8 +183,39 @@ function Output() {
           videoRef={attachVideo}
         />
       </ErrorBoundary>
+      {/* outside the error boundary: a slide that can't be drawn must not stop the music */}
+      {tracks.map((t) => (
+        <TrackAudio key={t.key} src={t.src} fading={t.fading} attach={attachTrack} detach={detachTrack} />
+      ))}
     </div>
   )
+}
+
+/** One backing track's hidden <audio>: live (driven like the video), or fading out and then pausing. */
+function TrackAudio(p: { src: string; fading: boolean; attach: (el: HTMLMediaElement) => void; detach: (el: HTMLMediaElement) => void }) {
+  const el = useRef<HTMLAudioElement>(null)
+  const { attach, detach, fading } = p
+  useEffect(() => {
+    const a = el.current
+    if (!a) return
+    if (!fading) {
+      attach(a)
+      return () => detach(a)
+    }
+    detach(a)
+    const v0 = a.volume
+    const t0 = performance.now()
+    const timer = setInterval(() => {
+      const k = Math.min(1, (performance.now() - t0) / FADE_MS)
+      a.volume = v0 * (1 - k)
+      if (k >= 1) {
+        clearInterval(timer)
+        a.pause()
+      }
+    }, 30)
+    return () => clearInterval(timer)
+  }, [fading, attach, detach])
+  return <audio ref={el} src={p.src} preload="auto" />
 }
 
 // "I'm alive" for main's freeze detection (a frozen page stops sending it and gets restarted)

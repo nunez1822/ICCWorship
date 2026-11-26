@@ -247,3 +247,20 @@ projector first — earlier crashes in the last minute count toward the limit.
 - Step 1: a red toast "⚠ Something went wrong." / "⚠ Algo salió mal." — never "⚠ [object Object]".
 - Step 2: a red toast "⚠ e2e-visible" (a real error message is still shown).
 - The app keeps working; `main.log` has a `unhandled rejection:` line for each.
+
+### TC-RES-31 · The projector crashes mid-song: the music continues where it was  `P0`
+**Pre:** TC-LIVE-15, music at about 0:03
+**Steps**
+1. Crash the projector page (`browser_tabs` on output.html → `browser_evaluate(() => { while (true) {} })`, or
+   Settings → 🔄 Restart projector).
+**Expected**
+- After the restart the projector plays the music again from about where it was (not from 0:00), and the lyrics
+  slide is back.
+
+### TC-RES-32 · A backup restored on another computer keeps the backing tracks  `P1`
+**Pre:** TC-SONG-12
+**Steps**
+1. **Back up now**. 2. Restore it into a different data folder (as TC-RES-08). 3. Show "Track Test" with its track.
+**Expected**
+- The track file is in the new folder's `tracks/`, and the music plays (the song stores the track relative to the
+  data folder).

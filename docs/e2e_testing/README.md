@@ -33,7 +33,7 @@ docs/e2e_testing/
 .claude/skills/e2e-test/SKILL.md   ← the /e2e-test skill that runs these cases
 .mcp.json                          ← Playwright MCP servers for the app and a "phone"
 scripts/e2e-launch.mjs             ← starts the app for testing
-tests/fixtures/                    ← sample pptx, pdf, mp4, mp3, flac, opus, jpg, OpenLyrics, ChordPro, pasted text
+tests/fixtures/                    ← sample pptx, pdf, mp4, mp3 (mono), sample-stereo.mp3, flac, opus, jpg, OpenLyrics, ChordPro, pasted text
 ```
 
 ## One-time setup

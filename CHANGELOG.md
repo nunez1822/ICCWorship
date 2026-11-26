@@ -35,6 +35,14 @@ All notable changes to ICCWorship are documented here. The format is based on
   and connects by itself as soon as a place is free.
 
 ### Added
+- **Backing tracks.** No musicians? Give a song an instrumental (Songs → 🎵 Backing track): the music plays through the
+  projector window under the lyrics while you advance them. Space on the last slide takes the text off and lets the
+  music finish (the outro); the next Space moves on. Esc fades the music out, Space brings lyrics and music back where
+  they were; a song started under the Logo stays silent until the cover lifts; a projector restart picks the music up
+  where it was. **Show with track** on the Songs page, and per plan item: play it or not, its volume, and "go to the
+  next item when finished". Adding a track to a song never turns it on in plans that already have the song. The plan,
+  the Live page and the printed run sheet mark songs that play a track (🎧). Tracks are stored small (Opus,
+  ~1.2 MB per minute) in `Documents\ICCWorship\tracks`.
 - **"No sound" is never silent any more.** All sound (videos, audio files) plays through the projector window. If a
   video or audio item goes live while the projector window is off, a message says so with an **Open projector**
   button, and closing the projector while something plays says that the sound stopped.

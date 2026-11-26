@@ -187,6 +187,10 @@ describe('pickPublicState', () => {
     expect(out.slides[1].media).toBe('/file/token')
     expect(out.planItems[0]).toEqual({ id: 'i1', type: 'song', title: 'Song', durationMin: 4, person: 'Ana' })
     expect(out.video).toEqual({ playing: true })
+    expect(Object.keys(out.video!)).toEqual(['playing']) // no `track` key for a video
+    // a backing track is labelled as music on the stage and phones — its file path still stays on this PC
+    const music = pickPublicState({ ...state, video: { ...state.video!, src: 'media://local/tracks%2Fs-1.ogg', track: true } }, () => undefined)
+    expect(music.video).toEqual({ playing: true, track: true })
     expect(out.slideIndex).toBe(1)
   })
   it('never sends local file paths or anything not on the list', () => {

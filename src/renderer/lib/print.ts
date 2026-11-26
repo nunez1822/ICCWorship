@@ -1,4 +1,5 @@
-import type { Person, ServicePlan, Team, Lang, SongUsage } from '@shared/types'
+import type { Person, ServicePlan, Team, Lang, Song, SongUsage } from '@shared/types'
+import { playsTrack } from './planRefs'
 
 const esc = (s: string | number | null | undefined) =>
   String(s ?? '')
@@ -19,7 +20,8 @@ const L = {
     printed: 'Printed with ICCWorship — free & open-source church software',
     position: 'Position',
     person: 'Person',
-    status: 'Status'
+    status: 'Status',
+    track: 'backing track'
   },
   es: {
     order: 'Orden del Servicio',
@@ -33,7 +35,8 @@ const L = {
     printed: 'Impreso con ICCWorship — software libre y gratuito para iglesias',
     position: 'Puesto',
     person: 'Persona',
-    status: 'Estado'
+    status: 'Estado',
+    track: 'pista de acompañamiento'
   }
 }
 
@@ -55,7 +58,7 @@ h2{font-size:14px;margin:18px 0 6px;border-bottom:1px solid #222;padding-bottom:
 .bi{color:#777;font-style:italic}
 `
 
-export function runSheetHtml(plan: ServicePlan, opts: { people: Person[]; teams: Team[]; lang: Lang; churchName: string }): string {
+export function runSheetHtml(plan: ServicePlan, opts: { people: Person[]; teams: Team[]; lang: Lang; churchName: string; songs?: Song[] }): string {
   const l = L[opts.lang]
   const other = L[opts.lang === 'es' ? 'en' : 'es']
   let clock = plan.time || '00:00'
@@ -65,7 +68,9 @@ export function runSheetHtml(plan: ServicePlan, opts: { people: Person[]; teams:
       clock = addMinutes(clock, it.durationMin || 0)
       const isHeader = it.type === 'header' && !it.slides?.length
       const detail = it.type === 'scripture' && it.scripture ? it.scripture.ref : ''
-      return `<tr class="${isHeader ? 'header' : ''}"><td class="t">${esc(start)}</td><td><b>${esc(it.title)}</b>${detail && detail !== it.title ? ` <span class="n">(${esc(detail)})</span>` : ''}</td><td>${esc(it.person || '')}</td><td class="m">${it.durationMin || ''}</td><td class="n">${esc(it.notes || '')}</td></tr>`
+      // the sound person needs to know which songs play a backing track
+      const music = playsTrack(it, opts.songs || []) ? ` <span class="n">🎧 ${l.track}</span>` : ''
+      return `<tr class="${isHeader ? 'header' : ''}"><td class="t">${esc(start)}</td><td><b>${esc(it.title)}</b>${detail && detail !== it.title ? ` <span class="n">(${esc(detail)})</span>` : ''}${music}</td><td>${esc(it.person || '')}</td><td class="m">${it.durationMin || ''}</td><td class="n">${esc(it.notes || '')}</td></tr>`
     })
     .join('')
   const total = plan.items.reduce((a, i) => a + (i.durationMin || 0), 0)

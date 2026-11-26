@@ -181,3 +181,25 @@ foreach ($s in @(@(16,16,'tiny'), @(1080,4000,'tall'), @(6000,400,'wide'))) { $b
 1. Add the three images; Show now each; use `tall.png` as a theme Image background behind a song.
 **Expected**
 - Items are letterboxed (aspect kept, not stretched); background covers the screen without distortion; lyrics readable.
+
+### TC-EDGE-20 · A damaged audio file makes no track and says why  `P1`
+**Setup:** `node -e "require('fs').writeFileSync('.e2e-data/tmp/broken.mp3', Buffer.alloc(5000, 7))"`
+**Steps**
+1. Songs → a song → **Add backing track…** → choose `broken.mp3` → **Use it as is**.
+**Expected**
+- An error toast "⚠ This file can't be opened (damaged, or a format such as WMA, ALAC or AIFF)…"; the window stays
+  open to choose another file; the song has no track.
+
+### TC-EDGE-21 · A 2-second file works  `P2`
+**Setup:** `ffmpeg -f lavfi -i "sine=frequency=440:duration=2" -ac 2 .e2e-data/tmp/short.wav` (or any 2 s stereo WAV)
+**Steps**
+1. Make it the backing track of "Track Test" (**Use it as is**), then **Show with track**.
+**Expected**
+- The track is made; it plays and ends after ~2 s; the lyrics stay up when it ends.
+
+### TC-EDGE-22 · No new track while the data is read-only  `P1`
+**Pre:** data opened read-only (TC-BAK-08)
+**Steps**
+1. Try to add a backing track to a song.
+**Expected**
+- The read-only message ("…opened read-only…" toast), no file appears in `.e2e-data/tracks/`.

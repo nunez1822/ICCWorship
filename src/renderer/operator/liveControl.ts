@@ -134,12 +134,13 @@ async function logSongUsage(item: PlanItem, plan?: ServicePlan) {
   await recordSongUsage(item.refId, plan)
 }
 
-/** Warn right away if an image / background file that just went live is gone (USB stick
+/** Warn right away if an image / background / backing track file that just went live is gone (USB stick
  *  removed, file moved). Videos report their own load errors from the projector. */
-function checkMediaFiles(slides: Slide[], background?: Background | null): void {
+function checkMediaFiles(slides: Slide[], background?: Background | null, track?: string): void {
   const urls = [
     ...slides.filter((x) => x.kind === 'image').map((x) => x.media),
-    background?.type === 'image' || background?.type === 'video' ? background.value : undefined
+    background?.type === 'image' || background?.type === 'video' ? background.value : undefined,
+    track
   ]
   const media = urls.filter((u): u is string => !!u?.startsWith('media://'))
   if (!media.length) return
@@ -163,6 +164,8 @@ export async function goItem(index: number, slideIndex = 0): Promise<void> {
   heldVideoSrc = undefined
   const si = Math.max(0, Math.min(slideIndex < 0 ? built.slides.length - 1 : slideIndex, built.slides.length - 1))
   const l = live()
+  // the same song is already live with its music (a thumbnail click, a double-click): the music goes on
+  const sameTrack = !!built.track && l?.itemId === item.id && !!l.video?.track && l.video.src === built.track.src
   const patch: Partial<LiveState> = {
     planId: plan.id,
     planTitle: plan.title,
@@ -181,17 +184,19 @@ export async function goItem(index: number, slideIndex = 0): Promise<void> {
     itemStartedAt: l?.itemId === item.id ? l.itemStartedAt : Date.now(),
     serviceStartedAt: l?.serviceStartedAt || Date.now(),
     // the slide it starts on decides: a media item, or a video slide inside an
-    // announcement / header (which otherwise sat on a frozen first frame)
-    video: startVideo(built.slides[si], item),
-    videoProgress: undefined,
+    // announcement / header (which otherwise sat on a frozen first frame) — or the song's backing track
+    video: startVideo(built.slides[si], item) ?? (built.track && (sameTrack ? l!.video : startTrack(built.track, si))),
+    outro: undefined,
     // Black and Logo are screen covers (as in EasyWorship / ProPresenter / MediaShout): they
     // stay up while the operator moves on underneath, until turned off. Clear text resets.
     layers: { black: !!l?.layers.black, clearText: false, clearBackground: false, logo: !!l?.layers.logo }
   }
+  // a new video or track starts with fresh progress; the music that goes on keeps its position
+  if (!sameTrack) patch.videoProgress = undefined
   clearedVideo = undefined
   await push(patch)
   st().selectItem(item.id)
-  checkMediaFiles(built.slides, built.background)
+  checkMediaFiles(built.slides, built.background, sameTrack ? undefined : built.track?.src)
   scheduleAdvance(built.slides[si])
   void logSongUsage(item, plan)
 }
@@ -218,6 +223,8 @@ async function showAdhocNow(args: {
   background?: Background | null
   video?: boolean
   songId?: string
+  /** Songs page → Show with track: the song's backing track plays under the lyrics */
+  track?: { src: string; volume: number }
 }): Promise<void> {
   const s = st()
   // nothing to show (e.g. a song with no lyrics yet): say so instead of blanking the screen
@@ -242,15 +249,16 @@ async function showAdhocNow(args: {
     theme,
     background,
     itemStartedAt: Date.now(),
-    video: args.video || args.slides[0]?.kind === 'video' ? startVideo(args.slides[0]) : undefined,
+    video: args.video || args.slides[0]?.kind === 'video' ? startVideo(args.slides[0]) : args.track ? startTrack(args.track, 0) : undefined,
     videoProgress: undefined,
+    outro: undefined,
     // screen covers stay up (see goItem)
     layers: { black: !!live()?.layers.black, clearText: false, clearBackground: false, logo: !!live()?.layers.logo }
   })
   // the Live page grid shows the selected item; clear it so the ad-hoc slides that are on
   // screen are what the operator sees (and a thumbnail click doesn't replace them)
   s.selectItem(undefined)
-  checkMediaFiles(args.slides, background)
+  checkMediaFiles(args.slides, background, args.track?.src)
   if (args.songId) void recordSongUsage(args.songId)
 }
 
@@ -286,16 +294,21 @@ export async function goSlide(index: number): Promise<void> {
   if (!l || index < 0 || index >= l.slides.length) return
   const slide = l.slides[index]
   // covers (black / logo) stay up: the operator can line up the next slide, then reveal it
-  const patch: Partial<LiveState> = { slideIndex: index, clearedFrom: undefined }
+  const patch: Partial<LiveState> = { slideIndex: index, clearedFrom: undefined, outro: undefined }
   // A video slide needs playback state (after Esc, or reached inside an announcement),
   // or the projector sits on a frozen first frame with no play controls. Leaving a video
-  // slide for a text / image one drops it, so no stale video controls stay up.
+  // slide for a text / image one drops it, so no stale video controls stay up — but a song's
+  // backing track plays on under all its slides.
   if (slide.kind === 'video' && slide.media && l.video?.src !== slide.media) {
     patch.video = resumeVideo(slide.media, l.itemId)
     patch.videoProgress = undefined
-  } else if (slide.kind !== 'video' && l.video) {
+  } else if (slide.kind !== 'video' && l.video && !l.video.track) {
     patch.video = undefined
     patch.videoProgress = undefined
+  } else if (slide.kind !== 'video' && !l.video && clearedVideo?.video.track) {
+    // back from an accidental Esc: the music continues where it was (its position stays in videoProgress)
+    const c = clearedVideo
+    patch.video = holdUnderCover({ ...c.video, playing: true, seekSeq: c.video.seekSeq + 1, seekTo: c.at })
   }
   // the position Esc saved is good for one resume only: once the operator resumed or moved
   // to another slide, coming back to the video starts it fresh
@@ -308,6 +321,15 @@ export async function goSlide(index: number): Promise<void> {
 function startVideo(slide: Slide | undefined, item?: PlanItem): LiveState['video'] {
   if (slide?.kind !== 'video' || !slide.media) return undefined
   return holdUnderCover({ src: slide.media, playing: true, loop: item?.video?.loop ?? false, volume: item?.video?.volume ?? 1, seekSeq: 0, seekTo: 0 })
+}
+
+/**
+ * Playback state for a song's backing track. Entering a song part-way (a thumbnail, Back from the next item) has
+ * the music wait, paused at the start, for P — rather than starting the song from the top under a later verse.
+ */
+function startTrack(t: { src: string; volume: number }, slideIndex: number): NonNullable<LiveState['video']> {
+  const v = { src: t.src, playing: true, loop: false, volume: t.volume, seekSeq: 0, seekTo: 0, track: true }
+  return slideIndex > 0 ? { ...v, playing: false } : holdUnderCover(v)
 }
 
 /** Black / Logo is up: the audience can't see the video, so don't play its sound yet. */
@@ -329,12 +351,19 @@ function resumeVideo(src: string, itemId?: string): NonNullable<LiveState['video
 export async function next(): Promise<void> {
   const l = live()
   if (!l) return
+  // the outro is playing (text off, music finishing): the next Next moves on
+  if (l.outro) return nextItem()
   // Resume after an accidental Esc — but only while the operator is still on the plan that
   // item came from (an ad-hoc item has no plan). After switching plans, Space starts the
   // selected plan instead of bringing back something from another service.
   if (canResumeCleared(l)) return goSlide(l.clearedFrom!)
   if (l.slideIndex < 0 && !onActivePlan(l)) return nextItem()
   if (l.slideIndex + 1 < l.slides.length) return goSlide(l.slideIndex + 1)
+  // last lyric slide of a song whose backing track still plays: take the text off and let the music finish
+  if (l.slideIndex >= 0 && l.video?.track && l.video.playing) {
+    await push({ slideIndex: -1, clearedFrom: l.slideIndex, outro: true })
+    return
+  }
   return nextItem()
 }
 
@@ -345,12 +374,14 @@ function onActivePlan(l: LiveState): boolean {
 
 /** Esc took a slide off screen and the operator is still on that item's plan */
 function canResumeCleared(l: LiveState): boolean {
-  return l.slideIndex < 0 && onActivePlan(l) && l.clearedFrom !== undefined && l.clearedFrom < l.slides.length
+  return l.slideIndex < 0 && !l.outro && onActivePlan(l) && l.clearedFrom !== undefined && l.clearedFrom < l.slides.length
 }
 
 export async function prev(): Promise<void> {
   const l = live()
   if (!l) return
+  // during the outro, Back brings the last lyric slide back
+  if (l.outro) return goSlide(Math.min(l.clearedFrom ?? l.slides.length - 1, l.slides.length - 1))
   // after an accidental Esc, ← brings the cleared slide back (like Space), instead of
   // jumping to the previous plan item
   if (canResumeCleared(l)) return goSlide(l.clearedFrom!)
@@ -393,7 +424,8 @@ export async function clearAll(): Promise<void> {
   const p = st().progress
   if (l?.video) {
     const ended = !!p && p.duration > 0 && p.current >= p.duration - 0.3
-    clearedVideo = { video: l.video, at: p && !p.error && !ended ? p.current : 0 }
+    // a backing track that already finished doesn't start over when the operator brings the lyrics back
+    clearedVideo = ended && l.video.track ? undefined : { video: l.video, at: p && !p.error && !ended ? p.current : 0 }
   }
   // Take the slide off screen but keep the item's slides: the grid still shows them, one
   // click on a thumbnail (or Space) puts the exact slide back after an accidental Esc.
@@ -403,6 +435,7 @@ export async function clearAll(): Promise<void> {
     itemIndex: l?.itemIndex ?? -1,
     video: undefined,
     videoProgress: undefined,
+    outro: undefined,
     message: undefined,
     layers: { black: false, clearText: false, clearBackground: false, logo: false }
   })
@@ -534,7 +567,9 @@ async function runCommand(cmd: RemoteCommand | VideoEndedCommand): Promise<void>
       if (!l?.video || l.video.src !== cmd.src || l.itemId !== cmd.itemId) break
       const plan = activePlan()
       const item = plan?.items.find((i) => i.id === l?.itemId)
-      if (item?.video?.autoNext) await nextItem()
+      // a backing track follows the song item's own "next item when finished"; a video its video options
+      const auto = l.video.track ? item?.track?.autoNext : item?.video?.autoNext
+      if (auto) await nextItem()
       else if (l?.video) await push({ video: { ...l.video, playing: false } })
       break
     }

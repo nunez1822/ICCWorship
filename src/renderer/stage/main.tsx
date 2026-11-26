@@ -73,7 +73,9 @@ function Stage() {
         </div>
         {state.video && progress?.duration ? (
           <div className="stage-timer warn">
-            <div className="lbl">🎬 {t('stage.videoLeft')}</div>
+            <div className="lbl">
+              {state.video.track ? '🎵' : '🎬'} {t('stage.videoLeft')}
+            </div>
             <div className="val">{formatClock(remainingVideo)}</div>
           </div>
         ) : null}

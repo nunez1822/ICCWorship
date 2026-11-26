@@ -46,7 +46,8 @@
     "outputOn": "Projector on",
     "outputOff": "Projector off",
     "outputTip": "Open or close the projector window",
-    "remotesTip": "Phones / stage displays connected"
+    "remotesTip": "Phones / stage displays connected",
+    "music": "🎵 Music playing"
   },
   "types": {
     "song": "Song",
@@ -588,7 +589,7 @@
     "clearText": "Hide text (keep background)",
     "logo": "Logo screen on/off",
     "clearAll": "Clear everything",
-    "video": "Play / pause video",
+    "video": "Play / pause video or music",
     "en": "Screen in English",
     "es": "Screen in Spanish",
     "both": "Screen in both languages",
@@ -622,13 +623,14 @@
     "plan": "Plan",
     "messages": "Messages",
     "screenMessage": "Message on screen",
-    "clearMessage": "Clear message"
+    "clearMessage": "Clear message",
+    "music": "Music"
   },
   "stage": {
     "offline": "Connecting to ICCWorship…",
     "full": "Too many phones and screens are connected. Close ICCWorship on another device; this screen will connect by itself.",
     "now": "Now",
-    "videoLeft": "Video left",
+    "videoLeft": "Time left",
     "item": "Item",
     "service": "Service",
     "black": "Screen is black",
@@ -712,5 +714,49 @@
     "readOnlyAction": "Not saved: this data is open read-only (see the red bar at the bottom).",
     "openBackups": "Open backups folder",
     "openBackupsFailed": "Could not open the backups folder."
+  },
+  "track": {
+    "title": "Backing track",
+    "label": "🎵 Backing track",
+    "add": "Add backing track…",
+    "none": "No backing track. Add an instrumental so the congregation can sing without musicians.",
+    "replace": "Replace…",
+    "remove": "Remove",
+    "confirmRemove": "Remove the backing track of “{{title}}”? Plans that play it will show the lyrics only.",
+    "removed": "Backing track removed.",
+    "preview": "Listen",
+    "stop": "Stop",
+    "headphones": "Plays through this computer's sound — use headphones during a service.",
+    "vocalsRemoved": "voice removed",
+    "showWithTrack": "Show with track",
+    "playInPlan": "Play the backing track",
+    "volume": "Backing track volume",
+    "pill": "Plays the backing track",
+    "modalTitle": "Add a backing track",
+    "source": "Audio file",
+    "chooseFile": "Choose a file…",
+    "fromLibrary": "— or from the media library —",
+    "question": "Does this file already have no singing?",
+    "useAsIs": "Yes — use it as is",
+    "useAsIsHelp": "An instrumental or karaoke version (for example from MultiTracks or the album's instrumental).",
+    "notes": "Use only recordings you have the right to use. Listening here plays through this computer's sound: use headphones, or do it before the service.",
+    "liveWarning": "⚠ Something is live: what you play here may be heard in the room.",
+    "reading": "Reading the file…",
+    "encoding": "Preparing the track… {{pct}}%",
+    "saved": "🎵 Backing track ready.",
+    "confirmCancel": "Stop making the backing track?",
+    "songGone": "⚠ The song was deleted meanwhile: the backing track was not saved.",
+    "musicStill": "🎵 Music still playing — Space = next item",
+    "paused": "⏸ Music paused — press P to play",
+    "err": {
+      "format": "⚠ This file can't be opened (damaged, or a format such as WMA, ALAC or AIFF). Use MP3, M4A, WAV, FLAC or OGG.",
+      "memory": "⚠ Not enough memory for this file. Close other programs or use a shorter file.",
+      "too-long": "⚠ The file is longer than {{max}} minutes.",
+      "too-large": "⚠ The file is larger than 200 MB.",
+      "encoder": "⚠ The audio encoder isn't available on this PC: the backing track can't be made here.",
+      "empty": "⚠ This file has no audio.",
+      "failed": "⚠ The backing track could not be made.",
+      "canceled": "Canceled."
+    }
   }
 }

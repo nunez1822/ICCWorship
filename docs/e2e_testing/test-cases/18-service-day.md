@@ -89,3 +89,12 @@ run them before a release. Check the projector, stage and phone at every marked 
 **Expected**
 - Offering stored as 1234.56 (or a clear validation message — never silently 1 or 0).
 - Reports show the service; CSV has the songs; backup zip created; everything still there after relaunch.
+
+### TC-DAY-11 · The choir sings with a backing track  `P1`
+**Pre:** "Track Test" with a backing track in today's plan (TC-PLAN-13 steps 1–2), Sound output chosen (TC-SET-13)
+**Steps**
+1. Go live with the song from the plan. 2. Advance the lyrics with `Space` while the music plays.
+3. Past the last slide, let the outro play; press `Space` to go on.
+**Expected**
+- The music starts with the first slide, plays under every slide, keeps going after the last slide (outro), and the
+  next item comes up on the next `Space`. No silence, no restart, no toast.

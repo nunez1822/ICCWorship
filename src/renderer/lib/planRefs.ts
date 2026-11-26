@@ -1,3 +1,4 @@
+import { normalizeItemTrack } from '@shared/tracks'
 import type { TFunction } from 'i18next'
 import type { MediaItem, PlanItem, Presentation, ServicePlan, Song } from '@shared/types'
 
@@ -18,6 +19,11 @@ export function usedInPlansNote(plans: ServicePlan[], refId: string, t: TFunctio
 }
 
 /** True when a plan item points at a song / media / presentation that no longer exists. */
+/** a song item that plays its song's backing track in this service (the plan says so and the song has one) */
+export function playsTrack(item: Pick<PlanItem, 'type' | 'refId' | 'track'>, songs: Pick<Song, 'id' | 'track'>[]): boolean {
+  return item.type === 'song' && normalizeItemTrack(item.track)?.play === true && !!songs.find((x) => x.id === item.refId)?.track
+}
+
 export function itemSourceMissing(item: PlanItem, lib: { songs: Song[]; media: MediaItem[]; presentations: Presentation[] }): boolean {
   if (!item.refId) return false
   if (item.type === 'song') return !lib.songs.some((x) => x.id === item.refId)
