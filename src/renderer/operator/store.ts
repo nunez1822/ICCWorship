@@ -177,7 +177,13 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   async setSettings(patch) {
-    const s = await window.api.settings.set(patch)
+    let s: Settings
+    try {
+      s = await window.api.settings.set(patch)
+    } catch (e) {
+      toastError(e) // e.g. the server couldn't restart on a new port: never fail silently
+      return
+    }
     if (patch.uiLang) {
       void i18n.changeLanguage(s.uiLang)
       document.documentElement.lang = s.uiLang

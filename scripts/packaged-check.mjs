@@ -39,9 +39,11 @@ expectFuse(FuseV1Options.EnableNodeOptionsEnvironmentVariable, false)
 expectFuse(FuseV1Options.EnableNodeCliInspectArguments, false)
 expectFuse(FuseV1Options.EnableEmbeddedAsarIntegrityValidation, true)
 expectFuse(FuseV1Options.OnlyLoadAppFromAsar, true)
+expectFuse(FuseV1Options.EnableCookieEncryption, true)
+expectFuse(FuseV1Options.GrantFileProtocolExtraPrivileges, true) // pages load from file://; see electron-builder.yml
 
 const data = mkdtempSync(join(tmpdir(), 'iccworship-packaged-'))
-const env = { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_WINDOWED: '1' }
+const env = { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_TEST_PROFILE: '1', ICCWORSHIP_WINDOWED: '1' }
 delete env.ELECTRON_RENDERER_URL
 const child = spawn(exe, [`--remote-debugging-port=${port}`], { env, stdio: 'inherit' })
 let exited = null
@@ -79,6 +81,15 @@ try {
     await op.waitForSelector('.modal', { timeout: 15000 }).catch(() => {})
     check((await op.locator('.modal').count()) > 0, 'operator UI rendered (welcome dialog)')
     check(await op.evaluate(() => typeof window.api === 'object'), 'preload bridge available')
+    // pdf.js loads its JPEG 2000 / JBIG2 decoders from inside app.asar at run time
+    const wasm = await op.evaluate(async () => {
+      try {
+        return (await (await fetch(new URL('pdfjs-wasm/openjpeg.wasm', location.href))).arrayBuffer()).byteLength
+      } catch (e) {
+        return String(e)
+      }
+    })
+    check(typeof wasm === 'number' && wasm > 1000, `pdf.js wasm decoders load (${wasm})`)
   }
   const out = await page('output.html')
   check(await rendered(out), 'projector window rendered')

@@ -7,6 +7,8 @@
  */
 import { _electron as electron } from 'playwright-core'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { request as httpRequest } from 'node:http'
+import { WebSocket as WsClient } from 'ws'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -17,14 +19,48 @@ const data = mkdtempSync(join(tmpdir(), 'iccworship-smoke-'))
 const errors = []
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
+/** raw HTTP GET to the LAN server (lets us send headers a browser wouldn't, like a foreign Host) */
+const httpGet = (port, path, headers = {}) =>
+  new Promise((res) => {
+    const r = httpRequest({ host: '127.0.0.1', port, path, headers }, (resp) => {
+      resp.resume()
+      res({ status: resp.statusCode, headers: resp.headers })
+    })
+    r.on('error', (e) => res({ status: 0, error: String(e) }))
+    r.end()
+  })
+
+/** connect to the LAN WebSocket like a stage screen; resolves with the first state, a rejection or an HTTP status */
+const wsConnect = (port, pin, opts = {}, onOpen) =>
+  new Promise((res) => {
+    const ws = new WsClient(`ws://127.0.0.1:${port}/ws?role=stage&pin=${pin}`, opts)
+    const done = (v) => {
+      clearTimeout(timer)
+      ws.terminate()
+      res(v)
+    }
+    const timer = setTimeout(() => done({ error: 'timeout' }), 5000)
+    ws.on('open', () => onOpen?.(ws))
+    ws.on('message', (d) => {
+      const m = JSON.parse(String(d))
+      if (m.type === 'hello' && !m.authed) done({ rejected: true })
+      if (m.type === 'state') done({ state: m.state })
+    })
+    ws.on('unexpected-response', (_q, r) => done({ status: r.statusCode }))
+    ws.on('close', (code) => done({ closed: code }))
+    ws.on('error', (e) => done({ error: String(e) }))
+  })
+
 const app = await electron.launch({
   args: [root],
   cwd: root,
-  env: { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_WINDOWED: '1', ELECTRON_RENDERER_URL: '' }
+  env: { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_TEST_PROFILE: '1', ICCWORSHIP_WINDOWED: '1', ELECTRON_RENDERER_URL: '' }
 })
 
+/** true while the test makes requests that are SUPPOSED to fail (Chromium logs those as console errors) */
+let expectingFailures = false
 function watch(page, name) {
-  page.on('console', (m) => m.type() === 'error' && errors.push(`[${name}] ${m.text()}`))
+  page.on('console', (m) => m.type() === 'error' && !expectingFailures && errors.push(`[${name}] ${m.text()}`))
   page.on('pageerror', (e) => errors.push(`[${name}] ${e.message}`))
 }
 
@@ -121,7 +157,8 @@ try {
       dialog.showOpenDialog = async () => ({ canceled: false, filePaths: p })
     }, paths)
   const mp4 = process.env.SMOKE_MP4
-  const pdf = process.env.SMOKE_PDF
+  // default: a scanned-style PDF whose only content is a JPEG 2000 image (needs pdf.js's wasm decoder)
+  const pdf = process.env.SMOKE_PDF || join(root, 'tests', 'fixtures', 'sample-jpx.pdf')
   const pptx = process.env.SMOKE_PPTX || join(root, 'tests', 'fixtures', 'sample.pptx')
   await op.click('.nav button:nth-child(5)')
   await sleep(400)
@@ -170,6 +207,62 @@ try {
     await op.locator('.modal-foot .btn.live').click()
     await sleep(900)
     await out.screenshot({ path: join(shots, '26-projector-pdf.png') })
+  }
+
+  // the JPEG 2000 image must be decoded (it rendered blank before pdf.js got its wasm decoders)
+  if (!process.env.SMOKE_PDF) {
+    const jpx = pres.find((p) => p.method === 'pdf')
+    const px = jpx
+      ? await op.evaluate(async (url) => {
+          const bmp = await createImageBitmap(await (await fetch(url)).blob())
+          const c = new OffscreenCanvas(bmp.width, bmp.height)
+          const g = c.getContext('2d')
+          g.drawImage(bmp, 0, 0)
+          return [...g.getImageData(Math.floor(bmp.width / 4), Math.floor(bmp.height / 4), 1, 1).data]
+        }, jpx.slides[0].image)
+      : null
+    const red = !!px && px[0] > 150 && px[1] < 100 && px[2] < 100
+    console.log('JPEG 2000 PDF decoded:', red ? '✓' : `✗ ${JSON.stringify(px)}`)
+    if (!red) errors.push('JPEG 2000 image in a PDF was not decoded')
+  }
+
+  // media:// must answer bad requests instead of failing, and serve only media files
+  expectingFailures = true
+  const mediaChecks = await op.evaluate(
+    async (sample) => {
+      const url = 'media://local/' + encodeURIComponent(sample)
+      const badRange = (await fetch(url, { headers: { Range: 'bytes=500-10' } })).status
+      const notMedia = (await fetch('media://local/' + encodeURIComponent('C:\\Windows\\win.ini'))).status
+      return { badRange, notMedia }
+    },
+    join(root, 'tests', 'fixtures', 'sample.jpg')
+  )
+  await sleep(300)
+  expectingFailures = false
+  console.log(
+    'media:// bad range → 416, non-media → 404:',
+    JSON.stringify(mediaChecks),
+    mediaChecks.badRange === 416 && mediaChecks.notMedia === 404 ? '✓' : '✗'
+  )
+  if (mediaChecks.badRange !== 416 || mediaChecks.notMedia !== 404) errors.push('media:// protocol checks failed')
+
+  // the LAN server serves the slide image on screen through an opaque token; a bad Range must not crash it
+  {
+    const { port } = await op.evaluate(() => window.api.server.info())
+    const pin = (await op.evaluate(() => window.api.settings.get())).remotePin
+    const r = await wsConnect(port, pin)
+    const slide = r.state?.slides?.[r.state.slideIndex]
+    const json = JSON.stringify(r.state || {})
+    const noPaths = !!r.state && !/[A-Za-z]:\\\\|media:\/\//.test(json)
+    console.log('LAN state has no local paths:', noPaths ? '✓' : '✗')
+    if (!noPaths) errors.push('LAN state leaks local file paths')
+    if (slide?.media?.startsWith('/file/')) {
+      const ok = await httpGet(port, slide.media)
+      const bad = await httpGet(port, slide.media, { Range: 'bytes=500-10' })
+      const good = ok.status === 200 && ok.headers['x-content-type-options'] === 'nosniff' && bad.status === 416
+      console.log('LAN /file token → 200 nosniff, bad Range → 416:', good ? '✓' : `✗ ${ok.status} ${bad.status}`)
+      if (!good) errors.push('LAN /file checks failed')
+    } else errors.push('no image slide on screen for the LAN /file check: ' + JSON.stringify(slide))
   }
 
   // other pages
@@ -232,6 +325,40 @@ try {
   const rejected = await bad.locator('.r-err').count()
   console.log('wrong PIN rejected:', rejected ? '✓' : '✗')
   if (!rejected && pin !== '0000') errors.push('wrong PIN was accepted')
+
+  // ---- LAN hardening ----
+  // a page on another site (DNS rebinding / a foreign Origin) must be refused
+  const evilHost = await httpGet(info.port, '/remote', { Host: 'evil.example' })
+  const evilOrigin = await wsConnect(info.port, pin, { headers: { Origin: 'http://evil.example' } })
+  const lanRefused = evilHost.status === 403 && evilOrigin.status === 401
+  console.log('foreign Host / Origin refused:', lanRefused ? '✓' : `✗ ${evilHost.status} ${JSON.stringify(evilOrigin)}`)
+  if (!lanRefused) errors.push('LAN server accepted a foreign Host or Origin')
+  // malformed and oversized WebSocket frames used to be uncaught exceptions in main (the app would stop)
+  await wsConnect(info.port, pin, {}, (ws) => ws.send(Buffer.from([0xff, 0xfe, 0xfd]), { binary: false }))
+  await wsConnect(info.port, pin, {}, (ws) => ws.send('x'.repeat(70 * 1024)))
+  await sleep(500)
+  const alive = await op.evaluate(() => window.api.server.info()).catch(() => null)
+  console.log('bad WebSocket frames survived:', alive?.running ? '✓' : '✗')
+  if (!alive?.running) errors.push('the app or LAN server did not survive bad WebSocket frames')
+  // the stage display needs the PIN in a browser (other origin than the phone above, so no remembered PIN)
+  await app.evaluate(({ BrowserWindow }, url) => {
+    const w = new BrowserWindow({ width: 900, height: 600, title: 'lan-stage' })
+    void w.loadURL(url)
+  }, `http://localhost:${info.port}/stage`)
+  const lanStage = await windowByUrl(`localhost:${info.port}/stage`)
+  watch(lanStage, 'lan-stage')
+  const askedPin = await lanStage
+    .waitForSelector('.pin-screen', { timeout: 10000 })
+    .then(() => true)
+    .catch(() => false)
+  await lanStage.fill('.pin-screen input', pin)
+  await lanStage.click('.pin-screen .pin-btn')
+  const shown = await lanStage
+    .waitForSelector('.stage', { timeout: 10000 })
+    .then(() => true)
+    .catch(() => false)
+  console.log('stage asks for the PIN, then shows:', askedPin && shown ? '✓' : `✗ ${askedPin} ${shown}`)
+  if (!askedPin || !shown) errors.push('stage display PIN flow failed')
   // ---- backup → change data → restore round trip ----
   const backupPath = join(data, 'smoke-backup.zip')
   await app.evaluate(({ dialog }, p) => {

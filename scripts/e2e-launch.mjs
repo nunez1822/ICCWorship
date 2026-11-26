@@ -6,8 +6,9 @@
  *   npm run e2e:launch -- --keep  → keep the data from the previous run
  *   npm run e2e:launch -- --fullscreen → let the projector go full-screen on a 2nd monitor
  *   npm run e2e:launch -- --packaged   → run the installed-style build (dist/win-unpacked, from `npm run build:dir`)
- *                                       instead of the dev build. ICCWORSHIP_E2E is set either way, so the
- *                                       window.api.e2e dialog hooks work in both.
+ *                                       instead of the dev build. A packaged app ignores ICCWORSHIP_E2E (see
+ *                                       src/main/index.ts), so the window.api.e2e dialog hooks don't exist there:
+ *                                       only cases without native file dialogs can run against it.
  *
  * - Uses its own data folder (.e2e-data/) so your real Documents\ICCWorship is never touched.
  * - Opens Chrome DevTools Protocol on http://localhost:9222 so Playwright MCP can attach:
@@ -34,7 +35,7 @@ if (!args.includes('--keep')) rmSync(data, { recursive: true, force: true })
 mkdirSync(data, { recursive: true })
 
 const electron = createRequire(import.meta.url)('electron')
-const env = { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_E2E: '1' }
+const env = { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_TEST_PROFILE: '1', ICCWORSHIP_E2E: '1' }
 if (!args.includes('--fullscreen')) env.ICCWORSHIP_WINDOWED = '1'
 delete env.ELECTRON_RENDERER_URL
 
@@ -42,7 +43,7 @@ console.log(`ICCWorship E2E
   app         : ${packaged ? packagedExe + ' (packaged)' : 'out/ (dev build)'}
   data folder : ${data}${args.includes('--keep') ? ' (kept)' : ' (fresh)'}
   CDP endpoint: http://localhost:${port}
-  stage/remote: http://localhost:7272/stage  ·  /remote (PIN in Settings)
+  stage/remote: http://localhost:7272/stage#pin=<PIN>  ·  /remote#pin=<PIN>  (PIN in Settings)
 Press Ctrl+C to stop.`)
 
 const cmd = packaged ? packagedExe : electron

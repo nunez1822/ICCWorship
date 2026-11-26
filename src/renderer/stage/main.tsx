@@ -4,13 +4,18 @@ import { useTranslation } from 'react-i18next'
 import '../i18n'
 import { formatClock, pickLangs, stripChords, upcomingSlideIndex } from '@shared/slides'
 import type { Slide } from '@shared/types'
-import { useLiveFeed } from '../lib/liveFeed'
+import { safeMediaSrc, useLiveFeed } from '../lib/liveFeed'
+import { rememberPin, usePin } from '../lib/pin'
+import { PinScreen } from '../components/PinScreen'
 import './stage.css'
 
 /** Stage display for musicians and the preacher: current + next slide, clock, timers, chords, messages */
 function Stage() {
   const { t } = useTranslation()
-  const { state, progress, status } = useLiveFeed('stage')
+  // In the app's own stage window (window.api) no PIN is needed; in a browser it is (like the remote).
+  const inApp = !!window.api
+  const [pin, setPin] = usePin()
+  const { state, progress, status, lockedSec } = useLiveFeed('stage', pin)
   const [now, setNow] = useState(Date.now())
   const [chords, setChords] = useState(() => localStorage.getItem('stage-chords') === '1')
   const [flash, setFlash] = useState(false)
@@ -27,7 +32,23 @@ function Stage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- flash once per new message (seq), not on every state push
   }, [state?.stageMessage?.seq])
 
-  if (!state) return <div className="stage-wait">{status === 'offline' ? t('stage.offline') : '…'}</div>
+  if (!inApp && (status === 'badpin' || !pin)) {
+    return (
+      <PinScreen
+        pin={pin}
+        lockedSec={lockedSec}
+        onSubmit={(p) => {
+          rememberPin(p)
+          // re-submitting the same PIN (e.g. after a lockout) must still reconnect
+          if (p === pin) {
+            setPin('')
+            setTimeout(() => setPin(p), 0)
+          } else setPin(p)
+        }}
+      />
+    )
+  }
+  if (!state) return <div className="stage-wait">{status === 'offline' ? t('stage.offline') : status === 'full' ? t('stage.full') : '…'}</div>
 
   const cur = state.slideIndex >= 0 ? state.slides[state.slideIndex] : undefined
   const nextIdx = upcomingSlideIndex(state)
@@ -41,7 +62,7 @@ function Stage() {
 
   return (
     <div className="stage">
-      {status === 'offline' && <div className="stage-offline">⚠ {t('stage.offline')}</div>}
+      {(status === 'offline' || status === 'full') && <div className="stage-offline">⚠ {t(status === 'full' ? 'stage.full' : 'stage.offline')}</div>}
       <header className="stage-top">
         <div className="stage-clock">{new Date(now).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</div>
         <div className="stage-item">
@@ -115,9 +136,9 @@ function StageSlide({
   big?: boolean
 }) {
   if (!slide) return <div className="stage-empty">—</div>
-  if ((slide.kind === 'image' || slide.kind === 'video') && slide.media) {
-    return slide.kind === 'image' ? <img className="stage-img" src={slide.media} alt="" /> : <div className="stage-empty">🎬 {slide.group}</div>
-  }
+  // over the LAN a video slide arrives without its media (only images get a link), so test the kind alone
+  if (slide.kind === 'video') return <div className="stage-empty">🎬 {slide.group}</div>
+  if (slide.kind === 'image' && slide.media) return <img className="stage-img" src={safeMediaSrc(slide.media)} alt="" />
   if (slide.kind === 'countdown') return <div className="stage-empty">⏱ {formatClock(Math.max(0, (slide.countdownTo || 0) - Date.now()))}</div>
   const src = chords && slide.chords ? slide.chords : slide.text
   const txt = pickLangs(src, state.displayLang === 'both' ? 'both' : state.displayLang, state.bilingualOrder)

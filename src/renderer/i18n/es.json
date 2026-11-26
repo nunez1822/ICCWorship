@@ -320,7 +320,8 @@
     "importErr": {
       "empty": "No se encontró texto bíblico en ese archivo. Use una Biblia completa en XML OSIS o USFX, o una Biblia JSON de ICCWorship.",
       "unsupported": "Ese archivo no tiene un formato de Biblia que ICCWorship pueda leer (OSIS, USFX o JSON de ICCWorship).",
-      "id-taken": "Esa abreviatura pertenece a una Biblia incluida. Elija otra abreviatura."
+      "id-taken": "Esa abreviatura pertenece a una Biblia incluida. Elija otra abreviatura.",
+      "bad-id": "Esa abreviatura no se puede usar. Use hasta 64 letras o números (por ejemplo LBLA o NVI)."
     },
     "imported": "“{{name}}” importada",
     "results_one": "{{count}} resultado",
@@ -540,7 +541,12 @@
     "dataAt": "Carpeta de datos:",
     "showWelcome": "Mostrar la bienvenida otra vez",
     "autoBackups_one": "{{count}} copia en esta computadora",
-    "autoBackups_other": "{{count}} copias en esta computadora"
+    "autoBackups_other": "{{count}} copias en esta computadora",
+    "qrRemote": "Control remoto",
+    "qrStage": "Pantalla de escenario",
+    "newPin": "PIN nuevo (desconecta teléfonos y pantallas de escenario)",
+    "portHelp": "Presione Enter para aplicar. Use un número de 1024 a 65535.",
+    "portInvalid": "No se puede usar el puerto {{port}}. Use un número de 1024 a 65535; el puerto sigue siendo {{current}}."
   },
   "help": {
     "title": "Atajos de teclado",
@@ -578,6 +584,7 @@
     "locked": "Demasiados PIN incorrectos — espere {{seconds}} s e intente de nuevo",
     "connect": "Conectar",
     "offline": "Reconectando…",
+    "full": "Hay demasiados teléfonos y pantallas conectados. Cierre ICCWorship en otro dispositivo; este se conectará solo.",
     "black": "Negro",
     "video": "Video",
     "slides": "Diapositivas",
@@ -588,6 +595,7 @@
   },
   "stage": {
     "offline": "Conectando con ICCWorship…",
+    "full": "Hay demasiados teléfonos y pantallas conectados. Cierre ICCWorship en otro dispositivo; esta pantalla se conectará sola.",
     "now": "Ahora",
     "videoLeft": "Resta del video",
     "item": "Elemento",
@@ -596,5 +604,21 @@
     "logo": "Se muestra el logo",
     "next": "Siguiente",
     "end": "Fin del servicio"
+  },
+  "menu": {
+    "file": "Archivo",
+    "quit": "Salir de ICCWorship",
+    "view": "Ver",
+    "reload": "Recargar ventana",
+    "zoomIn": "Acercar",
+    "zoomOut": "Alejar",
+    "zoomReset": "Tamaño real",
+    "fullscreen": "Pantalla completa",
+    "devtools": "Herramientas de desarrollo",
+    "help": "Ayuda",
+    "shortcuts": "Atajos de teclado",
+    "website": "Sitio web de ICCWorship",
+    "reportProblem": "Reportar un problema",
+    "about": "Acerca de ICCWorship"
   }
 }

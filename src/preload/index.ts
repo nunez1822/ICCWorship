@@ -91,8 +91,10 @@ const api = {
     importImages: (paths: string[], name: string): Promise<Presentation> => invoke('pres:importImages', paths, name)
   },
   server: {
-    info: (): Promise<{ running: boolean; port: number; pin: string; urls: string[]; qr?: string; clients: number }> => invoke('server:info'),
+    info: (): Promise<{ running: boolean; port: number; pin: string; urls: string[]; qr?: string; stageQr?: string; clients: number }> => invoke('server:info'),
     restart: (): Promise<{ ok: boolean; error?: string }> => invoke('server:restart'),
+    /** generate a new 6-digit PIN in main (disconnects phones and stage screens using the old one) */
+    newPin: (): Promise<Settings> => invoke('server:newPin'),
     onStatus: (cb: (s: { ok: boolean; error?: string }) => void) => on('server:status', cb)
   },
   backup: {

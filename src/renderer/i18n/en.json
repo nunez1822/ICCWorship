@@ -320,7 +320,8 @@
     "importErr": {
       "empty": "No Bible text was found in that file. Use a complete OSIS or USFX XML Bible, or an ICCWorship JSON Bible.",
       "unsupported": "That file isn't a Bible format ICCWorship can read (OSIS, USFX or ICCWorship JSON).",
-      "id-taken": "That abbreviation belongs to a built-in Bible. Choose another abbreviation."
+      "id-taken": "That abbreviation belongs to a built-in Bible. Choose another abbreviation.",
+      "bad-id": "That abbreviation can't be used. Use up to 64 letters or numbers (for example LBLA or NVI)."
     },
     "imported": "“{{name}}” imported",
     "results_one": "{{count}} result",
@@ -540,7 +541,12 @@
     "dataAt": "Data folder:",
     "showWelcome": "Show welcome again",
     "autoBackups_one": "{{count}} backup on this computer",
-    "autoBackups_other": "{{count}} backups on this computer"
+    "autoBackups_other": "{{count}} backups on this computer",
+    "qrRemote": "Phone remote",
+    "qrStage": "Stage display",
+    "newPin": "New PIN (disconnects phones and stage screens)",
+    "portHelp": "Press Enter to apply. Use a number from 1024 to 65535.",
+    "portInvalid": "Port {{port}} can't be used. Use a number from 1024 to 65535; the port stays {{current}}."
   },
   "help": {
     "title": "Keyboard shortcuts",
@@ -578,6 +584,7 @@
     "locked": "Too many wrong PINs — wait {{seconds}} s and try again",
     "connect": "Connect",
     "offline": "Reconnecting…",
+    "full": "Too many phones and screens are connected. Close ICCWorship on another device; this one will connect by itself.",
     "black": "Black",
     "video": "Video",
     "slides": "Slides",
@@ -588,6 +595,7 @@
   },
   "stage": {
     "offline": "Connecting to ICCWorship…",
+    "full": "Too many phones and screens are connected. Close ICCWorship on another device; this screen will connect by itself.",
     "now": "Now",
     "videoLeft": "Video left",
     "item": "Item",
@@ -596,5 +604,21 @@
     "logo": "Logo is showing",
     "next": "Next",
     "end": "End of plan"
+  },
+  "menu": {
+    "file": "File",
+    "quit": "Quit ICCWorship",
+    "view": "View",
+    "reload": "Reload window",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "zoomReset": "Actual size",
+    "fullscreen": "Full screen",
+    "devtools": "Developer tools",
+    "help": "Help",
+    "shortcuts": "Keyboard shortcuts",
+    "website": "ICCWorship website",
+    "reportProblem": "Report a problem",
+    "about": "About ICCWorship"
   }
 }

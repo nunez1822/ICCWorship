@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { BilingualOrder, Lang } from '@shared/types'
 import { uid } from '@shared/slides'
-import { useApp } from '../store'
+import { SETTING_LIMITS } from '@shared/security'
+import { toastError, useApp } from '../store'
 import { Field, Seg } from '../../components/ui'
 import { IMAGE_EXT } from '../../lib/media'
 import { updateLive } from '../liveControl'
@@ -15,6 +16,19 @@ export function SettingsPage() {
   const [server, setServer] = useState<Awaited<ReturnType<typeof window.api.server.info>> | null>(null)
   const [backups, setBackups] = useState<{ name: string; path: string; size: number; date: number }[]>([])
   const [info, setInfo] = useState<{ version: string; dataPath: string; electron: string } | null>(null)
+  // the port is applied on Enter / leaving the field, not on every keystroke ("8080" would pass through 8, 80, 808)
+  const [portDraft, setPortDraft] = useState<string | null>(null)
+  const applyPort = () => {
+    if (portDraft === null) return
+    const n = Number(portDraft)
+    setPortDraft(null)
+    if (n === st.serverPort) return
+    if (!Number.isInteger(n) || n < SETTING_LIMITS.portMin || n > SETTING_LIMITS.portMax) {
+      // the field goes back to the port in use: say why instead of silently ignoring the number
+      return s.toast(t('settings.portInvalid', { port: portDraft.trim() || '—', current: st.serverPort }), 'err', 8000)
+    }
+    void s.setSettings({ serverPort: n }).then(refresh)
+  }
 
   const refresh = () => {
     void window.api.displays.list().then(setDisplays)
@@ -42,7 +56,12 @@ export function SettingsPage() {
           <div className="card col">
             <h2>⛪ {t('settings.general')}</h2>
             <Field label={t('settings.churchName')}>
-              <input className="input" value={st.churchName} onChange={(e) => void s.setSettings({ churchName: e.target.value })} />
+              <input
+                className="input"
+                value={st.churchName}
+                maxLength={SETTING_LIMITS.churchName}
+                onChange={(e) => void s.setSettings({ churchName: e.target.value })}
+              />
             </Field>
             <div className="row wrap">
               <Field label={t('settings.appLanguage')}>
@@ -70,6 +89,7 @@ export function SettingsPage() {
               <input
                 className="input"
                 value={st.ccliLicense || ''}
+                maxLength={SETTING_LIMITS.ccliLicense}
                 onChange={(e) => void s.setSettings({ ccliLicense: e.target.value })}
                 placeholder="1234567"
               />
@@ -165,6 +185,7 @@ export function SettingsPage() {
                   className="input"
                   style={{ flex: 1 }}
                   value={m.es}
+                  maxLength={SETTING_LIMITS.messageTemplate}
                   placeholder="Español"
                   onChange={(e) => void s.setSettings({ messageTemplates: st.messageTemplates.map((x, j) => (j === i ? { ...x, es: e.target.value } : x)) })}
                 />
@@ -172,6 +193,7 @@ export function SettingsPage() {
                   className="input"
                   style={{ flex: 1 }}
                   value={m.en}
+                  maxLength={SETTING_LIMITS.messageTemplate}
                   placeholder="English"
                   onChange={(e) => void s.setSettings({ messageTemplates: st.messageTemplates.map((x, j) => (j === i ? { ...x, en: e.target.value } : x)) })}
                 />
@@ -210,8 +232,19 @@ export function SettingsPage() {
             {server && st.serverEnabled && (
               <div className="row" style={{ alignItems: 'flex-start', gap: 18 }}>
                 {server.qr && (
-                  <div className="qr">
-                    <img src={server.qr} alt="QR" />
+                  <div className="col" style={{ gap: 4, alignItems: 'center' }}>
+                    <div className="qr">
+                      <img src={server.qr} alt={`QR — ${t('settings.qrRemote')}`} />
+                    </div>
+                    <span className="small">📱 {t('settings.qrRemote')}</span>
+                  </div>
+                )}
+                {server.stageQr && (
+                  <div className="col" style={{ gap: 4, alignItems: 'center' }}>
+                    <div className="qr">
+                      <img src={server.stageQr} alt={`QR — ${t('settings.qrStage')}`} />
+                    </div>
+                    <span className="small">🎤 {t('settings.qrStage')}</span>
                   </div>
                 )}
                 <div className="col" style={{ gap: 6, minWidth: 0 }}>
@@ -234,7 +267,18 @@ export function SettingsPage() {
                   <div className="row">
                     <span className="small">PIN:</span>
                     <b style={{ fontSize: 22, letterSpacing: 4 }}>{st.remotePin}</b>
-                    <button className="btn sm" onClick={() => void s.setSettings({ remotePin: String(Math.floor(1000 + Math.random() * 9000)) }).then(refresh)}>
+                    <button
+                      className="btn sm"
+                      title={t('settings.newPin')}
+                      aria-label={t('settings.newPin')}
+                      onClick={() =>
+                        void window.api.server
+                          .newPin()
+                          .then((ns) => useApp.setState({ settings: ns }))
+                          .then(refresh)
+                          .catch(toastError)
+                      }
+                    >
                       ↻
                     </button>
                   </div>
@@ -248,11 +292,16 @@ export function SettingsPage() {
               <input
                 className="input"
                 type="number"
+                min={SETTING_LIMITS.portMin}
+                max={SETTING_LIMITS.portMax}
                 style={{ width: 120 }}
-                value={st.serverPort}
-                onChange={(e) => void s.setSettings({ serverPort: +e.target.value || 7272 }).then(refresh)}
+                value={portDraft ?? st.serverPort}
+                onChange={(e) => setPortDraft(e.target.value)}
+                onBlur={applyPort}
+                onKeyDown={(e) => e.key === 'Enter' && applyPort()}
               />
             </Field>
+            {portDraft !== null && <div className="small muted">{t('settings.portHelp')}</div>}
             <div className="small muted">🛡️ {t('settings.firewall')}</div>
           </div>
 

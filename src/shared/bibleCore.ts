@@ -2,6 +2,7 @@
  * Bible logic that does not touch the file system, so it can be unit tested.
  */
 import { BOOKS } from './books'
+import { stripTags } from './textDecode'
 import { formatReference, parseReference, type ParsedRef } from './scriptureRef'
 import type { BibleVersionInfo, Lang, PassageResult, Verse } from './types'
 
@@ -264,10 +265,7 @@ export function importBibleText(content: string, meta: { id: string; name: strin
     vs[v - 1] = vs[v - 1] ? vs[v - 1] + ' ' + t : t
   }
   const decode = (s: string) =>
-    s
-      .replace(/<note[\s\S]*?<\/note>/g, '')
-      .replace(/<f\b[\s\S]*?<\/f>/g, '')
-      .replace(/<[^>]+>/g, '')
+    stripTags(s.replace(/<note[\s\S]*?<\/note>/g, '').replace(/<f\b[\s\S]*?<\/f>/g, ''))
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
@@ -340,3 +338,6 @@ export function importBibleText(content: string, meta: { id: string; name: strin
   }
   throw new Error('unsupported')
 }
+
+/** The short error codes that creating or importing a Bible throws; the operator UI has `bible.importErr.<code>` for each. */
+export const BIBLE_ERRORS: readonly string[] = ['empty', 'unsupported', 'id-taken', 'bad-id']

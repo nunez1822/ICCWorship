@@ -16,6 +16,14 @@ usually operated by a volunteer during a live service, so reliability and simpli
   show a toast or message, never a crash or a frozen screen.
 - Any user text shown on phones, stage or projector must render as text, never as HTML (see `escapeHtml` in
   `src/main/server.ts`). The phone/stage server is reachable by anyone on the church Wi-Fi.
+- **Trust boundaries** (see `src/shared/security.ts`, unit tested in `tests/security.test.ts`):
+  - IPC handlers are registered through `h()` / `on()` in `src/main/index.ts`, which only accept the app's own pages.
+  - An id that becomes a file name must pass `isSafeId`; deletes and writes use `within()` (`src/main/pathGuard.ts`).
+  - New settings must be added to `SETTING_CHECKS` or they can't be saved; the renderer can never set `remotePin`.
+  - LAN input goes through `validateCommand` / `parseRange`, and phones only receive `pickPublicState`.
+  - Nothing a LAN request sends may throw in main: every socket and stream needs an `'error'` handler.
+- **Logging:** use `log` from `src/main/log.ts`. Log ids, counts, error codes and short messages, **never** lyrics,
+  people, prayer requests, request URLs or payloads. Logs are attached to public bug reports.
 
 ## Layout
 - `src/main/`: Electron main process.

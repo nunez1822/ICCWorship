@@ -32,8 +32,9 @@ Do **not** fix bugs during the run — record them. Read `docs/e2e_testing/READM
 6. Argument `packaged` (can be combined with the others, e.g. `packaged live`) tests the installed-style build
    instead: in step 1 run `npm run build:dir` (if `dist/win-unpacked/ICCWorship.exe` is missing or older than
    `src/`), in step 2 run `npm run e2e:launch -- --packaged`, and stop it with `taskkill /F /T /IM ICCWorship.exe`.
-   The launcher sets `ICCWORSHIP_E2E` for the packaged build too, so the `window.api.e2e` dialog hooks work and
-   every case runs as usual. Say in the report that the run used the packaged build.
+   A packaged app ignores `ICCWORSHIP_E2E`, so the `window.api.e2e` dialog hooks don't exist there: mark cases
+   that need a native file dialog ⚠️ Blocked — packaged instead of running them. Say in the report that the run
+   used the packaged build.
 
 ## 4. Run each case
 - Follow the steps literally. Prefer `browser_snapshot` + accessible names over guessing coordinates.
@@ -48,7 +49,8 @@ Do **not** fix bugs during the run — record them. Read `docs/e2e_testing/READM
   also add a `page.on('dialog')` handler — two handlers race ("dialog already handled").
 - Never click **🖨️ Print**: it opens the native Windows print dialog, which blocks the page and hangs the MCP
   connection (~30 min timeout). Print and **📄 PDF** use the same `runSheetHtml`, so check the PDF instead.
-- Remote PIN: `browser_evaluate` → `(await window.api.settings.get()).remotePin`.
+- Remote PIN: `browser_evaluate` → `(await window.api.settings.get()).remotePin`. The phone `/stage` page needs it
+  too: open `/stage#pin=<PIN>`. TC-SEC-04 locks out the whole device for minutes — run it last.
 - Screenshot every failure and every case marked 📸; save into `docs/e2e_testing/results/`
   with names like `<runstamp>-TC-LIVE-01.png`.
 - **Setup** blocks create helper files in `<repo>/.e2e-data/tmp/` — run them *after* launching (a fresh launch wipes `.e2e-data/`).

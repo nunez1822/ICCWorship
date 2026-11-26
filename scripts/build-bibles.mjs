@@ -167,9 +167,20 @@ async function ensure(file) {
   return p
 }
 
+/** Same as stripTags in src/shared/textDecode.ts: repeat until nothing changes, so "<scr<b>ipt>" can't reassemble. */
+function stripTags(s) {
+  let prev
+  let out = s
+  do {
+    prev = out
+    out = out.replace(/<[^<>]*>/g, '')
+  } while (out !== prev)
+  // a lone "<" left over from broken markup can't open a tag any more
+  return out.replace(/<(?=[A-Za-z!/?])/g, '')
+}
+
 const decode = (s) =>
-  s
-    .replace(/<[^>]+>/g, '')
+  stripTags(s)
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')

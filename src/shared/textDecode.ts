@@ -14,3 +14,19 @@ export function decodeText(bytes: Uint8Array): string {
     return new TextDecoder('windows-1252').decode(bytes.subarray(start))
   }
 }
+
+/**
+ * Removes markup tags from imported text (OpenLyrics, OSIS/USFX Bibles, pasted web pages). Repeats until nothing
+ * changes, so nested leftovers like "<scr<b>ipt>" can't reassemble into a tag. The result is plain text and is
+ * always shown as text, never as HTML.
+ */
+export function stripTags(s: string): string {
+  let prev: string
+  let out = s
+  do {
+    prev = out
+    out = out.replace(/<[^<>]*>/g, '')
+  } while (out !== prev)
+  // a lone "<" left over from broken markup can't open a tag any more
+  return out.replace(/<(?=[A-Za-z!/?])/g, '')
+}
