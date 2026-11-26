@@ -545,7 +545,8 @@
     "qrRemote": "Phone remote",
     "qrStage": "Stage display",
     "newPin": "New PIN (disconnects phones and stage screens)",
-    "portHelp": "Press Enter to apply. Use a number from 1024 to 65535."
+    "portHelp": "Press Enter to apply. Use a number from 1024 to 65535.",
+    "portInvalid": "Port {{port}} can't be used. Use a number from 1024 to 65535; the port stays {{current}}."
   },
   "help": {
     "title": "Keyboard shortcuts",

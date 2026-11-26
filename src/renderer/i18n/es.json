@@ -545,7 +545,8 @@
     "qrRemote": "Control remoto",
     "qrStage": "Pantalla de escenario",
     "newPin": "PIN nuevo (desconecta teléfonos y pantallas de escenario)",
-    "portHelp": "Presione Enter para aplicar. Use un número de 1024 a 65535."
+    "portHelp": "Presione Enter para aplicar. Use un número de 1024 a 65535.",
+    "portInvalid": "No se puede usar el puerto {{port}}. Use un número de 1024 a 65535; el puerto sigue siendo {{current}}."
   },
   "help": {
     "title": "Atajos de teclado",

@@ -28,6 +28,9 @@ All notable changes to ICCWorship are documented here. The format is based on
   is cleaned of markup more thoroughly (findings of GitHub's CodeQL scan).
 - Logs no longer copy error messages that can contain a file's text or name (a damaged Bible file, a
   presentation that failed to convert, a media file): they record only short error codes.
+- Logs no longer record the IP addresses of phones and stage screens that connect.
+- `npm run dev` (contributors only): the phone/stage server forwards only the stage and remote pages' own files to
+  the development server, so other files in the project folder (including test data) can't be read from the Wi-Fi.
 - At most 32 phones and stage screens can be connected at once. One more is told so, instead of "Wrong PIN",
   and connects by itself as soon as a place is free.
 
@@ -55,6 +58,14 @@ All notable changes to ICCWorship are documented here. The format is based on
 - After restoring a backup, phones and stage screens use the restored PIN right away (phones still connected with
   the old PIN are disconnected). A backup made before PINs existed gets a new PIN, and the menu bar follows the
   restored language.
+- A phone that opens the PC by a name the server doesn't answer (for example with a router's own suffix such as
+  `.fritz.box`) now sees a hint in English and Spanish to use the address or QR code from Settings, instead of a
+  bare "Forbidden".
+- A port outside 1024–65535 in Settings now shows a message instead of silently snapping back. The church name,
+  CCLI number and message templates stop at their maximum length instead of ignoring longer text, and a failed
+  settings change or new PIN now shows an error.
+- Slide images that phones stop downloading half-way (a new slide, a reload, weak Wi-Fi) no longer leave a file
+  open in the app each time, which over a long service could make media stop loading.
 - The phone remote's message boxes stop at 500 characters, the most a message can have. A longer message used
   to disappear without reaching the screen.
 - The Live page's preview of a selected item that isn't live yet now updates when the default theme or the CCLI

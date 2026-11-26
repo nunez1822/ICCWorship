@@ -139,6 +139,9 @@ A web page a phone opens could point its own domain at the church PC (DNS rebind
 4. `curl -sI http://localhost:7272/remote` and look at the headers.
 **Expected**
 - Step 1: **403**. Step 2: **200** (the PC's own name still works). Step 3: refused (HTTP 401), no live data.
+- A browser sent to a name the server doesn't answer (e.g. `<PC name>.fritz.box`) shows a plain-text bilingual hint:
+  "Forbidden: open the address or QR code shown in ICCWorship → Settings → Phone remote & stage display." /
+  "Prohibido: abra la dirección o el código QR…" — nothing from the request is echoed back.
 - Step 4: `Content-Security-Policy: frame-ancestors 'none'` and `X-Frame-Options: DENY` (other sites can't frame the remote).
 
 ### TC-SEC-13 · An empty PIN never lets anyone in  `P0`
@@ -182,6 +185,8 @@ Logs are attached to public bug reports.
 - `main.log` has lines "bible import failed: SyntaxError" and "presentation import via … failed: …" with only a
   short code (`exit 1`, `ENOENT`, `no-slides`, an error kind…).
 - `main.log` contains neither `PLACEHOLDER-VERSE-TEXT` nor `Private Person Name`.
+- After a phone and a stage screen have connected (and one wrong PIN was tried), `main.log` has lines like
+  "LAN remote connected (1 devices)" and "LAN stage connection refused (wrong PIN)" but **no IP addresses**.
 
 ### TC-SEC-17 · A custom data folder doesn't move the app's profile  `P2`
 `ICCWORSHIP_DATA` is a user setting (data on another drive); only test runs get a separate profile.

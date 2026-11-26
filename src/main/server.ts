@@ -2,12 +2,13 @@ import { connect } from 'node:net'
 import { createServer, request, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { createReadStream, statSync } from 'node:fs'
+import { pipeline } from 'node:stream'
 import { extname, join, normalize, resolve } from 'node:path'
 import { hostname, networkInterfaces } from 'node:os'
 import { WebSocketServer, WebSocket } from 'ws'
 import QRCode from 'qrcode'
 import type { LiveState, RemoteCommand } from '@shared/types'
-import { isAllowedHost, isSameOrigin, parseRange, pickPublicState, validateCommand } from '@shared/security'
+import { isAllowedHost, isDevProxyPath, isSameOrigin, parseRange, pickPublicState, validateCommand } from '@shared/security'
 import { live } from './live'
 import { getSettings } from './db'
 import { PinGuard } from './pinGuard'
@@ -143,11 +144,14 @@ function serveFile(req: IncomingMessage, res: ServerResponse, file: string, extr
     const range = parseRange(req.headers.range, size)
     if (range.kind === 'unsatisfiable') return send(res, 416, 'Range not satisfiable', 'text/plain; charset=utf-8', { 'Content-Range': `bytes */${size}` })
     const stream = range.kind === 'partial' ? createReadStream(file, { start: range.start, end: range.end }) : createReadStream(file)
-    stream.on('error', () => res.destroy())
     if (range.kind === 'partial') {
       res.writeHead(206, { ...head, 'Content-Range': `bytes ${range.start}-${range.end}/${size}`, 'Content-Length': range.end - range.start + 1 })
     } else res.writeHead(200, { ...head, 'Content-Length': size })
-    stream.pipe(res)
+    // pipeline, not pipe: when a phone cancels the download (a new slide, a reload, weak Wi-Fi) it closes the file
+    // too. pipe() only unpiped, leaving one open file handle per cancelled image until main ran out of them.
+    pipeline(stream, res, () => {
+      /* a read error or a cancelled request: pipeline has already closed both ends */
+    })
   } catch (e) {
     log.warn('LAN file request failed', e)
     if (!res.headersSent) send(res, 500, 'Error')
@@ -162,7 +166,9 @@ function proxyToDev(req: IncomingMessage, res: ServerResponse, path: string, ext
   if (target.origin !== base.origin) return send(res, 400, 'Bad request')
   const p = request(target, { method: req.method, headers: { ...req.headers, host: target.host } }, (r) => {
     res.writeHead(r.statusCode || 500, { ...r.headers, ...extra })
-    r.pipe(res)
+    pipeline(r, res, () => {
+      /* the phone left or the dev server stopped: both ends are closed */
+    })
   })
   p.on('error', () => send(res, 502, 'Dev server not reachable'))
   req.pipe(p)
@@ -177,6 +183,11 @@ function escapeHtml(v: string): string {
   return v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 }
 
+/** Answer to a name we don't serve (e.g. the PC's name with a router's own suffix like .fritz.box). */
+const FOREIGN_HOST_HELP =
+  'Forbidden: open the address or QR code shown in ICCWorship → Settings → Phone remote & stage display.\n' +
+  'Prohibido: abra la dirección o el código QR que aparece en ICCWorship → Ajustes → Control remoto y pantalla de escenario.\n'
+
 /** Is this request for us, from one of our own pages? (blocks DNS rebinding and other websites) */
 function trusted(req: IncomingMessage): boolean {
   return isAllowedHost(req.headers.host, hostname()) && isSameOrigin(req.headers.origin, req.headers.host)
@@ -185,7 +196,8 @@ function trusted(req: IncomingMessage): boolean {
 function handle(req: IncomingMessage, res: ServerResponse): void {
   if (!trusted(req)) {
     log.warn('LAN request with a foreign host or origin rejected')
-    return send(res, 403, 'Forbidden')
+    // plain text (nothing from the request is echoed): tell a volunteer who typed a router name what to use instead
+    return send(res, 403, FOREIGN_HOST_HELP)
   }
   let url: URL
   try {
@@ -219,8 +231,9 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
   if (path === '/stage' || path === '/remote') path = `${path}.html`
   const page = path === '/stage.html' || path === '/remote.html' ? PAGE_HEADERS : {}
   if (devUrl) {
-    // development only: the Vite dev server also needs its own /@vite, /src… paths — but never the operator pages
-    if (/^\/(index\.html|output\.html|operator\/)/.test(path)) return send(res, 404, 'Not found')
+    // development only: forward just what the stage/remote pages load. Vite would otherwise serve any file in the
+    // workspace to the Wi-Fi (/@fs/… reaches .e2e-data, which holds a PIN and test prayer requests).
+    if (!isDevProxyPath(path)) return send(res, 404, 'Not found')
     return proxyToDev(req, res, path + url.search, page)
   }
   const file = resolve(join(rendererDir, normalize(path)))
@@ -377,8 +390,9 @@ async function doStart(opts: { rendererDir: string; devUrl?: string }, my: numbe
       wss?.clients.forEach((c) => authedSockets.has(c) && authedCount++)
       const full = authed && authedCount >= MAX_CLIENTS
       if (full) authed = false
-      if (!authed) log.info(`LAN ${role} connection refused (${full ? 'too many devices' : lock ? 'locked out' : 'wrong PIN'}) from ${ip}`)
-      else log.info(`LAN ${role} connected from ${ip}`)
+      // no IP address in the log (it is attached to public bug reports): the role and the outcome are enough
+      if (!authed) log.info(`LAN ${role} connection refused (${full ? 'too many devices' : lock ? 'locked out' : 'wrong PIN'})`)
+      else log.info(`LAN ${role} connected (${authedCount + 1} devices)`)
       ws.send(
         JSON.stringify({
           type: 'hello',

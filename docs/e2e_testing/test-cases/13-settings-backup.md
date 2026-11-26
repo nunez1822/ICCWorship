@@ -29,6 +29,20 @@
 **Expected**
 - Banner "Prueba 5 / Test 5" (two lines in ES + EN mode).
 
+### TC-SET-06 · A port that can't be used is explained  `P2`
+**Steps**
+1. Settings → Phone remote & stage display → port field: type `80` → Enter. 2. Type `70000` → leave the field.
+**Expected**
+- Each time: error toast "Port 80 can't be used. Use a number from 1024 to 65535; the port stays 7272." /
+  "No se puede usar el puerto 80…"; the field shows 7272 again and phones stay connected.
+
+### TC-SET-07 · Text settings stop at their limit  `P2`
+**Steps**
+1. Paste 250 characters into the church name. 2. Paste 600 characters into a message template's English box.
+**Expected**
+- The church name holds 200 characters and is saved (still there after a reload); the template holds 500.
+  Typing past the limit just stops — the field never silently ignores a change.
+
 ### TC-BAK-01 · Backup now  `P0`
 **Steps**
 1. `queueSaveFile('<repo>/.e2e-data/backup.zip')` → **Back up now**.

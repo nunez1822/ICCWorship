@@ -46,6 +46,36 @@ export function parseRange(header: string | null | undefined, size: number): Ran
   return { kind: 'partial', start, end }
 }
 
+/* ------------------------------ dev server proxy ------------------------------ */
+
+/** What the stage and remote pages load from the Vite dev server (src/renderer is its root). */
+const DEV_PREFIXES = [
+  '/stage.html',
+  '/remote.html',
+  '/stage/',
+  '/remote/',
+  '/lib/',
+  '/components/',
+  '/i18n/',
+  '/styles/',
+  '/@vite/',
+  '/@id/',
+  '/@react-refresh',
+  '/node_modules/'
+]
+
+/**
+ * Development only (`npm run dev`): may the LAN server forward this path to the Vite dev server? Vite answers for
+ * every file in the workspace (`/@fs/<any path>`, the operator pages, `.e2e-data`), so only the stage/remote pages,
+ * their own folders, Vite's client and the shared code (`/@fs/…/src/shared/`, `/@fs/…/node_modules/`) pass.
+ * Compared case-sensitively (Windows would serve `/OPERATOR/…` too), and escapes like `%2f` or `..` never pass.
+ */
+export function isDevProxyPath(path: string): boolean {
+  if (/%2e|%2f|%5c|\\|\/\.\.?(\/|$)/i.test(path)) return false
+  if (path.startsWith('/@fs/')) return /\/src\/shared\/[^/]+\.ts$|\/node_modules\//.test(path) && !path.includes('/.e2e-data/')
+  return DEV_PREFIXES.some((p) => path === p || (p.endsWith('/') && path.startsWith(p)))
+}
+
 /* ------------------------------ Host / Origin (DNS rebinding) ------------------------------ */
 
 /** Local-only name suffixes that can't be registered on the public internet (so DNS rebinding can't use them). */
@@ -180,6 +210,9 @@ export function pickPublicState(s: LiveState, mediaUrl: (u: string | undefined) 
 
 /* ------------------------------ settings from the renderer ------------------------------ */
 
+/** Limits the settings checks below enforce; the Settings page uses the same numbers so typing stops there. */
+export const SETTING_LIMITS = { churchName: 200, ccliLicense: 100, messageTemplate: 500, portMin: 1024, portMax: 65535 } as const
+
 const LANGS: readonly Lang[] = ['es', 'en']
 const ORDERS: readonly BilingualOrder[] = ['es-first', 'en-first']
 const str = (max: number) => (v: unknown) => (typeof v === 'string' && v.length <= max ? v : undefined)
@@ -197,19 +230,24 @@ const SETTING_CHECKS: { [K in keyof Settings]?: (v: unknown) => Settings[K] | un
   uiLang: oneOf(LANGS),
   displayLang: oneOf(DISPLAY_LANGS),
   bilingualOrder: oneOf(ORDERS),
-  churchName: str(200),
-  ccliLicense: str(100),
+  churchName: str(SETTING_LIMITS.churchName),
+  ccliLicense: str(SETTING_LIMITS.ccliLicense),
   outputDisplayId: (v) => (Number.isSafeInteger(v) ? (v as number) : undefined),
   outputEnabled: bool,
   defaultThemeId: str(200),
   logoPath: str(2000),
   serverEnabled: bool,
-  serverPort: (v) => (Number.isSafeInteger(v) && (v as number) >= 1024 && (v as number) <= 65535 ? (v as number) : undefined),
+  serverPort: (v) =>
+    Number.isSafeInteger(v) && (v as number) >= SETTING_LIMITS.portMin && (v as number) <= SETTING_LIMITS.portMax ? (v as number) : undefined,
   bibleEn: str(200),
   bibleEs: str(200),
   messageTemplates: (v) =>
     Array.isArray(v) && v.length <= 100 && v.every((m) => m && typeof m.id === 'string' && typeof m.en === 'string' && typeof m.es === 'string')
-      ? (v as Settings['messageTemplates']).map((m) => ({ id: m.id.slice(0, 100), en: m.en.slice(0, 500), es: m.es.slice(0, 500) }))
+      ? (v as Settings['messageTemplates']).map((m) => ({
+          id: m.id.slice(0, 100),
+          en: m.en.slice(0, SETTING_LIMITS.messageTemplate),
+          es: m.es.slice(0, SETTING_LIMITS.messageTemplate)
+        }))
       : undefined,
   messageSeconds: (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(3600, Math.max(5, Math.round(v))) : undefined),
   operatorTheme: oneOf(['dark', 'light'] as const),
