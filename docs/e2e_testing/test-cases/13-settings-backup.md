@@ -68,6 +68,10 @@
   1.0 are still listed and restorable).
 - With the app left open, a new one appears about every hour **only if something was saved** since the last one,
   and never while something is live. Old ones are pruned: the newest per day for the last 14 days that have a backup (not calendar days) plus the last 6.
+- Pasting, importing or deleting a Bible counts as "something was saved" (it leads to the next hourly backup). Left
+  open past midnight with nothing changed, no extra backup is made just because the day changed.
+- An `auto-….zip.tmp` older than an hour in `.e2e-data/backups/` (left by a backup that was cut off) is gone after
+  the next automatic backup check.
 
 ### TC-SET-08 · Export diagnostics  `P1`
 **Steps**
@@ -151,7 +155,7 @@
 **Expected**
 - A red bar at the bottom says the data was saved by a newer ICCWorship and changes are **not** saved, with "Open backups folder".
 - The service runs normally (projector, remote). Trying to delete a presentation or save a pasted Bible verse
-  says "Not saved: this data is open read-only".
+  says "Not saved: this data is open read-only (see the red bar at the bottom)" — the bar really is at the bottom.
 - After quitting, `songs.json`, `usage.json` and `meta.json` are byte-for-byte unchanged; no automatic backup was added.
 - Restoring is refused while read-only: see TC-BAK-13.
 
@@ -196,3 +200,17 @@
 - Red toast "This data is open read-only because a newer ICCWorship wrote it, so no backup can be restored here…"
   ("Estos datos están abiertos en solo lectura…" in Spanish). No reload, no new `before-restore-…` zip, and every
   file in `.e2e-data/data/` is byte-for-byte unchanged.
+- (Not driven in tests: data read-only because it could not be *prepared* — no room for the safety backup, or a
+  failed upgrade — answers "Your data is open read-only (see the red bar at the bottom)… restart ICCWorship", not
+  the "newer ICCWorship" text.)
+
+### TC-BAK-14 · A backup made while a data file is damaged keeps the good data  `P1`
+**Steps**
+1. `npm run e2e:launch`, finish the welcome, quit. Copy `.e2e-data/data/songs.json` to `songs.json.bak`, then
+   truncate `songs.json` to `[{"id":` (damaged). Launch `--keep`.
+2. Songs page: the songs are there (recovered from the `.bak`). **Back up now** to `.e2e-data/tmp/recovered.zip`.
+3. Restore `recovered.zip`.
+**Expected**
+- `unzip -p recovered.zip data/songs.json` is the full, valid song list (not the damaged file).
+- The restore succeeds (no "damaged" message); afterwards the songs are all there, `songs.json` is valid, and a
+  `songs.json.corrupt-…` copy of the damaged file is still in `.e2e-data/data/`.

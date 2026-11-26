@@ -3,12 +3,13 @@ import { app } from 'electron'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statfsSync, statSync, unlinkSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import { backupDir, dataRoot } from './paths'
-import { db, getSettings } from './db'
+import { dataStatus, db, getSettings } from './db'
 import { localDate, localStamp } from '@shared/dates'
 import { checkSchema, runMigrations, SCHEMA_VERSION } from '@shared/migrations'
 import { reload as reloadBibles } from './bible'
 import { RESTORE_DIRS, restoreTarget } from './restorePath'
 import {
+  autoBackupDecision,
   autoBackupName,
   autoBackupsToDelete,
   checkManifest,
@@ -19,7 +20,8 @@ import {
   mustParseOnRestore,
   parseAutoName,
   restoredMeta,
-  safetyBackupsToDelete
+  safetyBackupsToDelete,
+  staleBackupTemps
 } from '@shared/backupCore'
 import { writeFileAtomic, writeFileAtomicAsync } from './atomicWrite'
 import { log } from './log'
@@ -52,26 +54,43 @@ function exclusive<T>(fn: () => Promise<T>): Promise<T> {
   return run
 }
 
-async function writeBackup(target: string): Promise<{ ok: boolean; path: string; files: number; bytes: number }> {
-  db().flush()
+type BackupResult = { ok: boolean; path: string; files: number; bytes: number }
+
+/** `writes`: the store's write count when the files were read (saves after that are not in this backup) */
+async function writeBackup(target: string): Promise<BackupResult & { writes: number }> {
+  const store = db()
+  store.flush()
+  const writes = store.writeCount
+  // a collection running from its .bak has a damaged (or no) main file on disk: back up what the app uses
+  const recovered = store.recoveredForBackup()
   const root = dataRoot()
   const zip = new JSZip()
   let files = 0
   for (const inc of INCLUDE) {
     for (const f of walk(join(root, inc))) {
-      zip.file(relative(root, f).split(sep).join('/'), readFileSync(f))
+      const rel = relative(root, f).split(sep).join('/')
+      const name = /^data\/([^/]+)\.json$/.exec(rel)?.[1]
+      if (name && recovered.has(name)) continue // added below
+      zip.file(rel, readFileSync(f))
       files++
     }
+  }
+  for (const [name, json] of recovered) {
+    zip.file(`data/${name}.json`, json)
+    files++
   }
   zip.file(MANIFEST, JSON.stringify(makeManifest(app.getVersion())))
   const buf = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 6 } })
   mkdirSync(dirname(target), { recursive: true })
   await writeFileAtomicAsync(target, buf)
-  return { ok: true, path: target, files, bytes: buf.length }
+  return { ok: true, path: target, files, bytes: buf.length, writes }
 }
 
-export function createBackup(target: string): Promise<{ ok: boolean; path: string; files: number; bytes: number }> {
-  return exclusive(() => writeBackup(target))
+export function createBackup(target: string): Promise<BackupResult> {
+  return exclusive(async () => {
+    const { writes: _writes, ...r } = await writeBackup(target)
+    return r
+  })
 }
 
 /** A copy of the current data before something replaces or upgrades it. Keeps the newest 5 of each kind. */
@@ -84,20 +103,52 @@ export function createSafetyBackup(kind: 'before-restore' | 'before-migrate'): P
   })
 }
 
+/** Tidying old safety backups must never fail the backup or restore that called it. */
 function pruneSafetyBackups(): void {
-  const dir = backupDir()
-  const files = readdirSync(dir).map((name) => ({ name, mtime: statSync(join(dir, name)).mtimeMs }))
-  for (const name of safetyBackupsToDelete(files)) {
-    try {
-      unlinkSync(join(dir, name))
-    } catch {
-      /* in use: next time */
+  try {
+    const dir = backupDir()
+    const files: { name: string; mtime: number }[] = []
+    for (const name of readdirSync(dir)) {
+      try {
+        files.push({ name, mtime: statSync(join(dir, name)).mtimeMs })
+      } catch {
+        /* removed or renamed meanwhile (another prune, a backup's .tmp): skip it */
+      }
     }
+    for (const name of safetyBackupsToDelete(files)) {
+      try {
+        unlinkSync(join(dir, name))
+      } catch {
+        /* in use: next time */
+      }
+    }
+  } catch (e) {
+    log.warn('could not tidy old safety backups', e)
+  }
+}
+
+/** Removing a temporary folder must never turn a finished restore into an error (antivirus may still hold it). */
+function removeTempDir(dir: string): void {
+  try {
+    rmSync(dir, { recursive: true, force: true, maxRetries: 3 })
+  } catch (e) {
+    log.warn('could not remove a temporary restore folder', e)
   }
 }
 
 /* ------------------------------ restore ------------------------------ */
-export type RestoreError = 'not-a-backup' | 'newer-format' | 'newer-schema' | 'damaged-backup' | 'restore-failed' | 'read-only'
+export type RestoreError =
+  | 'not-a-backup'
+  | 'newer-format'
+  | 'newer-schema'
+  | 'damaged-backup'
+  | 'restore-failed'
+  /** replacing failed AND the previous data could not be put back: restore the named safety backup by hand */
+  | 'restore-failed-mixed'
+  /** data written by a newer version is open read-only */
+  | 'read-only'
+  /** data is open read-only because it could not be prepared (no safety copy, failed upgrade) */
+  | 'read-only-unprepared'
 
 /**
  * Restore = replace. The backup is unpacked into a staging folder first and fully checked (it must be ours,
@@ -115,8 +166,10 @@ const stripBom = (t: string) => (t.charCodeAt(0) === 0xfeff ? t.slice(1) : t)
 async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: RestoreError; safetyBackup?: string }> {
   // Data written by a newer ICCWorship is open read-only: replacing it with an older backup would destroy the
   // newer data, and the store would stay read-only afterwards (every later edit lost at quit). Use the newer
-  // version to restore.
-  if (db().readOnly) return { ok: false, error: 'read-only' }
+  // version to restore. Data that is read-only because it couldn't be prepared gets its own answer.
+  if (db().readOnly) return { ok: false, error: dataStatus().newerSchema ? 'read-only' : 'read-only-unprepared' }
+  const root = resolve(dataRoot())
+  removeLeftoverTempDirs(root)
   let zip: JSZip
   try {
     zip = await JSZip.loadAsync(readFileSync(zipPath))
@@ -135,7 +188,6 @@ async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: Restor
   // a manifest with no data files would "restore" nothing and still reload the app
   if (!Object.keys(zip.files).some((n) => /^data\/[^/]+\.json$/.test(n) && !zip.files[n].dir)) return { ok: false, error: 'not-a-backup' }
 
-  const root = resolve(dataRoot())
   const staging = join(root, `restore-staging-${Date.now()}`)
   try {
     // 1. unpack into the staging folder — only data/ and cache/presentations/ entries (zip-slip safe)
@@ -214,20 +266,33 @@ async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: Restor
       replaceFrom(root, staged)
     } catch (e) {
       log.error('restore failed while replacing files; putting the safety backup back', e)
+      let putBackOk = true
       try {
         await putBack(root, safety)
       } catch (e2) {
+        putBackOk = false
         log.error('could not put the safety backup back', e2)
       }
       db().reset()
       reloadBibles()
-      return { ok: false, error: 'restore-failed', safetyBackup: safety }
+      // never say "your previous data was put back" when it wasn't: name the safety backup to restore by hand
+      return { ok: false, error: putBackOk ? 'restore-failed' : 'restore-failed-mixed', safetyBackup: safety }
     }
     db().reset()
     reloadBibles()
     return { ok: true, safetyBackup: safety }
   } finally {
-    rmSync(staging, { recursive: true, force: true, maxRetries: 3 })
+    // the restore's answer is already decided: a folder antivirus still holds must not turn it into an error
+    removeTempDir(staging)
+  }
+}
+
+/** restore-staging-* / restore-undo-* folders a previous restore could not remove (best effort) */
+function removeLeftoverTempDirs(root: string): void {
+  try {
+    for (const f of readdirSync(root)) if (/^restore-(staging|undo)-\d+$/.test(f)) removeTempDir(join(root, f))
+  } catch {
+    /* can't list the data folder: the restore itself will report a real problem */
   }
 }
 
@@ -268,7 +333,7 @@ async function putBack(root: string, safetyZip: string): Promise<void> {
     }
     replaceFrom(root, staged)
   } finally {
-    rmSync(tmpDir, { recursive: true, force: true, maxRetries: 3 })
+    removeTempDir(tmpDir)
   }
 }
 
@@ -296,15 +361,15 @@ export async function autoBackup(): Promise<void> {
   const dir = backupDir()
   const now = new Date()
   const today = localDate(now)
-  const hasToday = readdirSync(dir).some((f) => parseAutoName(f)?.day === today)
-  if (hasToday) {
-    // start-up with today's backup already made: nothing new to save yet
-    if (writesAtLastAuto === -1) {
-      writesAtLastAuto = store.writeCount
-      return
-    }
-    if (store.writeCount === writesAtLastAuto) return // nothing saved since the last one
-  }
+  const names = readdirSync(dir)
+  removeStaleTemps(dir, names)
+  const decision = autoBackupDecision(
+    names.some((f) => parseAutoName(f)?.day === today),
+    store.writeCount,
+    writesAtLastAuto
+  )
+  if (decision === 'baseline') writesAtLastAuto = store.writeCount // start-up, today's backup already made
+  if (decision !== 'backup') return
   try {
     const { bavail, bsize } = statfsSync(dir)
     if (bavail * bsize < MIN_FREE_BYTES) {
@@ -315,11 +380,33 @@ export async function autoBackup(): Promise<void> {
     /* can't tell: go ahead */
   }
   const time = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`
-  await createBackup(join(dir, autoBackupName(today, time)))
-  writesAtLastAuto = store.writeCount
+  // the count when the files were READ: a save made while the zip was being written is not in this backup
+  // and must make the next hourly run happen
+  const { writes } = await exclusive(() => writeBackup(join(dir, autoBackupName(today, time))))
+  writesAtLastAuto = writes
   for (const old of autoBackupsToDelete(readdirSync(dir))) {
     try {
       unlinkSync(join(dir, old))
+    } catch {
+      /* in use: next time */
+    }
+  }
+}
+
+/** Remove .zip.tmp files an interrupted backup left behind (they are hidden from the list and never pruned). */
+function removeStaleTemps(dir: string, names: string[]): void {
+  const files: { name: string; mtime: number }[] = []
+  for (const name of names) {
+    if (!name.endsWith('.zip.tmp')) continue
+    try {
+      files.push({ name, mtime: statSync(join(dir, name)).mtimeMs })
+    } catch {
+      /* gone meanwhile */
+    }
+  }
+  for (const name of staleBackupTemps(files, Date.now())) {
+    try {
+      unlinkSync(join(dir, name))
     } catch {
       /* in use: next time */
     }
@@ -330,9 +417,13 @@ export function listBackups(): { name: string; path: string; size: number; date:
   const dir = backupDir()
   return readdirSync(dir)
     .filter((f) => f.endsWith('.zip'))
-    .map((f) => {
-      const st = statSync(join(dir, f))
-      return { name: f, path: join(dir, f), size: st.size, date: st.mtimeMs }
+    .flatMap((f) => {
+      try {
+        const st = statSync(join(dir, f))
+        return [{ name: f, path: join(dir, f), size: st.size, date: st.mtimeMs }]
+      } catch {
+        return [] // removed meanwhile (an automatic backup's pruning)
+      }
     })
     .sort((a, b) => b.date - a.date)
 }

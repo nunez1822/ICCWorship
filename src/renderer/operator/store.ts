@@ -49,7 +49,7 @@ interface AppState {
   selectItem: (id?: string) => void
   toast: (text: string, kind?: Toast['kind'], ms?: number, action?: Toast['action']) => void
   /** readOnly: the data was written by a newer ICCWorship; nothing is saved this session */
-  dataStatus?: { readOnly: boolean; newerSchema?: number }
+  dataStatus?: { readOnly: boolean; newerSchema?: number; upgradeFailed?: boolean }
 }
 
 let toastId = 0

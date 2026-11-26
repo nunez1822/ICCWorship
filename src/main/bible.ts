@@ -20,7 +20,7 @@ import { isSafeId } from '@shared/security'
 import { within } from './pathGuard'
 import { log } from './log'
 import { writeFileAtomic } from './atomicWrite'
-import { assertWritable } from './db'
+import { assertWritable, db } from './db'
 
 const BUILTIN = ['kjv', 'rv1909']
 const full = new Map<string, FullBible>()
@@ -106,6 +106,7 @@ function bibleFile(id: string): string {
 function savePartial(b: PartialBible): void {
   assertWritable()
   writeFileAtomic(bibleFile(b.id), JSON.stringify(b, null, 1))
+  db().noteExternalWrite() // pasted verses are data too: the hourly backup must pick them up
 }
 
 export function createPasted(meta: { id?: string; name: string; abbrev: string; lang: Lang; copyright?: string; verseLimit?: number }): BibleVersionInfo {
@@ -178,6 +179,7 @@ export function importFile(path: string, meta: { name: string; abbrev: string; l
   if (verses < 10) throw new Error('empty')
   assertWritable()
   writeFileAtomic(bibleFile(id), JSON.stringify(bible))
+  db().noteExternalWrite()
   full.set(id, bible)
   fullSource.set(id, 'imported')
   // a full licensed copy replaces a pasted one with the same id
@@ -190,7 +192,10 @@ export function deleteVersion(id: string): void {
   assertWritable()
   const dir = bibleDataDir()
   const p = join(dir, `${id}.json`)
-  if (within(dir, p) && existsSync(p)) unlinkSync(p)
+  if (within(dir, p) && existsSync(p)) {
+    unlinkSync(p)
+    db().noteExternalWrite()
+  }
   full.delete(id)
   partial.delete(id)
 }

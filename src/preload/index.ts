@@ -125,7 +125,18 @@ const api = {
       path?: string
     ): Promise<{
       ok: boolean
-      error?: 'not-a-backup' | 'newer-format' | 'newer-schema' | 'damaged-backup' | 'restore-failed' | 'read-only' | 'forbidden'
+      error?:
+        | 'not-a-backup'
+        | 'newer-format'
+        | 'newer-schema'
+        | 'damaged-backup'
+        | 'restore-failed'
+        | 'restore-failed-mixed'
+        | 'read-only'
+        | 'read-only-unprepared'
+        | 'forbidden'
+      /** the copy of the data from just before the restore */
+      safetyBackup?: string
     } | null> => invoke('backup:restore', path),
     list: (): Promise<{ name: string; path: string; size: number; date: number }[]> => invoke('backup:list')
   },
@@ -147,7 +158,7 @@ const api = {
     /** false when the folder could not be opened */
     openBackups: (): Promise<boolean> => invoke('app:openBackups'),
     /** readOnly: the data was written by a newer ICCWorship (nothing is saved this session) */
-    dataStatus: (): Promise<{ readOnly: boolean; newerSchema?: number }> => invoke('app:dataStatus'),
+    dataStatus: (): Promise<{ readOnly: boolean; newerSchema?: number; upgradeFailed?: boolean }> => invoke('app:dataStatus'),
     openExternal: (url: string) => invoke('app:openExternal', url),
     /** write a line to the app's log file (never put lyrics, people or PINs in it) */
     log: (level: 'info' | 'warn' | 'error', message: string) => ipcRenderer.send('app:log', level, message),

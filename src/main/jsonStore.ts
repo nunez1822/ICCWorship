@@ -60,6 +60,8 @@ export class JsonStore {
   /** collections whose main file could be neither read nor copied aside: it must be copied
    *  aside before a save may overwrite it (it may hold newer data than what was loaded) */
   private unpreserved = new Set<string>()
+  /** collections loaded from <name>.json.bak because the main file was damaged or missing (until saved again) */
+  private fromBak = new Set<string>()
   readonly problems: StoreProblem[] = []
   onWriteError?: (name: string, error: Error) => void
   /** never write to disk (see the class comment) */
@@ -83,12 +85,14 @@ export class JsonStore {
     // healthy only once the main file on disk has been read back fine
     this.healthy.delete(name)
     this.unpreserved.delete(name)
+    this.fromBak.delete(name)
     for (const candidate of [f, f + '.bak']) {
       if (!existsSync(candidate)) continue
       try {
         value = JSON.parse(readWithRetry(candidate)) as T
         loaded = true
         if (candidate === f) this.healthy.add(name)
+        else this.fromBak.add(name)
         break
       } catch {
         damaged = true
@@ -147,6 +151,7 @@ export class JsonStore {
       // <name>.json.tmp → flushed → renamed over <name>.json (a leftover .tmp is cleaned up on failure)
       writeFileAtomic(f, JSON.stringify(value, null, 1))
       this.healthy.add(name)
+      this.fromBak.delete(name)
       this.writeCount++
     } catch (e) {
       // keep it pending: a retry (or flush() at quit) writes it once the file is free again,
@@ -180,6 +185,23 @@ export class JsonStore {
     // the files on disk were replaced: nothing is known to be good until read again
     this.healthy.clear()
     this.unpreserved.clear()
+    this.fromBak.clear()
+  }
+
+  /**
+   * What a backup must hold for collections recovered from their .bak: the main file on disk is damaged (or
+   * gone) until the next save, and backups leave .bak files out — zipping the disk file would save only the
+   * damaged copy. Returns <name> → JSON text of what the app is actually using.
+   */
+  recoveredForBackup(): Map<string, string> {
+    const out = new Map<string, string>()
+    for (const name of this.fromBak) if (this.cache.has(name)) out.set(name, JSON.stringify(this.cache.get(name), null, 1))
+    return out
+  }
+
+  /** A data file was changed outside the store (a Bible, slide images): count it, so the hourly backup runs. */
+  noteExternalWrite(): void {
+    if (!this.readOnly) this.writeCount++
   }
 
   /* ---- collection helpers (arrays of {id}) ---- */

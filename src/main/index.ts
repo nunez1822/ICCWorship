@@ -915,7 +915,15 @@ app
     const data = await prepareData(() => createSafetyBackup('before-migrate'))
     if (data.migrated?.length) log.info('data upgraded:', data.migrated.join('; '))
     if (data.readOnly)
-      log.warn(`data opened read-only${data.newerSchema ? ` (written by a newer version, schema ${data.newerSchema})` : ' (no safety backup possible)'}`)
+      log.warn(
+        `data opened read-only${
+          data.newerSchema
+            ? ` (written by a newer version, schema ${data.newerSchema})`
+            : data.upgradeFailed
+              ? ' (the upgrade failed)'
+              : ' (no safety backup possible)'
+        }`
+      )
     seedIfEmpty()
     setMainLang(getSettings().uiLang)
     buildMenu()

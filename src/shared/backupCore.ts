@@ -67,6 +67,23 @@ export function parseAutoName(name: string): { day: string; time: string } | nul
   return m ? { day: m[1], time: m[2] || '0000' } : null
 }
 
+/**
+ * Should the automatic backup run now? `writesAtLast` is the store's write count the last automatic backup
+ * captured this session (-1: none yet). At start-up a backup is made unless today already has one (then the
+ * current count becomes the baseline). After that, only when something was saved since — a new day alone (the
+ * app left open overnight) is no reason for another copy of the same data.
+ */
+export function autoBackupDecision(hasToday: boolean, writeCount: number, writesAtLast: number): 'backup' | 'baseline' | 'skip' {
+  if (writesAtLast === -1) return hasToday ? 'baseline' : 'backup'
+  return writeCount === writesAtLast ? 'skip' : 'backup'
+}
+
+/** `<backup>.zip.tmp` files left by a backup that was interrupted (crash, power cut) — older than `maxAgeMs`,
+ *  so a backup still being written right now is never touched. */
+export function staleBackupTemps(files: { name: string; mtime: number }[], now: number, maxAgeMs = 60 * 60_000): string[] {
+  return files.filter((f) => f.name.endsWith('.zip.tmp') && now - f.mtime > maxAgeMs).map((f) => f.name)
+}
+
 export function autoBackupName(day: string, time: string): string {
   return `auto-${day}-${time}.zip`
 }

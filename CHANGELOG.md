@@ -38,9 +38,12 @@ All notable changes to ICCWorship are documented here. The format is based on
 - **Data versions.** ICCWorship now records which version wrote the data. Data from 1.0 is upgraded
   automatically after a safety backup (`before-migrate-….zip`). Data written by a **newer** version opens
   **read-only**: an older copy (say, a portable one on a USB stick) can still run the service, but changes are not
-  saved — a red bar says so.
+  saved — a red bar says so. If an upgrade ever fails, the app still opens (read-only, with a message) instead of
+  not starting.
 - Automatic backups also run **every hour** while the app is open (only if something changed, never while
   something is on screen, never when the disk is nearly full). Kept: the newest of each of the last 14 days the app was used, plus the last 6.
+  Pasted or imported Bible verses count as a change, a change saved while a backup is being written is picked
+  up by the next one, and half-written backup files left by a power cut are cleaned up.
 - **The projector and stage windows recover by themselves.** If their page crashes or freezes, it restarts in a
   second or two and shows what is live again — a playing video continues where it was. If it keeps failing, the
   projector shows black instead of looping, and **Settings → Screens → 🔄 Restart projector** brings it back.
@@ -83,7 +86,12 @@ All notable changes to ICCWorship are documented here. The format is based on
 - Safety backups (`before-restore-…`) piled up forever; the newest 5 of each kind are kept.
 - Backups are smaller: they no longer include the `.bak` copies of files that are already in the backup.
 - Changes made just before Windows shuts down, restarts or goes to sleep are saved (they could be lost before).
-- Restoring a backup no longer occasionally reported an error although it had worked.
+- Restoring a backup no longer occasionally reported an error although it had worked (also when antivirus or
+  OneDrive briefly holds its temporary folder). If a restore fails and the previous data can't be fully put back,
+  the message now says so and names the safety backup to restore.
+- A backup made while a damaged data file is being read from its `.bak` copy now holds the good data, not the
+  damaged file (such a backup could not be restored before).
+- The "Not saved: read-only" message pointed to a message "at the top"; the red bar is at the bottom.
 - PDFs with JPEG 2000 or JBIG2 images (most scanned PDFs) imported with blank pages; they now show the images.
 - `npm run dev` showed blank windows ("Invalid hook call"): Vite loaded two copies of React in development.
 - Typing a new port in Settings → Remote no longer restarts the server on every keystroke; it applies on Enter.

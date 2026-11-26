@@ -557,7 +557,9 @@
       "newer-schema": "That backup was made by a newer ICCWorship. Install the latest version to restore it.",
       "damaged-backup": "That backup is damaged (a data file in it can’t be read). Nothing was changed.",
       "restore-failed": "The restore could not finish, so your previous data was put back. Close other programs that may use the files (OneDrive, antivirus) and try again.",
+      "restore-failed-mixed": "The restore could not finish and your previous data could not be put back completely. Close OneDrive and antivirus, then restore the safety backup “{{file}}” (in the backups list below).",
       "read-only": "This data is open read-only because a newer ICCWorship wrote it, so no backup can be restored here. Restore it with the newer version.",
+      "read-only-unprepared": "Your data is open read-only (see the red bar at the bottom), so no backup can be restored now. Do what the bar says and restart ICCWorship, then try again.",
       "forbidden": "That file can’t be restored from here. Use Restore… to pick it."
     }
   },
@@ -690,7 +692,8 @@
   "data": {
     "readOnly": "Your data could not be safely prepared, so ICCWorship opened it read-only: you can run the service, but changes are NOT saved. Free some disk space and restart.",
     "readOnlyNewer": "This data was saved by a newer ICCWorship. This older version can show it, but changes — including the CCLI song log — are NOT saved. Please install the latest version.",
-    "readOnlyAction": "Not saved: this data is open read-only (see the message at the top).",
+    "readOnlyUpgradeFailed": "Your data could not be upgraded to this version, so ICCWorship opened it read-only: you can run the service, but changes are NOT saved. Please report the problem (Help → Report a problem) — a safety backup was made.",
+    "readOnlyAction": "Not saved: this data is open read-only (see the red bar at the bottom).",
     "openBackups": "Open backups folder",
     "openBackupsFailed": "Could not open the backups folder."
   }

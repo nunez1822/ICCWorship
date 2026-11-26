@@ -10,9 +10,8 @@ import { isSafeId } from '@shared/security'
 import { loggableError } from '@shared/loggableError'
 import { within } from './pathGuard'
 import { log } from './log'
-import { db } from './db'
+import { assertWritable, db } from './db'
 import { dataMediaUrl, toMediaUrl } from './mediaPath'
-import { assertWritable } from './db'
 import { writeFileAtomic } from './atomicWrite'
 
 const run = promisify(execFile)

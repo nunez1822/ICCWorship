@@ -136,3 +136,42 @@ describe('JsonStore read-only mode and atomic writes', () => {
     expect(readdirSync(dir).sort()).toEqual(['songs.json', 'songs.json.bak'])
   })
 })
+
+describe('JsonStore and backups of recovered files', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'iccw-store-'))
+  })
+  afterEach(() => rmSync(dir, { recursive: true, force: true }))
+
+  it('gives a backup the recovered value while the main file on disk is damaged', () => {
+    writeFileSync(join(dir, 'songs.json'), '[{"id":"a"},{"i')
+    writeFileSync(join(dir, 'songs.json.bak'), '[{"id":"a"}]')
+    writeFileSync(join(dir, 'plans.json'), '[{"id":"p"}]')
+    const store = new JsonStore(dir)
+    store.list('songs')
+    store.list('plans')
+    const r = store.recoveredForBackup()
+    expect([...r.keys()]).toEqual(['songs']) // a healthy file is zipped from disk as usual
+    expect(JSON.parse(r.get('songs')!)).toEqual([{ id: 'a' }])
+  })
+
+  it('also when the main file is missing, and not any more once it is saved again', () => {
+    writeFileSync(join(dir, 'songs.json.bak'), '[{"id":"a"}]')
+    const store = new JsonStore(dir)
+    store.list('songs')
+    expect(store.recoveredForBackup().has('songs')).toBe(true)
+    store.upsert('songs', { id: 'b' })
+    store.flush()
+    expect(store.recoveredForBackup().size).toBe(0)
+  })
+
+  it('counts changes made outside the store, except while read-only', () => {
+    const store = new JsonStore(dir)
+    store.noteExternalWrite()
+    expect(store.writeCount).toBe(1)
+    store.readOnly = true
+    store.noteExternalWrite()
+    expect(store.writeCount).toBe(1)
+  })
+})

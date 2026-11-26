@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  autoBackupDecision,
   autoBackupsToDelete,
   checkManifest,
   isTransientCopy,
@@ -9,7 +10,8 @@ import {
   mustParseOnRestore,
   parseAutoName,
   restoredMeta,
-  safetyBackupsToDelete
+  safetyBackupsToDelete,
+  staleBackupTemps
 } from '../src/shared/backupCore'
 import { checkSchema, runMigrations, SCHEMA_VERSION, type Migration } from '@shared/migrations'
 
@@ -135,5 +137,32 @@ describe('restored meta', () => {
 
   it('leaves a complete meta.json alone', () => {
     expect(restoredMeta({ seeded: 5, schemaVersion: 1 }, 1, 123)).toBeNull()
+  })
+})
+
+describe('automatic backup decision', () => {
+  it('backs up at start-up unless today already has one (then that is the baseline)', () => {
+    expect(autoBackupDecision(false, 0, -1)).toBe('backup')
+    expect(autoBackupDecision(true, 5, -1)).toBe('baseline')
+  })
+
+  it('later runs only when something was saved — a new day alone is not enough', () => {
+    expect(autoBackupDecision(true, 5, 5)).toBe('skip')
+    expect(autoBackupDecision(false, 5, 5)).toBe('skip') // left open past midnight, nothing changed
+    expect(autoBackupDecision(false, 6, 5)).toBe('backup')
+    expect(autoBackupDecision(true, 6, 5)).toBe('backup')
+  })
+})
+
+describe('leftover backup temp files', () => {
+  it('removes only old .zip.tmp files (a backup being written now is left alone)', () => {
+    const now = 10 * 60 * 60_000
+    const files = [
+      { name: 'auto-2026-11-24-0930.zip.tmp', mtime: now - 2 * 60 * 60_000 },
+      { name: 'auto-2026-11-25-1030.zip.tmp', mtime: now - 60_000 },
+      { name: 'auto-2026-11-24-0930.zip', mtime: 0 },
+      { name: 'notes.tmp', mtime: 0 }
+    ]
+    expect(staleBackupTemps(files, now)).toEqual(['auto-2026-11-24-0930.zip.tmp'])
   })
 })
