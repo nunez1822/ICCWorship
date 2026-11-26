@@ -177,7 +177,7 @@ export function SettingsPage() {
                     if (!p) return
                     // the logo goes into the media library too, so backups and a new computer have it
                     if (st.copyMediaToLibrary === false) return void s.setSettings({ logoPath: p })
-                    const r = await window.api.media.copyIn(p)
+                    const r = await window.api.media.copyIn(p).catch(() => ({ ok: false as const, error: 'failed' as const }))
                     if (!r.ok) s.toast(t(r.error === 'no-space' ? 'media.copyNoSpace' : 'media.copyFailed', { name: fileName(p) }), 'err')
                     void s.setSettings({ logoPath: r.ok ? r.path : p })
                   }}

@@ -67,7 +67,8 @@ export function MediaPage() {
       let stored = p
       if (copy) {
         setBusy(`${t('media.copying')} ${fileName(p)}`)
-        const r = await window.api.media.copyIn(p)
+        // (read-only data refuses the copy: the item links to the file, like a copy that didn't fit)
+        const r = await window.api.media.copyIn(p).catch(() => ({ ok: false as const, error: 'failed' as const }))
         if (r.ok) stored = r.path
         else s.toast(t(r.error === 'no-space' ? 'media.copyNoSpace' : 'media.copyFailed', { name: fileName(p) }), 'err', 10_000)
       }

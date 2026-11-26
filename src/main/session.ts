@@ -34,8 +34,11 @@ function writeJson(name: string, value: unknown): void {
 /* ---------------- resume after an unclean exit ---------------- */
 let offer: LiveSnapshot | null = null
 let written: LiveSnapshot | undefined
-let pending: LiveSnapshot | undefined
+/** the place waiting to be written (null: nothing waiting; { snap: undefined }: "nothing live" waiting) */
+let pending: { snap: LiveSnapshot | undefined } | null = null
 let timer: ReturnType<typeof setTimeout> | undefined
+/** a normal quit was recorded: a live change while the windows close must not mark the run unclean again */
+let ended = false
 
 /** At startup: read how the last run ended, then mark this run as running (unclean until a normal quit). */
 export function startSession(): void {
@@ -53,18 +56,22 @@ export function takeResumeOffer(): LiveSnapshot | null {
 
 /** The live state changed: remember the place (written at most once a second, only when it moved). */
 export function rememberLive(l: LiveState): void {
+  if (ended) return
   const snap = snapshotOf(l, Date.now())
-  if (!snapshotChanged(pending ?? written, snap)) return
-  pending = snap
+  // compare with what will be on disk: the waiting place if there is one (even "nothing live"), else the written one
+  if (!snapshotChanged(pending ? pending.snap : written, snap)) return
+  pending = { snap }
   timer ??= setTimeout(() => {
     timer = undefined
-    written = pending
+    written = pending?.snap
+    pending = null
     writeJson('session.json', { clean: false, live: written } satisfies SessionFile)
   }, 1000)
 }
 
 /** A normal quit: nothing to resume next time. */
 export function endSession(): void {
+  ended = true
   clearTimeout(timer)
   timer = undefined
   writeJson('session.json', { clean: true } satisfies SessionFile)
