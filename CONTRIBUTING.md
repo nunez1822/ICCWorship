@@ -13,6 +13,8 @@ reported privately (see [SECURITY.md](SECURITY.md)).
   file with the same keys and register it in `src/renderer/i18n/index.ts`.
 - **Public-domain songs**: bilingual hymns are especially welcome. Only add lyrics that are in the public domain.
 - **Code**: fix a bug or build a feature from the issues. Issues labelled `good first issue` are a good start.
+  Where the project is heading is in [docs/ROADMAP.md](docs/ROADMAP.md); read the
+  [architecture decision records](docs/adr/README.md) before changing how data, updates, media or IPC work.
 
 ## Ground rules
 - **Never commit copyrighted lyrics or Bible texts.** Users paste or import those on their own computer. Test

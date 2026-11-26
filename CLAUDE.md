@@ -76,6 +76,8 @@ pnpm release:prepare minor  # maintainers: open the release PR (merging it tags,
 The toolchain is Vite+ (`vp`), configured in `vite.config.ts` (tests, lint, format, hook). The app is still built by
 electron-vite (`electron.vite.config.mts`): `vp dev` / `vp build` would run plain Vite and are not used.
 `pnpm check` and `pnpm test` must pass before any commit.
+Plans and lasting decisions: [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/adr/](docs/adr/README.md) (read the ADR before
+changing that area; supersede it with a new one rather than working around it).
 Contributor workflow (branches, squash-merged PRs, CHANGELOG, releases) is in [CONTRIBUTING.md](CONTRIBUTING.md):
 `main` is protected, so every change goes through a pull request with green CI, and anything a user would notice
 gets a line under `[Unreleased]` in `CHANGELOG.md`.
