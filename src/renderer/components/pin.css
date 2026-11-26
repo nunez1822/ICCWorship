@@ -1,0 +1,52 @@
+.pin-screen {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 20px;
+  text-align: center;
+  background: #0b1324;
+  color: #fff;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+.pin-screen h1 {
+  margin: 0;
+}
+.pin-screen input {
+  width: 200px;
+  font-size: 34px;
+  letter-spacing: 12px;
+  text-align: center;
+  background: #111827;
+  color: #fff;
+  border: 1px solid #26324b;
+  border-radius: 10px;
+  padding: 12px;
+  outline: none;
+}
+.pin-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #f2b84b, #e0742a);
+  display: grid;
+  place-items: center;
+  font-size: 34px;
+  color: #1b1405;
+}
+.pin-err {
+  color: #ef4444;
+  font-weight: 700;
+}
+.pin-btn {
+  width: 200px;
+  border: 1px solid #f2b84b;
+  background: #f2b84b;
+  color: #1b1405;
+  border-radius: 12px;
+  padding: 14px 10px;
+  font-weight: 700;
+  font-size: 16px;
+}

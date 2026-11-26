@@ -44,7 +44,10 @@ export function parseReference(input: string): ParseResult {
   // One-chapter books (Obadiah, Philemon, 2–3 John, Jude): "Judas 3" means verse 3,
   // not chapter 3. A bare "1" still means the whole book.
   if (SINGLE_CHAPTER.has(book.osis) && !nums.includes(':') && !/[.]/.test(nums) && nums !== '1') {
-    nums = nums.split(',').map((x, i) => (i === 0 ? `1:${x}` : x)).join(',')
+    nums = nums
+      .split(',')
+      .map((x, i) => (i === 0 ? `1:${x}` : x))
+      .join(',')
   }
   const segments = parseNumbers(nums)
   if (!segments) return { ok: false, error: 'numbers' }
@@ -86,7 +89,6 @@ function parseNumbers(nums: string): RefSegment[] | null {
 
     if (start.ch !== null) {
       // "3:16" or "3:16-18" or "3:16-4:2"
-      currentChapter = start.ch
       let endChapter: number = start.ch
       let endVerse = start.v!
       if (end) {

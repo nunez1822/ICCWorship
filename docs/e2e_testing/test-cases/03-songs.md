@@ -72,3 +72,10 @@
 1. Delete "Pasted Song", accept the confirm dialog.
 **Expected**
 - Song disappears from the list and search.
+
+### TC-SONG-11 · Text dragged into the lyrics box is inserted  `P2` (manual)
+**Steps**
+1. Songs → open a song. In Notepad, select two lines of placeholder text and drag them into the lyrics box.
+**Expected**
+- The text is inserted where it was dropped (dropping text into a text box works as in any program). The page
+  does not navigate anywhere.

@@ -19,8 +19,142 @@ const cacheDir = join(here, '.cache')
 const outDir = join(here, '..', 'resources', 'bibles')
 const BASE = 'https://raw.githubusercontent.com/seven1m/open-bibles/master/'
 
-const OSIS = ['Gen','Exod','Lev','Num','Deut','Josh','Judg','Ruth','1Sam','2Sam','1Kgs','2Kgs','1Chr','2Chr','Ezra','Neh','Esth','Job','Ps','Prov','Eccl','Song','Isa','Jer','Lam','Ezek','Dan','Hos','Joel','Amos','Obad','Jonah','Mic','Nah','Hab','Zeph','Hag','Zech','Mal','Matt','Mark','Luke','John','Acts','Rom','1Cor','2Cor','Gal','Eph','Phil','Col','1Thess','2Thess','1Tim','2Tim','Titus','Phlm','Heb','Jas','1Pet','2Pet','1John','2John','3John','Jude','Rev']
-const USFX = ['GEN','EXO','LEV','NUM','DEU','JOS','JDG','RUT','1SA','2SA','1KI','2KI','1CH','2CH','EZR','NEH','EST','JOB','PSA','PRO','ECC','SNG','ISA','JER','LAM','EZK','DAN','HOS','JOL','AMO','OBA','JON','MIC','NAM','HAB','ZEP','HAG','ZEC','MAL','MAT','MRK','LUK','JHN','ACT','ROM','1CO','2CO','GAL','EPH','PHP','COL','1TH','2TH','1TI','2TI','TIT','PHM','HEB','JAS','1PE','2PE','1JN','2JN','3JN','JUD','REV']
+const OSIS = [
+  'Gen',
+  'Exod',
+  'Lev',
+  'Num',
+  'Deut',
+  'Josh',
+  'Judg',
+  'Ruth',
+  '1Sam',
+  '2Sam',
+  '1Kgs',
+  '2Kgs',
+  '1Chr',
+  '2Chr',
+  'Ezra',
+  'Neh',
+  'Esth',
+  'Job',
+  'Ps',
+  'Prov',
+  'Eccl',
+  'Song',
+  'Isa',
+  'Jer',
+  'Lam',
+  'Ezek',
+  'Dan',
+  'Hos',
+  'Joel',
+  'Amos',
+  'Obad',
+  'Jonah',
+  'Mic',
+  'Nah',
+  'Hab',
+  'Zeph',
+  'Hag',
+  'Zech',
+  'Mal',
+  'Matt',
+  'Mark',
+  'Luke',
+  'John',
+  'Acts',
+  'Rom',
+  '1Cor',
+  '2Cor',
+  'Gal',
+  'Eph',
+  'Phil',
+  'Col',
+  '1Thess',
+  '2Thess',
+  '1Tim',
+  '2Tim',
+  'Titus',
+  'Phlm',
+  'Heb',
+  'Jas',
+  '1Pet',
+  '2Pet',
+  '1John',
+  '2John',
+  '3John',
+  'Jude',
+  'Rev'
+]
+const USFX = [
+  'GEN',
+  'EXO',
+  'LEV',
+  'NUM',
+  'DEU',
+  'JOS',
+  'JDG',
+  'RUT',
+  '1SA',
+  '2SA',
+  '1KI',
+  '2KI',
+  '1CH',
+  '2CH',
+  'EZR',
+  'NEH',
+  'EST',
+  'JOB',
+  'PSA',
+  'PRO',
+  'ECC',
+  'SNG',
+  'ISA',
+  'JER',
+  'LAM',
+  'EZK',
+  'DAN',
+  'HOS',
+  'JOL',
+  'AMO',
+  'OBA',
+  'JON',
+  'MIC',
+  'NAM',
+  'HAB',
+  'ZEP',
+  'HAG',
+  'ZEC',
+  'MAL',
+  'MAT',
+  'MRK',
+  'LUK',
+  'JHN',
+  'ACT',
+  'ROM',
+  '1CO',
+  '2CO',
+  'GAL',
+  'EPH',
+  'PHP',
+  'COL',
+  '1TH',
+  '2TH',
+  '1TI',
+  '2TI',
+  'TIT',
+  'PHM',
+  'HEB',
+  'JAS',
+  '1PE',
+  '2PE',
+  '1JN',
+  '2JN',
+  '3JN',
+  'JUD',
+  'REV'
+]
 
 async function ensure(file) {
   const p = join(cacheDir, file)
@@ -33,9 +167,20 @@ async function ensure(file) {
   return p
 }
 
+/** Same as stripTags in src/shared/textDecode.ts: repeat until nothing changes, so "<scr<b>ipt>" can't reassemble. */
+function stripTags(s) {
+  let prev
+  let out = s
+  do {
+    prev = out
+    out = out.replace(/<[^<>]*>/g, '')
+  } while (out !== prev)
+  // a lone "<" left over from broken markup can't open a tag any more
+  return out.replace(/<(?=[A-Za-z!/?])/g, '')
+}
+
 const decode = (s) =>
-  s
-    .replace(/<[^>]+>/g, '')
+  stripTags(s)
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')

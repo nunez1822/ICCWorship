@@ -4,7 +4,7 @@ End-to-end journeys that combine many features the way a church uses them. Each 
 run them before a release. Check the projector, stage and phone at every marked step.
 
 ### TC-DAY-01 · Whole service from the keyboard  `P0` 📸
-**Pre:** fresh, welcome done; stage window open (Settings); phone `/stage` open.
+**Pre:** fresh, welcome done; stage window open (Settings); phone `/stage#pin=<PIN>` open.
 **Steps**
 1. Live → double-click **Countdown**. Let it run 10 s.
 2. Use only `Ctrl+→` to move item to item and `Space` within items, through to **Closing prayer**.

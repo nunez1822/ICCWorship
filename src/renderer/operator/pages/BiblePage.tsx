@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { BibleVersionInfo, Lang, PassageResult, Verse } from '@shared/types'
 import { bookName } from '@shared/books'
+import { BIBLE_ERRORS } from '@shared/bibleCore'
 import { bookSuggestions, formatReference, parseReference } from '@shared/scriptureRef'
 import { uid } from '@shared/slides'
-import { useApp } from '../store'
+import { toastError, useApp } from '../store'
 import { activePlan, showAdhoc, syncPlanSummary } from '../liveControl'
 import { scriptureSlides } from '../../lib/buildSlides'
 import { Field, confirmDel } from '../../components/ui'
@@ -17,8 +18,7 @@ export const LBLA_PRESET = {
   abbrev: 'LBLA',
   lang: 'es' as Lang,
   verseLimit: 500,
-  copyright:
-    'Scripture taken from La Biblia de las Américas® (LBLA®), Copyright © 1986, 1995, 1997 by The Lockman Foundation. Used by permission. www.LBLA.com'
+  copyright: 'Scripture taken from La Biblia de las Américas® (LBLA®), Copyright © 1986, 1995, 1997 by The Lockman Foundation. Used by permission. www.LBLA.com'
 }
 
 export function BiblePage() {
@@ -62,7 +62,17 @@ export function BiblePage() {
   )
 }
 
-function VersionSelect({ value, onChange, allowNone, bibles }: { value?: string; onChange: (v?: string) => void; allowNone?: boolean; bibles: BibleVersionInfo[] }) {
+function VersionSelect({
+  value,
+  onChange,
+  allowNone,
+  bibles
+}: {
+  value?: string
+  onChange: (v?: string) => void
+  allowNone?: boolean
+  bibles: BibleVersionInfo[]
+}) {
   const { t } = useTranslation()
   return (
     <select className="select" value={value || ''} onChange={(e) => onChange(e.target.value || undefined)}>
@@ -85,7 +95,10 @@ function Lookup({ refText, setRefText, onPasteMissing }: { refText: string; setR
   const [res, setRes] = useState<{ p: PassageResult; s?: PassageResult } | null>(null)
   const parsed = refText.trim() ? parseReference(refText) : null
   const bookPart = refText.replace(/\s*\d+[\d:.,\- ]*$/, '')
-  const suggestions = refText && !/\d/.test(refText.replace(/^[1-3]\s*/, '')) ? [...new Set([...bookSuggestions(bookPart, s.settings.uiLang), ...bookSuggestions(bookPart, s.settings.uiLang === 'es' ? 'en' : 'es')])].slice(0, 8) : []
+  const suggestions =
+    refText && !/\d/.test(refText.replace(/^[1-3]\s*/, ''))
+      ? [...new Set([...bookSuggestions(bookPart, s.settings.uiLang), ...bookSuggestions(bookPart, s.settings.uiLang === 'es' ? 'en' : 'es')])].slice(0, 8)
+      : []
 
   const lookup = async () => {
     if (!parsed?.ok || !primary) return
@@ -96,6 +109,7 @@ function Lookup({ refText, setRefText, onPasteMissing }: { refText: string; setR
   useEffect(() => {
     if (parsed?.ok) void lookup()
     else setRes(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `parsed` and `lookup` are derived from these inputs
   }, [refText, primary, secondary])
 
   const show = async () => {
@@ -109,7 +123,10 @@ function Lookup({ refText, setRefText, onPasteMissing }: { refText: string; setR
     if (!plan || !parsed?.ok || !primary) return s.toast(t('songs.noActivePlan'), 'err')
     await s.save('plans', {
       ...plan,
-      items: [...plan.items, { id: uid(), type: 'scripture', title: formatReference(parsed.ref, s.settings.uiLang), scripture: { ref: refText, primary, secondary }, durationMin: 3 }],
+      items: [
+        ...plan.items,
+        { id: uid(), type: 'scripture', title: formatReference(parsed.ref, s.settings.uiLang), scripture: { ref: refText, primary, secondary }, durationMin: 3 }
+      ],
       updatedAt: Date.now()
     })
     void syncPlanSummary()
@@ -125,7 +142,14 @@ function Lookup({ refText, setRefText, onPasteMissing }: { refText: string; setR
     <div className="col" style={{ maxWidth: 1100 }}>
       <div className="row" style={{ alignItems: 'flex-end' }}>
         <Field label={t('bible.reference')} style={{ flex: 1, position: 'relative' }}>
-          <input className="input big" autoFocus placeholder="Juan 3:16-18 · John 3:16 · Salmos 23 · 1 Cor 13:4-7" value={refText} onChange={(e) => setRefText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void show()} />
+          <input
+            className="input big"
+            autoFocus
+            placeholder="Juan 3:16-18 · John 3:16 · Salmos 23 · 1 Cor 13:4-7"
+            value={refText}
+            onChange={(e) => setRefText(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && void show()}
+          />
           {suggestions.length > 0 && (
             <div className="row wrap" style={{ gap: 6, marginTop: 6 }}>
               {suggestions.map((b) => (
@@ -184,12 +208,12 @@ function Lookup({ refText, setRefText, onPasteMissing }: { refText: string; setR
             </button>
           </div>
           {/* e.g. "Juan 3:99": a valid-looking reference that matches no verse */}
-          {!res.p.verses.length && !res.s?.verses.length && pInfo?.source !== 'pasted' && <div style={{ color: 'var(--live)' }}>⚠ {t('bible.err.notFound')}</div>}
+          {!res.p.verses.length && !res.s?.verses.length && pInfo?.source !== 'pasted' && (
+            <div style={{ color: 'var(--live)' }}>⚠ {t('bible.err.notFound')}</div>
+          )}
           {missing.length > 0 && pInfo?.source === 'pasted' && (
             <div className="card row" style={{ borderColor: 'var(--warn)' }}>
-              <span style={{ flex: 1 }}>
-                ⚠ {t('bible.missingPasted', { count: missing.length, version: pInfo.abbrev })}
-              </span>
+              <span style={{ flex: 1 }}>⚠ {t('bible.missingPasted', { count: missing.length, version: pInfo.abbrev })}</span>
               <button className="btn sm primary" onClick={() => onPasteMissing(refText)}>
                 📋 {t('bible.pasteThem')}
               </button>
@@ -230,7 +254,15 @@ function Search({ onPick }: { onPick: (ref: string) => void }) {
   return (
     <div className="col" style={{ maxWidth: 1000 }}>
       <div className="row">
-        <input className="input big" style={{ flex: 1 }} placeholder={t('bible.searchPlaceholder')} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void run()} autoFocus />
+        <input
+          className="input big"
+          style={{ flex: 1 }}
+          placeholder={t('bible.searchPlaceholder')}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && void run()}
+          autoFocus
+        />
         <VersionSelect value={version} onChange={setVersion} bibles={s.bibles} />
         <button className="btn primary lg" onClick={() => void run()}>
           🔍 {t('common.search')}
@@ -270,6 +302,7 @@ function PasteVerses({ initialRef }: { initialRef: string }) {
 
   useEffect(() => {
     if (!vid && pasted[0]) setVid(pasted[0].id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- pick a default only when the number of pasted versions changes
   }, [pasted.length])
   useEffect(() => {
     if (vid) void window.api.bible.listPasted(vid).then(setStored)
@@ -293,7 +326,10 @@ function PasteVerses({ initialRef }: { initialRef: string }) {
 
   const save = async () => {
     if (!vid || !parsed) return
-    const r = await window.api.bible.savePasted(vid, parsed.verses.filter((v) => v.text.trim()))
+    const r = await window.api.bible.savePasted(
+      vid,
+      parsed.verses.filter((v) => v.text.trim())
+    )
     await s.refreshBibles()
     if (r.overLimit) s.toast(t('bible.overLimit', { limit: info?.verseLimit }), 'err')
     else s.toast(t('bible.savedVerses', { count: parsed.verses.filter((v) => v.text.trim()).length }))
@@ -336,7 +372,13 @@ function PasteVerses({ initialRef }: { initialRef: string }) {
           <input className="input big" value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Juan 3:16-18" />
         </Field>
         <Field label={t('bible.pasteHere')}>
-          <textarea className="textarea" rows={8} value={text} onChange={(e) => setText(e.target.value)} placeholder={'16 Porque de tal manera amó Dios al mundo… 17 Porque Dios no envió…'} />
+          <textarea
+            className="textarea"
+            rows={8}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={'16 Porque de tal manera amó Dios al mundo… 17 Porque Dios no envió…'}
+          />
         </Field>
         <div>
           <button className="btn primary" disabled={!ref.trim() || !text.trim()} onClick={() => void detect()}>
@@ -385,9 +427,15 @@ function PasteVerses({ initialRef }: { initialRef: string }) {
                 {t('bible.usage', { count, limit })}
               </div>
               {count > limit ? (
-                <div className="small" style={{ color: 'var(--live)', marginTop: 4 }}>{t('bible.overLimit', { limit })}</div>
+                <div className="small" style={{ color: 'var(--live)', marginTop: 4 }}>
+                  {t('bible.overLimit', { limit })}
+                </div>
               ) : (
-                count > limit * 0.85 && <div className="small" style={{ color: 'var(--warn)', marginTop: 4 }}>{t('bible.nearLimit')}</div>
+                count > limit * 0.85 && (
+                  <div className="small" style={{ color: 'var(--warn)', marginTop: 4 }}>
+                    {t('bible.nearLimit')}
+                  </div>
+                )
               )}
             </>
           ) : (
@@ -433,10 +481,16 @@ function NewPastedVersion({ onDone }: { onDone: (id?: string) => void }) {
   const s = useApp()
   const [meta, setMeta] = useState({ name: '', abbrev: '', lang: 'es' as Lang, copyright: '', verseLimit: 500 })
   const create = async (m: typeof meta & { id?: string }) => {
-    const info = await window.api.bible.createPasted({ ...m, verseLimit: m.verseLimit || undefined })
-    await s.refreshBibles()
-    s.toast(t('bible.versionCreated', { name: info.name }))
-    onDone(info.id)
+    try {
+      const info = await window.api.bible.createPasted({ ...m, verseLimit: m.verseLimit || undefined })
+      await s.refreshBibles()
+      s.toast(t('bible.versionCreated', { name: info.name }))
+      onDone(info.id)
+    } catch (e) {
+      const code = String((e as Error)?.message || '').replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+      if (BIBLE_ERRORS.includes(code)) s.toast(t(`bible.importErr.${code}`), 'err', 10_000)
+      else toastError(e)
+    }
   }
   const hasLbla = s.bibles.some((b) => b.id === 'lbla')
   return (
@@ -577,7 +631,7 @@ function Versions() {
               const r = await window.api.bible.importFile(meta)
               if (r.canceled) return
               if (!r.ok) {
-                const known = ['empty', 'unsupported', 'id-taken'].includes(r.error || '')
+                const known = BIBLE_ERRORS.includes(r.error || '')
                 return s.toast(known ? t(`bible.importErr.${r.error}`) : t('bible.importFailed', { error: r.error }), 'err', 10_000)
               }
               await s.refreshBibles()

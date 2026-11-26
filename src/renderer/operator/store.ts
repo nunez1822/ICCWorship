@@ -1,20 +1,8 @@
 import { create } from 'zustand'
-import type {
-  BibleVersionInfo,
-  LiveState,
-  MediaItem,
-  Person,
-  PrayerRequest,
-  Presentation,
-  ServicePlan,
-  Settings,
-  Song,
-  Team,
-  Theme
-} from '@shared/types'
+import type { BibleVersionInfo, LiveState, MediaItem, Person, PrayerRequest, Presentation, ServicePlan, Settings, Song, Team, Theme } from '@shared/types'
 import i18n from '../i18n'
-import { mediaUrlToPath } from '../lib/media'
 import { localDate } from '@shared/dates'
+import { loggableError } from '@shared/loggableError'
 
 export type Page = 'live' | 'plans' | 'songs' | 'bible' | 'media' | 'themes' | 'people' | 'reports' | 'settings'
 
@@ -24,6 +12,8 @@ interface Toast {
   id: number
   text: string
   kind: 'ok' | 'err' | 'info'
+  /** a button on the toast, e.g. "Download" for an update */
+  action?: { label: string; run: () => void }
 }
 
 interface AppState {
@@ -57,23 +47,34 @@ interface AppState {
   refreshBibles: () => Promise<void>
   setActivePlan: (id?: string) => void
   selectItem: (id?: string) => void
-  toast: (text: string, kind?: Toast['kind'], ms?: number) => void
+  toast: (text: string, kind?: Toast['kind'], ms?: number, action?: Toast['action']) => void
+  /** readOnly: the data was written by a newer ICCWorship; nothing is saved this session */
+  dataStatus?: { readOnly: boolean; newerSchema?: number; upgradeFailed?: boolean }
 }
 
 let toastId = 0
+/** when each visible toast goes away, and its timer */
+const toastTimers = new Map<number, { until: number; timer: ReturnType<typeof setTimeout> }>()
 
 /** Tell the operator why a live video/image isn't showing: missing file or unplayable. */
 export async function reportMediaProblem(url: string | undefined, toast: AppState['toast']): Promise<void> {
-  const path = mediaUrlToPath(url)
-  if (!path) return
-  const [exists] = await window.api.files.exists([path])
-  toast(exists ? i18n.t('errors.mediaUnplayable') : i18n.t('errors.mediaMissing', { file: path }), 'err', 10_000)
+  if (!url?.startsWith('media://')) return
+  const [st] = await window.api.files.mediaStatus([url])
+  if (!st?.path) return
+  toast(st.exists ? i18n.t('errors.mediaUnplayable') : i18n.t('errors.mediaMissing', { file: st.path }), 'err', 10_000)
 }
 
 /** Fill in missing fields so an incomplete record (older version, hand-edited backup,
  *  third-party import) can't crash the editor with e.g. `undefined.join`. */
 function normalizeSong(x: Song): Song {
-  return { ...x, title: x.title ?? '', tags: x.tags ?? [], sections: (x.sections ?? []).map((z) => ({ ...z, en: z.en ?? '', es: z.es ?? '' })), arrangement: x.arrangement ?? [], linesPerSlide: x.linesPerSlide || 4 }
+  return {
+    ...x,
+    title: x.title ?? '',
+    tags: x.tags ?? [],
+    sections: (x.sections ?? []).map((z) => ({ ...z, en: z.en ?? '', es: z.es ?? '' })),
+    arrangement: x.arrangement ?? [],
+    linesPerSlide: x.linesPerSlide || 4
+  }
 }
 let listening = false
 
@@ -146,11 +147,39 @@ export const useApp = create<AppState>((set, get) => ({
       api.db.onWriteError((e) => get().toast(i18n.t('errors.saveFailed', { what: e.name, reason: e.message }), 'err'))
       // safety net: an action that fails without its own error handling (e.g. saving a
       // file to a folder that no longer exists) must not fail silently
-      window.addEventListener('unhandledrejection', (ev) => toastError(ev.reason))
+      window.addEventListener('unhandledrejection', (ev) => {
+        toastError(ev.reason)
+        api.app.log('warn', `unhandled rejection: ${loggableError(ev.reason)}`)
+      })
+      // what main reports: windows restarted after a crash, updates, diagnostics…
+      api.app.onEvent((e) => {
+        const toast = get().toast
+        if (e.type === 'mainError') toast(i18n.t('recovery.mainError'), 'err', 15_000)
+        else if (e.type === 'windowRecovered') {
+          if (e.window === 'stage') toast(i18n.t('recovery.stageRestarted'), 'info', 10_000)
+          else if (e.safe) toast(i18n.t('recovery.projectorSafe'), 'err', 120_000)
+          else toast(i18n.t('recovery.projectorRestarted'), 'info', 10_000)
+        } else if (e.type === 'windowFailed') toast(i18n.t(e.window === 'output' ? 'recovery.projectorFailed' : 'recovery.stageFailed'), 'err', 120_000)
+        else if (e.type === 'renderError') toast(i18n.t(e.window === 'stage' ? 'recovery.stageRenderError' : 'recovery.renderError'), 'err', 10_000)
+        else if (e.type === 'gpuCrashed') toast(i18n.t('recovery.gpuCrashed'), 'err', 30_000)
+        else if (e.type === 'update')
+          toast(i18n.t('updates.available', { version: e.latest }), 'info', 30_000, {
+            label: i18n.t('updates.download'),
+            run: () => void api.app.openRelease(e.url)
+          })
+        else if (e.type === 'diagnostics') toast(i18n.t(e.ok ? 'about.diagSaved' : 'about.diagFailed'), e.ok ? 'ok' : 'err')
+        else if (e.type === 'openFailed') toast(i18n.t(e.what === 'logs' ? 'about.openLogsFailed' : 'about.noticesMissing'), 'err')
+      })
     }
     // damaged data files found at startup: say so (and where the damaged copy was kept)
     for (const p of await api.db.problems()) {
       get().toast(i18n.t(p.kind === 'recovered' ? 'errors.dataRecovered' : 'errors.dataUnreadable', { what: p.name, file: p.savedAs || '' }), 'err', 30_000)
+    }
+    // data written by a newer ICCWorship: shown as a banner (App)
+    set({ dataStatus: await api.app.dataStatus() })
+    // this window was restarted after a crash: what the operator has to know
+    for (const n of await api.app.notices()) {
+      if (n === 'operatorRecovered') get().toast(i18n.t('recovery.operatorRecovered'), 'err', 30_000)
     }
   },
 
@@ -182,7 +211,13 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   async setSettings(patch) {
-    const s = await window.api.settings.set(patch)
+    let s: Settings
+    try {
+      s = await window.api.settings.set(patch)
+    } catch (e) {
+      toastError(e) // e.g. the server couldn't restart on a new port: never fail silently
+      return
+    }
     if (patch.uiLang) {
       void i18n.changeLanguage(s.uiLang)
       document.documentElement.lang = s.uiLang
@@ -203,16 +238,38 @@ export const useApp = create<AppState>((set, get) => ({
     set({ selectedItemId: id })
   },
 
-  toast(text, kind = 'ok', ms) {
+  toast(text, kind = 'ok', ms, action) {
+    const duration = ms ?? (kind === 'err' ? 6000 : 4500)
+    const hide = (id: number, after: number) => {
+      const prev = toastTimers.get(id)
+      if (prev) clearTimeout(prev.timer)
+      const timer = setTimeout(() => {
+        toastTimers.delete(id)
+        set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
+      }, after)
+      toastTimers.set(id, { until: Date.now() + after, timer })
+    }
+    // the same message twice in a row (one action reported by two checks, a double click) is shown once — but a
+    // repeat keeps it up for the full time again (a failure that happens again must not vanish a second later)
+    const same = get().toasts.find((x) => x.text === text)
+    if (same) {
+      const left = (toastTimers.get(same.id)?.until ?? 0) - Date.now()
+      hide(same.id, Math.max(left, duration))
+      // an error repeating an info message with the same text is shown as an error
+      if (kind === 'err' && same.kind !== 'err') set((s) => ({ toasts: s.toasts.map((t) => (t.id === same.id ? { ...t, kind } : t)) }))
+      return
+    }
     const id = ++toastId
-    set((s) => ({ toasts: [...s.toasts, { id, text, kind }] }))
-    setTimeout(() => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), ms ?? (kind === 'err' ? 6000 : 4500))
+    set((s) => ({ toasts: [...s.toasts, { id, text, kind, action }] }))
+    hide(id, duration)
   }
 }))
 
 /** Tell the operator an action failed (instead of failing silently). */
 export function toastError(e: unknown): void {
   const msg = String((e as Error)?.message || e || '').replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+  // data from a newer version is open read-only: say what that means instead of a technical message
+  if (msg === 'read-only') return useApp.getState().toast(i18n.t('data.readOnlyAction'), 'err', 10_000)
   useApp.getState().toast(`⚠ ${msg || i18n.t('errors.generic')}`, 'err', 8000)
 }
 

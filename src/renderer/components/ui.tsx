@@ -1,5 +1,5 @@
 import { Children, cloneElement, isValidElement, useEffect, useId, type ReactElement, type ReactNode } from 'react'
-import type { PlanItemType } from '@shared/types'
+import type { MediaItem, PlanItem, PlanItemType } from '@shared/types'
 
 export function Modal(p: { title: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
   useEffect(() => {
@@ -11,6 +11,7 @@ export function Modal(p: { title: ReactNode; onClose: () => void; children: Reac
     }
     window.addEventListener('keydown', k, true)
     return () => window.removeEventListener('keydown', k, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only onClose is used; `p` is a new object every render
   }, [p.onClose])
   return (
     <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && p.onClose()}>
@@ -72,12 +73,28 @@ export function Seg<T extends string>(p: { value: T; options: { value: T; label:
   return (
     <div className="seg">
       {p.options.map((o) => (
-        <button key={o.value} className={o.value === p.value ? 'on' : ''} aria-pressed={o.value === p.value} onClick={() => p.onChange(o.value)} title={o.title}>
+        <button
+          key={o.value}
+          className={o.value === p.value ? 'on' : ''}
+          aria-pressed={o.value === p.value}
+          onClick={() => p.onChange(o.value)}
+          title={o.title}
+        >
           {o.label}
         </button>
       ))}
     </div>
   )
+}
+
+/** A plan item's icon; a media item shows whether it is a picture, sound or video. */
+export function itemIcon(item: Pick<PlanItem, 'type' | 'refId'>, media: MediaItem[]): string {
+  if (item.type === 'media') {
+    const kind = media.find((m) => m.id === item.refId)?.kind
+    if (kind === 'image') return '🖼'
+    if (kind === 'audio') return '🎧'
+  }
+  return TYPE_ICON[item.type]
 }
 
 export const TYPE_ICON: Record<PlanItemType, string> = {

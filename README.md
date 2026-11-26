@@ -59,7 +59,7 @@ same time**, switchable live with one key.
 
 **Safe with data**
 - Everything lives in `Documents\ICCWorship` as plain JSON — no cloud, no account.
-- Automatic daily backup (keeps 14) + one-click **Backup to USB** (.zip) and restore.
+- Automatic backups (at start and hourly, keeps the last 14 days the app was used) + one-click **Backup to USB** (.zip) and restore.
 
 ## Screenshots
 
@@ -76,13 +76,18 @@ same time**, switchable live with one key.
 1. Download **`ICCWorship-Setup-x.y.z.exe`** (installer) or **`ICCWorship-Portable-x.y.z.exe`** (no installation needed) from the Releases page.
    The portable version still keeps its data on the PC it runs on (`Documents\ICCWorship`), not on the USB stick.
 2. Windows SmartScreen may warn because the app is not code-signed (signing certificates cost money). Click **More info → Run anyway**.
-3. The first time you use the phone remote, Windows Firewall asks to allow ICCWorship — choose **Allow** on private networks.
+3. **Optional: verify your download.** Each release lists SHA-256 checksums (`SHA256SUMS.txt`). In PowerShell,
+   `(Get-FileHash .\ICCWorship-Setup-x.y.z.exe).Hash -eq '<checksum from SHA256SUMS.txt>'` must print `True`
+   (`Get-FileHash` shows the hash in capital letters; the comparison ignores case). With the GitHub CLI you can also confirm the
+   file was built by this repository's release workflow: `gh attestation verify ICCWorship-Setup-x.y.z.exe --repo nunez1822/ICCWorship`.
+4. The first time you use the phone remote, Windows Firewall asks to allow ICCWorship — choose **Allow** on private networks.
 
 ## Your data and backups
 
 - Everything ICCWorship creates lives in **`Documents\ICCWorship`** (Settings → Backup → 📂 Open data folder).
-- A backup is made automatically each day ICCWorship is opened (the last 14 of those are kept in
-  `Documents\ICCWorship\backups`).
+- A backup is made automatically when the app starts and every hour it stays open, if something changed
+  (in `Documents\ICCWorship\backups`). The newest one of each of the last 14 days the app was used is kept, plus
+  the 6 most recent.
 - **Moving to a new computer:** on the old PC, Settings → Backup → **Back up now** to a USB stick. Install ICCWorship
   on the new PC and choose **Restore** with that file. Videos and images you added (including the logo and theme
   backgrounds) are *referenced by their full folder path*, not copied: copy them to the **same folder path** on the

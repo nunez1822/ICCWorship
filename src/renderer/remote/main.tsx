@@ -1,51 +1,37 @@
 import { createRoot } from 'react-dom/client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import '../i18n'
 import { pickLangs } from '@shared/slides'
+import { MAX_MESSAGE_LENGTH } from '@shared/security'
 import type { DisplayLang } from '@shared/types'
-import { useLiveFeed } from '../lib/liveFeed'
+import { safeMediaSrc, useLiveFeed } from '../lib/liveFeed'
+import { rememberPin, usePin } from '../lib/pin'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 import './remote.css'
 
-const ICON: Record<string, string> = { song: '🎵', scripture: '📖', announcement: '📣', media: '🎬', presentation: '🖼️', countdown: '⏱️', notes: '📝', header: '🔖', blank: '⬛', prayer: '🙏' }
-
-function readPin(): string {
-  const fromHash = /pin=(\d+)/.exec(location.hash)?.[1]
-  if (fromHash) {
-    try {
-      localStorage.setItem('icc-pin', fromHash)
-    } catch {
-      /* ignore */
-    }
-    history.replaceState(null, '', location.pathname)
-    return fromHash
-  }
-  try {
-    return localStorage.getItem('icc-pin') || ''
-  } catch {
-    return ''
-  }
+const ICON: Record<string, string> = {
+  song: '🎵',
+  scripture: '📖',
+  announcement: '📣',
+  media: '🎬',
+  presentation: '🖼️',
+  countdown: '⏱️',
+  notes: '📝',
+  header: '🔖',
+  blank: '⬛',
+  prayer: '🙏'
 }
 
 /** Phone remote — big thumb-friendly buttons, works on any phone browser on the church Wi-Fi */
 function Remote() {
   const { t } = useTranslation()
-  const [pin, setPin] = useState(readPin)
+  const [pin, setPin] = usePin()
   const [entry, setEntry] = useState('')
   const { state, status, send, lockedSec } = useLiveFeed('remote', pin)
   const [tab, setTab] = useState<'slides' | 'plan' | 'msg'>('slides')
   const [msg, setMsg] = useState('')
   const [stageMsg, setStageMsg] = useState('')
-
-  // Opening a new #pin=… link in an already-open tab (e.g. scanning the QR code again)
-  // only changes the hash — no page load — so pick the new PIN up here.
-  useEffect(() => {
-    const onHash = () => {
-      if (/pin=\d+/.test(location.hash)) setPin(readPin())
-    }
-    window.addEventListener('hashchange', onHash)
-    return () => window.removeEventListener('hashchange', onHash)
-  }, [])
 
   if (status === 'badpin' || !pin) {
     return (
@@ -55,6 +41,7 @@ function Remote() {
         <p>{t('remote.enterPin')}</p>
         <input
           inputMode="numeric"
+          aria-label={t('remote.pinLabel')}
           maxLength={6}
           value={entry}
           onChange={(e) => setEntry(e.target.value.replace(/\D/g, ''))}
@@ -70,11 +57,7 @@ function Remote() {
   }
 
   function submit() {
-    try {
-      localStorage.setItem('icc-pin', entry)
-    } catch {
-      /* ignore */
-    }
+    rememberPin(entry)
     // Re-submitting the same PIN (e.g. after a lockout) must still reconnect.
     if (entry === pin) {
       setPin('')
@@ -82,7 +65,7 @@ function Remote() {
     } else setPin(entry)
   }
 
-  if (!state) return <div className="r-pin">{status === 'offline' ? t('remote.offline') : '…'}</div>
+  if (!state) return <div className="r-pin">{status === 'offline' ? t('remote.offline') : status === 'full' ? t('remote.full') : '…'}</div>
 
   const cur = state.slideIndex >= 0 ? state.slides[state.slideIndex] : undefined
   const txt = pickLangs(cur?.text, state.displayLang, state.bilingualOrder)
@@ -91,7 +74,7 @@ function Remote() {
   const online = status === 'online'
   return (
     <div className={`r ${online ? '' : 'is-offline'}`}>
-      {!online && <div className="r-offline">⚠ {t('remote.offline')}</div>}
+      {!online && <div className="r-offline">⚠ {t(status === 'full' ? 'remote.full' : 'remote.offline')}</div>}
       <header className="r-head">
         <span className={`r-dot ${status === 'online' ? 'on' : ''}`} />
         <div className="r-title">
@@ -111,7 +94,7 @@ function Remote() {
         {state.layers.black ? (
           <span>⬛ {t('remote.black')}</span>
         ) : cur?.kind === 'image' && cur.media ? (
-          <img src={cur.media} alt="" />
+          <img src={safeMediaSrc(cur.media)} alt="" />
         ) : (
           <>
             {title.primary && <b>{title.primary}</b>}
@@ -166,7 +149,11 @@ function Remote() {
       <div className="r-list">
         {tab === 'slides' &&
           state.slides.map((s, i) => {
-            const p = pickLangs(s.text, state.displayLang, state.bilingualOrder).primary || pickLangs(s.title, state.displayLang, state.bilingualOrder).primary || s.group || `#${i + 1}`
+            const p =
+              pickLangs(s.text, state.displayLang, state.bilingualOrder).primary ||
+              pickLangs(s.title, state.displayLang, state.bilingualOrder).primary ||
+              s.group ||
+              `#${i + 1}`
             return (
               <button key={s.id} className={`r-row ${i === state.slideIndex ? 'on' : ''}`} onClick={() => send({ type: 'gotoSlide', index: i })}>
                 <span className="n">{i + 1}</span>
@@ -191,7 +178,7 @@ function Remote() {
           <div className="r-msg">
             <label>{t('remote.screenMessage')}</label>
             <div className="r-inline">
-              <input value={msg} onChange={(e) => setMsg(e.target.value)} placeholder={t('live.customMessage')} />
+              <input value={msg} maxLength={MAX_MESSAGE_LENGTH} onChange={(e) => setMsg(e.target.value)} placeholder={t('live.customMessage')} />
               <button className="r-btn primary" disabled={!msg.trim()} onClick={() => (send({ type: 'message', text: msg.trim() }), setMsg(''))}>
                 {t('live.show')}
               </button>
@@ -201,7 +188,7 @@ function Remote() {
             </button>
             <label>{t('live.stageMsg')}</label>
             <div className="r-inline">
-              <input value={stageMsg} onChange={(e) => setStageMsg(e.target.value)} placeholder={t('live.stagePlaceholder')} />
+              <input value={stageMsg} maxLength={MAX_MESSAGE_LENGTH} onChange={(e) => setStageMsg(e.target.value)} placeholder={t('live.stagePlaceholder')} />
               <button className="r-btn primary" onClick={() => send({ type: 'stageMessage', text: stageMsg.trim() })}>
                 {t('live.send')}
               </button>
@@ -220,4 +207,18 @@ function Remote() {
   )
 }
 
-createRoot(document.getElementById('root')!).render(<Remote />)
+createRoot(document.getElementById('root')!).render(
+  <ErrorBoundary
+    onError={(e) => console.error('remote page error', e)}
+    fallback={() => (
+      <div className="r-pin">
+        <div className="r-logo">✝</div>
+        <button className="r-btn primary" onClick={() => location.reload()}>
+          ↻
+        </button>
+      </div>
+    )}
+  >
+    <Remote />
+  </ErrorBoundary>
+)

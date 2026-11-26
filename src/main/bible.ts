@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   importBibleText,
@@ -16,6 +16,11 @@ import {
 } from '@shared/bibleCore'
 import type { BibleVersionInfo, Lang, PassageResult, Verse } from '@shared/types'
 import { bibleDataDir, resourcesDir } from './paths'
+import { isSafeId } from '@shared/security'
+import { within } from './pathGuard'
+import { log } from './log'
+import { writeFileAtomic } from './atomicWrite'
+import { assertWritable, db } from './db'
 
 const BUILTIN = ['kjv', 'rv1909']
 const full = new Map<string, FullBible>()
@@ -24,7 +29,7 @@ const partial = new Map<string, PartialBible>()
 let loaded = false
 
 function loadJson<T>(p: string): T {
-  return JSON.parse(readFileSync(p, 'utf8').replace(/^﻿/, '')) as T
+  return JSON.parse(readFileSync(p, 'utf8').replace(/^\uFEFF/, '')) as T
 }
 
 function loadAll(): void {
@@ -47,7 +52,8 @@ function loadAll(): void {
         fullSource.set(data.id, 'imported')
       } else if ('verses' in data) partial.set(data.id, data)
     } catch (e) {
-      console.error('bad bible file', f, e)
+      // the error's own message can quote the file's text: log only its kind
+      log.warn('unreadable bible file skipped:', f, e instanceof Error ? e.name : 'error')
     }
   }
 }
@@ -89,15 +95,38 @@ export function search(id: string, q: string): Verse[] {
     })
 }
 
+/** data/bibles/<id>.json — refuses ids that would point anywhere else */
+function bibleFile(id: string): string {
+  const dir = bibleDataDir()
+  const p = join(dir, `${id}.json`)
+  if (!within(dir, p)) throw new Error('bad-id')
+  return p
+}
+
 function savePartial(b: PartialBible): void {
-  writeFileSync(join(bibleDataDir(), `${b.id}.json`), JSON.stringify(b, null, 1), 'utf8')
+  assertWritable()
+  writeFileAtomic(bibleFile(b.id), JSON.stringify(b, null, 1))
+  db().noteExternalWrite() // pasted verses are data too: the hourly backup must pick them up
 }
 
 export function createPasted(meta: { id?: string; name: string; abbrev: string; lang: Lang; copyright?: string; verseLimit?: number }): BibleVersionInfo {
   loadAll()
-  const id = meta.id || meta.abbrev.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+  const id =
+    meta.id ||
+    String(meta.abbrev ?? '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+  if (!isSafeId(id)) throw new Error('bad-id') // e.g. an abbreviation made only of symbols
   const existing = partial.get(id)
-  const b: PartialBible = { id, name: meta.name, abbrev: meta.abbrev, lang: meta.lang, copyright: meta.copyright, verseLimit: meta.verseLimit, verses: existing?.verses || {} }
+  const b: PartialBible = {
+    id,
+    name: meta.name,
+    abbrev: meta.abbrev,
+    lang: meta.lang,
+    copyright: meta.copyright,
+    verseLimit: meta.verseLimit,
+    verses: existing?.verses || {}
+  }
   partial.set(id, b)
   savePartial(b)
   return infoPartial(b)
@@ -140,12 +169,17 @@ export function listPastedVerses(id: string): Verse[] {
 
 export function importFile(path: string, meta: { name: string; abbrev: string; lang: Lang; copyright?: string }): BibleVersionInfo {
   loadAll()
-  const id = meta.abbrev.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+  const id = String(meta.abbrev ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+  if (!isSafeId(id)) throw new Error('bad-id')
   if (BUILTIN.includes(id)) throw new Error('id-taken')
-  const bible = importBibleText(readFileSync(path, 'utf8').replace(/^﻿/, ''), { id, ...meta })
+  const bible = importBibleText(readFileSync(path, 'utf8').replace(/^\uFEFF/, ''), { id, ...meta })
   const verses = bible.books.reduce((a, b) => a + b.reduce((x, c) => x + c.filter(Boolean).length, 0), 0)
   if (verses < 10) throw new Error('empty')
-  writeFileSync(join(bibleDataDir(), `${id}.json`), JSON.stringify(bible), 'utf8')
+  assertWritable()
+  writeFileAtomic(bibleFile(id), JSON.stringify(bible))
+  db().noteExternalWrite()
   full.set(id, bible)
   fullSource.set(id, 'imported')
   // a full licensed copy replaces a pasted one with the same id
@@ -155,8 +189,13 @@ export function importFile(path: string, meta: { name: string; abbrev: string; l
 
 export function deleteVersion(id: string): void {
   if (BUILTIN.includes(id)) return
-  const p = join(bibleDataDir(), `${id}.json`)
-  if (existsSync(p)) unlinkSync(p)
+  assertWritable()
+  const dir = bibleDataDir()
+  const p = join(dir, `${id}.json`)
+  if (within(dir, p) && existsSync(p)) {
+    unlinkSync(p)
+    db().noteExternalWrite()
+  }
   full.delete(id)
   partial.delete(id)
 }

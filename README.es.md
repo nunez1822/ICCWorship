@@ -59,7 +59,7 @@ mostrar en un idioma o **en ambos a la vez**, cambiando en vivo con una sola tec
 
 **Sus datos, seguros**
 - Todo se guarda en `Documentos\ICCWorship` como JSON — sin nube, sin cuentas.
-- Copia automática diaria (guarda 14) + **copia a USB** (.zip) con un clic, y restauración.
+- Copias automáticas (al iniciar y cada hora, guarda los últimos 14 días en que se usó) + **copia a USB** (.zip) con un clic, y restauración.
 
 ## Capturas
 
@@ -76,13 +76,18 @@ mostrar en un idioma o **en ambos a la vez**, cambiando en vivo con una sola tec
 1. Descargue **`ICCWorship-Setup-x.y.z.exe`** (instalador) o **`ICCWorship-Portable-x.y.z.exe`** (no necesita instalación) en la página de Releases.
    La versión portátil guarda sus datos en la PC donde se usa (`Documentos\ICCWorship`), no en la memoria USB.
 2. Windows SmartScreen puede advertir porque la app no tiene firma digital (los certificados cuestan dinero). Haga clic en **Más información → Ejecutar de todas formas**.
-3. La primera vez que use el control desde el teléfono, el Firewall de Windows pedirá permiso — elija **Permitir** en redes privadas.
+3. **Opcional: verifique su descarga.** Cada versión incluye las sumas SHA-256 (`SHA256SUMS.txt`). En PowerShell,
+   `(Get-FileHash .\ICCWorship-Setup-x.y.z.exe).Hash -eq '<suma de SHA256SUMS.txt>'` debe mostrar `True`
+   (`Get-FileHash` muestra la suma en mayúsculas; la comparación no distingue mayúsculas de minúsculas). Con GitHub CLI también puede confirmar que
+   el archivo lo compiló el flujo de publicación de este repositorio: `gh attestation verify ICCWorship-Setup-x.y.z.exe --repo nunez1822/ICCWorship`.
+4. La primera vez que use el control desde el teléfono, el Firewall de Windows pedirá permiso — elija **Permitir** en redes privadas.
 
 ## Sus datos y copias de seguridad
 
 - Todo lo que crea ICCWorship está en **`Documentos\ICCWorship`** (Ajustes → Copia de seguridad → 📂 Abrir carpeta de datos).
-- Se hace una copia automática cada día que se abre ICCWorship (se guardan las últimas 14 de esas copias en
-  `Documentos\ICCWorship\backups`).
+- Se hace una copia automática al abrir la app y cada hora que siga abierta, si algo cambió
+  (en `Documentos\ICCWorship\backups`). Se guarda la más reciente de cada uno de los últimos 14 días en que se usó
+  la app, además de las 6 más recientes.
 - **Cambiar de computadora:** en la PC anterior, Ajustes → Copia de seguridad → **Hacer copia ahora** a una memoria USB.
   Instale ICCWorship en la nueva PC y elija **Restaurar** con ese archivo. Los videos e imágenes que agregó (incluidos
   el logo y los fondos de los temas) se *referencian por su ruta completa*, no se copian: cópielos a la **misma

@@ -35,7 +35,14 @@ export function Welcome() {
               {t('welcome.subtitle')}
             </p>
             <div style={{ margin: '16px 0 4px' }}>
-              <Seg<Lang> value={s.settings.uiLang} onChange={(v) => void s.setSettings({ uiLang: v })} options={[{ value: 'es', label: 'Español' }, { value: 'en', label: 'English' }]} />
+              <Seg<Lang>
+                value={s.settings.uiLang}
+                onChange={(v) => void s.setSettings({ uiLang: v })}
+                options={[
+                  { value: 'es', label: 'Español' },
+                  { value: 'en', label: 'English' }
+                ]}
+              />
             </div>
           </div>
           <div className="feature-list">
@@ -45,7 +52,14 @@ export function Welcome() {
           </div>
           <div style={{ marginTop: 18 }}>
             <Field label={t('settings.churchName')}>
-              <input className="input big" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={t('welcome.churchPlaceholder')} onKeyDown={(e) => e.key === 'Enter' && void finish()} />
+              <input
+                className="input big"
+                autoFocus
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={t('welcome.churchPlaceholder')}
+                onKeyDown={(e) => e.key === 'Enter' && void finish()}
+              />
             </Field>
           </div>
           <p className="small muted" style={{ marginTop: 14 }}>

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { LiveState, RemoteCommand } from '@shared/types'
 import i18n from '../i18n'
 
-export type FeedStatus = 'connecting' | 'online' | 'offline' | 'badpin'
+/** `full`: the PIN was right but the server already has as many devices as it allows; keeps retrying. */
+export type FeedStatus = 'connecting' | 'online' | 'offline' | 'badpin' | 'full'
 
 /**
  * Live state for the stage display / phone remote.
@@ -31,7 +32,8 @@ export function useLiveFeed(role: 'stage' | 'remote', pin?: string) {
         b()
       }
     }
-    if (role === 'remote' && !pin) {
+    // both the remote and the stage display need the PIN over the network
+    if (!pin) {
       setStatus('badpin')
       return
     }
@@ -45,14 +47,17 @@ export function useLiveFeed(role: 'stage' | 'remote', pin?: string) {
       ws.current = sock
       lastHeard = Date.now()
       let rejected = false
+      let full = false
       sock.onmessage = (ev) => {
         lastHeard = Date.now()
         const msg = JSON.parse(String(ev.data))
         if (msg.type === 'ping') return
         if (msg.type === 'hello') {
-          rejected = !msg.authed
+          // "too many devices" is not a wrong PIN: say so, and keep trying until a place is free
+          full = !msg.authed && msg.full === true
+          rejected = !msg.authed && !full
           if (msg.uiLang) void i18n.changeLanguage(msg.uiLang)
-          setStatus(msg.authed ? 'online' : 'badpin')
+          setStatus(msg.authed ? 'online' : full ? 'full' : 'badpin')
           setLockedSec(msg.locked || 0)
           if (msg.authed) attempt = 0
         } else if (msg.type === 'state') setState(msg.state)
@@ -65,6 +70,10 @@ export function useLiveFeed(role: 'stage' | 'remote', pin?: string) {
         // server could say hello — keeps retrying (it used to give up after one failure,
         // leaving the phone frozen on stale slides with buttons that did nothing).
         if (rejected) return
+        if (full) {
+          retry = setTimeout(connect, 10_000)
+          return
+        }
         setStatus('offline')
         attempt++
         retry = setTimeout(connect, Math.min(1000 * attempt, 5000))
@@ -110,4 +119,15 @@ export function useLiveFeed(role: 'stage' | 'remote', pin?: string) {
   }
 
   return { state, progress, status, send, lockedSec }
+}
+
+/**
+ * The slide image URLs the stage / remote pages may load: the LAN server's opaque /file/<token> links, or — in
+ * the app's own stage window — media:// files. Anything else in the received state is ignored.
+ */
+export function safeMediaSrc(u: string | undefined): string | undefined {
+  if (!u) return undefined
+  if (/^\/file\/[0-9a-f]{16,64}$/.test(u)) return u
+  if (typeof window !== 'undefined' && window.api && u.startsWith('media://local/')) return u
+  return undefined
 }

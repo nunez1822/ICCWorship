@@ -194,7 +194,10 @@ textarea {
   cursor: pointer;
   font-weight: 600;
   white-space: nowrap;
-  transition: background 0.12s, border-color 0.12s, transform 0.05s;
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    transform 0.05s;
 }
 .btn:hover {
   background: var(--hover);
@@ -601,6 +604,10 @@ table.table {
 .toast.info {
   border-left-color: var(--blue);
 }
+.toast-action {
+  display: block;
+  margin-top: 8px;
+}
 
 /* ---------- live page ---------- */
 .live-page {
@@ -700,7 +707,9 @@ table.table {
   border: 2px solid var(--border);
   cursor: pointer;
   background: #000;
-  transition: border-color 0.1s, transform 0.08s;
+  transition:
+    border-color 0.1s,
+    transform 0.08s;
 }
 .thumb:hover {
   border-color: var(--muted);
@@ -970,7 +979,9 @@ button.chip {
   padding: 22px;
   text-align: center;
   color: var(--muted);
-  transition: border-color 0.12s, background 0.12s;
+  transition:
+    border-color 0.12s,
+    background 0.12s;
 }
 .dropzone.over {
   border-color: var(--accent);
@@ -1068,4 +1079,24 @@ button.chip {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+/* data written by a newer ICCWorship: nothing is saved this session — always visible, never in the way */
+.readonly-banner {
+  position: fixed;
+  left: 76px;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #7f1d1d;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.35);
+}
+.readonly-banner span {
+  flex: 1;
 }

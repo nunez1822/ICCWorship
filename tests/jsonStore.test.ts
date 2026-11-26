@@ -105,3 +105,73 @@ describe('JsonStore backups', () => {
     })
   })
 })
+
+describe('JsonStore read-only mode and atomic writes', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'iccw-store-ro-'))
+  })
+  afterEach(() => rmSync(dir, { recursive: true, force: true }))
+
+  it('keeps changes in memory but never writes (data from a newer version)', () => {
+    writeFileSync(join(dir, 'songs.json'), '[{"id":"newer"}]')
+    const store = new JsonStore(dir)
+    store.readOnly = true
+    store.upsert('songs', { id: 'x' })
+    store.write('settings', { a: 1 }, true)
+    store.flush()
+    expect(store.list('songs').map((s) => s.id)).toEqual(['newer', 'x']) // visible for this session
+    expect(readFileSync(join(dir, 'songs.json'), 'utf8')).toBe('[{"id":"newer"}]') // untouched on disk
+    expect(readdirSync(dir)).toEqual(['songs.json'])
+    expect(store.writeCount).toBe(0)
+  })
+
+  it('counts saves and leaves no temporary file behind', () => {
+    const store = new JsonStore(dir)
+    store.upsert('songs', { id: 'a' })
+    store.flush()
+    store.upsert('songs', { id: 'b' })
+    store.flush()
+    expect(store.writeCount).toBe(2)
+    expect(readdirSync(dir).sort()).toEqual(['songs.json', 'songs.json.bak'])
+  })
+})
+
+describe('JsonStore and backups of recovered files', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'iccw-store-'))
+  })
+  afterEach(() => rmSync(dir, { recursive: true, force: true }))
+
+  it('gives a backup the recovered value while the main file on disk is damaged', () => {
+    writeFileSync(join(dir, 'songs.json'), '[{"id":"a"},{"i')
+    writeFileSync(join(dir, 'songs.json.bak'), '[{"id":"a"}]')
+    writeFileSync(join(dir, 'plans.json'), '[{"id":"p"}]')
+    const store = new JsonStore(dir)
+    store.list('songs')
+    store.list('plans')
+    const r = store.recoveredForBackup()
+    expect([...r.keys()]).toEqual(['songs']) // a healthy file is zipped from disk as usual
+    expect(JSON.parse(r.get('songs')!)).toEqual([{ id: 'a' }])
+  })
+
+  it('also when the main file is missing, and not any more once it is saved again', () => {
+    writeFileSync(join(dir, 'songs.json.bak'), '[{"id":"a"}]')
+    const store = new JsonStore(dir)
+    store.list('songs')
+    expect(store.recoveredForBackup().has('songs')).toBe(true)
+    store.upsert('songs', { id: 'b' })
+    store.flush()
+    expect(store.recoveredForBackup().size).toBe(0)
+  })
+
+  it('counts changes made outside the store, except while read-only', () => {
+    const store = new JsonStore(dir)
+    store.noteExternalWrite()
+    expect(store.writeCount).toBe(1)
+    store.readOnly = true
+    store.noteExternalWrite()
+    expect(store.writeCount).toBe(1)
+  })
+})

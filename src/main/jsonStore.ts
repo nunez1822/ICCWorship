@@ -1,11 +1,15 @@
-import { existsSync, readFileSync, renameSync, writeFileSync, copyFileSync, unlinkSync } from 'node:fs'
+import { existsSync, readFileSync, copyFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { writeFileAtomic } from './atomicWrite'
 
 /**
  * Tiny JSON-file store. Each collection lives in one file (<dir>/<name>.json).
- * Writes are debounced and atomic (write temp file, then rename) so a power cut
- * during a service can never leave a half-written file. The previous version is
- * kept as <name>.json.bak.
+ * Writes are debounced and atomic (write temp file, flush it to disk, then rename — see atomicWrite.ts) so a
+ * power cut during a service can never leave a half-written file. The previous version is kept as
+ * <name>.json.bak.
+ *
+ * Read-only mode (data written by a newer ICCWorship): changes are kept in memory for this session but never
+ * written, so an old version can still run a service without damaging the newer data.
  *
  * Damage handling: a file that can't be parsed is first copied aside as
  * <name>.json.corrupt-<time> (so nothing is ever lost), the backup is used if it parses,
@@ -56,8 +60,14 @@ export class JsonStore {
   /** collections whose main file could be neither read nor copied aside: it must be copied
    *  aside before a save may overwrite it (it may hold newer data than what was loaded) */
   private unpreserved = new Set<string>()
+  /** collections loaded from <name>.json.bak because the main file was damaged or missing (until saved again) */
+  private fromBak = new Set<string>()
   readonly problems: StoreProblem[] = []
   onWriteError?: (name: string, error: Error) => void
+  /** never write to disk (see the class comment) */
+  readOnly = false
+  /** saves that reached the disk — lets the hourly backup skip when nothing changed */
+  writeCount = 0
 
   constructor(private dir: string) {}
 
@@ -75,12 +85,14 @@ export class JsonStore {
     // healthy only once the main file on disk has been read back fine
     this.healthy.delete(name)
     this.unpreserved.delete(name)
+    this.fromBak.delete(name)
     for (const candidate of [f, f + '.bak']) {
       if (!existsSync(candidate)) continue
       try {
         value = JSON.parse(readWithRetry(candidate)) as T
         loaded = true
         if (candidate === f) this.healthy.add(name)
+        else this.fromBak.add(name)
         break
       } catch {
         damaged = true
@@ -102,6 +114,7 @@ export class JsonStore {
 
   write<T>(name: string, value: T, immediate = false): void {
     this.cache.set(name, value)
+    if (this.readOnly) return
     const prev = this.timers.get(name)
     if (prev) clearTimeout(prev)
     if (immediate) {
@@ -118,16 +131,15 @@ export class JsonStore {
     this.timers.delete(name)
     // forgotten by reset() (a restore replaced the files): nothing of ours left to write
     if (!this.cache.has(name)) return
+    if (this.readOnly) return
     const value = this.cache.get(name)
     const f = this.file(name)
-    const tmp = f + '.tmp'
     try {
       // the main file was never read or kept: copy it aside first (throws → retried later)
       if (this.unpreserved.has(name)) {
         if (existsSync(f)) copyFileSync(f, corruptName(f))
         this.unpreserved.delete(name)
       }
-      writeFileSync(tmp, JSON.stringify(value, null, 1), 'utf8')
       // only a known-good file may become the backup (never copy a damaged one over it)
       if (existsSync(f) && this.healthy.has(name)) {
         try {
@@ -136,14 +148,12 @@ export class JsonStore {
           /* ignore */
         }
       }
-      renameSync(tmp, f)
+      // <name>.json.tmp → flushed → renamed over <name>.json (a leftover .tmp is cleaned up on failure)
+      writeFileAtomic(f, JSON.stringify(value, null, 1))
       this.healthy.add(name)
+      this.fromBak.delete(name)
+      this.writeCount++
     } catch (e) {
-      try {
-        if (existsSync(tmp)) unlinkSync(tmp)
-      } catch {
-        /* ignore */
-      }
       // keep it pending: a retry (or flush() at quit) writes it once the file is free again,
       // even if the operator makes no further edit
       this.timers.set(
@@ -175,6 +185,23 @@ export class JsonStore {
     // the files on disk were replaced: nothing is known to be good until read again
     this.healthy.clear()
     this.unpreserved.clear()
+    this.fromBak.clear()
+  }
+
+  /**
+   * What a backup must hold for collections recovered from their .bak: the main file on disk is damaged (or
+   * gone) until the next save, and backups leave .bak files out — zipping the disk file would save only the
+   * damaged copy. Returns <name> → JSON text of what the app is actually using.
+   */
+  recoveredForBackup(): Map<string, string> {
+    const out = new Map<string, string>()
+    for (const name of this.fromBak) if (this.cache.has(name)) out.set(name, JSON.stringify(this.cache.get(name), null, 1))
+    return out
+  }
+
+  /** A data file was changed outside the store (a Bible, slide images): count it, so the hourly backup runs. */
+  noteExternalWrite(): void {
+    if (!this.readOnly) this.writeCount++
   }
 
   /* ---- collection helpers (arrays of {id}) ---- */

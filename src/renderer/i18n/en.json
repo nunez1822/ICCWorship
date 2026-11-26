@@ -1,11 +1,13 @@
 {
   "errors": {
     "generic": "Something went wrong.",
+    "startFailed": "ICCWorship could not start.",
     "saveFailed": "⚠ Could not save {{what}} ({{reason}}). Your changes are kept while the app is open — check that the data folder isn't read-only or full.",
     "dataRecovered": "⚠ The {{what}} file was damaged and was restored from its backup. The damaged copy was kept: {{file}}",
     "dataUnreadable": "⚠ The {{what}} file is damaged and could not be read. It was kept as {{file}} — restore a backup in Settings → Backup.",
     "mediaMissing": "⚠ File not found: {{file}}",
-    "mediaUnplayable": "⚠ This video can't be played (damaged or unsupported format)."
+    "mediaUnplayable": "⚠ This video can't be played (damaged or unsupported format).",
+    "previewFailed": "⚠ Could not prepare the preview of “{{title}}”. Check that its song, Bible version or file still exists."
   },
   "common": {
     "add": "Add",
@@ -319,7 +321,8 @@
     "importErr": {
       "empty": "No Bible text was found in that file. Use a complete OSIS or USFX XML Bible, or an ICCWorship JSON Bible.",
       "unsupported": "That file isn't a Bible format ICCWorship can read (OSIS, USFX or ICCWorship JSON).",
-      "id-taken": "That abbreviation belongs to a built-in Bible. Choose another abbreviation."
+      "id-taken": "That abbreviation belongs to a built-in Bible. Choose another abbreviation.",
+      "bad-id": "That abbreviation can't be used. Use up to 64 letters or numbers (for example LBLA or NVI)."
     },
     "imported": "“{{name}}” imported",
     "results_one": "{{count}} result",
@@ -530,16 +533,35 @@
     "backupNow": "Back up now",
     "backupDone": "Backup saved ({{files}} files, {{size}} MB)",
     "restore": "Restore…",
-    "restoreConfirm": "Restoring replaces current data (a safety copy is made first). Continue?",
+    "restoreConfirm": "Restoring REPLACES all current data with the backup (a safety copy is made first). Pasted Bible verses and anything imported after the backup was made will be replaced too. This computer’s screen, phone-remote and PIN settings are kept. Continue?",
     "restoreFailed": "That file is not an ICCWorship backup.",
     "openData": "Open data folder",
+    "openDataFailed": "Could not open the data folder.",
     "about": "About",
     "aboutText": "Free and open-source church presentation software (MIT license). Made with love for churches that need it.",
     "credits": "Bibles included: King James Version and Reina-Valera 1909 (public domain, via the open-bibles project).",
     "dataAt": "Data folder:",
     "showWelcome": "Show welcome again",
     "autoBackups_one": "{{count}} backup on this computer",
-    "autoBackups_other": "{{count}} backups on this computer"
+    "autoBackups_other": "{{count}} backups on this computer",
+    "qrRemote": "Phone remote",
+    "qrStage": "Stage display",
+    "newPin": "New PIN (disconnects phones and stage screens)",
+    "portHelp": "Press Enter to apply. Use a number from 1024 to 65535.",
+    "restartOutput": "Restart projector",
+    "restartOutputHelp": "Reloads the projector window (and leaves the black \"safe\" mode after repeated errors)",
+    "portInvalid": "Port {{port}} can't be used. Use a number from 1024 to 65535; the port stays {{current}}.",
+    "restoreError": {
+      "not-a-backup": "That file is not an ICCWorship backup.",
+      "newer-format": "That backup was made by a newer ICCWorship. Install the latest version to restore it.",
+      "newer-schema": "That backup was made by a newer ICCWorship. Install the latest version to restore it.",
+      "damaged-backup": "That backup is damaged (a data file in it can’t be read). Nothing was changed.",
+      "restore-failed": "The restore could not finish, so your previous data was put back. Close other programs that may use the files (OneDrive, antivirus) and try again.",
+      "restore-failed-mixed": "The restore could not finish and your previous data could not be put back completely. Close OneDrive and antivirus, then restore the safety backup “{{file}}” (in the backups list below).",
+      "read-only": "This data is open read-only because a newer ICCWorship wrote it, so no backup can be restored here. Restore it with the newer version.",
+      "read-only-unprepared": "Your data is open read-only (see the red bar at the bottom), so no backup can be restored now. Do what the bar says and restart ICCWorship, then try again.",
+      "forbidden": "That file can’t be restored from here. Use Restore… to pick it."
+    }
   },
   "help": {
     "title": "Keyboard shortcuts",
@@ -573,10 +595,12 @@
   },
   "remote": {
     "enterPin": "Enter the PIN shown in ICCWorship → Settings",
+    "pinLabel": "PIN (numbers only)",
     "wrongPin": "Wrong PIN",
     "locked": "Too many wrong PINs — wait {{seconds}} s and try again",
     "connect": "Connect",
     "offline": "Reconnecting…",
+    "full": "Too many phones and screens are connected. Close ICCWorship on another device; this one will connect by itself.",
     "black": "Black",
     "video": "Video",
     "slides": "Slides",
@@ -587,6 +611,7 @@
   },
   "stage": {
     "offline": "Connecting to ICCWorship…",
+    "full": "Too many phones and screens are connected. Close ICCWorship on another device; this screen will connect by itself.",
     "now": "Now",
     "videoLeft": "Video left",
     "item": "Item",
@@ -595,5 +620,81 @@
     "logo": "Logo is showing",
     "next": "Next",
     "end": "End of plan"
+  },
+  "menu": {
+    "file": "File",
+    "quit": "Quit ICCWorship",
+    "view": "View",
+    "reload": "Reload window",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "zoomReset": "Actual size",
+    "fullscreen": "Full screen",
+    "devtools": "Developer tools",
+    "help": "Help",
+    "shortcuts": "Keyboard shortcuts",
+    "website": "ICCWorship website",
+    "reportProblem": "Report a problem",
+    "about": "About ICCWorship",
+    "openLogs": "Open logs folder",
+    "exportDiagnostics": "Export diagnostics…",
+    "notices": "Open-source licences"
+  },
+  "recovery": {
+    "mainError": "Something went wrong inside ICCWorship. What is on screen keeps running; it was written to the log (Help → Open logs folder).",
+    "projectorRestarted": "The projector window had a problem and was restarted. It shows what is live again.",
+    "projectorSafe": "The projector kept failing, so it now shows black. Go on with the next slide or item, then Settings → Screens → 🔄 Restart projector.",
+    "projectorFailed": "The projector window keeps failing. Settings → Screens → 🔄 Restart projector. If it happens again, turn on \"Turn off graphics acceleration\" in Settings → About.",
+    "stageRestarted": "The stage window had a problem and was restarted.",
+    "stageFailed": "The stage window keeps failing. Close it and open it again from Settings → Screens.",
+    "renderError": "The projector could not show this slide, so it shows black. Move to the next slide or item.",
+    "stageRenderError": "The stage display could not show this slide. It shows the next slide normally.",
+    "gpuCrashed": "The graphics driver stopped responding. If the projector goes black or freezes, turn on \"Turn off graphics acceleration\" in Settings → About and restart ICCWorship.",
+    "operatorRecovered": "ICCWorship restarted this window after a problem. The projector kept showing what was live; an announcement loop that was running has stopped — press Space to continue.",
+    "operatorCrashed": "The ICCWorship window crashed again. The projector keeps showing what is live. Reload the window?",
+    "reload": "Reload"
+  },
+  "boundary": {
+    "title": "This page had a problem",
+    "body": "The projector and the phone remote keep working. Try again, or reload the window. The problem was written to the log.",
+    "windowTitle": "This window had a problem",
+    "windowBody": "The projector and the phone remote keep working. Reload the window to continue. The problem was written to the log.",
+    "retry": "Try again",
+    "reload": "Reload window"
+  },
+  "about": {
+    "notices": "Open-source licences",
+    "noticesMissing": "The open-source licences file is missing from this copy of ICCWorship. The list is also on the ICCWorship website.",
+    "troubleshooting": "Troubleshooting",
+    "troubleshootingHelp": "Reporting a problem? Attach the diagnostics file to the report. It contains no lyrics, people, prayer requests or PIN, but reports on GitHub are public.",
+    "reportProblem": "Report a problem",
+    "exportDiagnostics": "Export diagnostics…",
+    "diagSaved": "Diagnostics saved. Attach the .zip to your report.",
+    "diagFailed": "Could not save the diagnostics file.",
+    "copyInfo": "Copy system info",
+    "copied": "Copied — paste it into your report.",
+    "openLogs": "Open logs folder",
+    "openLogsFailed": "Could not open the logs folder.",
+    "includeDumps": "Include crash dumps (may contain text that was on screen)",
+    "hwAccel": "Turn off graphics acceleration",
+    "hwAccelHelp": "Only if the projector goes black, flickers or freezes on this computer. Takes effect after restarting ICCWorship."
+  },
+  "updates": {
+    "title": "Updates",
+    "toggle": "Check for new versions once a day",
+    "help": "Asks GitHub whether a newer ICCWorship exists — never during a service, nothing about you is sent, nothing is installed automatically.",
+    "checkNow": "Check now",
+    "upToDate": "You have the latest version.",
+    "available": "ICCWorship {{version}} is available",
+    "download": "Download page",
+    "failed": "Could not check (no internet?)."
+  },
+  "data": {
+    "readOnly": "Your data could not be safely prepared, so ICCWorship opened it read-only: you can run the service, but changes are NOT saved. Free some disk space and restart.",
+    "readOnlyNewer": "This data was saved by a newer ICCWorship. This older version can show it, but changes — including the CCLI song log — are NOT saved. Please install the latest version.",
+    "readOnlyUpgradeFailed": "Your data could not be upgraded to this version, so ICCWorship opened it read-only: you can run the service, but changes are NOT saved. Please report the problem (Help → Report a problem) — a safety backup was made.",
+    "readOnlyAction": "Not saved: this data is open read-only (see the red bar at the bottom).",
+    "openBackups": "Open backups folder",
+    "openBackupsFailed": "Could not open the backups folder."
   }
 }

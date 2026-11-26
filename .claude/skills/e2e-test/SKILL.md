@@ -1,6 +1,6 @@
 ---
 name: e2e-test
-description: Run ICCWorship's end-to-end test cases (docs/e2e_testing/test-cases) against the real Electron app using the Playwright MCP servers, and write a pass/fail report. Use when the user asks to run e2e / end-to-end / QA / release tests, or to verify a feature end to end. Arguments - none (P0 only), "all", area names (live, songs, bible, lbla, plans, media, presentations, themes, messages, remote, people, settings, edge, conflicts, resilience, security, day) or test IDs like TC-LIVE-03.
+description: Run ICCWorship's end-to-end test cases (docs/e2e_testing/test-cases) against the real Electron app using the Playwright MCP servers, and write a pass/fail report. Use when the user asks to run e2e / end-to-end / QA / release tests, or to verify a feature end to end. Arguments - none (P0 only), "all", area names (live, songs, bible, lbla, plans, media, presentations, themes, messages, remote, people, settings, edge, conflicts, resilience, security, day) or test IDs like TC-LIVE-03. Add "packaged" to run against the installed-style build (dist/win-unpacked).
 ---
 
 # ICCWorship end-to-end test run
@@ -29,6 +29,12 @@ Do **not** fix bugs during the run — record them. Read `docs/e2e_testing/READM
 4. Default start state: in the welcome dialog click **English** *inside the dialog*, church name `E2E Test Church`, **Start**.
 5. Cases marked **Pre: fresh** need a restart: stop the app (kill the background task / `taskkill /F /IM electron.exe`)
    and launch again.
+6. Argument `packaged` (can be combined with the others, e.g. `packaged live`) tests the installed-style build
+   instead: in step 1 run `npm run build:dir` (if `dist/win-unpacked/ICCWorship.exe` is missing or older than
+   `src/`), in step 2 run `npm run e2e:launch -- --packaged`, and stop it with `taskkill /F /T /IM ICCWorship.exe`.
+   A packaged app ignores `ICCWORSHIP_E2E`, so the `window.api.e2e` dialog hooks don't exist there: mark cases
+   that need a native file dialog ⚠️ Blocked — packaged instead of running them. Say in the report that the run
+   used the packaged build.
 
 ## 4. Run each case
 - Follow the steps literally. Prefer `browser_snapshot` + accessible names over guessing coordinates.
@@ -43,7 +49,9 @@ Do **not** fix bugs during the run — record them. Read `docs/e2e_testing/READM
   also add a `page.on('dialog')` handler — two handlers race ("dialog already handled").
 - Never click **🖨️ Print**: it opens the native Windows print dialog, which blocks the page and hangs the MCP
   connection (~30 min timeout). Print and **📄 PDF** use the same `runSheetHtml`, so check the PDF instead.
-- Remote PIN: `browser_evaluate` → `(await window.api.settings.get()).remotePin`.
+- App log (attach the relevant lines to failure reports): `.e2e-data/.userdata/logs/main.log`.
+- Remote PIN: `browser_evaluate` → `(await window.api.settings.get()).remotePin`. The phone `/stage` page needs it
+  too: open `/stage#pin=<PIN>`. TC-SEC-04 locks out the whole device for minutes — run it last.
 - Screenshot every failure and every case marked 📸; save into `docs/e2e_testing/results/`
   with names like `<runstamp>-TC-LIVE-01.png`.
 - **Setup** blocks create helper files in `<repo>/.e2e-data/tmp/` — run them *after* launching (a fresh launch wipes `.e2e-data/`).

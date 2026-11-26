@@ -16,6 +16,22 @@ usually operated by a volunteer during a live service, so reliability and simpli
   show a toast or message, never a crash or a frozen screen.
 - Any user text shown on phones, stage or projector must render as text, never as HTML (see `escapeHtml` in
   `src/main/server.ts`). The phone/stage server is reachable by anyone on the church Wi-Fi.
+- **Trust boundaries** (see `src/shared/security.ts`, unit tested in `tests/security.test.ts`):
+  - IPC handlers are registered through `h()` / `on()` in `src/main/index.ts`, which only accept the app's own pages.
+  - An id that becomes a file name must pass `isSafeId`; deletes and writes use `within()` (`src/main/pathGuard.ts`).
+  - New settings must be added to `SETTING_CHECKS` or they can't be saved; the renderer can never set `remotePin`.
+  - LAN input goes through `validateCommand` / `parseRange`, and phones only receive `pickPublicState`.
+  - Nothing a LAN request sends may throw in main: every socket and stream needs an `'error'` handler.
+- **Crash recovery** (`src/shared/recovery.ts`, wired in `index.ts` → `guardWindow` / `guardOperator`): projector
+  and stage pages send `win.alive()` every second and are restarted when they crash or stop beating; repeated
+  failures put the projector in `#safe` (black). Pages are wrapped in `ErrorBoundary`. Keep new windows/pages
+  inside this net.
+- **Data format changes need a migration** (`src/shared/migrations.ts`): bump `SCHEMA_VERSION` and add an
+  idempotent migration. Data from a newer schema opens read-only (`JsonStore.readOnly`); any main-side file write
+  outside the store must call `assertWritable()` first. Write files with `writeFileAtomic` (`src/main/atomicWrite.ts`).
+  Media inside the data folder is referenced data-relative (`dataMediaUrl`) and resolved with `mediaFile()`.
+- **Logging:** use `log` from `src/main/log.ts` (`%APPDATA%\ICCWorship\logs`; test runs: `<ICCWORSHIP_DATA>/.userdata/logs`). Log ids, counts, error codes and short messages, **never** lyrics,
+  people, prayer requests, request URLs or payloads. Logs are attached to public bug reports.
 
 ## Layout
 - `src/main/`: Electron main process.
@@ -42,11 +58,13 @@ usually operated by a volunteer during a live service, so reliability and simpli
 npm run dev          # hot-reload development
 npm test             # unit tests. Use this, not `npx vitest` (see scripts/test.mjs: Windows drive-letter case issue)
 npm run typecheck    # must pass
+npm run lint         # ESLint: must pass (no errors)
+npm run format       # Prettier: format everything (CI runs format:check)
 npm run build        # needed before e2e:launch / smoke
 npm run e2e:launch   # app with fresh test data + CDP on :9222 for Playwright MCP (add -- --keep to reuse data)
 npm run smoke        # scripted end-to-end check with screenshots
 ```
-`npm test` and `npm run typecheck` must pass before any commit.
+`npm test`, `npm run typecheck`, `npm run lint` and `npm run format:check` must pass before any commit.
 Contributor workflow (branches, squash-merged PRs, CHANGELOG, releases) is in [CONTRIBUTING.md](CONTRIBUTING.md):
 `main` is protected, so every change goes through a pull request with green CI, and anything a user would notice
 gets a line under `[Unreleased]` in `CHANGELOG.md`.
@@ -74,7 +92,8 @@ Run reports go in `docs/e2e_testing/results/` (git-ignored); don't commit them.
 
 ## E2E testing gotchas (Playwright MCP)
 - The MCP often starts on the projector tab; select the `index.html` (operator) tab first.
-- Native file dialogs: queue the answer with `window.api.e2e.queueOpenFiles([...])` / `queueSaveFile(...)`
+- Native file dialogs: queue the answer with `window.api.e2e.queueOpenFiles([...])` / `queueSaveFile(...)`;
+  native message boxes (e.g. "the window crashed again — reload?") with `queueMessageBox(<button index>)`
   before clicking.
 - `confirm()` dialogs are cancelled when the tool call ends. Stub `window.confirm = () => true` in the same
   `browser_run_code_unsafe` call that clicks the button.

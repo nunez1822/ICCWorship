@@ -2,9 +2,18 @@ import { describe, expect, it } from 'vitest'
 import { filterSongs, songSecondTitle } from '@renderer/lib/songSearch'
 import type { Song } from '@shared/types'
 
-const song = (id: string, title: string, titleEs?: string, lyrics = ''): Song => ({
-  id, title, titleEs, tags: [], sections: [{ id: 's', label: 'V1', en: lyrics, es: '' }], arrangement: [], linesPerSlide: 2, createdAt: 0, updatedAt: 0
-}) as unknown as Song
+const song = (id: string, title: string, titleEs?: string, lyrics = ''): Song =>
+  ({
+    id,
+    title,
+    titleEs,
+    tags: [],
+    sections: [{ id: 's', label: 'V1', en: lyrics, es: '' }],
+    arrangement: [],
+    linesPerSlide: 2,
+    createdAt: 0,
+    updatedAt: 0
+  }) as unknown as Song
 
 describe('song search with one-language songs', () => {
   const songs = [song('ag', 'Amazing Grace'), song('cg', '', 'Cuán Grande Es Él'), song('x', 'Zion', undefined, 'oh cuan bello')]

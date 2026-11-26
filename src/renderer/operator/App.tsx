@@ -15,6 +15,7 @@ import { SettingsPage } from './pages/SettingsPage'
 import { Welcome } from './Welcome'
 import { ShortcutsHelp } from './ShortcutsHelp'
 import { Seg } from '../components/ui'
+import { ErrorBoundary, errorSummary } from '../components/ErrorBoundary'
 import type { DisplayLang } from '@shared/types'
 
 const NAV: { id: Page; ico: string }[] = [
@@ -45,6 +46,7 @@ export function App() {
   const liveState = useApp((s) => s.live)
   const outputOpen = useApp((s) => s.outputOpen)
   const toasts = useApp((s) => s.toasts)
+  const dataStatus = useApp((s) => s.dataStatus)
   const [help, setHelp] = useState(false)
   const [clients, setClients] = useState(0)
 
@@ -55,10 +57,18 @@ export function App() {
       useApp.setState({ settings: s })
       void i18n.changeLanguage(s.uiLang)
     })
+    // Help menu items handled here (the rest of the app events become toasts in the store)
+    const offMenu = window.api.app.onEvent((e) => {
+      if (e.type !== 'menu') return
+      if (e.action === 'shortcuts') setHelp(true)
+      else setPage('settings')
+    })
     return () => {
       off()
       offSettings()
+      offMenu()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- subscribe once; setPage is a stable store action
   }, [])
 
   useEffect(() => {
@@ -198,7 +208,14 @@ export function App() {
           📱 {clients}
         </span>
         <span className="small muted">{t('top.app')}</span>
-        <Seg value={settings.uiLang} onChange={(v) => void setSettings({ uiLang: v })} options={[{ value: 'es', label: 'Español' }, { value: 'en', label: 'English' }]} />
+        <Seg
+          value={settings.uiLang}
+          onChange={(v) => void setSettings({ uiLang: v })}
+          options={[
+            { value: 'es', label: 'Español' },
+            { value: 'en', label: 'English' }
+          ]}
+        />
         <button className="btn ghost icon-btn" onClick={() => setHelp(true)} title={t('help.title')}>
           ⌨️
         </button>
@@ -216,16 +233,49 @@ export function App() {
           {t('nav.settings')}
         </button>
       </nav>
+      {dataStatus?.readOnly && (
+        <div className="readonly-banner" role="alert">
+          <span>⚠ {t(dataStatus.newerSchema ? 'data.readOnlyNewer' : dataStatus.upgradeFailed ? 'data.readOnlyUpgradeFailed' : 'data.readOnly')}</span>
+          <button
+            className="btn sm"
+            onClick={() => void window.api.app.openBackups().then((ok) => ok || useApp.getState().toast(t('data.openBackupsFailed'), 'err'))}
+          >
+            📂 {t('data.openBackups')}
+          </button>
+        </div>
+      )}
       <main className="main">
-        {page === 'live' && <LivePage />}
-        {page === 'plans' && <PlansPage />}
-        {page === 'songs' && <SongsPage />}
-        {page === 'bible' && <BiblePage />}
-        {page === 'media' && <MediaPage />}
-        {page === 'themes' && <ThemesPage />}
-        {page === 'people' && <PeoplePage />}
-        {page === 'reports' && <ReportsPage />}
-        {page === 'settings' && <SettingsPage />}
+        {/* a bug on one page must not take the top bar, the shortcuts or the phone remote with it */}
+        <ErrorBoundary
+          resetKeys={[page]}
+          onError={(e) => window.api.app.log('error', `${page} page: ${errorSummary(e)}`)}
+          fallback={(reset) => (
+            <div className="page">
+              <div className="card col" style={{ maxWidth: 640 }}>
+                <h2>⚠ {t('boundary.title')}</h2>
+                <div>{t('boundary.body')}</div>
+                <div className="row">
+                  <button className="btn primary" onClick={reset}>
+                    {t('boundary.retry')}
+                  </button>
+                  <button className="btn" onClick={() => location.reload()}>
+                    ↻ {t('boundary.reload')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        >
+          {page === 'live' && <LivePage />}
+          {page === 'plans' && <PlansPage />}
+          {page === 'songs' && <SongsPage />}
+          {page === 'bible' && <BiblePage />}
+          {page === 'media' && <MediaPage />}
+          {page === 'themes' && <ThemesPage />}
+          {page === 'people' && <PeoplePage />}
+          {page === 'reports' && <ReportsPage />}
+          {page === 'settings' && <SettingsPage />}
+        </ErrorBoundary>
       </main>
       {!settings.firstRunDone && <Welcome />}
       {help && <ShortcutsHelp onClose={() => setHelp(false)} />}
@@ -233,6 +283,11 @@ export function App() {
         {toasts.map((x) => (
           <div key={x.id} className={`toast ${x.kind}`}>
             {x.text}
+            {x.action && (
+              <button className="btn sm toast-action" onClick={x.action.run}>
+                {x.action.label}
+              </button>
+            )}
           </div>
         ))}
       </div>

@@ -5,7 +5,7 @@ import { songName, uid } from '@shared/slides'
 import { localDate, nextSunday } from '@shared/dates'
 import { useApp } from '../store'
 import { syncPlanSummary } from '../liveControl'
-import { Field, TYPE_ICON, fmtMin, confirmDel } from '../../components/ui'
+import { Field, TYPE_ICON, fmtMin, confirmDel, itemIcon } from '../../components/ui'
 import { addMinutes, runSheetHtml } from '../../lib/print'
 import { itemSourceMissing } from '../../lib/planRefs'
 import { ItemEditor, SongPicker, ScripturePicker, MediaPicker, PresentationPicker } from './plan/ItemEditor'
@@ -77,7 +77,11 @@ export function PlansPage() {
         </div>
       </aside>
       <div className="content">
-        {plan ? <PlanEditor key={plan.id} plan={plan} onDeleted={() => setSelId(undefined)} onDuplicated={setSelId} /> : <div className="empty">{t('plans.none')}</div>}
+        {plan ? (
+          <PlanEditor key={plan.id} plan={plan} onDeleted={() => setSelId(undefined)} onDuplicated={setSelId} />
+        ) : (
+          <div className="empty">{t('plans.none')}</div>
+        )}
       </div>
       {showNew && (
         <NewPlanModal
@@ -129,7 +133,10 @@ function NewPlanModal({ onClose, onCreate }: { onClose: () => void; onCreate: (p
           <button
             className="btn primary"
             onClick={() => {
-              const p = newPlanFrom(templates.find((x) => x.id === tpl), t('plans.defaultTitle'))
+              const p = newPlanFrom(
+                templates.find((x) => x.id === tpl),
+                t('plans.defaultTitle')
+              )
               p.date = date
               onCreate(p)
             }}
@@ -177,8 +184,7 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
     if (mode === 'pdf') {
       const f = await window.api.print.pdf(html, `${plan.date || 'plan'} ${plan.title}.pdf`.replace(/[\\/:*?"<>|]/g, '-'))
       if (f) s.toast(t('common.savedTo', { file: f }))
-    }
-    else await window.api.print.print(html)
+    } else await window.api.print.print(html)
   }
 
   let clock = plan.time || '00:00'
@@ -254,7 +260,10 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
             if (useApp.getState().activePlanId === plan.id) {
               // pick the next upcoming plan instead of leaving the Live page pointing at nothing
               const today = localDate()
-              const rest = useApp.getState().plans.filter((p) => !p.isTemplate).sort((a, b) => a.date.localeCompare(b.date))
+              const rest = useApp
+                .getState()
+                .plans.filter((p) => !p.isTemplate)
+                .sort((a, b) => a.date.localeCompare(b.date))
               s.setActivePlan((rest.find((p) => p.date >= today) || rest[rest.length - 1])?.id)
             }
             onDeleted()
@@ -306,7 +315,7 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
                   </span>
                   <span className="small muted">{start}</span>
                   <span className="type-ico" title={itemSourceMissing(it, s) ? t('plans.sourceMissing') : undefined}>
-                    {itemSourceMissing(it, s) ? '⚠' : TYPE_ICON[it.type]}
+                    {itemSourceMissing(it, s) ? '⚠' : itemIcon(it, s.media)}
                   </span>
                   <input
                     className="input"
@@ -361,10 +370,23 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
       {tab === 'details' && (
         <div className="grid2" style={{ maxWidth: 760 }}>
           <Field label={t('plans.attendance')}>
-            <input className="input" type="number" min={0} value={plan.attendance ?? ''} onChange={(e) => void update({ attendance: e.target.value === '' ? undefined : +e.target.value })} />
+            <input
+              className="input"
+              type="number"
+              min={0}
+              value={plan.attendance ?? ''}
+              onChange={(e) => void update({ attendance: e.target.value === '' ? undefined : +e.target.value })}
+            />
           </Field>
           <Field label={t('plans.offering')}>
-            <input className="input" type="number" min={0} step="0.01" value={plan.offering ?? ''} onChange={(e) => void update({ offering: e.target.value === '' ? undefined : +e.target.value })} />
+            <input
+              className="input"
+              type="number"
+              min={0}
+              step="0.01"
+              value={plan.offering ?? ''}
+              onChange={(e) => void update({ offering: e.target.value === '' ? undefined : +e.target.value })}
+            />
           </Field>
           <Field label={t('plans.notes')} style={{ gridColumn: '1 / -1' }}>
             <textarea className="textarea" rows={6} value={plan.notes || ''} onChange={(e) => void update({ notes: e.target.value })} />
@@ -477,7 +499,9 @@ function TeamTab({ plan, update }: { plan: ServicePlan; update: (p: Partial<Serv
                             <select
                               className="select"
                               value={a.status}
-                              onChange={(e) => void setTeam(plan.team.map((x) => (x.id === a.id ? { ...x, status: e.target.value as Assignment['status'] } : x)))}
+                              onChange={(e) =>
+                                void setTeam(plan.team.map((x) => (x.id === a.id ? { ...x, status: e.target.value as Assignment['status'] } : x)))
+                              }
                             >
                               <option value="pending">{t('team.pending')}</option>
                               <option value="confirmed">{t('team.confirmed')}</option>

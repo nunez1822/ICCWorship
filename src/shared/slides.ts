@@ -1,9 +1,7 @@
 import type { BiText, Lang, LiveState, PassageResult, Slide, Song, SongSection } from './types'
 
 export const uid = (): string =>
-  typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2) + Date.now().toString(36)
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36)
 
 /* ------------------------------ text helpers ------------------------------ */
 
@@ -11,7 +9,12 @@ export const uid = (): string =>
 export function stripChords(s: string): string {
   return s
     .split('\n')
-    .map((l) => l.replace(/\[[^\]\n]*\]/g, '').replace(/\s{2,}/g, ' ').trimEnd())
+    .map((l) =>
+      l
+        .replace(/\[[^\]\n]*\]/g, '')
+        .replace(/\s{2,}/g, ' ')
+        .trimEnd()
+    )
     .join('\n')
 }
 
@@ -24,7 +27,12 @@ export function paragraphs(s: string): string[][] {
   return (s || '')
     .replace(/\r/g, '')
     .split(/\n\s*\n/)
-    .map((p) => p.split('\n').map((l) => l.trim()).filter(Boolean))
+    .map((p) =>
+      p
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean)
+    )
     .filter((p) => p.length > 0)
 }
 
@@ -65,7 +73,7 @@ export function songToSlides(song: Song, opts: { ccliLicense?: string } = {}): S
     const enChordP = paragraphs(section.en || '')
     const esChordP = paragraphs(section.es || '')
 
-    let pairs: { en: string[]; es: string[]; enC: string[]; esC: string[] }[] = []
+    let pairs: { en: string[]; es: string[]; enC: string[]; esC: string[] }[]
     if (enP.length && esP.length && enP.length === esP.length) {
       pairs = enP.map((p, i) => ({ en: p, es: esP[i], enC: enChordP[i] || p, esC: esChordP[i] || esP[i] }))
     } else {
@@ -97,9 +105,7 @@ export function songToSlides(song: Song, opts: { ccliLicense?: string } = {}): S
           kind: 'text',
           group: section.label,
           text: { en: en || undefined, es: es || undefined },
-          chords: hasChords(section.en + section.es)
-            ? { en: (ac[i] || []).join('\n') || undefined, es: (bc[i] || []).join('\n') || undefined }
-            : undefined
+          chords: hasChords(section.en + section.es) ? { en: (ac[i] || []).join('\n') || undefined, es: (bc[i] || []).join('\n') || undefined } : undefined
         })
       }
     }
@@ -267,7 +273,9 @@ export function scriptureToSlides(primary: PassageInput, secondary?: PassageInpu
 export function splitEvenText(text: string, n: number): string[] {
   if (!text) return []
   const words = text.split(/\s+/)
-  return splitEven(words, n).map((w) => w.join(' ')).filter(Boolean)
+  return splitEven(words, n)
+    .map((w) => w.join(' '))
+    .filter(Boolean)
 }
 
 /* ------------------------------ sermon notes ------------------------------ */

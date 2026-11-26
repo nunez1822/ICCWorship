@@ -6,7 +6,19 @@
     },
     "iccworship-phone": {
       "command": "cmd",
-      "args": ["/c", "npx", "-y", "@playwright/mcp@0.0.86", "--isolated", "--browser", "msedge", "--device", "iPhone 15", "--output-dir", "docs/e2e_testing/results"]
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@playwright/mcp@0.0.86",
+        "--isolated",
+        "--browser",
+        "msedge",
+        "--device",
+        "iPhone 15",
+        "--output-dir",
+        "docs/e2e_testing/results"
+      ]
     }
   }
 }

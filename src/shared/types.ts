@@ -131,17 +131,7 @@ export interface Presentation {
 }
 
 /* ---------------- Service plans ---------------- */
-export type PlanItemType =
-  | 'song'
-  | 'scripture'
-  | 'announcement'
-  | 'media'
-  | 'presentation'
-  | 'countdown'
-  | 'notes'
-  | 'header'
-  | 'blank'
-  | 'prayer'
+export type PlanItemType = 'song' | 'scripture' | 'announcement' | 'media' | 'presentation' | 'countdown' | 'notes' | 'header' | 'blank' | 'prayer'
 
 export interface CountdownConfig {
   mode: 'time' | 'duration'
@@ -295,6 +285,12 @@ export interface Settings {
   messageSeconds: number
   operatorTheme: 'dark' | 'light'
   firstRunDone: boolean
+  /** opt-in: ask GitHub once a day whether a newer ICCWorship exists (off by default: offline-first) */
+  checkForUpdates?: boolean
+  /** when the update check last ran (epoch ms) — set by main only */
+  lastUpdateCheck?: number
+  /** troubleshooting: turn off GPU acceleration (takes effect after a restart) */
+  disableHwAccel?: boolean
 }
 
 /* ---------------- Live state ---------------- */
@@ -343,7 +339,8 @@ export interface LiveState {
   stageMessage?: { text: string; seq: number }
   video?: VideoState
   /** error: the projector could not load/play the video (missing file, damaged, unsupported) */
-  videoProgress?: { current: number; duration: number; error?: boolean }
+  /** src: the media:// url the projector was playing (so a restarted projector resumes the right video) */
+  videoProgress?: { current: number; duration: number; error?: boolean; src?: string }
   /** song shown by the live item (plan item or Show now) — lets edits refresh the screen */
   songId?: string
   /** slide that was live before Clear all (Esc) — Space resumes there */
