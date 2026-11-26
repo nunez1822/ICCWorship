@@ -14,7 +14,6 @@ import type {
 import { songName, songToSlides, uid } from '@shared/slides'
 import { localDate } from '@shared/dates'
 import { buildItem, themeBackground } from '../lib/buildSlides'
-import { mediaUrlToPath } from '../lib/media'
 import { createActionQueue } from '../lib/actionQueue'
 import { useApp, t, toastError } from './store'
 
@@ -132,12 +131,14 @@ function checkMediaFiles(slides: Slide[], background?: Background | null): void 
     ...slides.filter((x) => x.kind === 'image').map((x) => x.media),
     background?.type === 'image' || background?.type === 'video' ? background.value : undefined
   ]
-  const paths = urls.map((u) => mediaUrlToPath(u)).filter((p): p is string => !!p)
-  if (!paths.length) return
+  const media = urls.filter((u): u is string => !!u?.startsWith('media://'))
+  if (!media.length) return
+  // main resolves the URLs exactly like the projector does (slides stored relative to the data folder too)
   void api()
-    .files.exists(paths)
-    .then((ex) => {
-      const missing = paths.filter((_, i) => !ex[i])
+    .files.mediaStatus(media)
+    .then((st0) => {
+      // index into `media` before filtering: the fallback must name the item that is missing
+      const missing = st0.flatMap((x, i) => (x.exists ? [] : [x.path || media[i]]))
       if (missing.length) st().toast(t('errors.mediaMissing', { file: missing.join(', ') }), 'err', 10_000)
     })
 }

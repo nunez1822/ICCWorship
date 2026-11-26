@@ -13,6 +13,7 @@ import { live } from './live'
 import { getSettings } from './db'
 import { PinGuard } from './pinGuard'
 import { log } from './log'
+import { mediaFile } from './mediaPath'
 
 /**
  * Local network server for the stage display and phone remote.
@@ -75,7 +76,7 @@ function fileUrl(path: string): string {
 
 /** a slide's media:// url → the URL a phone may fetch (images only), or undefined */
 function publicMediaUrl(u?: string): string | undefined {
-  const p = mediaUrlToPath(u)
+  const p = mediaFile(u)
   return p && IMAGE_EXT.has(extname(p).toLowerCase()) ? fileUrl(p) : undefined
 }
 
@@ -87,7 +88,7 @@ export function setCommandHandler(fn: (cmd: RemoteCommand) => void): void {
 function refreshAllowList(state: LiveState): void {
   allowedFiles.clear()
   const add = (s?: LiveState['slides'][number]) => {
-    const p = s?.kind === 'image' ? mediaUrlToPath(s.media) : null
+    const p = s?.kind === 'image' ? mediaFile(s.media) : null
     if (p) allowedFiles.add(fileKey(p))
   }
   // Cleared screen (Esc): the slides stay in the state so the operator can resume, but they
@@ -95,19 +96,6 @@ function refreshAllowList(state: LiveState): void {
   // stage display previews as "Next" (the one Space puts back).
   if (state.slideIndex >= 0) state.slides.forEach(add)
   else if (state.clearedFrom !== undefined) add(state.slides[state.clearedFrom])
-}
-
-export function toMediaUrl(path: string): string {
-  return 'media://local/' + encodeURIComponent(path)
-}
-
-export function mediaUrlToPath(u?: string): string | null {
-  if (!u || !u.startsWith('media://local/')) return null
-  try {
-    return decodeURIComponent(u.slice('media://local/'.length))
-  } catch {
-    return null
-  }
 }
 
 export function lanAddresses(): string[] {

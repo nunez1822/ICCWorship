@@ -58,15 +58,21 @@ Stop the app: `taskkill /F /IM electron.exe`. Relaunch keeping data: `npm run e2
 **Expected**
 - Operator shows a clear "file missing" message (toast "⚠ File not found: …"); the projector shows the theme background or black — not a frozen frame or an error page.
 - While the item stays live, the video panel keeps a red "The projector can't play this video…" line (it does not disappear with the toast).
-- Double-click the same item again while it is live: the message appears **again** (not only the first time).
+- Double-click the same item again while it is live: the message appears **again** (not only the first time). If
+  the first message is still showing, it is not doubled but stays up for its full time again (it doesn't vanish a
+  second later).
 - `Space` moves on to the next item normally.
 
 ### TC-RES-08 · Restore a backup made on another computer  `P1`
 **Steps**
-1. Add `.e2e-data/tmp/other.jpg` to the library and a plan; **Back up now**.
-2. Delete `other.jpg` from disk; restore the backup.
+1. Add `.e2e-data/tmp/other.jpg` to the library and a plan; import `tests/fixtures/sample.pdf` (Media → PowerPoint & PDF); **Back up now**.
+2. Delete `other.jpg` from disk; restore the backup **into a different data folder**: quit, copy the zip, launch with
+   `ICCWORSHIP_DATA=<another folder>` (a "different PC"), finish the welcome, Restore… the zip.
 **Expected**
 - Restore succeeds; the image item is marked missing (not a crash); everything else is back.
+- The imported PDF's slides **show** on the projector (converted slides are found in the new data folder — also
+  for backups made by 1.0, whose slides held the old PC's full path).
+- This "PC"'s PIN and screen choice are kept, not the backup's.
 
 ### TC-RES-09 · Restoring something that isn't a backup  `P0`
 **Setup (Bash):** `echo hello > .e2e-data/tmp/fake.zip`; `cp tests/fixtures/sample.pptx .e2e-data/tmp/realzip.zip` (a zip, but not a backup).

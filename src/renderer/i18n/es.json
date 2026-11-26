@@ -533,7 +533,7 @@
     "backupNow": "Hacer copia ahora",
     "backupDone": "Copia guardada ({{files}} archivos, {{size}} MB)",
     "restore": "Restaurar…",
-    "restoreConfirm": "Restaurar reemplaza los datos actuales (primero se hace una copia de seguridad). ¿Continuar?",
+    "restoreConfirm": "Restaurar REEMPLAZA todos los datos actuales con la copia (antes se hace una copia de seguridad). También se reemplazan los versículos pegados y todo lo importado después de hacer la copia. Se conservan los ajustes de pantallas, control remoto y PIN de esta computadora. ¿Continuar?",
     "restoreFailed": "Ese archivo no es una copia de ICCWorship.",
     "openData": "Abrir carpeta de datos",
     "openDataFailed": "No se pudo abrir la carpeta de datos.",
@@ -550,7 +550,18 @@
     "portHelp": "Presione Enter para aplicar. Use un número de 1024 a 65535.",
     "restartOutput": "Reiniciar proyector",
     "restartOutputHelp": "Recarga la ventana del proyector (y sale del modo negro \"seguro\" después de errores repetidos)",
-    "portInvalid": "No se puede usar el puerto {{port}}. Use un número de 1024 a 65535; el puerto sigue siendo {{current}}."
+    "portInvalid": "No se puede usar el puerto {{port}}. Use un número de 1024 a 65535; el puerto sigue siendo {{current}}.",
+    "restoreError": {
+      "not-a-backup": "Ese archivo no es una copia de seguridad de ICCWorship.",
+      "newer-format": "Esa copia la hizo una versión más nueva de ICCWorship. Instale la versión más reciente para restaurarla.",
+      "newer-schema": "Esa copia la hizo una versión más nueva de ICCWorship. Instale la versión más reciente para restaurarla.",
+      "damaged-backup": "Esa copia está dañada (no se puede leer un archivo de datos). No se cambió nada.",
+      "restore-failed": "La restauración no pudo terminar, así que se volvieron a poner sus datos anteriores. Cierre otros programas que puedan usar los archivos (OneDrive, antivirus) e intente de nuevo.",
+      "restore-failed-mixed": "La restauración no pudo terminar y sus datos anteriores no se pudieron volver a poner por completo. Cierre OneDrive y el antivirus y restaure la copia de seguridad “{{file}}” (en la lista de copias, abajo).",
+      "read-only": "Estos datos están abiertos en solo lectura porque los escribió una versión más nueva de ICCWorship, así que aquí no se puede restaurar ninguna copia. Restáurela con la versión más nueva.",
+      "read-only-unprepared": "Sus datos están abiertos en solo lectura (vea la barra roja abajo), así que ahora no se puede restaurar ninguna copia. Haga lo que indica la barra, reinicie ICCWorship e intente de nuevo.",
+      "forbidden": "Ese archivo no se puede restaurar desde aquí. Use Restaurar… para elegirlo."
+    }
   },
   "help": {
     "title": "Atajos de teclado",
@@ -584,6 +595,7 @@
   },
   "remote": {
     "enterPin": "Escriba el PIN que aparece en ICCWorship → Ajustes",
+    "pinLabel": "PIN (solo números)",
     "wrongPin": "PIN incorrecto",
     "locked": "Demasiados PIN incorrectos — espere {{seconds}} s e intente de nuevo",
     "connect": "Conectar",
@@ -676,5 +688,13 @@
     "available": "ICCWorship {{version}} está disponible",
     "download": "Página de descarga",
     "failed": "No se pudo comprobar (¿sin internet?)."
+  },
+  "data": {
+    "readOnly": "No se pudieron preparar sus datos de forma segura, así que ICCWorship los abrió en solo lectura: puede dirigir el servicio, pero los cambios NO se guardan. Libere espacio en disco y reinicie.",
+    "readOnlyNewer": "Estos datos los guardó una versión más nueva de ICCWorship. Esta versión anterior puede mostrarlos, pero los cambios — incluido el registro CCLI — NO se guardan. Instale la versión más reciente.",
+    "readOnlyUpgradeFailed": "Sus datos no se pudieron actualizar a esta versión, así que ICCWorship los abrió en solo lectura: puede dirigir el servicio, pero los cambios NO se guardan. Reporte el problema (Ayuda → Reportar un problema); se hizo una copia de seguridad.",
+    "readOnlyAction": "No se guardó: estos datos están abiertos en solo lectura (vea la barra roja abajo).",
+    "openBackups": "Abrir carpeta de copias",
+    "openBackupsFailed": "No se pudo abrir la carpeta de copias de seguridad."
   }
 }

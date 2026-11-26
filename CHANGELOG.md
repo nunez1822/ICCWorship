@@ -35,10 +35,20 @@ All notable changes to ICCWorship are documented here. The format is based on
   and connects by itself as soon as a place is free.
 
 ### Added
+- **Data versions.** ICCWorship now records which version wrote the data. Data from 1.0 is upgraded
+  automatically after a safety backup (`before-migrate-….zip`). Data written by a **newer** version opens
+  **read-only**: an older copy (say, a portable one on a USB stick) can still run the service, but changes are not
+  saved — a red bar says so. If an upgrade ever fails, the app still opens (read-only, with a message) instead of
+  not starting.
+- Automatic backups also run **every hour** while the app is open (only if something changed, never while
+  something is on screen, never when the disk is nearly full). Kept: the newest of each of the last 14 days the app was used, plus the last 6.
+  Pasted or imported Bible verses count as a change, a change saved while a backup is being written is picked
+  up by the next one, and half-written backup files left by a power cut are cleaned up.
 - **The projector and stage windows recover by themselves.** If their page crashes or freezes, it restarts in a
   second or two and shows what is live again — a playing video continues where it was. If it keeps failing, the
   projector shows black instead of looping, and **Settings → Screens → 🔄 Restart projector** brings it back.
 - If the main window crashes it reloads once by itself; the projector keeps showing what was live.
+- Clear error messages when a backup can't be restored (newer version, damaged file…).
 - A problem on one page of the main window no longer blanks the whole window: that page shows "Try again" while
   the top bar, shortcuts and phone remote keep working.
 - **Help → Export diagnostics** (also in Settings → About): a .zip to attach to a bug report — logs, PC details,
@@ -61,16 +71,35 @@ All notable changes to ICCWorship are documented here. The format is based on
 - The untested macOS and Linux build targets. ICCWorship is a Windows app.
 
 ### Fixed
+- **Restoring a backup now replaces the data** instead of mixing it with the current data (songs added after the
+  backup no longer survived a restore). The backup is fully checked before anything is touched (Bible files
+  included), a damaged backup changes nothing, and if replacing fails half-way the previous data is put back.
+  Leftover `.bak` copies can no longer bring back data the backup doesn't have, and a backup without its
+  `meta.json` no longer replaces the church's custom themes with the built-in ones.
+- Data opened read-only (written by a newer version) can't be replaced by restoring a backup; the app says to
+  restore it with the newer version.
+- A restore (maybe of another computer's backup) keeps **this** computer's screen, phone-remote and PIN settings.
+- PowerPoint/PDF slides restored on another computer (another user name or drive) showed as missing. Converted
+  slides are now stored relative to the data folder, and slides from 1.0 backups are found too.
+- Bible files and backups are written safely (a power cut can't leave half a file); data files are flushed to
+  disk before they replace the old version.
+- Safety backups (`before-restore-…`) piled up forever; the newest 5 of each kind are kept.
+- Backups are smaller: they no longer include the `.bak` copies of files that are already in the backup.
 - Changes made just before Windows shuts down, restarts or goes to sleep are saved (they could be lost before).
-- Restoring a backup no longer occasionally reported an error although it had worked.
+- Restoring a backup no longer occasionally reported an error although it had worked (also when antivirus or
+  OneDrive briefly holds its temporary folder). If a restore fails and the previous data can't be fully put back,
+  the message now says so and names the safety backup to restore.
+- A backup made while a damaged data file is being read from its `.bak` copy now holds the good data, not the
+  damaged file (such a backup could not be restored before).
+- The "Not saved: read-only" message pointed to a message "at the top"; the red bar is at the bottom.
 - PDFs with JPEG 2000 or JBIG2 images (most scanned PDFs) imported with blank pages; they now show the images.
 - `npm run dev` showed blank windows ("Invalid hook call"): Vite loaded two copies of React in development.
 - Typing a new port in Settings → Remote no longer restarts the server on every keystroke; it applies on Enter.
 - Creating or importing a Bible version whose abbreviation can't be used (no letters or digits, or too long) no
   longer writes a file named ".json"; it now says why instead.
-- After restoring a backup, phones and stage screens use the restored PIN right away (phones still connected with
-  the old PIN are disconnected). A backup made before PINs existed gets a new PIN, and the menu bar follows the
-  restored language.
+- Restoring a backup keeps this computer's PIN, so phones and stage screens stay connected (even when the backup has
+  no PIN or no settings at all), and the menu bar follows the restored language.
+- A repeated error message now stays up for its full time instead of disappearing almost at once.
 - A phone that opens the PC by a name the server doesn't answer (for example with a router's own suffix such as
   `.fritz.box`) now sees a hint in English and Spanish to use the address or QR code from Settings, instead of a
   bare "Forbidden".

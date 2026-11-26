@@ -59,7 +59,10 @@ function setup(items: PlanItem[]) {
       live: {
         update: async (patch: Partial<LiveState>) => ({ ...(state.current.live || { layers: {} }), ...patch }) as LiveState
       },
-      files: { exists: async (p: string[]) => p.map(() => true) },
+      files: {
+        exists: async (p: string[]) => p.map(() => true),
+        mediaStatus: async (u: string[]) => u.map(() => ({ path: 'x', exists: true }))
+      },
       db: { upsert: async () => {} }
     }
   }

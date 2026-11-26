@@ -15,7 +15,7 @@ browser (`/stage`) uses the same PIN.
 1. Phone → `http://localhost:7272/remote#pin=<PIN>`.
 **Expected**
 - Green dot, plan title, current item, preview card with the live slide text, big ◀ ▶ buttons.
-- The URL no longer shows the PIN (it is removed from the address bar). Operator top bar 📱 count becomes 1 within ~5 s.
+- The URL no longer shows the PIN (it is removed from the address bar). Operator top bar 📱 count goes up by 1 within ~5 s (it counts every phone and browser stage page; the app's own stage window isn't counted).
 
 ### TC-REM-03 · Next / previous from the phone  `P0`
 **Steps**

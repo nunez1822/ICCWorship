@@ -329,7 +329,8 @@ export function SettingsPage() {
                 onClick={async () => {
                   if (!window.confirm(t('settings.restoreConfirm'))) return
                   const r = await window.api.backup.restore()
-                  if (r && !r.ok) s.toast(t('settings.restoreFailed'), 'err')
+                  if (r && !r.ok)
+                    s.toast(t(`settings.restoreError.${r.error || 'not-a-backup'}`, { file: r.safetyBackup?.split(/[\\/]/).pop() ?? '' }), 'err', 15_000)
                 }}
               >
                 ♻️ {t('settings.restore')}
@@ -352,7 +353,12 @@ export function SettingsPage() {
                       onClick={async () => {
                         if (window.confirm(t('settings.restoreConfirm'))) {
                           const r = await window.api.backup.restore(b.path)
-                          if (r && !r.ok) s.toast(t('settings.restoreFailed'), 'err')
+                          if (r && !r.ok)
+                            s.toast(
+                              t(`settings.restoreError.${r.error || 'not-a-backup'}`, { file: r.safetyBackup?.split(/[\\/]/).pop() ?? '' }),
+                              'err',
+                              15_000
+                            )
                         }
                       }}
                     >

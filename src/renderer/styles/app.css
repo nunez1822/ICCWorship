@@ -1080,3 +1080,23 @@ button.chip {
   gap: 8px;
   align-items: center;
 }
+
+/* data written by a newer ICCWorship: nothing is saved this session — always visible, never in the way */
+.readonly-banner {
+  position: fixed;
+  left: 76px;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #7f1d1d;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.35);
+}
+.readonly-banner span {
+  flex: 1;
+}

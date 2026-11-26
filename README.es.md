@@ -59,7 +59,7 @@ mostrar en un idioma o **en ambos a la vez**, cambiando en vivo con una sola tec
 
 **Sus datos, seguros**
 - Todo se guarda en `Documentos\ICCWorship` como JSON — sin nube, sin cuentas.
-- Copia automática diaria (guarda 14) + **copia a USB** (.zip) con un clic, y restauración.
+- Copias automáticas (al iniciar y cada hora, guarda los últimos 14 días en que se usó) + **copia a USB** (.zip) con un clic, y restauración.
 
 ## Capturas
 
@@ -85,8 +85,9 @@ mostrar en un idioma o **en ambos a la vez**, cambiando en vivo con una sola tec
 ## Sus datos y copias de seguridad
 
 - Todo lo que crea ICCWorship está en **`Documentos\ICCWorship`** (Ajustes → Copia de seguridad → 📂 Abrir carpeta de datos).
-- Se hace una copia automática cada día que se abre ICCWorship (se guardan las últimas 14 de esas copias en
-  `Documentos\ICCWorship\backups`).
+- Se hace una copia automática al abrir la app y cada hora que siga abierta, si algo cambió
+  (en `Documentos\ICCWorship\backups`). Se guarda la más reciente de cada uno de los últimos 14 días en que se usó
+  la app, además de las 6 más recientes.
 - **Cambiar de computadora:** en la PC anterior, Ajustes → Copia de seguridad → **Hacer copia ahora** a una memoria USB.
   Instale ICCWorship en la nueva PC y elija **Restaurar** con ese archivo. Los videos e imágenes que agregó (incluidos
   el logo y los fondos de los temas) se *referencian por su ruta completa*, no se copian: cópielos a la **misma

@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   importBibleText,
@@ -19,6 +19,8 @@ import { bibleDataDir, resourcesDir } from './paths'
 import { isSafeId } from '@shared/security'
 import { within } from './pathGuard'
 import { log } from './log'
+import { writeFileAtomic } from './atomicWrite'
+import { assertWritable, db } from './db'
 
 const BUILTIN = ['kjv', 'rv1909']
 const full = new Map<string, FullBible>()
@@ -102,7 +104,9 @@ function bibleFile(id: string): string {
 }
 
 function savePartial(b: PartialBible): void {
-  writeFileSync(bibleFile(b.id), JSON.stringify(b, null, 1), 'utf8')
+  assertWritable()
+  writeFileAtomic(bibleFile(b.id), JSON.stringify(b, null, 1))
+  db().noteExternalWrite() // pasted verses are data too: the hourly backup must pick them up
 }
 
 export function createPasted(meta: { id?: string; name: string; abbrev: string; lang: Lang; copyright?: string; verseLimit?: number }): BibleVersionInfo {
@@ -173,7 +177,9 @@ export function importFile(path: string, meta: { name: string; abbrev: string; l
   const bible = importBibleText(readFileSync(path, 'utf8').replace(/^\uFEFF/, ''), { id, ...meta })
   const verses = bible.books.reduce((a, b) => a + b.reduce((x, c) => x + c.filter(Boolean).length, 0), 0)
   if (verses < 10) throw new Error('empty')
-  writeFileSync(bibleFile(id), JSON.stringify(bible), 'utf8')
+  assertWritable()
+  writeFileAtomic(bibleFile(id), JSON.stringify(bible))
+  db().noteExternalWrite()
   full.set(id, bible)
   fullSource.set(id, 'imported')
   // a full licensed copy replaces a pasted one with the same id
@@ -183,9 +189,13 @@ export function importFile(path: string, meta: { name: string; abbrev: string; l
 
 export function deleteVersion(id: string): void {
   if (BUILTIN.includes(id)) return
+  assertWritable()
   const dir = bibleDataDir()
   const p = join(dir, `${id}.json`)
-  if (within(dir, p) && existsSync(p)) unlinkSync(p)
+  if (within(dir, p) && existsSync(p)) {
+    unlinkSync(p)
+    db().noteExternalWrite()
+  }
   full.delete(id)
   partial.delete(id)
 }

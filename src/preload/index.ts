@@ -96,6 +96,8 @@ const api = {
     open: (opts: { filters?: { name: string; extensions: string[] }[]; multi?: boolean; directory?: boolean }): Promise<string[]> =>
       invoke('dialog:openFiles', opts),
     exists: (paths: string[]): Promise<boolean[]> => invoke('file:exists', paths),
+    /** media:// URLs → the file they point to on this PC and whether it is there (as the projector resolves them) */
+    mediaStatus: (urls: string[]): Promise<{ path: string | null; exists: boolean }[]> => invoke('file:mediaStatus', urls),
     readText: (p: string): Promise<string> => invoke('file:readText', p),
     saveText: (name: string, content: string, filters?: { name: string; extensions: string[] }[]): Promise<string | null> =>
       invoke('file:saveText', name, content, filters),
@@ -119,7 +121,23 @@ const api = {
   },
   backup: {
     create: (): Promise<{ ok: boolean; path: string; files: number; bytes: number } | null> => invoke('backup:create'),
-    restore: (path?: string): Promise<{ ok: boolean; error?: string } | null> => invoke('backup:restore', path),
+    restore: (
+      path?: string
+    ): Promise<{
+      ok: boolean
+      error?:
+        | 'not-a-backup'
+        | 'newer-format'
+        | 'newer-schema'
+        | 'damaged-backup'
+        | 'restore-failed'
+        | 'restore-failed-mixed'
+        | 'read-only'
+        | 'read-only-unprepared'
+        | 'forbidden'
+      /** the copy of the data from just before the restore */
+      safetyBackup?: string
+    } | null> => invoke('backup:restore', path),
     list: (): Promise<{ name: string; path: string; size: number; date: number }[]> => invoke('backup:list')
   },
   print: {
@@ -137,6 +155,10 @@ const api = {
     info: (): Promise<{ version: string; dataPath: string; electron: string }> => invoke('app:info'),
     /** false when the folder could not be opened */
     openDataFolder: (): Promise<boolean> => invoke('app:openDataFolder'),
+    /** false when the folder could not be opened */
+    openBackups: (): Promise<boolean> => invoke('app:openBackups'),
+    /** readOnly: the data was written by a newer ICCWorship (nothing is saved this session) */
+    dataStatus: (): Promise<{ readOnly: boolean; newerSchema?: number; upgradeFailed?: boolean }> => invoke('app:dataStatus'),
     openExternal: (url: string) => invoke('app:openExternal', url),
     /** write a line to the app's log file (never put lyrics, people or PINs in it) */
     log: (level: 'info' | 'warn' | 'error', message: string) => ipcRenderer.send('app:log', level, message),

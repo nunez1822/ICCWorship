@@ -20,12 +20,13 @@ import { fileURLToPath } from 'node:url'
 import { Readable } from 'node:stream'
 import type { LiveState, RemoteCommand, VideoEndedCommand } from '@shared/types'
 import { parseRange, sanitizeSettingsPatch, validateCommand } from '@shared/security'
-import { COLLECTIONS, db, ensurePin, getSettings, isCollection, seedIfEmpty, setSettings } from './db'
+import { COLLECTIONS, dataStatus, db, ensurePin, getSettings, isCollection, prepareData, seedIfEmpty, setSettings } from './db'
 import * as bible from './bible'
 import { live } from './live'
-import { mediaUrlToPath, serverInfo, setCommandHandler, startServer, stopServer } from './server'
+import { serverInfo, setCommandHandler, startServer, stopServer } from './server'
+import { mediaFile } from './mediaPath'
 import { deletePresentation, detectConverters, importImages, importPresentation, savePdfPages } from './presentations'
-import { autoBackup, createBackup, defaultBackupName, listBackups, restoreBackup } from './backup'
+import { autoBackup, createBackup, createSafetyBackup, defaultBackupName, listBackups, restoreBackup } from './backup'
 import { backupDir, dataRoot, resourcesDir } from './paths'
 import { decodeText } from '@shared/textDecode'
 import { loggableError } from '@shared/loggableError'
@@ -147,7 +148,7 @@ function registerMediaProtocol(): void {
   // Range-aware file streaming so videos can seek smoothly
   protocol.handle('media', async (req) => {
     const notFound = () => new Response('Not found', { status: 404 })
-    const p = mediaUrlToPath(req.url)
+    const p = mediaFile(req.url)
     const type = p ? MIME[extname(p).toLowerCase()] : undefined
     if (!p || !type) return notFound()
     let st: Stats | undefined
@@ -753,6 +754,13 @@ function registerIpc(): void {
     return r.canceled ? [] : r.filePaths
   })
   h('file:exists', (_e, paths: string[]) => (Array.isArray(paths) ? paths.map((p) => typeof p === 'string' && existsSync(p)) : []))
+  // media:// URLs → is the file there? (resolved like the projector does: data-relative and moved slides too)
+  h('file:mediaStatus', (_e, urls: unknown) =>
+    (Array.isArray(urls) ? urls : []).map((u) => {
+      const path = typeof u === 'string' ? mediaFile(u) : null
+      return { path, exists: !!path && existsSync(path) }
+    })
+  )
   h('file:readText', (_e, p: unknown) => {
     // only a file the user picked in a dialog (song import)
     if (!isGranted(p)) throw new Error('forbidden')
@@ -798,16 +806,22 @@ function registerIpc(): void {
       // a file picked in a dialog this session, or one of the backups in Documents\ICCWorship\backups
       p = path as string
     } else return { ok: false, error: 'forbidden' }
+    const before = getSettings()
     const res = await restoreBackup(p)
     log.info('backup restore', res.ok ? 'ok' : `failed: ${res.error}`)
     if (res.ok) {
-      // The restored settings replace the running ones: an old backup may have no PIN (the server would then
-      // refuse every device), and phones still connected with the previous PIN must be dropped. Restart the
-      // server on the restored PIN/port, and follow the restored language in the menu.
+      // The restored data is in place: refresh what main holds, tell every window, reload only the operator (the
+      // projector and stage keep showing what is live — reloading them mid-service gains nothing). The restore
+      // keeps this PC's PIN, port and server switch, so phones and stage screens stay connected; the server is
+      // restarted only if one of them did change (e.g. there was no PIN and a new one had to be made).
       if (ensurePin()) log.info('restored settings had no remote PIN: made a new one')
-      setMainLang(getSettings().uiLang)
+      seedIfEmpty() // restored meta is always marked seeded: this only keeps the built-in themes up to date
+      const s = getSettings()
+      setMainLang(s.uiLang)
       buildMenu()
-      await restartServer()
+      live.update({ logoPath: s.logoPath, churchName: s.churchName })
+      BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('settings:changed', s))
+      if (before.remotePin !== s.remotePin || before.serverPort !== s.serverPort || before.serverEnabled !== s.serverEnabled) await restartServer()
       // reply first, then reload: reloading before the answer arrives destroys the page that is waiting for it
       setTimeout(() => operator?.webContents.reload(), 150)
     }
@@ -858,6 +872,8 @@ function registerIpc(): void {
   // app
   h('app:info', () => ({ version: app.getVersion(), dataPath: dataRoot(), electron: process.versions.electron }))
   h('app:openDataFolder', () => openFolder(dataRoot(), 'data'))
+  h('app:openBackups', () => openFolder(backupDir(), 'backups'))
+  h('app:dataStatus', () => dataStatus())
   h('app:openExternal', (_e, url: unknown) => {
     if (typeof url === 'string' && /^https?:\/\//i.test(url)) void shell.openExternal(url)
   })
@@ -895,6 +911,19 @@ app
     log.info(`ICCWorship ${app.getVersion()} starting (Electron ${process.versions.electron}, ${process.platform} ${process.getSystemVersion()})`)
     hardenWebContents()
     registerMediaProtocol()
+    // which version wrote the data? upgrade it (after a safety backup), or open it read-only if it is newer
+    const data = await prepareData(() => createSafetyBackup('before-migrate'))
+    if (data.migrated?.length) log.info('data upgraded:', data.migrated.join('; '))
+    if (data.readOnly)
+      log.warn(
+        `data opened read-only${
+          data.newerSchema
+            ? ` (written by a newer version, schema ${data.newerSchema})`
+            : data.upgradeFailed
+              ? ' (the upgrade failed)'
+              : ' (no safety backup possible)'
+        }`
+      )
     seedIfEmpty()
     setMainLang(getSettings().uiLang)
     buildMenu()
@@ -906,6 +935,14 @@ app
     if (getSettings().outputEnabled) createOutput()
     void restartServer()
     autoBackup().catch((e) => log.error('auto backup failed', e))
+    // and every hour the app stays open (only if something changed, never while something is on screen)
+    setInterval(
+      () => {
+        if (live.state.slideIndex >= 0 || live.state.video?.playing) return
+        autoBackup().catch((e) => log.error('auto backup failed', e))
+      },
+      60 * 60 * 1000
+    )
 
     // a crashed GPU process can leave the projector black or frozen: tell the operator about the workaround
     app.on('child-process-gone', (_e, d) => {

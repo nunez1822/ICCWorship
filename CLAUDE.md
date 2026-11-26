@@ -26,6 +26,10 @@ usually operated by a volunteer during a live service, so reliability and simpli
   and stage pages send `win.alive()` every second and are restarted when they crash or stop beating; repeated
   failures put the projector in `#safe` (black). Pages are wrapped in `ErrorBoundary`. Keep new windows/pages
   inside this net.
+- **Data format changes need a migration** (`src/shared/migrations.ts`): bump `SCHEMA_VERSION` and add an
+  idempotent migration. Data from a newer schema opens read-only (`JsonStore.readOnly`); any main-side file write
+  outside the store must call `assertWritable()` first. Write files with `writeFileAtomic` (`src/main/atomicWrite.ts`).
+  Media inside the data folder is referenced data-relative (`dataMediaUrl`) and resolved with `mediaFile()`.
 - **Logging:** use `log` from `src/main/log.ts` (`%APPDATA%\ICCWorship\logs`; test runs: `<ICCWORSHIP_DATA>/.userdata/logs`). Log ids, counts, error codes and short messages, **never** lyrics,
   people, prayer requests, request URLs or payloads. Logs are attached to public bug reports.
 

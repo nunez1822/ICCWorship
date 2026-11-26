@@ -1,5 +1,5 @@
 import { Children, cloneElement, isValidElement, useEffect, useId, type ReactElement, type ReactNode } from 'react'
-import type { PlanItemType } from '@shared/types'
+import type { MediaItem, PlanItem, PlanItemType } from '@shared/types'
 
 export function Modal(p: { title: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
   useEffect(() => {
@@ -85,6 +85,16 @@ export function Seg<T extends string>(p: { value: T; options: { value: T; label:
       ))}
     </div>
   )
+}
+
+/** A plan item's icon; a media item shows whether it is a picture, sound or video. */
+export function itemIcon(item: Pick<PlanItem, 'type' | 'refId'>, media: MediaItem[]): string {
+  if (item.type === 'media') {
+    const kind = media.find((m) => m.id === item.refId)?.kind
+    if (kind === 'image') return '🖼'
+    if (kind === 'audio') return '🎧'
+  }
+  return TYPE_ICON[item.type]
 }
 
 export const TYPE_ICON: Record<PlanItemType, string> = {
