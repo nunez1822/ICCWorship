@@ -18,15 +18,18 @@ import { lifecycle, notify, open, send, wins } from './appState'
 import { isAbortedLoad } from './pages'
 import { hardenWebContents } from './hardening'
 import { registerMediaProtocol } from './mediaProtocol'
+import { appSchemePrivileges, registerAppProtocol } from './appProtocol'
 import { buildMenu } from './menu'
 import { registerIpc } from './ipc'
 import { restartServer } from './serverControl'
 import { broadcastLive, createOperator, createOutput, forwardCommand, placeOutput } from './windows'
 import { pauseHeartbeats, resumeHeartbeats } from './windowGuards'
 
-// media:// serves local media files to the app's own pages. corsEnabled + "Access-Control-Allow-Origin: *" are
-// needed: PDF import fetch()es media:// from a file:// page, and thumbnails load with crossOrigin="anonymous".
+// app:// serves the app's own pages (appUrl.ts). media:// serves local media files to them: corsEnabled +
+// "Access-Control-Allow-Origin: *" are needed because PDF import fetch()es media:// from an app:// page (another
+// origin), and thumbnails load with crossOrigin="anonymous".
 protocol.registerSchemesAsPrivileged([
+  appSchemePrivileges,
   { scheme: 'media', privileges: { secure: true, standard: true, supportFetchAPI: true, stream: true, corsEnabled: true } }
 ])
 
@@ -83,6 +86,7 @@ app
     setMainLang(app.getLocale().toLowerCase().startsWith('es') ? 'es' : 'en')
     log.info(`ICCWorship ${app.getVersion()} starting (Electron ${process.versions.electron}, ${process.platform} ${process.getSystemVersion()})`)
     hardenWebContents()
+    registerAppProtocol()
     registerMediaProtocol()
     // which version wrote the data? upgrade it (after a safety backup), or open it read-only if it is newer
     const data = await prepareData(() => createSafetyBackup('before-migrate'))

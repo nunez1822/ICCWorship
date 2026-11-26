@@ -312,6 +312,33 @@ try {
   )
   if (mediaChecks.badRange !== 416 || mediaChecks.notMedia !== 404) errors.push('media:// protocol checks failed')
 
+  // the pages load from app://iccworship (not file://), which serves only the built pages
+  expectingFailures = true
+  const appChecks = await op.evaluate(async () => {
+    const status = (u) =>
+      fetch(u).then(
+        (r) => r.status,
+        () => 'refused'
+      )
+    return {
+      origin: location.origin,
+      page: await status('app://iccworship/index.html'),
+      outside: await status('app://iccworship/%2e%2e/main/index.js'),
+      wasmLicence: await status('app://iccworship/pdfjs-wasm/LICENSE_QCMS'),
+      file: await status('file:///C:/Windows/win.ini')
+    }
+  })
+  await sleep(300)
+  expectingFailures = false
+  const appOk =
+    appChecks.origin === 'app://iccworship' &&
+    appChecks.page === 200 &&
+    appChecks.outside === 404 &&
+    appChecks.wasmLicence === 404 &&
+    appChecks.file === 'refused'
+  console.log('pages served from app://, nothing else reachable:', JSON.stringify(appChecks), appOk ? '✓' : '✗')
+  if (!appOk) errors.push('app:// protocol checks failed')
+
   // the LAN server serves the slide image on screen through an opaque token; a bad Range must not crash it
   {
     const { port } = await op.evaluate(() => window.api.server.info())

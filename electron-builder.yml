@@ -33,9 +33,9 @@ electronFuses:
   enableEmbeddedAsarIntegrityValidation: true
   onlyLoadAppFromAsar: true
   enableCookieEncryption: true
-  # Stays on for now: the app's pages are loaded from file:// (loadFile) and need it to load their scripts.
-  # Serving the pages from a custom app:// protocol instead would let this be turned off too.
-  grantFileProtocolExtraPrivileges: true
+  # Off: the pages load from app://iccworship (src/main/appUrl.ts), never from file://, so no page gets file://'s
+  # extra privileges.
+  grantFileProtocolExtraPrivileges: false
 win:
   icon: resources/icon.ico
   target:

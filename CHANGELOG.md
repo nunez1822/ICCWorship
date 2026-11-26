@@ -25,6 +25,8 @@ All notable changes to ICCWorship are documented here. The format is based on
   - accept main-process calls only from the app's own pages.
 - Ids and paths coming from the app's pages are checked before any file is written or deleted.
 - The installed app has hardened Electron fuses and checks its own files for tampering.
+- The app's windows load their pages from the app's own `app://iccworship` address instead of `file://`, which serves
+  only the app's built pages. The last Electron fuse (extra `file://` privileges) is now off too.
 - Developer and test switches (environment variables) are ignored by the installed app.
 - Phones and stage screens only load slide images from the app's own links, and imported song and Bible text
   is cleaned of markup more thoroughly (findings of GitHub's CodeQL scan).

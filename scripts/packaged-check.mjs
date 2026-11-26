@@ -39,7 +39,7 @@ expectFuse(FuseV1Options.EnableNodeCliInspectArguments, false)
 expectFuse(FuseV1Options.EnableEmbeddedAsarIntegrityValidation, true)
 expectFuse(FuseV1Options.OnlyLoadAppFromAsar, true)
 expectFuse(FuseV1Options.EnableCookieEncryption, true)
-expectFuse(FuseV1Options.GrantFileProtocolExtraPrivileges, true) // pages load from file://; see electron-builder.yml
+expectFuse(FuseV1Options.GrantFileProtocolExtraPrivileges, false) // pages load from app://iccworship (src/main/appUrl.ts)
 
 const data = mkdtempSync(join(tmpdir(), 'iccworship-packaged-'))
 const env = { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_TEST_PROFILE: '1', ICCWORSHIP_WINDOWED: '1' }

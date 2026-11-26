@@ -243,3 +243,17 @@ An error's message can quote what a page was reading (a SyntaxError quotes the J
 **Expected**
 - No file outside `.e2e-data/tracks/` is deleted (`data/songs.json`, `data/settings.json` still there); the calls
   either do nothing or reject. Only files named `<that song id>-<digits>.ogg` the song no longer uses are ever removed.
+
+### TC-SEC-22 · The app's pages load from app://, which serves nothing else  `P0`
+**Steps**
+1. In the operator page: `location.origin`.
+2. `(await fetch('app://iccworship/index.html')).status`,
+   `(await fetch('app://iccworship/%2e%2e/main/index.js')).status`,
+   `(await fetch('app://iccworship/pdfjs-wasm/LICENSE_QCMS')).status`,
+   `await fetch('file:///C:/Windows/win.ini').then(() => 'read', () => 'refused')`.
+3. Packaged build only: `pnpm packaged-check` (or `npx @electron/fuses read --app dist/win-unpacked/ICCWorship.exe`).
+**Expected**
+- `app://iccworship` (not `file://`).
+- `200`, `404`, `404`, `refused`: only the built pages' own files are served, never main's code or anything outside.
+- Fuse `GrantFileProtocolExtraPrivileges` is **off**; the operator, projector and stage pages render and a scanned
+  PDF (JPEG 2000) still imports (its decoders load from `app://`).

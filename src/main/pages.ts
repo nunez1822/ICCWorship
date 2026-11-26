@@ -2,9 +2,8 @@
  * Loading the app's own pages into windows, and recognising them (only our pages may call into main).
  */
 import type { BrowserWindow } from 'electron'
-import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { devUrl, rendererDir } from './env'
+import { APP_HOST, APP_ORIGIN, APP_SCHEME } from './appUrl'
+import { devUrl } from './env'
 import { log } from './log'
 
 export type Page = 'index' | 'output' | 'stage' | 'remote'
@@ -19,9 +18,7 @@ export function loadPage(win: BrowserWindow, page: Page, hash = ''): void {
   // already shows (stage.html#local, or output.html → output.html#safe) only changes the #fragment: the page
   // would not restart, although the operator is told it did.
   const load = String(++loads)
-  const loading = devUrl
-    ? win.loadURL(`${devUrl}/${page}.html?load=${load}${hash}`)
-    : win.loadFile(join(rendererDir, `${page}.html`), { query: { load }, hash: hash.replace(/^#/, '') })
+  const loading = win.loadURL(`${devUrl || APP_ORIGIN}/${page}.html?load=${load}${hash}`)
   // A newer load (crash recovery, "Restart projector" pressed twice) aborts the pending one: that is expected.
   // A real failure is logged; the crash and heartbeat guards deal with a window that stays broken.
   loading.catch((e) => {
@@ -40,7 +37,8 @@ export function isTrustedSender(frame: Electron.WebFrameMain | null | undefined)
     return false
   }
   if (!TRUSTED_PAGES.has(u.pathname.split('/').pop() || '')) return false
+  // in development: the dev server's origin
   if (devUrl) return u.origin === new URL(devUrl).origin
-  if (u.protocol !== 'file:') return false
-  return dirname(fileURLToPath(u)).toLowerCase() === resolve(rendererDir).toLowerCase()
+  // app://iccworship (appProtocol.ts) only serves the built pages. Not URL.origin: for a custom scheme it is "null".
+  return u.protocol === `${APP_SCHEME}:` && u.host === APP_HOST
 }
