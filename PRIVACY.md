@@ -10,7 +10,8 @@ requests. Our promise is simple: **your data stays on your computer.**
 - **No account, no cloud, no telemetry.** ICCWorship does not collect usage statistics or crash reports, and it
   does not "phone home".
 - **Where your data lives:** `Documents\ICCWorship` on the PC, as plain JSON files, plus automatic backups in
-  `Documents\ICCWorship\backups`. If Windows backs up your Documents folder to OneDrive, those files are synced
+  `Documents\ICCWorship\backups`. The portable version keeps all of it — and its logs — in the `ICCWorship Data`
+  folder beside its exe instead. If Windows backs up your Documents folder to OneDrive, those files are synced
   by Windows like any other document. ICCWorship itself never uploads them.
 - **Logs** (for troubleshooting) are kept on the PC in `%APPDATA%\ICCWorship\logs`. They record what the app did
   and any errors — never song lyrics, people, prayer requests or your PIN; your Windows user name is replaced by
@@ -34,7 +35,8 @@ peticiones de oración. Nuestra promesa es sencilla: **sus datos se quedan en su
 - **Sin cuentas, sin nube, sin telemetría.** ICCWorship no recopila estadísticas de uso ni informes de errores,
   y no se comunica con ningún servidor.
 - **Dónde están sus datos:** en `Documentos\ICCWorship` en la PC, como archivos JSON, más copias automáticas en
-  `Documentos\ICCWorship\backups`. Si Windows respalda su carpeta Documentos en OneDrive, Windows sincroniza esos
+  `Documentos\ICCWorship\backups`. La versión portátil guarda todo eso, y sus registros, en la carpeta
+  `ICCWorship Data` junto a su exe. Si Windows respalda su carpeta Documentos en OneDrive, Windows sincroniza esos
   archivos como cualquier otro documento. ICCWorship nunca los sube.
 - **Los registros (logs)** para resolver problemas se guardan en la PC, en `%APPDATA%\ICCWorship\logs`. Anotan lo que
   hizo la app y los errores — nunca letras de cantos, personas, peticiones de oración ni su PIN; su nombre de usuario

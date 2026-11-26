@@ -74,7 +74,9 @@ mostrar en un idioma o **en ambos a la vez**, cambiando en vivo con una sola tec
 ## Instalación
 
 1. Descargue **`ICCWorship-Setup-x.y.z.exe`** (instalador) o **`ICCWorship-Portable-x.y.z.exe`** (no necesita instalación) en la página de Releases.
-   La versión portátil guarda sus datos en la PC donde se usa (`Documentos\ICCWorship`), no en la memoria USB.
+   La versión **portátil** guarda todo (cantos, planes, ajustes, copias, registros) en una carpeta **`ICCWorship Data`**
+   junto al exe, así funciona desde una memoria USB y no deja nada en la computadora. Si no puede escribir en esa
+   carpeta (una memoria bloqueada), lo avisa y usa `Documentos\ICCWorship` en esa sesión.
 2. Windows SmartScreen puede advertir porque la app no tiene firma digital (los certificados cuestan dinero). Haga clic en **Más información → Ejecutar de todas formas**.
 3. **Opcional: verifique su descarga.** Cada versión incluye las sumas SHA-256 (`SHA256SUMS.txt`). En PowerShell,
    `(Get-FileHash .\ICCWorship-Setup-x.y.z.exe).Hash -eq '<suma de SHA256SUMS.txt>'` debe mostrar `True`
@@ -84,7 +86,8 @@ mostrar en un idioma o **en ambos a la vez**, cambiando en vivo con una sola tec
 
 ## Sus datos y copias de seguridad
 
-- Todo lo que crea ICCWorship está en **`Documentos\ICCWorship`** (Ajustes → Copia de seguridad → 📂 Abrir carpeta de datos).
+- Todo lo que crea ICCWorship está en **`Documentos\ICCWorship`** (Ajustes → Copia de seguridad → 📂 Abrir carpeta de datos) —
+  o, en la versión portátil, en la carpeta **`ICCWorship Data`** junto a `ICCWorship-Portable-x.y.z.exe`.
 - Se hace una copia automática al abrir la app y cada hora que siga abierta, si algo cambió
   (en `Documentos\ICCWorship\backups`). Se guarda la más reciente de cada uno de los últimos 14 días en que se usó
   la app, además de las 6 más recientes.

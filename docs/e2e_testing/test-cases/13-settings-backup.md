@@ -371,3 +371,16 @@ presentations)
 - The restore says it worked, and afterwards the number of files in `cache/presentations/` (and `tracks/`) is the
   same as before: no slide images or tracks are missing. (JSZip writes only the low 16 bits of the file count; the
   restore reads the whole list anyway.)
+
+### TC-BAK-24 · The portable version keeps everything beside its exe  `P1` (packaged)
+**Steps**
+1. `pnpm build:win`. Copy `dist/ICCWorship-Portable-<version>.exe` into an empty folder (or a USB stick) and run it.
+2. Add a song; Settings → About; quit.
+3. Make that folder read-only (or use a write-protected stick) and run the exe again.
+**Expected**
+- An `ICCWorship Data` folder appears beside the exe with `data\`, `backups\` and `.app\logs\main.log`; nothing new in
+  `Documents\ICCWorship` or `%APPDATA%\ICCWorship`.
+- About shows that folder as the data folder, marked "portable".
+- Step 3: a toast says the portable ICCWorship can't write to its folder and uses `Documents\ICCWorship` this time.
+- `pnpm packaged-check` covers the first expectation automatically ("portable: data, settings and logs are kept
+  beside the exe").

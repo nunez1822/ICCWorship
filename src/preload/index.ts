@@ -184,7 +184,7 @@ const api = {
     queueMessageBox: (response: number): Promise<void> => invoke('e2e:queueMessageBox', response)
   },
   app: {
-    info: (): Promise<{ version: string; dataPath: string; electron: string }> => invoke('app:info'),
+    info: () => invoke('app:info'),
     /** false when the folder could not be opened */
     openDataFolder: (): Promise<boolean> => invoke('app:openDataFolder'),
     /** false when the folder could not be opened */

@@ -499,6 +499,7 @@
     "noUsage": "No se usaron cantos en este periodo."
   },
   "settings": {
+    "portableData": "portátil: los datos viajan con ICCWorship-Portable.exe (la carpeta “ICCWorship Data” a su lado)",
     "title": "Ajustes",
     "general": "General",
     "churchName": "Nombre de la iglesia",
@@ -726,6 +727,7 @@
     "failed": "No se pudo comprobar (¿sin internet?)."
   },
   "data": {
+    "portableFallback": "El ICCWorship portátil no puede escribir en su carpeta (una memoria USB bloqueada o una carpeta de solo lectura), así que esta vez sus datos se guardan en Documentos\\ICCWorship en esta computadora.",
     "readOnly": "No se pudieron preparar sus datos de forma segura, así que ICCWorship los abrió en solo lectura: puede dirigir el servicio, pero los cambios NO se guardan. Libere espacio en disco y reinicie.",
     "readOnlyNewer": "Estos datos los guardó una versión más nueva de ICCWorship. Esta versión anterior puede mostrarlos, pero los cambios — incluido el registro CCLI — NO se guardan. Instale la versión más reciente.",
     "readOnlyUpgradeFailed": "Sus datos no se pudieron actualizar a esta versión, así que ICCWorship los abrió en solo lectura: puede dirigir el servicio, pero los cambios NO se guardan. Reporte el problema (Ayuda → Reportar un problema); se hizo una copia de seguridad.",

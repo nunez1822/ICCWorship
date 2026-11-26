@@ -39,6 +39,7 @@ import { audioOutputOf, restartServer } from '../serverControl'
 import { createOutput, createStageWindow, listDisplays, placeOutput, restartOutput } from '../windows'
 import { testSound } from './testSound'
 import { takeResumeOffer } from '../session'
+import { location } from '../bootstrap'
 
 type FileFilter = { name: string; extensions: string[] }
 
@@ -261,7 +262,13 @@ export function createHandlers() {
     },
 
     /* ---------------- app ---------------- */
-    'app:info': () => ({ version: app.getVersion(), dataPath: dataRoot(), electron: process.versions.electron }),
+    'app:info': () => ({
+      version: app.getVersion(),
+      dataPath: dataRoot(),
+      electron: process.versions.electron,
+      /** portable: the data is in the folder beside the portable exe; portable-fallback: it couldn't be written there */
+      dataMode: location.mode
+    }),
     'app:openDataFolder': () => openFolder(dataRoot(), 'data'),
     'app:openBackups': () => openFolder(backupDir(), 'backups'),
     'app:dataStatus': () => dataStatus(),

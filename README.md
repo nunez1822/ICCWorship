@@ -76,7 +76,9 @@ same time**, switchable live with one key.
 ## Install
 
 1. Download **`ICCWorship-Setup-x.y.z.exe`** (installer) or **`ICCWorship-Portable-x.y.z.exe`** (no installation needed) from the Releases page.
-   The portable version still keeps its data on the PC it runs on (`Documents\ICCWorship`), not on the USB stick.
+   The **portable** version keeps everything (songs, plans, settings, backups, logs) in an **`ICCWorship Data`** folder
+   right beside the exe, so it runs from a USB stick and leaves nothing on the computer. If that folder can't be
+   written (a locked stick), it says so and uses `Documents\ICCWorship` for that session.
 2. Windows SmartScreen may warn because the app is not code-signed (signing certificates cost money). Click **More info → Run anyway**.
 3. **Optional: verify your download.** Each release lists SHA-256 checksums (`SHA256SUMS.txt`). In PowerShell,
    `(Get-FileHash .\ICCWorship-Setup-x.y.z.exe).Hash -eq '<checksum from SHA256SUMS.txt>'` must print `True`
@@ -86,7 +88,8 @@ same time**, switchable live with one key.
 
 ## Your data and backups
 
-- Everything ICCWorship creates lives in **`Documents\ICCWorship`** (Settings → Backup → 📂 Open data folder).
+- Everything ICCWorship creates lives in **`Documents\ICCWorship`** (Settings → Backup → 📂 Open data folder) —
+  or, for the portable version, in the **`ICCWorship Data`** folder beside `ICCWorship-Portable-x.y.z.exe`.
 - A backup is made automatically when the app starts and every hour it stays open, if something changed
   (in `Documents\ICCWorship\backups`). The newest one of each of the last 14 days the app was used is kept, plus
   the 6 most recent.

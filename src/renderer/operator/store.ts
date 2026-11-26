@@ -187,6 +187,7 @@ export const useApp = create<AppState>((set, get) => ({
     set({ dataStatus: await api.app.dataStatus() })
     // this window was restarted after a crash or a freeze: what the operator has to know
     for (const n of await api.app.notices()) {
+      if (n === 'portableFallback') get().toast(i18n.t('data.portableFallback'), 'err', 30_000)
       if (n !== 'operatorRecovered') continue
       get().toast(i18n.t('recovery.operatorRecovered'), 'err', 30_000)
       // the music played on while this window was down: the lyrics catch up with it (see followTick)

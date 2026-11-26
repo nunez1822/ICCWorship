@@ -499,6 +499,7 @@
     "noUsage": "No songs used in this range."
   },
   "settings": {
+    "portableData": "portable: the data travels with ICCWorship-Portable.exe (the “ICCWorship Data” folder beside it)",
     "title": "Settings",
     "general": "General",
     "churchName": "Church name",
@@ -726,6 +727,7 @@
     "failed": "Could not check (no internet?)."
   },
   "data": {
+    "portableFallback": "The portable ICCWorship can't write to the folder it is in (a locked USB stick or a read-only folder), so this time your data is kept in Documents\\ICCWorship on this computer.",
     "readOnly": "Your data could not be safely prepared, so ICCWorship opened it read-only: you can run the service, but changes are NOT saved. Free some disk space and restart.",
     "readOnlyNewer": "This data was saved by a newer ICCWorship. This older version can show it, but changes — including the CCLI song log — are NOT saved. Please install the latest version.",
     "readOnlyUpgradeFailed": "Your data could not be upgraded to this version, so ICCWorship opened it read-only: you can run the service, but changes are NOT saved. Please report the problem (Help → Report a problem) — a safety backup was made.",

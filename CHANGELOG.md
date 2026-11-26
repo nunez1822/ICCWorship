@@ -42,6 +42,10 @@ All notable changes to ICCWorship are documented here. The format is based on
 - **Put it back after a crash.** If ICCWorship closes unexpectedly (a crash, a power cut, Windows restarting for an
   update) while a plan item is on screen, the next start offers it back: one click on **▶ Put it back** shows that
   item again on the slide it was on. Nothing goes on screen by itself, and a normal quit leaves nothing to offer.
+- **The portable version is truly portable now.** `ICCWorship-Portable-x.y.z.exe` keeps the data, settings,
+  backups and logs in an `ICCWorship Data` folder beside the exe, so it runs from a USB stick and leaves nothing on
+  the computer. (Before, it used `Documents\ICCWorship` on whichever PC it ran on.) If it can't write there, it says
+  so and uses Documents for that session.
 - The main window opens at the size and place it had last time (maximized the first time), never on a screen that
   is no longer connected.
 - **Backing tracks.** No musicians? Give a song an instrumental (Songs → 🎵 Backing track): the music plays through the

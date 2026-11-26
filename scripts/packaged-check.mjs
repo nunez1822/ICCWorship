@@ -102,5 +102,26 @@ try {
   await sleep(500)
   rmSync(data, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
 }
+// Portable mode (src/main/portable.ts): started the way ICCWorship-Portable.exe's launcher starts it, the app keeps
+// its data, profile and logs in "ICCWorship Data" beside the exe, and touches nothing else.
+{
+  const exeDir = mkdtempSync(join(tmpdir(), 'iccworship-portable-'))
+  const penv = { ...process.env, PORTABLE_EXECUTABLE_DIR: exeDir, ICCWORSHIP_WINDOWED: '1' }
+  delete penv.ICCWORSHIP_DATA
+  delete penv.ICCWORSHIP_TEST_PROFILE
+  delete penv.ELECTRON_RENDERER_URL
+  const p = spawn(exe, [], { env: penv, stdio: 'ignore' })
+  const root = join(exeDir, 'ICCWorship Data')
+  const want = [join(root, 'data', 'settings.json'), join(root, '.app', 'logs', 'main.log')]
+  for (let i = 0; i < 60 && !want.every((f) => existsSync(f)); i++) await sleep(500)
+  check(
+    want.every((f) => existsSync(f)),
+    'portable: data, settings and logs are kept beside the exe'
+  )
+  if (p.exitCode === null) spawnSync('taskkill', ['/T', '/F', '/PID', String(p.pid)], { stdio: 'ignore' })
+  await sleep(500)
+  rmSync(exeDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+}
+
 console.log(failed ? 'PACKAGED CHECK FAILED' : 'packaged app OK')
 process.exit(failed ? 1 : 0)

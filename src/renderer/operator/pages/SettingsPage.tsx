@@ -15,7 +15,7 @@ export function SettingsPage() {
   const [displays, setDisplays] = useState<{ id: number; label: string; width: number; height: number; primary: boolean }[]>([])
   const [server, setServer] = useState<Awaited<ReturnType<typeof window.api.server.info>> | null>(null)
   const [backups, setBackups] = useState<{ name: string; path: string; size: number; date: number }[]>([])
-  const [info, setInfo] = useState<{ version: string; dataPath: string; electron: string } | null>(null)
+  const [info, setInfo] = useState<Awaited<ReturnType<typeof window.api.app.info>> | null>(null)
   const [includeDumps, setIncludeDumps] = useState(false)
   const [update, setUpdate] = useState<Awaited<ReturnType<typeof window.api.app.checkUpdates>> | 'checking' | null>(null)
   // the port is applied on Enter / leaving the field, not on every keystroke ("8080" would pass through 8, 80, 808)
@@ -385,6 +385,7 @@ export function SettingsPage() {
             <div className="small muted">{t('settings.credits')}</div>
             <div className="small muted" style={{ wordBreak: 'break-all' }}>
               {t('settings.dataAt')} {info?.dataPath}
+              {info?.dataMode === 'portable' && <> · {t('settings.portableData')}</>}
             </div>
             <div className="row wrap">
               <button className="btn sm" onClick={() => void s.setSettings({ firstRunDone: false })}>

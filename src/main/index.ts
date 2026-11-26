@@ -14,7 +14,7 @@ import { log, setLogDataRoot } from './log'
 import { setMainLang, t } from './i18n'
 import { checkForUpdates } from './updates'
 import { cleanupOrphanTracks } from './tracks'
-import { lifecycle, notify, open, send, wins } from './appState'
+import { lifecycle, notify, open, pendingNotices, send, wins } from './appState'
 import { isAbortedLoad } from './pages'
 import { hardenWebContents } from './hardening'
 import { registerMediaProtocol } from './mediaProtocol'
@@ -25,6 +25,7 @@ import { restartServer } from './serverControl'
 import { broadcastLive, createOperator, createOutput, forwardCommand, placeOutput } from './windows'
 import { pauseHeartbeats, resumeHeartbeats } from './windowGuards'
 import { endSession, startSession } from './session'
+import { location } from './bootstrap'
 
 // app:// serves the app's own pages (appUrl.ts). media:// serves local media files to them: corsEnabled +
 // "Access-Control-Allow-Origin: *" are needed because PDF import fetch()es media:// from an app:// page (another
@@ -86,6 +87,12 @@ app
     // until the settings are read (reading them could be what fails), use the PC's language
     setMainLang(app.getLocale().toLowerCase().startsWith('es') ? 'es' : 'en')
     log.info(`ICCWorship ${app.getVersion()} starting (Electron ${process.versions.electron}, ${process.platform} ${process.getSystemVersion()})`)
+    if (location.mode === 'portable') log.info('portable: data beside the exe')
+    if (location.mode === 'portable-fallback') {
+      // the portable exe's folder can't be written (a locked USB stick, a CD): the data goes to Documents — say so
+      log.warn('portable: the folder beside the exe is not writable, using Documents')
+      pendingNotices.push('portableFallback')
+    }
     hardenWebContents()
     registerAppProtocol()
     registerMediaProtocol()
