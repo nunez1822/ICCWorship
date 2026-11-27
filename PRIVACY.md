@@ -10,11 +10,14 @@ requests. Our promise is simple: **your data stays on your computer.**
 - **No account, no cloud, no telemetry.** ICCWorship does not collect usage statistics or crash reports, and it
   does not "phone home".
 - **Where your data lives:** `Documents\ICCWorship` on the PC, as plain JSON files, plus automatic backups in
-  `Documents\ICCWorship\backups`. If Windows backs up your Documents folder to OneDrive, those files are synced
+  `Documents\ICCWorship\backups`. The portable version keeps all of it — and its logs — in the `ICCWorship Data`
+  folder beside its exe instead. If Windows backs up your Documents folder to OneDrive, those files are synced
   by Windows like any other document. ICCWorship itself never uploads them.
-- **Logs** (for troubleshooting) are kept on the PC in `%APPDATA%\ICCWorship\logs`. They record what the app did
-  and any errors — never song lyrics, people, prayer requests or your PIN; your Windows user name is replaced by
-  `%USERPROFILE%`. If the app crashes, Windows crash files ("minidumps") are kept in `%APPDATA%\ICCWorship\Crashpad`.
+- **Logs** (for troubleshooting) are kept on the PC in `%APPDATA%\ICCWorship\logs` (portable version:
+  `ICCWorship Data\.app\logs` beside the exe). They record what the app did and any errors — never song lyrics,
+  people, prayer requests or your PIN; your Windows user name is replaced by `%USERPROFILE%`. If the app crashes,
+  Windows crash files ("minidumps") are kept in `%APPDATA%\ICCWorship\Crashpad` (portable:
+  `ICCWorship Data\.app\Crashpad`).
 - **Bug reports:** nothing is sent automatically. **Help → Export diagnostics** makes a .zip you can attach
   yourself: logs, PC and app details, settings without the PIN, and how many songs/plans you have (not their
   contents). Crash dumps are only added if you tick the box — they can contain text that was on screen. Remember
@@ -24,7 +27,8 @@ requests. Our promise is simple: **your data stays on your computer.**
 | Feature | What it does | Default |
 |---|---|---|
 | Phone remote and stage display | Runs a small web server on the church's local network (port 7272) so phones and tablets can connect. Nothing leaves your network. | On (turn it off in **Settings**) |
-| Update check | Asks GitHub at most once a day (never during a service) whether a newer ICCWorship exists. GitHub sees your IP address, as with any website; nothing else is sent. Nothing is downloaded or installed. | **Off** (turn it on in **Settings → About**) |
+| Update check | Asks GitHub at most once a day (never during a service) whether a newer ICCWorship exists. GitHub sees your IP address, as with any website; nothing else is sent (no id for your computer: the one the update library would send is replaced by zeros). | **Off** (turn it on in **Settings → About**) |
+| Automatic updates (installed version) | When the update check is on, the installed app also downloads a newer version from this project's GitHub release (a download never starts while something is on screen, and one running when a service starts is stopped) and installs it when you close ICCWorship with nothing on screen. The download is checked against the release's SHA-512 before it is used. The portable version only tells you. | On **when the update check is on** (untick "Download new versions…" to only be told) |
 
 ## Español
 
@@ -34,12 +38,14 @@ peticiones de oración. Nuestra promesa es sencilla: **sus datos se quedan en su
 - **Sin cuentas, sin nube, sin telemetría.** ICCWorship no recopila estadísticas de uso ni informes de errores,
   y no se comunica con ningún servidor.
 - **Dónde están sus datos:** en `Documentos\ICCWorship` en la PC, como archivos JSON, más copias automáticas en
-  `Documentos\ICCWorship\backups`. Si Windows respalda su carpeta Documentos en OneDrive, Windows sincroniza esos
+  `Documentos\ICCWorship\backups`. La versión portátil guarda todo eso, y sus registros, en la carpeta
+  `ICCWorship Data` junto a su exe. Si Windows respalda su carpeta Documentos en OneDrive, Windows sincroniza esos
   archivos como cualquier otro documento. ICCWorship nunca los sube.
-- **Los registros (logs)** para resolver problemas se guardan en la PC, en `%APPDATA%\ICCWorship\logs`. Anotan lo que
-  hizo la app y los errores — nunca letras de cantos, personas, peticiones de oración ni su PIN; su nombre de usuario
-  de Windows se reemplaza por `%USERPROFILE%`. Si la app falla, Windows guarda archivos de fallo ("minidumps") en
-  `%APPDATA%\ICCWorship\Crashpad`.
+- **Los registros (logs)** para resolver problemas se guardan en la PC, en `%APPDATA%\ICCWorship\logs` (versión
+  portátil: `ICCWorship Data\.app\logs` junto al exe). Anotan lo que hizo la app y los errores — nunca letras de
+  cantos, personas, peticiones de oración ni su PIN; su nombre de usuario de Windows se reemplaza por
+  `%USERPROFILE%`. Si la app falla, Windows guarda archivos de fallo ("minidumps") en
+  `%APPDATA%\ICCWorship\Crashpad` (portátil: `ICCWorship Data\.app\Crashpad`).
 - **Reportes de errores:** no se envía nada automáticamente. **Ayuda → Exportar diagnóstico** crea un .zip que usted
   puede adjuntar: registros, datos de la PC y de la app, ajustes sin el PIN y cuántos cantos/servicios tiene (no su
   contenido). Los volcados de fallos solo se incluyen si marca la casilla — pueden contener texto que estaba en
@@ -49,4 +55,5 @@ peticiones de oración. Nuestra promesa es sencilla: **sus datos se quedan en su
 | Función | Qué hace | Por defecto |
 |---|---|---|
 | Control remoto y pantalla de escenario | Un pequeño servidor web en la red local de la iglesia (puerto 7272) para que teléfonos y tabletas se conecten. Nada sale de su red. | Activado (se apaga en **Ajustes**) |
-| Buscar actualizaciones | Pregunta a GitHub como máximo una vez al día (nunca durante un servicio) si hay una versión nueva. GitHub ve su dirección IP, como cualquier sitio web; no se envía nada más. No se descarga ni se instala nada. | **Desactivado** (se activa en **Ajustes → Acerca de**) |
+| Buscar actualizaciones | Pregunta a GitHub como máximo una vez al día (nunca durante un servicio) si hay una versión nueva. GitHub ve su dirección IP, como cualquier sitio web; no se envía nada más (ningún identificador de su computadora: el que enviaría la biblioteca de actualizaciones se reemplaza por ceros). | **Desactivado** (se activa en **Ajustes → Acerca de**) |
+| Actualizaciones automáticas (versión instalada) | Con la búsqueda activada, la app instalada también descarga la versión nueva desde la versión publicada en GitHub de este proyecto (una descarga nunca empieza con algo en pantalla, y una en curso se detiene cuando empieza un servicio) y la instala cuando usted cierra ICCWorship sin nada en pantalla. La descarga se comprueba con el SHA-512 de esa versión antes de usarla. La versión portátil solo avisa. | Activadas **cuando la búsqueda está activada** (desmarque "Descargar las versiones nuevas…" para solo recibir el aviso) |

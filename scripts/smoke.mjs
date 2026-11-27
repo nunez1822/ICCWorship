@@ -6,11 +6,13 @@
  *   node scripts/smoke.mjs [screenshotDir]
  */
 import { _electron as electron } from 'playwright-core'
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { request as httpRequest } from 'node:http'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createServer, request as httpRequest } from 'node:http'
+import { createHash, randomBytes } from 'node:crypto'
 import { WebSocket as WsClient } from 'ws'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { execFileSync } from 'node:child_process'
 
 /** A ws message as text: one Buffer by default, but the type also allows a Buffer array or an ArrayBuffer. */
 const wsText = (d) => (Array.isArray(d) ? Buffer.concat(d) : Buffer.isBuffer(d) ? d : Buffer.from(d)).toString('utf8')
@@ -54,10 +56,52 @@ const wsConnect = (port, pin, opts = {}, onOpen) =>
     ws.on('error', (e) => done({ error: String(e) }))
   })
 
+// An update feed on this computer (see ICCWORSHIP_TEST_UPDATE_CONFIG in src/main/updates.ts): a "99.0.0" release whose
+// installer is random bytes with their real SHA-512. The app downloads and checks it but never runs it.
+const feedDir = join(data, '.update-feed')
+mkdirSync(feedDir, { recursive: true })
+const fakeInstaller = randomBytes(300_000)
+writeFileSync(join(feedDir, 'ICCWorship-Setup-99.0.0.exe'), fakeInstaller)
+const sha512 = createHash('sha512').update(fakeInstaller).digest('base64')
+writeFileSync(
+  join(feedDir, 'latest.yml'),
+  `version: 99.0.0
+files:
+  - url: ICCWorship-Setup-99.0.0.exe
+    sha512: ${sha512}
+    size: ${fakeInstaller.length}
+path: ICCWorship-Setup-99.0.0.exe
+sha512: ${sha512}
+releaseDate: '2026-01-01T00:00:00.000Z'
+`
+)
+const feed = createServer((req, res) => {
+  const name = (req.url || '').split('?')[0].replace(/^\//, '')
+  if (!['latest.yml', 'ICCWorship-Setup-99.0.0.exe'].includes(name)) return res.writeHead(404).end()
+  res.writeHead(200).end(readFileSync(join(feedDir, name)))
+})
+await new Promise((r) => feed.listen(0, '127.0.0.1', r))
+const updaterCache = 'iccworship-smoke-updater'
+const updateConfig = join(data, 'dev-app-update.yml')
+writeFileSync(
+  updateConfig,
+  `provider: generic
+url: http://127.0.0.1:${feed.address().port}/
+updaterCacheDirName: ${updaterCache}
+`
+)
+
 const app = await electron.launch({
   args: [root],
   cwd: root,
-  env: { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_TEST_PROFILE: '1', ICCWORSHIP_WINDOWED: '1', ELECTRON_RENDERER_URL: '' }
+  env: {
+    ...process.env,
+    ICCWORSHIP_DATA: data,
+    ICCWORSHIP_TEST_PROFILE: '1',
+    ICCWORSHIP_WINDOWED: '1',
+    ELECTRON_RENDERER_URL: '',
+    ICCWORSHIP_TEST_UPDATE_CONFIG: updateConfig
+  }
 })
 
 /** true while the test makes requests that are SUPPOSED to fail (Chromium logs those as console errors) */
@@ -121,12 +165,54 @@ try {
   await sleep(800)
   await op.screenshot({ path: join(shots, '02-live-empty.png') })
 
+  // ---- updates (installed app): a newer version is found, downloaded and checked, then waits for the app to close ----
+  {
+    await op.evaluate(() => window.api.settings.set({ checkForUpdates: true }))
+    const r = await op.evaluate(() => window.api.app.checkUpdates())
+    let status
+    for (let i = 0; i < 60; i++) {
+      status = await op.evaluate(() => window.api.app.updateStatus())
+      if (status.phase === 'ready' || status.phase === 'failed') break
+      await sleep(250)
+    }
+    const toast = await op
+      .locator('.toast-action')
+      .first()
+      .textContent({ timeout: 5000 })
+      .catch(() => '')
+    const ok = r.ok && r.newer && r.latest === '99.0.0' && r.selfUpdate && status.phase === 'ready' && !!toast
+    console.log('update found, downloaded and checked (SHA-512), "Restart now" offered:', ok ? '✓' : `✗ ${JSON.stringify({ r, status, toast })}`)
+    if (!ok) errors.push('self-update download failed')
+    await op.evaluate(() => window.api.settings.set({ checkForUpdates: false }))
+  }
+
+  // "Ready for Sunday?" checklist (Live page → ✅): it checks the sample plan, the screens, the phone remote, backups
+  {
+    await op.click('.ready-btn')
+    await op.waitForSelector('.ready-list li', { timeout: 15000 })
+    await sleep(300)
+    await op.screenshot({ path: join(shots, '02b-ready-check.png') })
+    const rows = await op.$$eval('.ready-list li', (lis) => lis.map((li) => `${li.className}: ${li.querySelector('.txt')?.textContent}`))
+    // the sample plan's items all exist; only one screen and no backup yet are expected warnings here
+    const ok = rows.length >= 4 && !rows.some((r) => r.startsWith('error'))
+    console.log('ready-for-Sunday checklist:', ok ? '✓' : '✗', JSON.stringify(rows))
+    if (!ok) errors.push('ready checklist failed')
+    await op.click('.modal-foot .btn.primary')
+    await sleep(300)
+  }
+
   // go live on the first song (3rd item in the sample plan)
   const items = op.locator('.plan-item')
   console.log('plan items:', await items.count())
   await items.nth(2).dblclick()
   await sleep(900)
   await op.screenshot({ path: join(shots, '03-live-song.png') })
+  {
+    const r = await op.evaluate(() => window.api.app.installUpdate())
+    const ok = !r.ok && r.error === 'live'
+    console.log('update never installs while something is on screen:', ok ? '✓' : `✗ ${JSON.stringify(r)}`)
+    if (!ok) errors.push('update install was allowed while live')
+  }
   await outShot(join(shots, '04-projector-song-both.png'))
 
   // next slide, then Spanish only
@@ -183,6 +269,14 @@ try {
     await op.waitForSelector('.media-card', { timeout: 20000 })
     await sleep(800)
     await op.screenshot({ path: join(shots, '20-media-library.png') })
+    // the media library keeps its own copy (backups and a new computer then have it)
+    {
+      const items = await op.evaluate(() => window.api.db.list('media'))
+      const copied = items.length > 0 && items.every((m) => /^media\/[^/]+\.mp4$/.test(m.path) && !!m.source)
+      const onDisk = copied && items.every((m) => existsSync(join(data, m.path)))
+      console.log('added video copied into the media library:', copied && onDisk ? '✓' : `✗ ${JSON.stringify(items.map((m) => m.path))}`)
+      if (!copied || !onDisk) errors.push('media not copied into the library')
+    }
     await op.locator('.media-card').first().dblclick()
     await sleep(2500)
     await outShot(join(shots, '21-projector-video.png'))
@@ -311,6 +405,37 @@ try {
     mediaChecks.badRange === 416 && mediaChecks.notMedia === 404 ? '✓' : '✗'
   )
   if (mediaChecks.badRange !== 416 || mediaChecks.notMedia !== 404) errors.push('media:// protocol checks failed')
+
+  // the pages load from app://iccworship (not file://), which serves only the built pages
+  expectingFailures = true
+  const appChecks = await op.evaluate(async () => {
+    const status = (u) =>
+      fetch(u).then(
+        (r) => r.status,
+        () => 'refused'
+      )
+    return {
+      origin: location.origin,
+      page: await status('app://iccworship/index.html'),
+      // an encoded slash survives the URL parser (a plain "../" or "%2e%2e/" is resolved before the handler sees it,
+      // so it couldn't tell whether the guard works): out/main/index.js exists, so only the guard makes this a 404
+      outside: await status('app://iccworship/..%2fmain%2findex.js'),
+      outsideBackslash: await status('app://iccworship/..%5cmain%5cindex.js'),
+      wasmLicence: await status('app://iccworship/pdfjs-wasm/LICENSE_QCMS'),
+      file: await status('file:///C:/Windows/win.ini')
+    }
+  })
+  await sleep(300)
+  expectingFailures = false
+  const appOk =
+    appChecks.origin === 'app://iccworship' &&
+    appChecks.page === 200 &&
+    appChecks.outside === 404 &&
+    appChecks.outsideBackslash === 404 &&
+    appChecks.wasmLicence === 404 &&
+    appChecks.file === 'refused'
+  console.log('pages served from app://, nothing else reachable:', JSON.stringify(appChecks), appOk ? '✓' : '✗')
+  if (!appOk) errors.push('app:// protocol checks failed')
 
   // the LAN server serves the slide image on screen through an opaque token; a bad Range must not crash it
   {
@@ -447,6 +572,10 @@ try {
     dialog.showSaveDialog = async () => ({ canceled: false, filePath: p })
   }, backupPath)
   const made = await op.evaluate(() => window.api.backup.create())
+  // the media library goes into "Back up now" and comes back on restore (as on a new computer, where it's missing)
+  const mediaDir = join(data, 'media')
+  const mediaFiles = existsSync(mediaDir) ? readdirSync(mediaDir) : []
+  for (const f of mediaFiles) rmSync(join(mediaDir, f), { force: true })
   const songsBefore = (await op.evaluate(() => window.api.db.list('songs'))).length
   await op.evaluate(() =>
     window.api.db.upsert('songs', { id: 'temp-song', title: 'Temp', tags: [], sections: [], arrangement: [], linesPerSlide: 4, createdAt: 0, updatedAt: 0 })
@@ -461,6 +590,11 @@ try {
   console.log('restore keeps this PC’s PIN:', pinAfterRestore === pinBeforeRestore ? '✓' : '✗')
   if (pinAfterRestore !== pinBeforeRestore) errors.push('restore changed the PIN of this computer')
   if (songsAfter !== songsBefore) errors.push('restore did not bring back the backed-up data')
+  {
+    const back = mediaFiles.length > 0 && mediaFiles.every((f) => existsSync(join(mediaDir, f)))
+    console.log('the media library is in the backup and comes back on restore:', back ? '✓' : `✗ ${JSON.stringify(mediaFiles)}`)
+    if (!back) errors.push('media library not restored from the backup')
+  }
 
   // the log exists and holds the startup line (Help → Open logs folder / Export diagnostics)
   const logOk = /ICCWorship .* starting/.test(readFileSync(join(data, '.userdata', 'logs', 'main.log'), 'utf8'))
@@ -471,11 +605,68 @@ try {
   const opPage = await fetch(`http://127.0.0.1:${info.port}/index.html`).then((r) => r.status)
   console.log('operator page over LAN blocked:', opPage === 404 ? '✓' : `✗ (${opPage})`)
   if (opPage !== 404) errors.push('operator page exposed over the network')
+  // ---- ICCWorship closes unexpectedly mid-service: the next start offers the item back (src/shared/session.ts) ----
+  const op1 = await windowByUrl('index.html')
+  await op1.evaluate(() => window.api.live.stageCommand({ type: 'gotoItem', index: 1 }))
+  await sleep(1800) // the session file is written a second after the live item changes
+  const wasLive = await op1.evaluate(() => window.api.live.get())
+  // no normal quit, like a crash or a power cut: end the whole process tree at once
+  execFileSync('taskkill', ['/T', '/F', '/PID', String(app.process().pid)], { stdio: 'ignore' })
+  await sleep(1500)
+  {
+    // the killed copy's helper processes can hold the single-instance lock a moment longer: then the new copy
+    // hands over to it and exits; try again
+    let appR
+    for (let i = 0; i < 5 && !appR; i++) {
+      appR = await electron
+        .launch({
+          args: [root],
+          cwd: root,
+          env: { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_TEST_PROFILE: '1', ICCWORSHIP_WINDOWED: '1', ELECTRON_RENDERER_URL: '' }
+        })
+        .catch(() => undefined)
+      if (!appR) await sleep(1500)
+    }
+    if (!appR) throw new Error('could not start ICCWorship again after killing it')
+    try {
+      let opR
+      for (let i = 0; i < 60 && !opR; i++) {
+        opR = appR.windows().find((w) => w.url().includes('index.html'))
+        if (!opR) await sleep(250)
+      }
+      const nothingLive = (await opR.evaluate(() => window.api.live.get())).slideIndex === -1
+      const button = opR.locator('.toast-action').first()
+      await button.waitFor({ timeout: 15000 })
+      await button.click()
+      let back
+      for (let i = 0; i < 40; i++) {
+        back = await opR.evaluate(() => window.api.live.get())
+        if (back.itemId === wasLive.itemId) break
+        await sleep(250)
+      }
+      const ok = !!wasLive.itemId && nothingLive && back.itemId === wasLive.itemId && back.slideIndex === wasLive.slideIndex
+      console.log(
+        'after an unexpected exit, the live item is offered back:',
+        ok ? '✓' : `✗ was=${wasLive.itemId}/${wasLive.slideIndex} back=${back?.itemId}/${back?.slideIndex}`
+      )
+      if (!ok) errors.push('resume after an unexpected exit failed')
+      // a normal quit leaves nothing to offer next time
+      await appR.evaluate(({ app }) => app.quit())
+      await sleep(800)
+      const session = JSON.parse(readFileSync(join(data, '.userdata', 'session.json'), 'utf8'))
+      console.log('a normal quit is recorded as clean:', session.clean === true ? '✓' : '✗')
+      if (session.clean !== true) errors.push('normal quit not recorded in session.json')
+    } finally {
+      await appR.close().catch(() => {})
+    }
+  }
+
   // ---- data written by a NEWER version opens read-only (an old portable copy must not damage it) ----
-  await app.close()
+  await app.close().catch(() => {})
   const metaFile = join(data, 'data', 'meta.json')
   const songsFile = join(data, 'data', 'songs.json')
-  const env2 = { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_WINDOWED: '1', ELECTRON_RENDERER_URL: '' }
+  // the test profile too: without it these runs would write logs and session files into the real %APPDATA%\ICCWorship
+  const env2 = { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_TEST_PROFILE: '1', ICCWORSHIP_WINDOWED: '1', ELECTRON_RENDERER_URL: '' }
 
   // ---- data from 1.0 (no schema version) is upgraded, after a safety backup ----
   writeFileSync(metaFile, JSON.stringify({ seeded: 1 }))
@@ -495,11 +686,7 @@ try {
 
   writeFileSync(metaFile, JSON.stringify({ seeded: 1, schemaVersion: 99 }))
   const songsOnDisk = readFileSync(songsFile, 'utf8')
-  const app2 = await electron.launch({
-    args: [root],
-    cwd: root,
-    env: { ...process.env, ICCWORSHIP_DATA: data, ICCWORSHIP_WINDOWED: '1', ELECTRON_RENDERER_URL: '' }
-  })
+  const app2 = await electron.launch({ args: [root], cwd: root, env: env2 })
   try {
     let op3
     for (let i = 0; i < 60 && !op3; i++) {
@@ -527,7 +714,10 @@ try {
   errors.push('SMOKE FAILURE: ' + (e?.stack || e))
 } finally {
   await app.close().catch(() => {})
+  feed.close()
   rmSync(data, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 })
+  // electron-updater keeps what it downloaded in %LOCALAPPDATA%\<updaterCacheDirName>
+  if (process.env.LOCALAPPDATA) rmSync(join(process.env.LOCALAPPDATA, updaterCache), { recursive: true, force: true, maxRetries: 5, retryDelay: 300 })
 }
 
 console.log('screenshots in', shots)

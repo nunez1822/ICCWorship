@@ -164,6 +164,7 @@ function Remote() {
               </button>
             )
           })}
+        {tab === 'plan' && !state.planItems.length && <div className="r-empty">{t('remote.planEmpty')}</div>}
         {tab === 'plan' &&
           state.planItems.map((it, i) => (
             <button key={it.id} className={`r-row ${i === state.itemIndex ? 'on' : ''}`} onClick={() => send({ type: 'gotoItem', index: i })}>

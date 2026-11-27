@@ -1,18 +1,20 @@
 import { execFile } from 'node:child_process'
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { statfs } from 'node:fs/promises'
 import { basename, extname, join } from 'node:path'
 import { promisify } from 'node:util'
 import type { Presentation, PresentationSlide } from '@shared/types'
 import { readPptxText } from '@shared/pptxText'
+import { guessLang } from '@shared/langGuess'
 import { uid } from '@shared/slides'
-import { cacheDir } from './paths'
+import { cacheDir, dataRoot } from './paths'
 import { isSafeId } from '@shared/security'
 import { loggableError } from '@shared/loggableError'
 import { within } from './pathGuard'
 import { log } from './log'
-import { assertWritable, db } from './db'
+import { assertWritable, db, getSettings } from './db'
 import { dataMediaUrl, toMediaUrl } from './mediaPath'
-import { writeFileAtomic } from './atomicWrite'
+import { copyFileAtomic, writeFileAtomic } from './atomicWrite'
 
 const run = promisify(execFile)
 
@@ -148,10 +150,10 @@ export async function importPresentation(src: string, prefer?: 'powerpoint' | 'l
       }
       if (method === 'text' && (ext === '.pptx' || ext === '.ppsx')) {
         const txt = await readPptxText(readFileSync(src))
-        const slides: PresentationSlide[] = txt.map((s) => ({
-          text: { en: [s.title, s.body].filter(Boolean).join('\n'), es: undefined },
-          notes: s.notes
-        }))
+        const texts = txt.map((s) => [s.title, s.body].filter(Boolean).join('\n'))
+        // the slides' language (one guess for the whole file): Spanish text goes in the Español box
+        const lang = guessLang(texts.join('\n')) === 'es' ? 'es' : 'en'
+        const slides: PresentationSlide[] = txt.map((s, i) => ({ text: { [lang]: texts[i] }, notes: s.notes }))
         if (!slides.length) throw new Error('no-slides')
         return { presentation: save({ id, name, sourcePath: src, method: 'text', slides, importedAt: Date.now() }) }
       }
@@ -176,20 +178,46 @@ export function savePdfPages(args: { id: string; name: string; sourcePath: strin
   return save({ id: args.id, name: args.name, sourcePath: args.sourcePath, method: args.method, slides, importedAt: Date.now() })
 }
 
-/** A folder of images (e.g. PowerPoint "Save as PNG") */
-export function importImages(paths: string[], name: string): Presentation {
-  const slides = paths
-    .filter((p) => /\.(png|jpe?g|gif|webp|bmp)$/i.test(p))
-    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
-    .map((p) => ({ image: toMediaUrl(p) }))
-  return save({ id: uid(), name, sourcePath: paths[0] || '', method: 'images', slides, importedAt: Date.now() })
+/**
+ * A folder of images (e.g. PowerPoint "Save as PNG"). The pictures are copied into the presentation's own folder in
+ * the data folder, like a PDF's pages: moving or deleting the originals doesn't break it, backups carry it, and
+ * deleting the presentation removes them. Linked where they are (as before) when "keep a copy" is off, or when the
+ * copies wouldn't leave room for saving the church's data.
+ */
+export async function importImages(paths: string[], name: string): Promise<Presentation> {
+  const files = paths.filter((p) => /\.(png|jpe?g|gif|webp|bmp)$/i.test(p)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+  const id = uid()
+  const linked = () =>
+    save({ id, name, sourcePath: paths[0] || '', method: 'images', slides: files.map((p) => ({ image: toMediaUrl(p) })), importedAt: Date.now() })
+  if (getSettings().copyMediaToLibrary === false) return linked()
+  assertWritable()
+  const total = files.reduce((n, p) => n + (statSync(p, { throwIfNoEntry: false })?.size ?? 0), 0)
+  const fs = await statfs(dataRoot())
+  if (fs.bavail * fs.bsize - total < MIN_FREE_BYTES) {
+    log.warn('images as slides: not enough free space for copies, linking the files where they are')
+    return linked()
+  }
+  const out = cacheDir('presentations', id)
+  const slides: PresentationSlide[] = []
+  for (const [i, p] of files.entries()) {
+    const f = join(out, `slide${String(i + 1).padStart(3, '0')}${extname(p).toLowerCase()}`)
+    await copyFileAtomic(p, f)
+    slides.push({ image: dataMediaUrl(f) })
+  }
+  return save({ id, name, sourcePath: paths[0] || '', method: 'images', slides, importedAt: Date.now() })
 }
+/** leave room for saving the church's data (as the media library's copies do) */
+const MIN_FREE_BYTES = 300 * 1024 * 1024
 
 function save(p: Presentation): Presentation {
   const existing = db().get<Presentation>('presentations', p.id)
   // keep any translations typed for text slides when re-importing
   if (existing && existing.method === 'text' && p.method === 'text') {
-    p.slides = p.slides.map((s, i) => ({ ...s, text: { ...s.text, es: existing.slides[i]?.text?.es } }))
+    // (the language the import didn't fill is the one the operator typed: English for a Spanish deck)
+    p.slides = p.slides.map((s, i) => {
+      const old = existing.slides[i]?.text
+      return { ...s, text: s.text?.es === undefined ? { ...s.text, es: old?.es } : { ...s.text, en: old?.en } }
+    })
   }
   db().upsert('presentations', p)
   return p

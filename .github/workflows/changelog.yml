@@ -1,0 +1,31 @@
+name: Changelog
+
+# Anything a user would notice gets a line under [Unreleased] in CHANGELOG.md (CONTRIBUTING.md): the release notes
+# are made from it. A PR that changes the app (src/, resources/, the installer config) without touching CHANGELOG.md
+# fails this check, unless it carries the "no-changelog" label (a refactor, a test-only or internal change).
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changelog:
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-changelog') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: A change to the app has a CHANGELOG line
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          files=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --jq '.[].filename')
+          if printf '%s\n' "$files" | grep -qx 'CHANGELOG.md'; then echo "CHANGELOG.md updated"; exit 0; fi
+          if printf '%s\n' "$files" | grep -qE '^(src/|resources/|electron-builder\.yml$)'; then
+            echo "::error::This PR changes the app but not CHANGELOG.md. Add a line under [Unreleased] (in plain words a church volunteer understands), or label the PR no-changelog if users won't notice."
+            exit 1
+          fi
+          echo "No app changes: no CHANGELOG line needed"

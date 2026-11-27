@@ -53,7 +53,8 @@ function Stage() {
   if (!state) return <div className="stage-wait">{status === 'offline' ? t('stage.offline') : status === 'full' ? t('stage.full') : '…'}</div>
 
   const cur = state.slideIndex >= 0 ? state.slides[state.slideIndex] : undefined
-  const nextIdx = upcomingSlideIndex(state)
+  // during a backing track's outro the next Space moves to the next item, not back to the lyric slide just cleared
+  const nextIdx = state.outro ? -1 : upcomingSlideIndex(state)
   const next = nextIdx >= 0 ? state.slides[nextIdx] : undefined
   const nextItem = !next && state.itemIndex >= 0 ? state.planItems[state.itemIndex + 1] : undefined
   const planned = state.planItems.find((i) => i.id === state.itemId)?.durationMin || 0
@@ -171,6 +172,8 @@ function StageSlide({
     <div className={`stage-text ${big ? 'big' : ''} ${chords ? 'chords' : ''}`}>
       {slide.group && big && <div className="stage-group">{slide.group}</div>}
       {title.primary && <div className="stage-title">{title.primary}</div>}
+      {/* both titles, like the projector (an announcement's "Anuncios / Announcements") */}
+      {title.secondary && <div className="stage-title s">{title.secondary}</div>}
       <div className="p">{chords ? renderChords(txt.primary) : txt.primary}</div>
       {txt.secondary && <div className="s">{chords ? renderChords(txt.secondary) : txt.secondary}</div>}
     </div>

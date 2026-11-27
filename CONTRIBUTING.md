@@ -10,9 +10,13 @@ reported privately (see [SECURITY.md](SECURITY.md)).
 - **Report bugs**: use the bug-report form. Say what you did, what you expected, what happened, and your
   Windows version. Never include names, phone numbers or prayer requests; issues are public.
 - **Translate**: all UI text is in `src/renderer/i18n/en.json` and `es.json`. To add a language, add a new JSON
-  file with the same keys and register it in `src/renderer/i18n/index.ts`.
+  file with the same keys and register it in `src/renderer/i18n/index.ts`. The interface language (`uiLang`) still
+  shares the content type `Lang`, so it first needs its own type in `src/shared/types.ts`, `src/shared/security.ts`
+  and `src/main/i18n.ts`: see [ADR 0006](docs/adr/0006-content-languages.md).
 - **Public-domain songs**: bilingual hymns are especially welcome. Only add lyrics that are in the public domain.
 - **Code**: fix a bug or build a feature from the issues. Issues labelled `good first issue` are a good start.
+  Where the project is heading is in [docs/ROADMAP.md](docs/ROADMAP.md); read the
+  [architecture decision records](docs/adr/README.md) before changing how data, updates, media or IPC work.
 
 ## Ground rules
 - **Never commit copyrighted lyrics or Bible texts.** Users paste or import those on their own computer. Test
@@ -62,6 +66,18 @@ can run them with the `/e2e-test` skill (`.claude/skills/e2e-test/`), which driv
 Playwright MCP servers in `.mcp.json`.
 
 ## Pull requests
+Every PR gets, from CI:
+- `ci` (required): `vp check` (format, lint, types), unit tests and a build.
+- `smoke` and `packaged`: the built app driven end to end, and the installed-style build started with its fuses
+  checked. `packaged` uploads an **ICCWorship-test-build** artifact (the unpacked app, unsigned, kept a week):
+  reviewers and testers can run a PR without building it.
+- `changelog`: a PR that changes the app must add a line under `[Unreleased]` in `CHANGELOG.md`, or carry the
+  `no-changelog` label (for changes users won't notice: refactors, tests, CI). A maintainer applies the label;
+  contributors from forks can't, so just say so in the PR. (The label is created once per repository:
+  `gh label create no-changelog -d "No user-visible change"`.)
+- `dependency-review`: no new dependency with a known vulnerability or a licence outside the allowed list.
+- CodeQL and OpenSSF Scorecard (on `main`) report under Security → Code scanning.
+
 1. Fork, then create a branch from `main` (`fix/…`, `feat/…`, `docs/…`, `chore/…`).
 2. One topic per PR, with a short description and, for UI changes, a screenshot.
 3. Add a line to `CHANGELOG.md` under **[Unreleased]** for anything a user would notice.
@@ -72,12 +88,29 @@ Playwright MCP servers in `.mcp.json`.
 Commit messages and PRs can be in English or Spanish; both are fine.
 
 ## Releasing (maintainers)
-1. Open a release PR: bump `version` in `package.json` (`pnpm version X.Y.Z --no-git-tag-version`),
-   and move the `[Unreleased]` notes in `CHANGELOG.md` under a new `[X.Y.Z] - YYYY-MM-DD` heading. Merge it.
-2. Create the tag on GitHub, from the merged commit on `main`:
-   `gh api repos/nunez1822/ICCWorship/git/refs -f ref=refs/tags/vX.Y.Z -f sha=<main sha>`.
-   The release workflow builds the installers on GitHub's servers and creates a **draft** release with checksums
-   and build provenance.
-3. **Download and install the draft's files and try them** before you press Publish. Releases are immutable:
-   published files can never be replaced, and the version number can't be reused.
+1. On an up-to-date `main`: `pnpm release:prepare <patch|minor|major>` (or an exact `X.Y.Z`; add `--dry-run` to
+   preview). It bumps `package.json`, moves the `[Unreleased]` notes in `CHANGELOG.md` under `[X.Y.Z] - date`, and
+   opens a **Release X.Y.Z** pull request.
+2. Merge that PR (squash) once CI is green. The release workflow sees the new version on `main`, **tags it
+   `vX.Y.Z` itself**, builds the installers on GitHub's servers, checks the packaged app starts, and creates a
+   **draft** release with: both exes, `SHA256SUMS.txt`, build provenance, an SBOM (`.sbom.cdx.json`, attested too)
+   and the self-update files (`latest.yml`, `.blockmap`).
+
+   A merge that changes `package.json` without changing the version (a dependency bump) releases nothing. A new
+   version with no `## [X.Y.Z]` section in CHANGELOG.md stops before it is tagged.
+
+   **If the run fails:** **Re-run jobs** on that run, or **Run workflow** (Actions → Release, from `main`, never from a
+   tag), rebuilds the *tagged
+   commit*, so it only helps when the failure had nothing to do with the code (a runner or network problem). When the code or the workflow needs a fix,
+   merge the fix to `main`, delete the unpublished tag (`git push origin :refs/tags/vX.Y.Z`, and delete its draft
+   release if there is one), then **Run workflow** on `main`: it tags `main` as it is now and builds that. Never
+   reuse the number of a *published* release (the workflow refuses): release a patch instead. A rebuild replaces its
+   own earlier draft.
+3. **Download and install the draft's files and try them** (the P0 e2e cases; `/e2e-test packaged`) before you press
+   Publish. Releases are immutable: published files can never be replaced, and the version number can't be reused.
+   **Publishing is what ships it:** installed copies with automatic updates on download it within a day.
 4. Publish, then announce it in Discussions.
+
+Which version number? **patch** (1.0.1) for fixes only, **minor** (1.1.0) for new features, **major** (2.0.0) when
+data written by the new version can't be opened by older ones in the usual way (a `SCHEMA_VERSION` bump is
+normally a minor: older versions open newer data read-only).

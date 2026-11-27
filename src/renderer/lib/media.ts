@@ -11,9 +11,8 @@ export function mediaUrlToPath(u?: string): string | null {
   }
 }
 
-export const VIDEO_EXT = ['mp4', 'm4v', 'webm', 'mov', 'mkv']
-export const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']
-export const AUDIO_EXT = ['mp3', 'wav', 'm4a', 'ogg', 'opus', 'flac']
+import { AUDIO_EXT, IMAGE_EXT, VIDEO_EXT } from '@shared/mediaLibrary'
+export { AUDIO_EXT, IMAGE_EXT, VIDEO_EXT }
 
 export function kindOf(path: string): MediaKind | null {
   const ext = path.split('.').pop()?.toLowerCase() || ''

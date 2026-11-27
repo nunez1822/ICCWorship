@@ -1,5 +1,6 @@
 /**
- * A small file logger (no dependency). Logs live in %APPDATA%\ICCWorship\logs\main.log, rotate at 1 MB and keep
+ * A small file logger (no dependency). Logs live in the profile's logs folder (%APPDATA%\ICCWorship\logs\main.log;
+ * the portable exe: ICCWorship Data\.app\logs; test runs: <ICCWORSHIP_DATA>\.userdata\logs), rotate at 1 MB and keep
  * 5 old files. They exist so a church can attach them to a bug report, so they must never hold private data:
  *
  *   LOG ONLY ids, counts, collection names, error codes and short messages. NEVER log song text, people,
@@ -13,6 +14,7 @@ import { appendFileSync, existsSync, mkdirSync, renameSync, rmSync, statSync } f
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { loggableError } from '@shared/loggableError'
+import { LogRepeats, type LogLine } from '@shared/logRepeats'
 
 type Level = 'debug' | 'info' | 'warn' | 'error'
 const ORDER: Record<Level, number> = { debug: 0, info: 1, warn: 2, error: 3 }
@@ -86,12 +88,31 @@ function rotate(f: string): void {
   }
 }
 
-// the same line repeated in a burst (a render loop, a flapping network) is written once with a count
-let last = ''
-let repeats = 0
-let lastAt = 0
+// the same line repeated in a burst (a render loop, a flapping network) is written once with a count (LogRepeats)
+const repeats = new LogRepeats()
+let repeatTimer: ReturnType<typeof setTimeout> | undefined
 let burst = 0
 let burstStart = 0
+
+function append(lines: LogLine[]): void {
+  if (!lines.length) return
+  try {
+    const f = target()
+    rotate(f)
+    appendFileSync(f, lines.map((l) => `${new Date(l.at).toISOString()} [${l.level}] ${l.text}`).join('\n') + '\n')
+  } catch {
+    /* never let logging break the app */
+  }
+}
+
+/** a repeat run that went quiet (or the app is exiting): write its count now */
+function flushRepeats(): void {
+  clearTimeout(repeatTimer)
+  repeatTimer = undefined
+  const line = repeats.flush()
+  if (line) append([line])
+}
+process.on('exit', flushRepeats)
 
 function write(level: Level, parts: unknown[]): void {
   if (ORDER[level] < ORDER[minLevel]) return
@@ -107,30 +128,23 @@ function write(level: Level, parts: unknown[]): void {
       .join(' ')
   )
   const now = Date.now()
-  if (msg === last && now - lastAt < 60_000) {
-    repeats++
-    lastAt = now
-    return
-  }
-  // rate limit: at most 200 lines a minute
+  // rate limit: at most 200 lines a minute (a repeat of the last line costs nothing)
   if (now - burstStart > 60_000) {
     burstStart = now
     burst = 0
   }
-  if (++burst > 200) return
-  const lines: string[] = []
-  if (repeats) lines.push(`${new Date(lastAt).toISOString()} [${level}] (last message repeated ${repeats} more times)`)
-  lines.push(`${new Date(now).toISOString()} [${level}] ${msg}`)
-  last = msg
-  lastAt = now
-  repeats = 0
-  try {
-    const f = target()
-    rotate(f)
-    appendFileSync(f, lines.join('\n') + '\n')
-  } catch {
-    /* never let logging break the app */
+  const lines = repeats.next(level, msg, now)
+  if (!lines.length) {
+    // repeating: the count is written when the run ends, or once it has been quiet for 10 s
+    clearTimeout(repeatTimer)
+    repeatTimer = setTimeout(flushRepeats, 10_000)
+    repeatTimer.unref?.()
+    return
   }
+  clearTimeout(repeatTimer)
+  repeatTimer = undefined
+  if (++burst > 200) return
+  append(lines)
   if (!app.isPackaged) (level === 'error' ? console.error : console.log)(`[${level}]`, msg)
 }
 

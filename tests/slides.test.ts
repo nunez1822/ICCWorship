@@ -40,6 +40,23 @@ describe('songToSlides', () => {
     expect(slides[0].group).toBe('Verse 1')
   })
 
+  it('one language only: a blank line starts a new slide (the editor says so)', () => {
+    const s = song({
+      linesPerSlide: 4,
+      sections: [{ id: 'v1', type: 'verse', label: 'V', en: 'Line one\nLine two\n\nLine three\nLine four\n\nLine five\nLine six', es: '' }]
+    })
+    expect(songToSlides(s).map((x) => x.text)).toEqual([
+      { en: 'Line one\nLine two', es: undefined },
+      { en: 'Line three\nLine four', es: undefined },
+      { en: 'Line five\nLine six', es: undefined }
+    ])
+    const es = song({ linesPerSlide: 4, sections: [{ id: 'v1', type: 'verse', label: 'V', en: '', es: 'Uno\nDos\n\nTres' }] })
+    expect(songToSlides(es).map((x) => x.text)).toEqual([
+      { en: undefined, es: 'Uno\nDos' },
+      { en: undefined, es: 'Tres' }
+    ])
+  })
+
   it('pairs paragraphs when both languages have the same count', () => {
     const s = song({
       linesPerSlide: 6,
@@ -219,7 +236,9 @@ describe('slidesTimingKey (does recorded timing still fit the slides?)', () => {
   })
   it('changes when the layout changes: order, lines per slide, a line more', () => {
     expect(key({ ...base, arrangement: ['b', 'a'] })).not.toBe(key(base))
-    expect(key({ ...base, linesPerSlide: 4 })).not.toBe(key(base))
+    // (a paragraph longer than the lines per slide: one-language paragraphs are already slides of their own)
+    const long = song({ sections: [sec('a', 'V1', 'Uno\nDos\nTres\nCuatro')] })
+    expect(key({ ...long, linesPerSlide: 4 })).not.toBe(key(long))
     expect(key(song({ sections: [sec('a', 'V1', 'Uno\nDos\n\nTres\nCuatro'), sec('b', 'C', 'Coro\nCoro\nCoro')] }))).not.toBe(key(base))
   })
   it('is short', () => {

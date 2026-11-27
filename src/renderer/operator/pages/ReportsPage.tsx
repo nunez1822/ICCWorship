@@ -11,7 +11,9 @@ export function ReportsPage() {
   const s = useApp()
   const year = new Date().getFullYear()
   const [from, setFrom] = useState(`${year}-01-01`)
-  const [to, setTo] = useState(localDate())
+  // the whole year: numbers entered on the coming Sunday's plan show today (future plans without numbers still
+  // don't count as services, see below)
+  const [to, setTo] = useState(`${year}-12-31`)
   const [usage, setUsage] = useState<SongUsage[]>([])
 
   useEffect(() => {

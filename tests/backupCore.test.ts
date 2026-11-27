@@ -15,14 +15,22 @@ import {
   staleTrackTemps,
   trackMirrorPlan,
   backupRoom,
-  MAX_BACKUP_BYTES
+  MAX_BACKUP_BYTES,
+  settingsForBackup
 } from '../src/shared/backupCore'
 import { checkSchema, MIGRATIONS, runMigrations, SCHEMA_VERSION, type Migration } from '@shared/migrations'
+import { isLibraryFileName } from '@shared/mediaLibrary'
 
 describe('backup manifest', () => {
   it('accepts backups from 1.0 and from now', () => {
-    expect(checkManifest({ app: 'ICCWorship', version: 1, createdAt: 'x' })).toEqual({ ok: true, format: 1, schemaVersion: undefined, hasTracks: false })
-    expect(checkManifest(makeManifest('1.1.0'))).toEqual({ ok: true, format: 1, schemaVersion: SCHEMA_VERSION, hasTracks: false })
+    expect(checkManifest({ app: 'ICCWorship', version: 1, createdAt: 'x' })).toEqual({
+      ok: true,
+      format: 1,
+      schemaVersion: undefined,
+      hasTracks: false,
+      hasMedia: false
+    })
+    expect(checkManifest(makeManifest('1.1.0'))).toEqual({ ok: true, format: 1, schemaVersion: SCHEMA_VERSION, hasTracks: false, hasMedia: false })
     expect(makeManifest('1.1.0').schemaVersion).toBe(SCHEMA_VERSION)
   })
   it('says whether the backup holds the backing tracks (only then does a restore replace tracks/)', () => {
@@ -31,6 +39,8 @@ describe('backup manifest', () => {
     // 1.1 backups, and an older version's backup of newer data, have no such field: tracks/ is left alone
     expect(checkManifest({ app: 'ICCWorship', format: 1, schemaVersion: 1 })).toMatchObject({ ok: true, hasTracks: false })
     expect(checkManifest({ app: 'ICCWorship', format: 1, hasTracks: 'yes' })).toMatchObject({ ok: true, hasTracks: false })
+    expect(checkManifest(makeManifest('1.2.0', true, new Date(), true))).toMatchObject({ ok: true, hasTracks: true, hasMedia: true })
+    expect(checkManifest({ app: 'ICCWorship', format: 1, hasMedia: 1 })).toMatchObject({ ok: true, hasMedia: false })
   })
   it('refuses other files and backups made by a newer layout', () => {
     expect(checkManifest(null)).toEqual({ ok: false, error: 'not-a-backup' })
@@ -151,6 +161,13 @@ describe('backing tracks kept beside the backups', () => {
       { name: 'D-4.OGG.TMP', mtime: now - 9 * day }
     ]
     expect(staleTrackTemps(files, now)).toEqual(['a-1.ogg.tmp'])
+    // media/: a cut-off library copy (<id>.<ext>.tmp), with the library's own name rule
+    const media = [
+      { name: 'f00d.mp4.tmp', mtime: now - 2 * day },
+      { name: 'f00e.mp4.tmp', mtime: now - 60_000 },
+      { name: 'notes.txt.tmp', mtime: now - 9 * day }
+    ]
+    expect(staleTrackTemps(media, now, undefined, isLibraryFileName)).toEqual(['f00d.mp4.tmp'])
   })
   it('keeps a deleted track 15 days (automatic backups go back 14), then lets it go', () => {
     const dirs = ['gone-2026-11-10', 'gone-2026-11-11', 'gone-2026-11-26', 'other', 'gone-junk']
@@ -257,5 +274,19 @@ describe('leftover backup temp files', () => {
       { name: 'notes.tmp', mtime: 0 }
     ]
     expect(staleBackupTemps(files, now)).toEqual(['auto-2026-11-24-0930.zip.tmp'])
+  })
+})
+
+describe('settingsForBackup (settings.json inside a backup)', () => {
+  it('leaves out the remote PIN and keeps everything else', () => {
+    const out = JSON.parse(settingsForBackup(JSON.stringify({ churchName: 'Iglesia', remotePin: '123456', uiLang: 'es' })))
+    expect(out).toEqual({ churchName: 'Iglesia', uiLang: 'es' })
+  })
+  it('keeps a file it can not parse as it is (the church data comes first), and one with no PIN untouched', () => {
+    expect(settingsForBackup('{ not json')).toBe('{ not json')
+    expect(settingsForBackup('{"a":1}')).toBe('{"a":1}')
+  })
+  it('reads a file saved with a byte-order mark', () => {
+    expect(JSON.parse(settingsForBackup(String.fromCharCode(0xfeff) + '{"remotePin":"1","a":2}'))).toEqual({ a: 2 })
   })
 })

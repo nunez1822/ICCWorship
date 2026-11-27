@@ -7,6 +7,7 @@ import { createWriteStream, existsSync, renameSync, unlinkSync, writeFileSync } 
 import { copyFile, open, rename, unlink, writeFile } from 'node:fs/promises'
 import type { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
+import { resolve } from 'node:path'
 
 /** Windows antivirus / backup / sync tools briefly lock new files: these errors are worth a short retry */
 const LOCKED = new Set(['EPERM', 'EBUSY', 'EACCES'])
@@ -58,15 +59,23 @@ export function writeFileAtomic(file: string, data: string | Uint8Array): void {
   }
 }
 
+/** the .tmp files being written right now (the sweep of .tmp files left by a crash must leave these alone) */
+const writing = new Set<string>()
+export const isBeingWritten = (tmp: string): boolean => writing.has(resolve(tmp).toLowerCase())
+
 /** `<file>.tmp` → done(tmp) → renamed over `file`; the .tmp is removed when anything fails */
 async function viaTemp(file: string, done: (tmp: string) => Promise<void>): Promise<void> {
   const tmp = file + '.tmp'
+  const key = resolve(tmp).toLowerCase()
+  writing.add(key)
   try {
     await done(tmp)
     await renameWithRetry(tmp, file)
   } catch (e) {
     await unlink(tmp).catch(() => {})
     throw e
+  } finally {
+    writing.delete(key)
   }
 }
 
@@ -81,6 +90,10 @@ export function copyFileAtomic(from: string, to: string): Promise<void> {
     await copyFile(from, tmp)
     const fh = await open(tmp, 'r+')
     try {
+      // Windows' copy keeps the source's date: date the copy now, so it is never taken for a .tmp left by a crash
+      // long ago (see staleTrackTemps)
+      const now = new Date()
+      await fh.utimes(now, now)
       await fh.sync()
     } finally {
       await fh.close()

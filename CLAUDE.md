@@ -17,29 +17,42 @@ usually operated by a volunteer during a live service, so reliability and simpli
 - Any user text shown on phones, stage or projector must render as text, never as HTML (see `escapeHtml` in
   `src/main/server.ts`). The phone/stage server is reachable by anyone on the church Wi-Fi.
 - **Trust boundaries** (see `src/shared/security.ts`, unit tested in `tests/security.test.ts`):
-  - IPC handlers are registered through `h()` / `on()` in `src/main/index.ts`, which only accept the app's own pages.
+  - IPC channels live in `src/main/ipc/handlers.ts` (invoke) and `listeners.ts` (send). `registerIpc` only accepts
+    the app's own pages (`isAppPageUrl` in `src/main/appUrl.ts`, which also guards what `app://iccworship` serves;
+    unit tested in `tests/appUrl.test.ts`). These objects are the IPC contract: the preload is typed from them, so add a channel there
+    and call it from `src/preload/index.ts` with `invoke()` / `send()` (main → page messages: `MainEvents` in
+    `src/shared/ipcEvents.ts`, sent with `send()` from `src/main/appState.ts`).
   - An id that becomes a file name must pass `isSafeId`; deletes and writes use `within()` (`src/main/pathGuard.ts`).
   - New settings must be added to `SETTING_CHECKS` or they can't be saved; the renderer can never set `remotePin`.
   - LAN input goes through `validateCommand` / `parseRange`, and phones only receive `pickPublicState`.
   - Nothing a LAN request sends may throw in main: every socket and stream needs an `'error'` handler.
-- **Crash recovery** (`src/shared/recovery.ts`, wired in `index.ts` → `guardWindow` / `guardOperator`): projector
+- **Crash recovery** (`src/shared/recovery.ts`, wired in `src/main/windowGuards.ts` → `guardWindow` / `guardOperator`): projector
   and stage pages send `win.alive()` every second and are restarted when they crash or stop beating; repeated
   failures put the projector in `#safe` (black). Pages are wrapped in `ErrorBoundary`. Keep new windows/pages
   inside this net.
 - **Data format changes need a migration** (`src/shared/migrations.ts`): bump `SCHEMA_VERSION` and add an
   idempotent migration. Data from a newer schema opens read-only (`JsonStore.readOnly`); any main-side file write
   outside the store must call `assertWritable()` first. Write files with `writeFileAtomic` (`src/main/atomicWrite.ts`).
-  Media inside the data folder is referenced data-relative (`dataMediaUrl`) and resolved with `mediaFile()`.
-- **Logging:** use `log` from `src/main/log.ts` (`%APPDATA%\ICCWorship\logs`; test runs: `<ICCWORSHIP_DATA>/.userdata/logs`). Log ids, counts, error codes and short messages, **never** lyrics,
+  Media inside the data folder is referenced data-relative (`dataMediaUrl`) and resolved with `mediaFile()`. Added
+  pictures/videos/sound and the logo are copied into `<data>/media/` (`src/shared/mediaLibrary.ts`, `media:copyIn`);
+  `MediaItem.path` is then `media/<id>.<ext>`, so never treat it as an absolute path (use `toMediaUrl` + `mediaStatus`).
+- **Logging:** use `log` from `src/main/log.ts` (`%APPDATA%\ICCWorship\logs`; portable exe: `ICCWorship Data\.app\logs`, or `%APPDATA%\ICCWorship Portable\logs` from a write-protected stick;
+  test runs: `<ICCWORSHIP_DATA>/.userdata/logs`). Log ids, counts, error codes and short messages, **never** lyrics,
   people, prayer requests, request URLs or payloads. Logs are attached to public bug reports.
 
 ## Layout
 - `src/main/`: Electron main process.
-  - `index.ts`: windows and IPC handlers.
+  - `index.ts`: startup, lifecycle and last-resort error handling only. `windows.ts` (windows), `windowGuards.ts`
+    (crash/freeze recovery), `ipc/` (every IPC channel), `pages.ts` (loading our pages, trusted senders),
+    `appUrl.ts` / `appProtocol.ts` (serving the pages from `app://iccworship`), `hardening.ts`, `mediaProtocol.ts`, `dialogs.ts`, `menu.ts`, `help.ts`, `appState.ts` (window refs, `notify`),
+    `env.ts` (development and test switches, which a packaged app ignores), `serverControl.ts` (restarting the LAN
+    server), `machineLock.ts` (one running copy across the installed and portable ones).
   - `live.ts`: live state, the single source of truth for what's on screen.
   - `server.ts`: HTTP + WebSocket server on :7272 for `/remote` and `/stage`, PIN-protected.
   - `jsonStore.ts` / `db.ts`: JSON files with `.bak`, atomic writes and recovery of damaged files.
-  - `backup.ts` / `restorePath.ts`, `bible.ts`, `presentations.ts`.
+  - `backup.ts` / `restorePath.ts`, `bible.ts`, `presentations.ts`, `mediaLibrary.ts` / `mediaPath.ts` (library copies,
+    media paths), `updates.ts` (self-update), `session.ts` ("Put it back" after a crash, window place),
+    `bootstrap.ts` / `portable.ts` (where the data and profile live; imported first), `diagnostics.ts`.
 - `src/preload/index.ts`: the typed `window.api` bridge. Every main-process feature is exposed here.
 - `src/renderer/`: one entry per window.
   - `operator/`: the main window. Pages live in `operator/pages/`; `liveControl.ts` builds slides and pushes
@@ -50,7 +63,8 @@ usually operated by a volunteer during a live service, so reliability and simpli
   - `lib/`, `components/`: shared UI code.
 - `src/shared/`: pure logic (types, slides, scripture references, song import, dates). **Pure logic goes here, with
   a unit test in `tests/`.**
-- Data lives in `Documents\ICCWorship` (`ICCWORSHIP_DATA` overrides it; e2e runs use `.e2e-data/`).
+- Data lives in `Documents\ICCWorship` (`ICCWORSHIP_DATA` overrides it; e2e runs use `.e2e-data/`; the portable exe uses
+  `ICCWorship Data` beside it, see `portable.ts`).
 - Node.js 22.22.1+ is required (Electron 45, Vitest 5 and the `vp staged` hook); see `.node-version` (Vite+ reads it first; it must stay on 22, the range in `engines` alone would pick a newer major). pnpm is the package manager
   (version pinned in `package.json#packageManager`).
 
@@ -64,10 +78,13 @@ pnpm check --fix     # …and fix what it can (pnpm format = formatting only)
 pnpm build           # needed before e2e:launch / smoke (electron-vite, not `vp build`)
 pnpm e2e:launch      # app with fresh test data + CDP on :9222 for Playwright MCP (add --keep to reuse data)
 pnpm smoke           # scripted end-to-end check with screenshots
+pnpm release:prepare minor  # maintainers: open the release PR (merging it tags, builds and drafts the release)
 ```
 The toolchain is Vite+ (`vp`), configured in `vite.config.ts` (tests, lint, format, hook). The app is still built by
 electron-vite (`electron.vite.config.mts`): `vp dev` / `vp build` would run plain Vite and are not used.
 `pnpm check` and `pnpm test` must pass before any commit.
+Plans and lasting decisions: [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/adr/](docs/adr/README.md) (read the ADR before
+changing that area; supersede it with a new one rather than working around it).
 Contributor workflow (branches, squash-merged PRs, CHANGELOG, releases) is in [CONTRIBUTING.md](CONTRIBUTING.md):
 `main` is protected, so every change goes through a pull request with green CI, and anything a user would notice
 gets a line under `[Unreleased]` in `CHANGELOG.md`.

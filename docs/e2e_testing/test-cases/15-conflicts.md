@@ -11,7 +11,8 @@ keyboard together.
 5. Bible reference box. 6. A plan item title. 7. A `<select>` (e.g. Service type) focused with the keyboard.
 **Expected**
 - The projector never goes black, logo, clear-text or changes language/slide; the help dialog doesn't open.
-- Characters appear in the field as typed.
+- Characters appear in the field as typed. In the dropdown (7), a letter or digit jumps to an option starting with it
+  and `Esc` only closes its list. (A dropdown clicked with the mouse leaves the shortcuts working: TC-CONF-21.)
 
 ### TC-CONF-02 · Esc in a dialog doesn't clear the live screen  `P0`
 **Pre:** a song is live
@@ -51,7 +52,8 @@ keyboard together.
 1. Duplicate Classic Night → **Make default** → give one plan item that theme (⚙ → Theme) → go live on a song.
 2. Delete that theme.
 **Expected**
-- Projector falls back to a built-in theme (no white/blank background, no crash). Settings' default becomes a built-in theme.
+- Projector falls back to a built-in theme (no white/blank background, no crash) **at once**, on the slide already on
+  screen (not only from the next item). Settings' default becomes a built-in theme.
 - The plan item that referenced it still opens and goes live.
 
 ### TC-CONF-07 · Delete media that is used as a background  `P1`
@@ -67,13 +69,16 @@ keyboard together.
 1. Create plan B, select it on the Live page, go live on one of its items.
 2. Plans → plan B → 🗑️ → accept.
 **Expected**
+- The confirm says "This is the plan on the Live page. Delete it anyway? This cannot be undone." (another plan's
+  delete keeps the plain "Delete this plan?…").
 - Live page switches to another plan (or the empty state); projector keeps the current slide; no crash or blank operator window.
 
 ### TC-CONF-09 · Delete a person who is on a team  `P2`
 **Steps**
 1. Assign "Ana Test" as Worship Leader in a plan. People → delete Ana Test.
 **Expected**
-- The plan's Team tab shows the slot as unassigned (no "undefined", no crash). Run sheet PDF still exports.
+- The plan's Team tab shows the slot as unassigned (no "undefined", no crash) and counts it as open: "Team (0/1)". Run
+  sheet PDF still exports, the slot's person column reads "open — someone is needed" (no "pending" status).
 
 ### TC-CONF-10 · Change the plan while it runs  `P0`
 **Pre:** sample plan live on item 3 (Holy, Holy, Holy)

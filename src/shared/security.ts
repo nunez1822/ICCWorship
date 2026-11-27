@@ -12,6 +12,19 @@ export function isSafeId(id: unknown): id is string {
   return typeof id === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(id)
 }
 
+/**
+ * A Bible version's id (its file name) from the abbreviation the operator typed: lower case, runs of other characters
+ * become one '-', none at either end. '' when no letter or digit is left ("!!!" would otherwise become "-"), which
+ * isSafeId refuses.
+ */
+export function versionIdFrom(abbrev: unknown): string {
+  return (typeof abbrev === 'string' ? abbrev : '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64)
+}
+
 /* ------------------------------ HTTP Range ------------------------------ */
 
 export type RangeResult = { kind: 'full' } | { kind: 'partial'; start: number; end: number } | { kind: 'unsatisfiable' }
@@ -169,6 +182,8 @@ export interface PublicState {
   slides: PublicSlide[]
   slideIndex: number
   clearedFrom?: number
+  /** a backing track's outro: the text is off and the next Space moves to the next item, not back to clearedFrom */
+  outro?: true
   itemIndex: number
   itemId?: string
   itemTitle?: string
@@ -208,6 +223,7 @@ export function pickPublicState(s: LiveState, mediaUrl: (u: string | undefined) 
     })),
     slideIndex: s.slideIndex,
     clearedFrom: s.clearedFrom,
+    ...(s.outro ? { outro: true as const } : {}),
     itemIndex: s.itemIndex,
     itemId: s.itemId,
     itemTitle: s.itemTitle,
@@ -285,10 +301,12 @@ const SETTING_CHECKS: { [K in keyof Settings]?: (v: unknown) => Settings[K] | un
   operatorTheme: oneOf(['dark', 'light'] as const),
   firstRunDone: bool,
   checkForUpdates: bool,
+  autoUpdate: bool,
+  copyMediaToLibrary: bool,
   disableHwAccel: bool,
   audioOutputId: str(500),
   audioOutputLabel: str(300)
-  // lastUpdateCheck: main only
+  // lastUpdateCheck, lastManualBackup: main only
 }
 
 /** Keeps only valid, known settings from a renderer patch. Invalid values are dropped, never thrown. */

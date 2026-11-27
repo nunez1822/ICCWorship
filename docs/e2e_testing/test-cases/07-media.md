@@ -9,6 +9,14 @@ Fixtures: `sample.mp4` (5 s color bars + tone), `sample.jpg`, `sample.mp3` (4 s 
 1. Media → `queueOpenFiles([mp4, jpg, mp3])` → **Add files**.
 **Expected**
 - Toast "3 files added". Cards: video with thumbnail and ▶ badge, image thumbnail, audio 🎧. Filters Images/Videos/Audio work.
+- While adding: "Copying into the library: <file>". `.e2e-data/media/` now holds three `<id>.<ext>` copies, and
+  `db.list('media')` paths are `media/<id>.<ext>` with `source` = the original file.
+- Adding the same three files again only says they are already in the library (no new copies).
+- With the data open read-only (written by a newer version, red bar showing): **Add files** says once "Not saved: this
+  data is open read-only (see the red bar at the bottom)." — no "could not be copied" per file, no "n files added", no cards, nothing in `media/`.
+- If saving an added file fails partway for another reason, an error toast says so, the "Working… <file>" pill goes
+  away (it never stays on screen), the library shows only the items really saved, and the files added before it are
+  announced ("n added"). A broken file whose thumbnail can't be made is simply added without a thumbnail.
 
 ### TC-MED-02 · Play an MP4 on the projector  `P0` 📸
 **Steps**
@@ -53,15 +61,29 @@ Fixtures: `sample.mp4` (5 s color bars + tone), `sample.jpg`, `sample.mp3` (4 s 
 
 ### TC-MED-08 · Missing file warning  `P1`
 **Steps**
-1. Copy `sample.jpg` to `.e2e-data/temp.jpg`, add it, then delete/rename that copy on disk. Reopen Media.
+1. Copy `sample.jpg` to `.e2e-data/temp.jpg` and add it. Delete that copy on disk. Reopen Media.
+2. Settings → Backup → untick "Keep a copy of added pictures, videos and sound…". Copy `sample.jpg` to
+   `.e2e-data/temp2.jpg`, add it, then delete `temp2.jpg`. Reopen Media.
 **Expected**
-- Card shows "⚠ Missing"; selecting it shows "This file was moved or the USB drive is not connected." No crash.
+- 1: the card still shows and plays (the library has its own copy): deleting the original breaks nothing.
+- 2: that card shows "⚠ Missing"; selecting it shows "This file was moved or the USB drive is not connected." No crash.
+- Deleting a file inside `.e2e-data/media/` shows "⚠ Missing" for its card the same way.
 
-### TC-MED-09 · Remove from library  `P2`
+### TC-MED-09 · Remove from library  `P1`
+**Pre:** default; the copy setting on
 **Steps**
-1. Select a card → Remove from library → confirm.
+1. Add `sample.jpg`. Themes → pick it as the **default** theme's background and save; then Media → select it →
+   **Use as background now**.
+2. Add `sample.mp4`. Remove both cards from the library (confirm).
+3. Add a file with the copy setting off (TC-MED-08 step 2), and remove that card.
 **Expected**
-- Card disappears; the file on disk still exists.
+- Cards disappear, and both copies in `.e2e-data/media/` are deleted, also while that default theme is the live one
+  (the live theme doesn't keep a copy). The theme shows the built-in gradient (as the Themes page shows "—"): a theme
+  doesn't keep a removed item's file, and the theme itself is saved with that gradient (Themes shows it; previews no
+  longer ask for the missing file: no "Failed to load resource" in the console). The picture that was the background on screen (Use as background now) is
+  replaced on the projector by the theme's background first, so its copy is deleted too.
+- A plan slide or something really on screen still keeps its copy (TC-MED-13).
+- 3: the original file on disk still exists (ICCWorship never deletes the church's own files).
 
 ### TC-MED-10 · FLAC and Opus audio files play  `P2`
 **Steps**
@@ -77,3 +99,21 @@ Fixtures: `sample.mp4` (5 s color bars + tone), `sample.jpg`, `sample.mp3` (4 s 
 **Expected**
 - Audio plays (progress advances on the Live page media bar) with the theme background visible on the projector.
 - `window.api.live.get()` → `video.playing === true`; `videoProgress.current` increases between two reads ~1 s apart.
+
+### TC-MED-12 · No room for a copy: the item links to the file instead  `P2` (manual)
+**Steps**
+1. With `ICCWORSHIP_DATA` on a nearly full drive or stick (under ~300 MB free), add a large video.
+**Expected**
+- "Not enough free disk space to keep a copy of “<file>”: it links to the original file instead." The card is added
+  and plays (from the original file); nothing half-copied stays in `media/`.
+
+### TC-MED-13 · Removing an item keeps the copy a plan slide or the projector still uses  `P1`
+**Steps**
+1. Add `sample.jpg`. In a plan, add an Announcement item and give one of its slides that picture (with text). Save.
+2. Media → remove the `sample.jpg` card (confirm).
+3. Add `sample.mp4`, **Show now** on it, and while it plays remove its card (confirm).
+**Expected**
+- 2: the copy stays in `.e2e-data/media/`; the announcement slide still shows the picture when it goes live.
+- 3: the video keeps playing to the end (seeking still works). Its copy stays while it is on screen; it is not
+  deleted later by itself (an unused copy stays until a later tidy-up).
+- Removing an item while **Back up now** runs doesn't fail the backup (the copy is deleted after it).

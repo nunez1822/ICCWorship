@@ -20,14 +20,16 @@ export interface BackupManifest {
    * leaves tracks/ as it is (and fills in missing ones from backups/tracks/) — it never deletes them.
    */
   hasTracks?: boolean
+  /** the media library's own copies (media/) are inside (manual backups) */
+  hasMedia?: boolean
 }
 
-export function makeManifest(appVersion: string, hasTracks = false, now = new Date()): BackupManifest {
-  return { app: 'ICCWorship', format: BACKUP_FORMAT, schemaVersion: SCHEMA_VERSION, appVersion, createdAt: now.toISOString(), hasTracks }
+export function makeManifest(appVersion: string, hasTracks = false, now = new Date(), hasMedia = false): BackupManifest {
+  return { app: 'ICCWorship', format: BACKUP_FORMAT, schemaVersion: SCHEMA_VERSION, appVersion, createdAt: now.toISOString(), hasTracks, hasMedia }
 }
 
 export type ManifestCheck =
-  | { ok: true; format: number; schemaVersion?: number; hasTracks: boolean }
+  | { ok: true; format: number; schemaVersion?: number; hasTracks: boolean; hasMedia: boolean }
   | { ok: false; error: 'not-a-backup' | 'newer-format' | 'newer-schema' }
 
 /** 1.0.x wrote { app, version: 1 }; later versions { app, format, schemaVersion, … }. */
@@ -41,7 +43,8 @@ export function checkManifest(raw: unknown): ManifestCheck {
   const schemaVersion = typeof m.schemaVersion === 'number' ? m.schemaVersion : undefined
   if (schemaVersion !== undefined && schemaVersion > SCHEMA_VERSION) return { ok: false, error: 'newer-schema' }
   // only a backup that says so replaces tracks/ (1.0/1.1 backups, and an older version's backup of newer data, don't)
-  return { ok: true, format, schemaVersion, hasTracks: (raw as { hasTracks?: unknown }).hasTracks === true }
+  const r = raw as { hasTracks?: unknown; hasMedia?: unknown }
+  return { ok: true, format, schemaVersion, hasTracks: r.hasTracks === true, hasMedia: r.hasMedia === true }
 }
 
 /* ------------------------------ restore ------------------------------ */
@@ -191,11 +194,18 @@ export function trackMirrorPlan(
 }
 
 /**
- * `<track>.ogg.tmp` files in tracks/ or backups/tracks/ left by a save or copy that was cut off (crash, power cut).
- * Nothing else ever removes them (they aren't track files). Only those older than `maxAgeMs`: never one being written.
+ * `<track>.ogg.tmp` files in tracks/ or backups/tracks/ (or `<id>.<ext>.tmp` in media/, with `isName` =
+ * isLibraryFileName) left by a save or copy that was cut off (crash, power cut). Nothing else ever removes them (they
+ * aren't track or library files). Only those older than `maxAgeMs` (a copy is dated when it is made, see
+ * copyFileAtomic; main also skips the .tmp files it is writing right now).
  */
-export function staleTrackTemps(files: { name: string; mtime: number }[], now: number, maxAgeMs = 24 * 60 * 60_000): string[] {
-  return files.filter((f) => /\.tmp$/i.test(f.name) && isTrackFileName(f.name.slice(0, -4)) && now - f.mtime > maxAgeMs).map((f) => f.name)
+export function staleTrackTemps(
+  files: { name: string; mtime: number }[],
+  now: number,
+  maxAgeMs = 24 * 60 * 60_000,
+  isName: (name: string) => boolean = isTrackFileName
+): string[] {
+  return files.filter((f) => /\.tmp$/i.test(f.name) && isName(f.name.slice(0, -4)) && now - f.mtime > maxAgeMs).map((f) => f.name)
 }
 
 /** Settings that describe this computer, not the church: a restore (maybe from another PC) keeps them. */
@@ -206,11 +216,29 @@ export const MACHINE_SETTINGS = [
   'serverEnabled',
   'remotePin',
   'checkForUpdates',
+  'autoUpdate',
   'lastUpdateCheck',
+  'lastManualBackup',
   'disableHwAccel',
   'audioOutputId',
   'audioOutputLabel'
 ] as const
+
+/**
+ * settings.json as it goes into a backup: without the phone remote's PIN (a backup on a USB stick must not carry the
+ * key to the church's LAN remote; a restore keeps this PC's PIN anyway, see MACHINE_SETTINGS). A file that can't be
+ * parsed goes in as it is: keeping the church's data comes first.
+ */
+export function settingsForBackup(json: string): string {
+  try {
+    const s = JSON.parse(json.charCodeAt(0) === 0xfeff ? json.slice(1) : json) as unknown
+    if (!s || typeof s !== 'object' || Array.isArray(s) || !('remotePin' in s)) return json
+    const { remotePin: _pin, ...rest } = s as Record<string, unknown>
+    return JSON.stringify(rest, null, 1)
+  } catch {
+    return json
+  }
+}
 
 export function mergeRestoredSettings(restored: Record<string, unknown>, current: Record<string, unknown>): Record<string, unknown> {
   const out = { ...restored }

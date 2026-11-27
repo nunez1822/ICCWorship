@@ -47,22 +47,30 @@
 
 ### TC-LBLA-07 · Delete a stored verse  `P2`
 **Steps**
-1. Expand "Juan 3", click ✕ on verse 18.
+1. Expand "Juan 3", click ✕ on verse 18 (stub `window.confirm = () => true` in the same call); once more with the
+   confirm cancelled.
 **Expected**
-- Meter decreases by 1; verse 18 disappears from the list.
+- The ✕ is named "Delete verse 3:18" (tooltip and screen reader) and asks "Delete Juan 3:18 from this version? This
+  cannot be undone." first; cancelled, nothing changes.
+- Confirmed: meter decreases by 1; verse 18 disappears from the list.
 
 ### TC-LBLA-08 · Limit warning  `P2`
 **Steps**
 1. "+ Add version" → Name `Test Limit`, abbreviation `TL`, verse limit **2** → Create.
 2. Paste & save `Juan 3:16-18` (3 verses) into TL.
 **Expected**
-- Error toast "Careful: more than 2 verses are stored…"; meter turns orange/red.
+- Toast "3 verses saved" (they are saved) and the error toast "Careful: more than 2 verses are stored…"; meter turns
+  orange/red.
 
 ### TC-LBLA-09 · Licensed full import replaces the paste-in  `P2`
 **Steps**
-1. Versions → import a full Bible file (e.g. an OSIS/USFX public-domain file) with abbreviation `TL`.
+1. Versions → import a full Bible file (e.g. an OSIS/USFX public-domain file) with abbreviation `TL`. The importer
+   needs at least 10 verses (a smaller file is refused): a hand-made OSIS file with 12 placeholder verses in
+   `.e2e-data/tmp/` is enough; never use copyrighted text.
 **Expected**
 - `TL` now shows "Imported", no verse counter/limit.
+- A file with only a few verses (fewer than 10) says "That file has only a few verses: too few to be a Bible…",
+  not "No Bible text was found".
 
 ### TC-LBLA-10 · An abbreviation that can't be used is explained  `P2`
 **Steps**
@@ -71,4 +79,4 @@
 **Expected**
 - Both show the toast "That abbreviation can't be used. Use up to 64 letters or numbers (for example LBLA or NVI)."
   / "Esa abreviatura no se puede usar…" — never a raw "bad-id" and never no message at all.
-- No version is created.
+- No version is created (no row `!!!` in Versions, no `.e2e-data/data/bibles/-.json`).

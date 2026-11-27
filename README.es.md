@@ -11,6 +11,11 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/nunez1822/ICCWorship/actions/workflows/ci.yml"><img src="https://github.com/nunez1822/ICCWorship/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/nunez1822/ICCWorship"><img src="https://api.scorecard.dev/projects/github.com/nunez1822/ICCWorship/badge" alt="OpenSSF Scorecard" /></a>
+</p>
+
+<p align="center">
   <img src="docs/screenshots/projector-bilingual.png" width="720" alt="Letra bilingüe en el proyector" />
 </p>
 
@@ -74,8 +79,13 @@ mostrar en un idioma o **en ambos a la vez**, cambiando en vivo con una sola tec
 ## Instalación
 
 1. Descargue **`ICCWorship-Setup-x.y.z.exe`** (instalador) o **`ICCWorship-Portable-x.y.z.exe`** (no necesita instalación) en la página de Releases.
-   La versión portátil guarda sus datos en la PC donde se usa (`Documentos\ICCWorship`), no en la memoria USB.
-2. Windows SmartScreen puede advertir porque la app no tiene firma digital (los certificados cuestan dinero). Haga clic en **Más información → Ejecutar de todas formas**.
+   La versión **portátil** guarda todo (cantos, planes, ajustes, copias, registros) en una carpeta **`ICCWorship Data`**
+   junto al exe, así funciona desde una memoria USB y no deja nada en la computadora. En una memoria protegida contra
+   escritura abre esos datos en solo lectura (no se guarda nada, una barra roja lo dice). ¿Ya tiene datos de
+   ICCWorship en `Documentos\ICCWorship` (la app instalada o una versión portátil anterior)? Mientras no haya una
+   carpeta `ICCWorship Data` junto al exe, usa esos datos; para llevarlos con el exe, cree la carpeta y copie en ella
+   todo lo de `Documentos\ICCWorship`. Solo puede estar abierto un ICCWorship a la vez (instalado o portátil).
+2. Windows SmartScreen puede advertir porque la app todavía no tiene firma digital. Haga clic en **Más información → Ejecutar de todas formas**.
 3. **Opcional: verifique su descarga.** Cada versión incluye las sumas SHA-256 (`SHA256SUMS.txt`). En PowerShell,
    `(Get-FileHash .\ICCWorship-Setup-x.y.z.exe).Hash -eq '<suma de SHA256SUMS.txt>'` debe mostrar `True`
    (`Get-FileHash` muestra la suma en mayúsculas; la comparación no distingue mayúsculas de minúsculas). Con GitHub CLI también puede confirmar que
@@ -84,15 +94,22 @@ mostrar en un idioma o **en ambos a la vez**, cambiando en vivo con una sola tec
 
 ## Sus datos y copias de seguridad
 
-- Todo lo que crea ICCWorship está en **`Documentos\ICCWorship`** (Ajustes → Copia de seguridad → 📂 Abrir carpeta de datos).
+- Todo lo que crea ICCWorship está en **`Documentos\ICCWorship`** (Ajustes → Copia de seguridad → 📂 Abrir carpeta de datos) —
+  o, en la versión portátil, en la carpeta **`ICCWorship Data`** junto a `ICCWorship-Portable-x.y.z.exe`.
 - Se hace una copia automática al abrir la app y cada hora que siga abierta, si algo cambió
   (en `Documentos\ICCWorship\backups`). Se guarda la más reciente de cada uno de los últimos 14 días en que se usó
   la app, además de las 6 más recientes.
 - **Cambiar de computadora:** en la PC anterior, Ajustes → Copia de seguridad → **Hacer copia ahora** a una memoria USB.
-  Instale ICCWorship en la nueva PC y elija **Restaurar** con ese archivo. Los videos e imágenes que agregó (incluidos
-  el logo y los fondos de los temas) se *referencian por su ruta completa*, no se copian: cópielos a la **misma
-  carpeta** en la nueva PC (por ejemplo `C:\Users\Pastor\Videos`), o agréguelos de nuevo desde la página de Medios y
-  vuelva a elegir el logo y los fondos.
+  Instale ICCWorship en la nueva PC y elija **Restaurar** con ese archivo. **Las imágenes, videos y sonidos que agregó
+  (y el logo) van dentro de esa copia**, porque la biblioteca de medios guarda su propia copia de todo lo que agrega
+  (en `Documentos\ICCWorship\media`), igual que las **pistas de acompañamiento**. Si eso es demasiado para un solo
+  archivo de copia (más de 4 GB) o para la memoria, la copia deja fuera primero los medios (luego las pistas) y dice
+  qué carpetas copiar además, y adónde.
+  (Si desactiva Ajustes → Copia de seguridad → "Guardar una copia de las imágenes, videos y sonidos…", los elementos
+  enlazan al archivo original: copie esos archivos a la misma carpeta en la nueva PC.)
+- Las copias automáticas dejan fuera la biblioteca de medios y las pistas (harían grande cada copia de cada hora).
+  Restaurar una copia nunca borra archivos de medios, y restaurar una copia automática nunca borra pistas (una copia
+  de "Hacer copia ahora" lleva las pistas, y al restaurarla deja exactamente sus pistas).
 - No se sube nada a ningún lugar — vea [PRIVACY.md](PRIVACY.md).
 
 ## Su primer domingo (5 minutos)

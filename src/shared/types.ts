@@ -125,7 +125,10 @@ export type MediaKind = 'image' | 'video' | 'audio'
 export interface MediaItem {
   id: string
   name: string
+  /** the library's own copy ("media/<id>.<ext>", data-relative), or the original file when it is only linked */
   path: string
+  /** where a library copy was made from (shown, and used to spot the same file added twice) */
+  source?: string
   kind: MediaKind
   /** small jpeg data url */
   thumb?: string
@@ -309,8 +312,14 @@ export interface Settings {
   firstRunDone: boolean
   /** opt-in: ask GitHub once a day whether a newer ICCWorship exists (off by default: offline-first) */
   checkForUpdates?: boolean
+  /** keep a copy of added pictures, videos and sound in <data>/media (default on; off = link to the original file) */
+  copyMediaToLibrary?: boolean
+  /** installed app: download a newer version found by the check and install it when ICCWorship closes (default on) */
+  autoUpdate?: boolean
   /** when the update check last ran (epoch ms) — set by main only */
   lastUpdateCheck?: number
+  /** when "Back up now" last saved a backup on this computer (epoch ms) — set by main only */
+  lastManualBackup?: number
   /** troubleshooting: turn off GPU acceleration (takes effect after a restart) */
   disableHwAccel?: boolean
   /** where videos, audio and backing tracks play ('' / unset = the Windows default). The id is what Chromium
@@ -363,7 +372,8 @@ export interface LiveState {
   displayLang: DisplayLang
   bilingualOrder: BilingualOrder
   layers: LiveLayers
-  message?: { text: string; until?: number; seq: number }
+  /** a screen message. bi: a quick message's two languages, ordered when shown (see @shared/liveMessage) */
+  message?: { text: string; bi?: { en: string; es: string }; until?: number; seq: number }
   stageMessage?: { text: string; seq: number }
   video?: VideoState
   /** error: the projector could not load/play the video (missing file, damaged, unsupported) */

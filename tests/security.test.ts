@@ -8,11 +8,26 @@ import {
   pickPublicState,
   sanitizeSettingsPatch,
   validateCommand,
+  versionIdFrom,
   wsMessageText
 } from '@shared/security'
 import { DEFAULT_THEMES } from '@shared/defaults'
 import type { LiveState } from '@shared/types'
 import { stripTags } from '@shared/textDecode'
+
+describe('versionIdFrom (a Bible abbreviation → its file name)', () => {
+  it('keeps letters and digits, one dash between words', () => {
+    expect(versionIdFrom('LBLA')).toBe('lbla')
+    expect(versionIdFrom('NVI 1999')).toBe('nvi-1999')
+    expect(versionIdFrom('  R.V. 1960 ')).toBe('r-v-1960')
+  })
+  it('leaves nothing usable from symbols alone (refused by isSafeId: "That abbreviation can’t be used")', () => {
+    expect(versionIdFrom('!!!')).toBe('')
+    expect(versionIdFrom(' - ')).toBe('')
+    expect(versionIdFrom(undefined)).toBe('')
+    expect(isSafeId(versionIdFrom('!!!'))).toBe(false)
+  })
+})
 
 describe('isSafeId', () => {
   it('accepts generated ids', () => {
@@ -192,6 +207,9 @@ describe('pickPublicState', () => {
     const music = pickPublicState({ ...state, video: { ...state.video!, src: 'media://local/tracks%2Fs-1.ogg', track: true } }, () => undefined)
     expect(music.video).toEqual({ playing: true, track: true })
     expect(out.slideIndex).toBe(1)
+    // the outro (the stage's Next then shows the next item, not the lyric slide just cleared)
+    expect(pickPublicState({ ...state, slideIndex: -1, clearedFrom: 1, outro: true }, () => undefined).outro).toBe(true)
+    expect(out).not.toHaveProperty('outro')
   })
   it('never sends local file paths or anything not on the list', () => {
     const json = JSON.stringify(out)

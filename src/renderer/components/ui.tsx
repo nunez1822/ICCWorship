@@ -1,28 +1,70 @@
-import { Children, cloneElement, isValidElement, useEffect, useId, type ReactElement, type ReactNode } from 'react'
+import { Children, cloneElement, isValidElement, useEffect, useId, useRef, type ReactElement, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { MediaItem, PlanItem, PlanItemType } from '@shared/types'
+
+const openDialogs: object[] = []
+const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
 
 /**
  * `dismissable={false}`: a click beside the dialog doesn't close it (work in progress — recorded marks, a track being
  * made — must not be lost to a stray click). Esc and ✕ still call onClose, which may ask first.
  */
 export function Modal(p: { title: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean; dismissable?: boolean }) {
+  // the dialogs open now, topmost last: Esc closes only the top one (Shortcuts opened over "Ready for Sunday?")
+  const me = useRef({})
+  useEffect(() => {
+    const self = me.current
+    openDialogs.push(self)
+    return () => {
+      openDialogs.splice(openDialogs.indexOf(self), 1)
+    }
+  }, [])
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation()
-        p.onClose()
+        if (openDialogs.at(-1) === me.current) p.onClose()
       }
     }
     window.addEventListener('keydown', k, true)
     return () => window.removeEventListener('keydown', k, true)
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- only onClose is used; `p` is a new object every render
   }, [p.onClose])
+  const { t } = useTranslation()
+  const titleId = useId()
+  const box = useRef<HTMLDivElement>(null)
+  // focus moves into the dialog when it opens: a key pressed now must not also press the button that opened it
+  // behind the dialog (the live shortcuts — Space, B, L… — still work, as on every page)
+  // …and goes back to what opened it when it closes (not lost to the page)
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    if (box.current && !box.current.contains(document.activeElement)) box.current.focus()
+    return () => {
+      if (opener?.isConnected) opener.focus()
+    }
+  }, [])
+  // Tab stays inside the dialog (aria-modal: what is behind it can't be reached and pressed by mistake)
+  const trapTab = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Tab' || !box.current) return
+    const all = [...box.current.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((x) => !x.hasAttribute('disabled') && x.offsetParent !== null)
+    if (!all.length) return e.preventDefault()
+    const first = all[0]
+    const last = all[all.length - 1]
+    const at = document.activeElement
+    if (e.shiftKey && (at === first || at === box.current)) {
+      e.preventDefault()
+      last.focus()
+    } else if (!e.shiftKey && at === last) {
+      e.preventDefault()
+      first.focus()
+    }
+  }
   return (
     <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && p.dismissable !== false && p.onClose()}>
-      <div className={`modal ${p.wide ? 'wide' : ''}`} role="dialog">
+      <div ref={box} className={`modal ${p.wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onKeyDown={trapTab}>
         <div className="modal-head">
-          <h2>{p.title}</h2>
-          <button className="btn ghost icon-btn" onClick={p.onClose} aria-label="close">
+          <h2 id={titleId}>{p.title}</h2>
+          <button className="btn ghost icon-btn" onClick={p.onClose} aria-label={t('common.close')}>
             ✕
           </button>
         </div>

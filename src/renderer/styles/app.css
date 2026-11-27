@@ -471,6 +471,11 @@ label.check {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* names that must be read whole (theme copies): wrap instead of cutting off */
+.list-item .title.wrap {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .list-item .sub {
   font-size: 12px;
   color: var(--muted);
@@ -541,6 +546,10 @@ table.table {
   display: flex;
   flex-direction: column;
   animation: pop 0.16s ease both;
+}
+/* focused only so keys don't reach the button behind it: no focus ring around the whole dialog */
+.modal:focus {
+  outline: none;
 }
 .modal.wide {
   width: min(1100px, calc(100vw - 40px));
@@ -1099,4 +1108,46 @@ button.chip {
 }
 .readonly-banner span {
   flex: 1;
+}
+/* the page keeps clear of the banner: the last song in a list, a page's bottom buttons are never under it */
+.readonly-banner ~ .main {
+  box-sizing: border-box;
+  padding-bottom: 64px;
+}
+
+/* "Ready for Sunday?" checklist (operator/ReadyCheck.tsx) */
+.ready-verdict {
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+}
+.ready-verdict.ok {
+  border-color: var(--ok);
+}
+.ready-verdict.warn {
+  border-color: var(--warn);
+}
+.ready-verdict.error {
+  border-color: var(--live);
+}
+.ready-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ready-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ready-list li .txt {
+  flex: 1;
+}
+.ready-list li.ok .txt {
+  color: var(--muted);
 }

@@ -21,6 +21,7 @@ export const DEFAULT_SETTINGS: Settings = {
   operatorTheme: 'dark',
   firstRunDone: false,
   checkForUpdates: false,
+  copyMediaToLibrary: true,
   disableHwAccel: false
 }
 

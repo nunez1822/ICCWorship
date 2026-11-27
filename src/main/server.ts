@@ -84,6 +84,17 @@ export function setCommandHandler(fn: (cmd: RemoteCommand) => void): void {
   onCommand = fn
 }
 
+let onClients: (count: number) => void = () => {}
+/** phones and stage screens signed in (with the PIN): told whenever one connects or goes away (Settings shows it) */
+export function setClientsHandler(fn: (count: number) => void): void {
+  onClients = fn
+}
+const signedIn = (): number => {
+  let n = 0
+  wss?.clients.forEach((c) => authedSockets.has(c) && c.readyState === WebSocket.OPEN && n++)
+  return n
+}
+
 /** media:// urls → local paths that stage clients may fetch: only the slide images of what is on screen */
 function refreshAllowList(state: LiveState): void {
   allowedFiles.clear()
@@ -397,6 +408,8 @@ async function doStart(opts: { rendererDir: string; devUrl?: string }, my: numbe
         return
       }
       authedSockets.add(ws)
+      ws.on('close', () => onClients(signedIn()))
+      onClients(signedIn())
       ws.send(JSON.stringify({ type: 'state', state: publicState(live.state) }))
       ws.on('message', (raw) => {
         if (role !== 'remote') return

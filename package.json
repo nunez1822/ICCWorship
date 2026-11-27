@@ -35,10 +35,12 @@
     "format": "vp fmt",
     "format:check": "vp fmt --check",
     "licenses": "node scripts/licenses.mjs",
+    "release:prepare": "node scripts/release-prepare.mjs",
     "packaged-check": "node scripts/packaged-check.mjs",
     "prepare": "vp config"
   },
   "dependencies": {
+    "electron-updater": "^6.8.11",
     "jszip": "^3.10.2",
     "qrcode": "^1.5.4",
     "ws": "^8.23.0"

@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events'
 import type { LiveState } from '@shared/types'
+import { isLive, onScreen, OnScreenClock } from '@shared/updatePolicy'
 import { getSettings, getTheme } from './db'
 
 /**
@@ -9,6 +10,26 @@ import { getSettings, getTheme } from './db'
  */
 class LiveStore extends EventEmitter {
   state: LiveState
+  /** when something was last on screen this run (see OnScreenClock: monotonic, sleep added back) */
+  private seen = new OnScreenClock({ wall: () => Date.now(), mono: () => performance.now() })
+
+  /** when something was last on screen (epoch ms); a timed message counts until it ran out */
+  lastOnScreenAt(now = Date.now()): number | undefined {
+    return this.seen.lastAt(this.state.message?.until, now)
+  }
+
+  /** a service may be running (see isLive): updates wait, and a Windows shutdown now is an interrupted service */
+  serviceRunning(now = Date.now()): boolean {
+    return isLive(this.state, now, this.lastOnScreenAt(now))
+  }
+
+  /** the PC is going to sleep / woke up (powerMonitor): sleep counts as time passed */
+  suspended(): void {
+    this.seen.suspended()
+  }
+  resumed(): void {
+    this.seen.resumed()
+  }
 
   constructor() {
     super()
@@ -38,7 +59,10 @@ class LiveStore extends EventEmitter {
   }
 
   update(patch: Partial<LiveState>): LiveState {
+    const was = onScreen(this.state)
     this.state = { ...this.state, ...patch, seq: this.state.seq + 1 }
+    // on screen until now (a video that played for 40 minutes, then Esc), or from now
+    if (was || onScreen(this.state)) this.seen.seen()
     this.emit('change', this.state)
     return this.state
   }

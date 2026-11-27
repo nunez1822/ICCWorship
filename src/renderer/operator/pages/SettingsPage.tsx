@@ -3,10 +3,12 @@ import { useTranslation } from 'react-i18next'
 import type { BilingualOrder, Lang } from '@shared/types'
 import { uid } from '@shared/slides'
 import { SETTING_LIMITS } from '@shared/security'
-import { toastError, useApp } from '../store'
+import { installUpdate, projectorBack, toastError, useApp } from '../store'
 import { Field, Seg } from '../../components/ui'
-import { IMAGE_EXT } from '../../lib/media'
+import { fileName, IMAGE_EXT, toMediaUrl } from '../../lib/media'
+import { isLibraryPath } from '@shared/mediaLibrary'
 import { updateLive } from '../liveControl'
+import { backupNow } from '../backupNow'
 
 export function SettingsPage() {
   const { t } = useTranslation()
@@ -15,9 +17,10 @@ export function SettingsPage() {
   const [displays, setDisplays] = useState<{ id: number; label: string; width: number; height: number; primary: boolean }[]>([])
   const [server, setServer] = useState<Awaited<ReturnType<typeof window.api.server.info>> | null>(null)
   const [backups, setBackups] = useState<{ name: string; path: string; size: number; date: number }[]>([])
-  const [info, setInfo] = useState<{ version: string; dataPath: string; electron: string } | null>(null)
+  const [info, setInfo] = useState<Awaited<ReturnType<typeof window.api.app.info>> | null>(null)
   const [includeDumps, setIncludeDumps] = useState(false)
   const [update, setUpdate] = useState<Awaited<ReturnType<typeof window.api.app.checkUpdates>> | 'checking' | null>(null)
+  const [updateStatus, setUpdateStatus] = useState<Awaited<ReturnType<typeof window.api.app.updateStatus>> | null>(null)
   // the port is applied on Enter / leaving the field, not on every keystroke ("8080" would pass through 8, 80, 808)
   const [portDraft, setPortDraft] = useState<string | null>(null)
   const applyPort = () => {
@@ -37,14 +40,31 @@ export function SettingsPage() {
     void window.api.server.info().then(setServer)
     void window.api.backup.list().then(setBackups)
   }
+  // opened from a "Ready for Sunday?" button: start at the section that fixes the problem
+  const focusSection = s.focus?.page === 'settings' ? s.focus.id : undefined
+  useEffect(() => {
+    if (focusSection) document.getElementById(`settings-${focusSection}`)?.scrollIntoView({ block: 'start' })
+  }, [focusSection])
   useEffect(() => {
     refresh()
     void window.api.app.info().then(setInfo)
+    // a new version downloading or downloaded (installed app): poll while this page is open
+    // (the phone count too: phones connect and leave without the server restarting)
+    const poll = () => {
+      void window.api.app.updateStatus().then(setUpdateStatus)
+      void window.api.server.info().then(setServer)
+    }
+    poll()
+    const pollTimer = setInterval(poll, 2000)
     const off = window.api.displays.onChange(refresh)
     const off2 = window.api.server.onStatus(() => void window.api.server.info().then(setServer))
+    // a phone or stage screen connected or left: "N connected" follows at once
+    const off3 = window.api.server.onClients(() => void window.api.server.info().then(setServer))
     return () => {
       off()
       off2()
+      off3()
+      clearInterval(pollTimer)
     }
   }, [])
 
@@ -98,7 +118,7 @@ export function SettingsPage() {
             </Field>
           </div>
 
-          <div className="card col">
+          <div className="card col" id="settings-screens">
             <h2>🖥️ {t('settings.screens')}</h2>
             <div className="small muted">{t('settings.screensHelp')}</div>
             {displays.map((d) => (
@@ -129,7 +149,7 @@ export function SettingsPage() {
               <button className="btn" onClick={() => window.api.stage.open()}>
                 🎤 {t('settings.openStage')}
               </button>
-              <button className="btn" title={t('settings.restartOutputHelp')} onClick={() => void window.api.output.restart()}>
+              <button className="btn" title={t('settings.restartOutputHelp')} onClick={() => void window.api.output.restart().then(projectorBack)}>
                 🔄 {t('settings.restartOutput')}
               </button>
             </div>
@@ -156,8 +176,10 @@ export function SettingsPage() {
             <Field label={t('settings.logo')}>
               <div className="row">
                 {st.logoPath ? (
-                  <span className="small" style={{ flex: 1, wordBreak: 'break-all' }}>
-                    {st.logoPath}
+                  // the picture itself and a readable name: never the library's internal media/<id> file name
+                  <span className="small row" style={{ flex: 1, minWidth: 0, gap: 8 }} title={isLibraryPath(st.logoPath) ? undefined : st.logoPath}>
+                    <img src={toMediaUrl(st.logoPath)} alt="" style={{ height: 32, maxWidth: 64, objectFit: 'contain', background: '#000', borderRadius: 4 }} />
+                    <span style={{ wordBreak: 'break-all' }}>{isLibraryPath(st.logoPath) ? t('settings.logoInLibrary') : fileName(st.logoPath)}</span>
                   </span>
                 ) : (
                   <span className="small muted" style={{ flex: 1 }}>
@@ -168,7 +190,14 @@ export function SettingsPage() {
                   className="btn sm"
                   onClick={async () => {
                     const [p] = await window.api.files.open({ filters: [{ name: 'Image', extensions: IMAGE_EXT }] })
-                    if (p) void s.setSettings({ logoPath: p })
+                    if (!p) return
+                    // the logo goes into the media library too, so backups and a new computer have it
+                    if (st.copyMediaToLibrary === false) return void s.setSettings({ logoPath: p })
+                    const r = await window.api.media.copyIn(p).catch(() => ({ ok: false as const, error: 'failed' as const }))
+                    if (!r.ok) s.toast(t(r.error === 'no-space' ? 'media.copyNoSpace' : 'media.copyFailed', { name: fileName(p) }), 'err')
+                    await s.setSettings({ logoPath: r.ok ? r.path : p })
+                    // not saved (setSettings said why): nothing points to the copy
+                    if (r.ok && useApp.getState().settings.logoPath !== r.path) void window.api.media.discardCopy(r.path)
                   }}
                 >
                   📂 {t('settings.chooseLogo')}
@@ -228,7 +257,7 @@ export function SettingsPage() {
         </div>
 
         <div className="col">
-          <div className="card col">
+          <div className="card col" id="settings-remote">
             <h2>📱 {t('settings.remote')}</h2>
             <div className="small muted">{t('settings.remoteHelp')}</div>
             <label className="check">
@@ -313,18 +342,16 @@ export function SettingsPage() {
           <div className="card col">
             <h2>💾 {t('settings.backup')}</h2>
             <div className="small muted">{t('settings.backupHelp')}</div>
+            <label className="check">
+              <input type="checkbox" checked={st.copyMediaToLibrary !== false} onChange={(e) => void s.setSettings({ copyMediaToLibrary: e.target.checked })} />{' '}
+              {t('settings.copyMedia')}
+            </label>
+            <div className="small muted">{t('settings.copyMediaHelp')}</div>
             <div className="row wrap">
               <button
                 className="btn primary"
                 onClick={async () => {
-                  const r = await window.api.backup.create()
-                  if (r?.ok)
-                    s.toast(
-                      t(r.tracksLeftOut ? 'settings.backupNoTracks' : 'settings.backupDone', { files: r.files, size: (r.bytes / 1024 / 1024).toFixed(1) }),
-                      r.tracksLeftOut ? 'info' : 'ok',
-                      r.tracksLeftOut ? 20_000 : undefined
-                    )
-                  else if (r) s.toast(t(`settings.backupError.${r.error}`), 'err', 15_000)
+                  await backupNow()
                   refresh()
                 }}
               >
@@ -385,6 +412,10 @@ export function SettingsPage() {
             <div className="small muted">{t('settings.credits')}</div>
             <div className="small muted" style={{ wordBreak: 'break-all' }}>
               {t('settings.dataAt')} {info?.dataPath}
+              {info?.dataMode === 'portable' && <> · {t('settings.portableData')}</>}
+              {info?.dataMode === 'portable-readonly' && <> · {t('settings.portableReadOnly')}</>}
+              {info?.dataMode === 'portable-documents' && <> · {t('settings.portableDocuments')}</>}
+              {info?.dataMode === 'portable-fallback' && <> · {t('settings.portableFallback')}</>}
             </div>
             <div className="row wrap">
               <button className="btn sm" onClick={() => void s.setSettings({ firstRunDone: false })}>
@@ -440,6 +471,33 @@ export function SettingsPage() {
               {t('updates.toggle')}
             </label>
             <div className="small muted">{t('updates.help')}</div>
+            {updateStatus?.selfUpdate && (
+              <label className="check">
+                <input
+                  type="checkbox"
+                  disabled={!st.checkForUpdates}
+                  checked={!!st.checkForUpdates && st.autoUpdate !== false}
+                  onChange={(e) => void s.setSettings({ autoUpdate: e.target.checked })}
+                />{' '}
+                {t('updates.autoToggle')}
+              </label>
+            )}
+            {updateStatus?.phase === 'downloading' && (
+              <div className="small muted">⬇️ {t('updates.downloading', { version: updateStatus.version, percent: updateStatus.percent })}</div>
+            )}
+            {updateStatus?.phase === 'ready' && (
+              <div className="row wrap" style={{ alignItems: 'center' }}>
+                <span className="small">✓ {t('updates.ready', { version: updateStatus.version })}</span>
+                <button className="btn sm primary" onClick={() => void installUpdate(s.toast)}>
+                  🔄 {t('updates.restartNow')}
+                </button>
+              </div>
+            )}
+            {updateStatus?.phase === 'failed' && (
+              <div className="small" style={{ color: 'var(--warn)' }}>
+                {t('updates.downloadFailed')}
+              </div>
+            )}
             <div className="row wrap" style={{ alignItems: 'center' }}>
               <button
                 className="btn sm"
@@ -453,7 +511,11 @@ export function SettingsPage() {
               </button>
               {update === 'checking' && <span className="small muted">…</span>}
               {update && update !== 'checking' && update.ok && !update.newer && <span className="small">✓ {t('updates.upToDate')}</span>}
-              {update && update !== 'checking' && update.ok && update.newer && (
+              {update && update !== 'checking' && update.ok && update.newer && update.deferred === 'live' && (
+                <span className="small">{t('updates.waitingLive', { version: update.latest })}</span>
+              )}
+              {/* the installed app downloads it by itself (status above) unless that is turned off: then, the release page */}
+              {update && update !== 'checking' && update.ok && update.newer && !(update.selfUpdate && st.checkForUpdates && st.autoUpdate !== false) && (
                 <button className="btn sm primary" onClick={() => void window.api.app.openRelease(update.url)}>
                   ⬇️ {t('updates.available', { version: update.latest })}
                 </button>

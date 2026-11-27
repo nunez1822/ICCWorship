@@ -22,7 +22,9 @@ import { writeFileAtomic } from './atomicWrite'
  * main process, and the save is retried (every few seconds, and again by `flush()` at quit)
  * until it succeeds — the operator is told their changes are kept, so they must reach disk.
  */
-export type StoreProblem = { name: string; kind: 'recovered' | 'unreadable'; savedAs?: string }
+/** recovered: read from .bak; unreadable: damaged with no good copy; missing: the file is gone (no .bak either) from
+ *  a data folder that had it (seedIfEmpty decides: on a first run nothing exists yet) */
+export type StoreProblem = { name: string; kind: 'recovered' | 'unreadable' | 'missing'; savedAs?: string }
 /** how a collection was found when it was read: its own file read fine, damaged or recovered from .bak, or no file */
 export type LoadState = 'ok' | 'degraded' | 'missing'
 

@@ -243,3 +243,39 @@ An error's message can quote what a page was reading (a SyntaxError quotes the J
 **Expected**
 - No file outside `.e2e-data/tracks/` is deleted (`data/songs.json`, `data/settings.json` still there); the calls
   either do nothing or reject. Only files named `<that song id>-<digits>.ogg` the song no longer uses are ever removed.
+
+### TC-SEC-22 · The app's pages load from app://, which serves nothing else  `P0`
+**Steps**
+1. In the operator page: `location.origin`.
+2. `(await fetch('app://iccworship/index.html')).status`,
+   `(await fetch('app://iccworship/..%2fmain%2findex.js')).status`,
+   `(await fetch('app://iccworship/..%5cmain%5cindex.js')).status`,
+   `(await fetch('app://iccworship/pdfjs-wasm/LICENSE_QCMS')).status`,
+   `await fetch('file:///C:/Windows/win.ini').then(() => 'read', () => 'refused')`.
+3. Packaged build only: `pnpm packaged-check` (or `npx @electron/fuses read --app dist/win-unpacked/ICCWorship.exe`).
+**Expected**
+- `app://iccworship` (not `file://`).
+- `200`, `404`, `404`, `404`, `refused`: only the built pages' own files are served, never main's code or anything
+  outside. (`app://user:pw@iccworship/index.html` and `app://iccworship:80/…` are not served either, and never count
+  as our page for the IPC check: `tests/appUrl.test.ts`.) (The encoded slashes matter: a plain `../` or `%2e%2e/` is resolved by the URL parser before the handler
+  sees it, so it would 404 even without the guard; `out/main/index.js` exists, so only the guard makes these 404.)
+- The `file://` fetch is refused by Chromium from any non-`file:` page whatever the fuse says: the fuse itself is
+  checked in step 3.
+- Fuse `GrantFileProtocolExtraPrivileges` is **off**; the operator, projector and stage pages render and a scanned
+  PDF (JPEG 2000) still imports (its decoders load from `app://`).
+
+### TC-SEC-23 · The media library's copy and discard calls never reach other files  `P0`
+**Pre:** a picture added to Media with the copy setting on (its copy `media/<id>.jpg` in `.e2e-data/`)
+**Steps**
+1. In the operator page: `await window.api.media.discardCopy('media/../data/settings.json')`,
+   `await window.api.media.discardCopy('C:\Windows\win.ini')`, `await window.api.media.discardCopy('media/sub/x.jpg')`,
+   `await window.api.media.discardCopy('data/songs.json')`.
+2. `await window.api.media.discardCopy((await window.api.db.list('media'))[0].path)` (the copy an item still uses).
+3. `await window.api.media.copyIn('relative.jpg')`,
+   `await window.api.media.copyIn('<absolute path of .e2e-data>/data/settings.json')`.
+**Expected**
+- 1: nothing is deleted anywhere (`data/settings.json`, `data/songs.json` still there): only a `media/<id>.<media
+  ext>` path directly in `media/` is ever considered.
+- 2: the copy stays in `media/` (an item still uses it), and the picture still shows.
+- 3: both return `{ ok: false, error: 'bad-file' }` (a relative path, or a file that isn't a picture, video or sound);
+  nothing new appears in `media/`.

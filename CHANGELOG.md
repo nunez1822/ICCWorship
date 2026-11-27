@@ -25,6 +25,10 @@ All notable changes to ICCWorship are documented here. The format is based on
   - accept main-process calls only from the app's own pages.
 - Ids and paths coming from the app's pages are checked before any file is written or deleted.
 - The installed app has hardened Electron fuses and checks its own files for tampering.
+- The app's windows load their pages from the app's own `app://iccworship` address instead of `file://`, which serves
+  only the app's built pages. The last Electron fuse (extra `file://` privileges) is now off too.
+  *Upgrading from 1.0:* the stage window's **Chords** toggle starts off once (it was remembered under the old
+  address); turn it on again if the band uses it.
 - Developer and test switches (environment variables) are ignored by the installed app.
 - Phones and stage screens only load slide images from the app's own links, and imported song and Bible text
   is cleaned of markup more thoroughly (findings of GitHub's CodeQL scan).
@@ -37,6 +41,51 @@ All notable changes to ICCWorship are documented here. The format is based on
   and connects by itself as soon as a place is free.
 
 ### Added
+- **The media library keeps its own copy** of the pictures, videos and sound you add, and of the logo, in
+  `Documents\ICCWorship\media` (like EasyWorship and ProPresenter). Moving or deleting the original file no longer
+  breaks a slide or a background, and **Back up now** includes them, so a restore on a new computer brings them
+  back. Deleting an item from the library removes its copy, unless a plan slide, the logo or a slide on screen still
+  uses it
+  (replacing the logo removes the old one's copy the same way). Turn it off in
+  Settings → Backup for a very large video library on another drive (items then link to the original file, as
+  before). A backup too big for one file, or for the USB stick (also one that fills up while it is written), leaves
+  the media out (then the tracks) and says which folders to copy, and where.
+  Restoring a backup on the same computer doesn't unpack media files that are already there.
+- **"Ready for Sunday?"** (Live page → ✅): one click before the service checks the plan (deleted songs or media,
+  video and picture files that moved, Bible versions), the projector window and second screen, the sound output,
+  the phone remote and stage display, the logo file, and how recent the last **Back up now** copy is (the automatic
+  backups stay on the same computer) — each problem with a button to fix it (the Settings buttons open the section
+  that fixes it). A section header's own picture or video is checked too. A projector window that gave up after
+  repeated crashes (or shows only black) is caught too, with **Restart projector**.
+- Each release also includes a **software bill of materials** (`ICCWorship-x.y.z.sbom.cdx.json`, CycloneDX) listing
+  every third-party package inside the app, with a GitHub attestation like the installers'.
+- **Automatic updates for the installed version.** With "Check for new versions" on (Settings → About), the
+  installed ICCWorship also downloads a new version by itself — it never starts while a service may be running, and
+  a download running when one starts is stopped (it is tried again after the service) — and installs it when you
+  close the app with nothing on screen, or right away with **Restart now** when nothing is on screen. Closing it
+  mid-song, or choosing Quit after the window crashed mid-service, never installs. Untick "Download new versions…" (or the check) to only be told: that also stops a
+  download and keeps a downloaded one from installing. The download is checked against the release's SHA-512, and
+  no id for your computer is sent. The portable version only tells you.
+- **Put it back after a crash.** If ICCWorship closes unexpectedly (a crash, a power cut, Windows restarting for an
+  update) during a plan item, the next start offers it back: one click on **▶ Put it back** shows that item again on
+  the slide it was on (or the one Esc cleared). Nothing goes on screen by itself, it is put back once, it waits
+  while something else is live by then (a slide, a song's intro: Esc, then click again; the logo or black stay up
+  over it), and a normal quit — or
+  shutting Windows down with no service running — leaves nothing to offer. Choosing Quit after the window crashed
+  mid-service offers it back too, and an offer not answered yet is kept through another crash (or a shutdown before
+  it was shown).
+- **The portable version is truly portable now.** `ICCWorship-Portable-x.y.z.exe` keeps the data, settings,
+  backups and logs in an `ICCWorship Data` folder beside the exe, so it runs from a USB stick and leaves nothing on
+  the computer. (Before, it used `Documents\ICCWorship` on whichever PC it ran on.)
+  *Already have data in `Documents\ICCWorship`* (the installed app, or portable 1.0)? Until there is an
+  `ICCWorship Data` folder beside the exe, the portable copy keeps using that data and says how to move it. On a
+  write-protected stick it opens the stick's data read-only (a red bar says nothing is saved); with no data and
+  nowhere to write, it uses Documents and says so. When a computer also has data in Documents that the portable copy
+  doesn't show, it says so once on that computer.
+- **Only one ICCWorship runs at a time**, also across the installed and a portable copy: opening a second one says
+  the other is already open, instead of starting a second projector window over the live one.
+- The main window opens at the size and place it had last time (maximized the first time), never on a screen that
+  is no longer connected, nor on the projector's screen.
 - **Backing tracks.** No musicians? Give a song an instrumental (Songs → 🎵 Backing track): the music plays through the
   projector window under the lyrics while you advance them. Space on the last slide takes the text off and lets the
   music finish (the outro); the next Space moves on. Esc fades the music out, Space brings lyrics and music back where
@@ -92,7 +141,7 @@ All notable changes to ICCWorship are documented here. The format is based on
 - A QR code for the stage display in Settings, next to the phone remote's.
 - Security policy, privacy statement, code of conduct, support guide, issue and pull-request templates.
 - Continuous integration on Windows (type check, unit tests, build, smoke test) for every pull request.
-- ESLint and Prettier, checked in CI, so every contributor's code looks the same.
+- Formatting and lint checks in CI, so every contributor's code looks the same (now Oxfmt and Oxlint, see Changed).
 - Releases are built by GitHub Actions, with SHA-256 checksums and signed build provenance; see "Verify your
   download" in the README.
 - The app now includes the licences of the open-source software it is built with (`THIRD_PARTY_NOTICES.md`
@@ -111,9 +160,9 @@ All notable changes to ICCWorship are documented here. The format is based on
   are added to an empty data folder (data lost or half synced), or when the song list had to be recovered from an
   older copy or was missing, are never cleaned up until a backup is restored, even after the list is saved again.
   Backups and restores stream the files, so a large track library never has to fit in memory; they check the free
-  disk space first, and **Back up now** says when the drive is full instead of failing silently. Over 4 GB of tracks,
-  Back up now saves the data without them and says to copy the tracks folder too. Only the newest 2 safety copies
-  that hold all the tracks are kept.
+  disk space first, and **Back up now** says when the drive is full instead of failing silently. Too big for one
+  backup file (over 4 GB) or for the drive, Back up now leaves the media library out first, then the tracks, and says
+  which folders to copy (see Added). Only the newest 2 safety copies that hold all the tracks are kept.
 - Contributors: development now uses **pnpm** and **Vite+** (`vp`): one `pnpm check` runs formatting (Oxfmt), lint
   (Oxlint, type-aware) and type checks, replacing npm, ESLint, Prettier and `tsc`. A pre-commit hook fixes formatting.
   See CONTRIBUTING.md.
@@ -122,6 +171,45 @@ All notable changes to ICCWorship are documented here. The format is based on
 - The untested macOS and Linux build targets. ICCWorship is a Windows app.
 
 ### Fixed
+- **Data opened read-only (saved by a newer version) no longer pretends to save.** Adding media, editing or deleting
+  now says the data is read-only instead of "added", and nothing disappears after a restart.
+- **Typing in a dropdown no longer works the projector.** Letters, numbers and Esc typed in a list chosen with Tab
+  (to jump to an option) used to turn on Black or the Logo, change the screen language or clear the screen.
+- **Space after a song or verse shown with Show now** continues with the plan item after the last one shown, instead
+  of starting the plan again at its first item (the countdown).
+- The live plan row's **ON AIR** label is translated, and turns grey ("Off air") while the screen is cleared.
+- A quick message (nursery, parking…) follows the language order when it is changed while the message is up.
+- Double-clicking the item that is already live follows the backing track's timing (or restarts a track that ended)
+  instead of jumping to slide 1 while the music plays on.
+- The stage's **Next** during a song's instrumental ending shows the next item, and the stage shows both titles of a
+  bilingual announcement.
+- The red "the projector kept failing" message goes away once the projector is back.
+- The plan chosen on the Live page stays chosen if the window reloads.
+- A scripture item whose main Bible version is missing shows its second version instead of nothing (with a warning).
+- The chosen sound output is found again after a restart, instead of falling back to the default speakers.
+- Blank lines in a one-language song section start a new slide, as the editor says.
+- Spanish lyrics imported from ChordPro, and Spanish slides from a text-only PowerPoint import, go in the Spanish box.
+- Pictures for **Images as slides** are copied into the ICCWorship folder (backups carry them), like PDF pages.
+- The same picture or video added under another file name is recognised as already in the library.
+- Removing a picture used as a theme's background resets that theme to the default background.
+- A missing songs or plans file is reported on screen, not only in the log.
+- Backups no longer include the phone remote's PIN. **Back up now** and diagnostics are logged, and **Export
+  diagnostics** creates its folder.
+- The log's "(last message repeated N times)" line keeps the level of the repeated message.
+- Settings: the number of connected phones updates live, and the logo shows its picture instead of an internal path.
+- Presentations no longer says PowerPoint isn't installed while it is still looking for it.
+- The red read-only bar no longer covers the bottom of the page.
+- Plans: a duplicated plan is named "(copy)", a blank plan gets a dated name, deleting the plan on the Live page says
+  so, and the run sheet marks deleted items and open team slots.
+- Themes: deleting the theme on screen switches to the default at once; long theme names wrap.
+- People: the notes field says who reads it; the Team tab counts filled places.
+- Reports cover the whole year by default, so the coming Sunday's numbers show.
+- LBLA verses: deleting a saved verse asks first; the chosen versions stay when switching tabs; saving over the limit
+  still says the verses were saved; an abbreviation of symbols only is refused; a file with too few verses says so.
+- The phone remote says when the plan is empty. The media bar can be used from the keyboard.
+- **Dialogs take the keyboard focus**, so Enter or Space no longer also presses a button behind them. Tab stays inside
+  the dialog, closing it puts the focus back on the button that opened it, Esc closes only the top one of two, and the
+  close button is read out in the app's language.
 - **A frozen ICCWorship window now says so.** If the main window stops responding (it hangs rather than crashes), a
   message asks **Restart the window** or **Keep waiting** — the projector, the music and the phone remote keep
   running, and the question goes away by itself if the window recovers. Before, it stayed frozen with no way out.
@@ -180,8 +268,8 @@ All notable changes to ICCWorship are documented here. The format is based on
   the new preview is being prepared. Clicking one of those thumbnails could send the new item live at the
   wrong slide.
 - If a preview can't be prepared, the operator now sees a message instead of a stale or empty preview.
-- The README now says Node.js 22.12 or newer is needed to build (Electron 45 requires it).
-- The README now explains that the portable version keeps its data in the PC's `Documents\ICCWorship` folder.
+- The README now says Node.js 22.22.1 or newer (on Node 22) is needed to build.
+- The README now explains where the portable version keeps its data (see Added).
 
 ## [1.0.0] - 2026-11-24
 

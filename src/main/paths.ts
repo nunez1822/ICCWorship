@@ -2,9 +2,19 @@ import { app } from 'electron'
 import { join } from 'node:path'
 import { mkdirSync } from 'node:fs'
 
-/** Root of everything the church creates: Documents\ICCWorship */
+let portableRoot: string | undefined
+let locked = false
+/** the portable exe keeps its data beside it (set once by bootstrap.ts, see portable.ts); `locked`: on a
+ *  write-protected stick, so it is opened read-only */
+export function setPortableRoot(root: string, opts: { locked?: boolean } = {}): void {
+  portableRoot = root
+  locked = !!opts.locked
+}
+export const dataLocked = (): boolean => locked
+
+/** Root of everything the church creates: Documents\ICCWorship (ICCWORSHIP_DATA, or beside the portable exe) */
 export function dataRoot(): string {
-  const root = process.env.ICCWORSHIP_DATA || join(app.getPath('documents'), 'ICCWorship')
+  const root = process.env.ICCWORSHIP_DATA || portableRoot || join(app.getPath('documents'), 'ICCWorship')
   mkdirSync(root, { recursive: true })
   return root
 }

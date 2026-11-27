@@ -5,6 +5,7 @@ import { SlideView } from '../components/SlideView'
 import { ErrorBoundary, errorSummary } from '../components/ErrorBoundary'
 import { toMediaUrl } from '../lib/media'
 import { applySink, playTestSound } from './sink'
+import { messageText } from '@shared/liveMessage'
 import './output.css'
 import '../lib/noDropNavigation'
 
@@ -170,7 +171,8 @@ function Output() {
 
   if (SAFE_MODE || !state?.theme) return <div className="output-root" />
   const slide = state.slideIndex >= 0 ? state.slides[state.slideIndex] : null
-  const msg = state.message && (!state.message.until || state.message.until > now) ? state.message.text : undefined
+  const msg =
+    state.message && (!state.message.until || state.message.until > now) ? messageText(state.message, state.displayLang, state.bilingualOrder) : undefined
   return (
     <div className="output-root">
       {/* a slide that can't be drawn shows black and tells the operator; the next slide renders normally */}

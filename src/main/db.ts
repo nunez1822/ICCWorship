@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { JsonStore } from './jsonStore'
-import { dataDir, dataRoot, trackMirrorDir } from './paths'
+import { dataDir, dataLocked, dataRoot, trackMirrorDir } from './paths'
 import { TRACKS_DIR } from './restorePath'
 import { isTrackFileName } from '@shared/tracks'
 import { newPin } from './pathGuard'
@@ -39,7 +39,7 @@ export function setSettings(patch: Partial<Settings>): Settings {
 
 /** readOnly without newerSchema: the data could not be prepared — `upgradeFailed` says whether the upgrade
  *  itself failed (otherwise no safety backup could be made, e.g. a full disk). */
-export type DataStatus = { readOnly: boolean; newerSchema?: number; upgradeFailed?: boolean; migrated?: string[] }
+export type DataStatus = { readOnly: boolean; newerSchema?: number; upgradeFailed?: boolean; locked?: boolean; migrated?: string[] }
 let status: DataStatus = { readOnly: false }
 export const dataStatus = (): DataStatus => status
 
@@ -55,6 +55,12 @@ export function assertWritable(): void {
  */
 export async function prepareData(safetyBackup: () => Promise<unknown>): Promise<DataStatus> {
   const s = db()
+  if (dataLocked()) {
+    // the portable exe's data is on a write-protected stick: show it, save nothing (the red bar says why)
+    s.readOnly = true
+    status = { readOnly: true, locked: true }
+    return status
+  }
   const meta = s.read<{ seeded?: number; schemaVersion?: number }>('meta', {})
   if (!meta.seeded) return status
   const check = checkSchema(meta.schemaVersion)
@@ -147,6 +153,14 @@ export function seedIfEmpty(): void {
   const meta = s.read<{ seeded?: number }>('meta', {})
   ensurePin()
   if (meta.seeded) {
+    // a data folder set up before whose songs or plans file is gone (deleted, a half-finished sync), with no .bak:
+    // the operator must be told (an empty song library with no word would look like every song was deleted)
+    for (const name of ['songs', 'plans'] as const) {
+      if (s.loadedAs(name) === 'missing') {
+        log.warn(`${name} file missing from a data folder that had it`)
+        s.problems.push({ name, kind: 'missing' })
+      }
+    }
     // make sure built-in themes are always present (they may be updated between versions)
     const themes = s.list<Theme>('themes')
     const custom = themes.filter((t) => !t.builtIn)

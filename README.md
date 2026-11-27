@@ -11,6 +11,11 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/nunez1822/ICCWorship/actions/workflows/ci.yml"><img src="https://github.com/nunez1822/ICCWorship/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/nunez1822/ICCWorship"><img src="https://api.scorecard.dev/projects/github.com/nunez1822/ICCWorship/badge" alt="OpenSSF Scorecard" /></a>
+</p>
+
+<p align="center">
   <img src="docs/screenshots/projector-bilingual.png" width="720" alt="Bilingual lyrics on the projector" />
 </p>
 
@@ -76,8 +81,14 @@ same time**, switchable live with one key.
 ## Install
 
 1. Download **`ICCWorship-Setup-x.y.z.exe`** (installer) or **`ICCWorship-Portable-x.y.z.exe`** (no installation needed) from the Releases page.
-   The portable version still keeps its data on the PC it runs on (`Documents\ICCWorship`), not on the USB stick.
-2. Windows SmartScreen may warn because the app is not code-signed (signing certificates cost money). Click **More info → Run anyway**.
+   The **portable** version keeps everything (songs, plans, settings, backups, logs) in an **`ICCWorship Data`** folder
+   right beside the exe, so it runs from a USB stick and leaves nothing on the computer. On a write-protected stick
+   it opens that data read-only (nothing is saved, a red bar says so). Already have ICCWorship data in
+   `Documents\ICCWorship` (the installed app, or an older portable version)? Until there is an `ICCWorship Data`
+   folder beside the exe it uses that data; to carry it with the exe, create the folder and copy everything from
+   `Documents\ICCWorship` into it.
+   Only one ICCWorship (installed or portable) can be open at a time.
+2. Windows SmartScreen may warn because the app is not code-signed yet. Click **More info → Run anyway**.
 3. **Optional: verify your download.** Each release lists SHA-256 checksums (`SHA256SUMS.txt`). In PowerShell,
    `(Get-FileHash .\ICCWorship-Setup-x.y.z.exe).Hash -eq '<checksum from SHA256SUMS.txt>'` must print `True`
    (`Get-FileHash` shows the hash in capital letters; the comparison ignores case). With the GitHub CLI you can also confirm the
@@ -86,17 +97,23 @@ same time**, switchable live with one key.
 
 ## Your data and backups
 
-- Everything ICCWorship creates lives in **`Documents\ICCWorship`** (Settings → Backup → 📂 Open data folder).
+- Everything ICCWorship creates lives in **`Documents\ICCWorship`** (Settings → Backup → 📂 Open data folder) —
+  or, for the portable version, in the **`ICCWorship Data`** folder beside `ICCWorship-Portable-x.y.z.exe`.
 - A backup is made automatically when the app starts and every hour it stays open, if something changed
   (in `Documents\ICCWorship\backups`). The newest one of each of the last 14 days the app was used is kept, plus
   the 6 most recent.
 - **Moving to a new computer:** on the old PC, Settings → Backup → **Back up now** to a USB stick. Install ICCWorship
-  on the new PC and choose **Restore** with that file. Videos and images you added (including the logo and theme
-  backgrounds) are *referenced by their full folder path*, not copied: copy them to the **same folder path** on the
-  new PC (for example `C:\Users\Pastor\Videos`), or add them again from the Media page and re-pick the logo and
-  backgrounds. **Backing tracks are inside that backup**, so songs keep their music.
-- Automatic backups leave the backing tracks out (they would make every hourly copy large): each track is kept once in
-  `Documents\ICCWorship\backups\tracks`, and restoring an automatic backup never deletes tracks.
+  on the new PC and choose **Restore** with that file. **The pictures, videos and sound you added (and the logo) are
+  inside that backup**, because the media library keeps its own copy of everything you add (in
+  `Documents\ICCWorship\media`), and so are the **backing tracks**. If that is too big for one backup file (over
+  4 GB) or for the stick, the backup leaves the media out first (then the tracks), and says which folders to copy as
+  well, and where.
+  (With Settings → Backup → "Keep a copy of added pictures, videos and sound…" turned off, items link to the original
+  file instead: copy those files to the same folder path on the new PC.)
+- Automatic backups leave the media library and the backing tracks out (they would make every hourly copy large):
+  each track is kept once in `Documents\ICCWorship\backups\tracks`. Restoring a backup never deletes media files,
+  and restoring an automatic backup never deletes tracks (a "Back up now" copy holds the tracks, and restoring it
+  puts back exactly its tracks).
 - Nothing is uploaded anywhere — see [PRIVACY.md](PRIVACY.md).
 
 ## Your first Sunday (5 minutes)

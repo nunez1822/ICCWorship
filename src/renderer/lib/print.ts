@@ -1,5 +1,5 @@
-import type { Person, ServicePlan, Team, Lang, Song, SongUsage } from '@shared/types'
-import { playsTrack } from './planRefs'
+import type { MediaItem, Person, Presentation, ServicePlan, Team, Lang, Song, SongUsage } from '@shared/types'
+import { itemSourceMissing, playsTrack } from './planRefs'
 import en from '../i18n/en.json'
 import es from '../i18n/es.json'
 
@@ -30,7 +30,10 @@ h2{font-size:14px;margin:18px 0 6px;border-bottom:1px solid #222;padding-bottom:
 .bi{color:#777;font-style:italic}
 `
 
-export function runSheetHtml(plan: ServicePlan, opts: { people: Person[]; teams: Team[]; lang: Lang; churchName: string; songs?: Song[] }): string {
+export function runSheetHtml(
+  plan: ServicePlan,
+  opts: { people: Person[]; teams: Team[]; lang: Lang; churchName: string; songs?: Song[]; media?: MediaItem[]; presentations?: Presentation[] }
+): string {
   const l = L[opts.lang]
   const other = L[opts.lang === 'es' ? 'en' : 'es']
   let clock = plan.time || '00:00'
@@ -42,7 +45,12 @@ export function runSheetHtml(plan: ServicePlan, opts: { people: Person[]; teams:
       const detail = it.type === 'scripture' && it.scripture ? it.scripture.ref : ''
       // the sound person needs to know which songs play a backing track
       const music = playsTrack(it, opts.songs || []) ? ` <span class="n">🎧 ${l.track}</span>` : ''
-      return `<tr class="${isHeader ? 'header' : ''}"><td class="t">${esc(start)}</td><td><b>${esc(it.title)}</b>${detail && detail !== it.title ? ` <span class="n">(${esc(detail)})</span>` : ''}${music}</td><td>${esc(it.person || '')}</td><td class="m">${it.durationMin || ''}</td><td class="n">${esc(it.notes || '')}</td></tr>`
+      // the song, media or presentation was deleted: marked as on the Live page (it would show nothing)
+      const gone =
+        opts.songs && itemSourceMissing(it, { songs: opts.songs, media: opts.media || [], presentations: opts.presentations || [] })
+          ? ` <span class="n">⚠ ${l.missing}</span>`
+          : ''
+      return `<tr class="${isHeader ? 'header' : ''}"><td class="t">${esc(start)}</td><td><b>${esc(it.title)}</b>${detail && detail !== it.title ? ` <span class="n">(${esc(detail)})</span>` : ''}${music}${gone}</td><td>${esc(it.person || '')}</td><td class="m">${it.durationMin || ''}</td><td class="n">${esc(it.notes || '')}</td></tr>`
     })
     .join('')
   const total = plan.items.reduce((a, i) => a + (i.durationMin || 0), 0)
@@ -52,7 +60,8 @@ export function runSheetHtml(plan: ServicePlan, opts: { people: Person[]; teams:
     .map((a) => {
       const p = opts.people.find((x) => x.id === a.personId)
       const tm = opts.teams.find((x) => x.id === a.teamId)
-      return `<tr><td>${esc(opts.lang === 'es' ? tm?.nameEs : tm?.name)}</td><td>${esc(a.position)}</td><td>${esc(p ? `${p.firstName} ${p.lastName}` : '')}</td><td>${esc(a.status)}</td></tr>`
+      // an open slot (nobody yet, or the person was removed) says so, never "pending" with a blank name
+      return `<tr><td>${esc(opts.lang === 'es' ? tm?.nameEs : tm?.name)}</td><td>${esc(a.position)}</td><td>${p ? esc(`${p.firstName} ${p.lastName}`) : `<i>${l.open}</i>`}</td><td>${p ? esc(a.status) : ''}</td></tr>`
     })
     .join('')
   return `<!doctype html><html><head><meta charset="utf-8"><style>${STYLE}</style></head><body>

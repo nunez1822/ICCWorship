@@ -138,7 +138,8 @@ async function logSongUsage(item: PlanItem, plan?: ServicePlan) {
  *  removed, file moved). Videos report their own load errors from the projector. */
 function checkMediaFiles(slides: Slide[], background?: Background | null, track?: string): void {
   const urls = [
-    ...slides.filter((x) => x.kind === 'image').map((x) => x.media),
+    // pictures, also one behind a slide's text (videos report their own error when they can't load)
+    ...slides.filter((x) => x.kind !== 'video').map((x) => x.media),
     background?.type === 'image' || background?.type === 'video' ? background.value : undefined,
     track
   ]
@@ -256,18 +257,31 @@ export async function setFollow(on: boolean): Promise<void> {
   await push({ followOff: on ? undefined : true })
 }
 
-/** Put a plan item on screen */
-export async function goItem(index: number, slideIndex = 0): Promise<void> {
+/**
+ * Put a plan item on screen, at `slideIndex` (-1: its last slide). Without one (a double-click, the phone's "go to
+ * item"), it starts from the top — except on the song already live whose backing track still plays: the music goes on
+ * and the slide the recorded timing says for where the music is now comes up (not slide 1, which would leave the
+ * lyrics behind the music). A backing track that has ended starts again from the top.
+ */
+export async function goItem(index: number, slideIndex?: number): Promise<void> {
   const plan = activePlan()
   const item = plan?.items[index]
   if (!plan || !item) return
   const built = await buildItem(item, ctx())
   if (built.warning) st().toast(t(built.warning), 'err')
-  heldVideoSrc = undefined
-  const si = Math.max(0, Math.min(slideIndex < 0 ? built.slides.length - 1 : slideIndex, built.slides.length - 1))
   const l = live()
-  // the same song is already live with its music (a thumbnail click, a double-click): the music goes on
-  const sameTrack = !!built.track && l?.itemId === item.id && !!l.video?.track && l.video.src === built.track.src
+  // the same song is already live with its music still going (playing, or held under a cover): the music goes on
+  const sameTrack =
+    !!built.track && l?.itemId === item.id && !!l.video?.track && l.video.src === built.track.src && (l.video.playing || heldVideoSrc === l.video.src)
+  heldVideoSrc = undefined
+  let start = slideIndex ?? 0
+  const at = sameTrack && l?.videoProgress?.src === l?.video?.src ? l?.videoProgress?.current : undefined
+  if (slideIndex === undefined && at !== undefined) {
+    const tm = liveTimings(l)
+    if (tm) start = Math.max(0, timedSlideAt(tm, at))
+  }
+  const si = Math.max(0, Math.min(start < 0 ? built.slides.length - 1 : start, built.slides.length - 1))
+  lastPlanPlace = { planId: plan.id, itemIndex: index }
   // recorded timing: the music starts at the slide's time; from the top, an intro without text until the first line
   const timings = built.track && !sameTrack ? timingsFor(item.refId, built.track.src, built.slides, item.id) : undefined
   const intro = timings && si === 0 && timings[0] >= 0.5 ? { firstAt: timings[0] } : undefined
@@ -517,11 +531,19 @@ export async function prev(): Promise<void> {
   if (plan && l.itemIndex > 0 && l.planId === plan.id) return goItem(l.itemIndex - 1, -1)
 }
 
+/** the last plan item that went live (a Show-now item in between doesn't move it) */
+let lastPlanPlace: { planId: string; itemIndex: number } | undefined
+
+/**
+ * The next plan item. After a Show-now item (a song or verse shown from its page mid-service, which has no place in
+ * the plan), that is the item after the last plan item that was on screen — never the plan's first item again (the
+ * countdown back up mid-service). Nothing from this plan live yet: the plan starts at its first item.
+ */
 export async function nextItem(): Promise<void> {
   const l = live()
   const plan = activePlan()
   if (!plan) return
-  const idx = l && l.planId === plan.id ? l.itemIndex + 1 : 0
+  const idx = l && l.planId === plan.id && l.itemIndex >= 0 ? l.itemIndex + 1 : lastPlanPlace?.planId === plan.id ? lastPlanPlace.itemIndex + 1 : 0
   if (idx < plan.items.length) return goItem(idx, 0)
 }
 
@@ -578,10 +600,10 @@ export async function setDisplayLang(value: DisplayLang): Promise<void> {
   void st().setSettings({ displayLang: value })
 }
 
-export async function showMessage(text: string): Promise<void> {
+export async function showMessage(text: string, bi?: { en: string; es: string }): Promise<void> {
   const secs = st().settings.messageSeconds || 30
   if (messageTimer) clearTimeout(messageTimer)
-  await push({ message: { text, until: Date.now() + secs * 1000, seq: Date.now() } })
+  await push({ message: { text, bi, until: Date.now() + secs * 1000, seq: Date.now() } })
   messageTimer = setTimeout(() => void enqueue(() => push({ message: undefined })), secs * 1000 + 200)
 }
 
@@ -711,4 +733,43 @@ async function runCommand(cmd: RemoteCommand | VideoEndedCommand): Promise<void>
 /** Phone remote / stage / projector commands — queued so simultaneous ones all apply. */
 export function handleCommand(cmd: RemoteCommand | VideoEndedCommand): void {
   void enqueue(() => runCommand(cmd))
+}
+
+/**
+ * After ICCWorship closed unexpectedly (crash, power cut, Windows update) with a plan item on screen, offer to put it
+ * back where it was: one click on the toast (see src/shared/session.ts). Nothing goes on screen by itself.
+ */
+export async function offerResume(): Promise<void> {
+  const offer = await window.api.app.resumeOffer()
+  if (!offer) return
+  // something else went live again, which putting the item back would replace: a slide, or a video or backing track
+  // playing (a song's intro). The logo, black and a message are covers: they stay up over the item put back
+  const busy = () => {
+    const l = live()
+    return !!l && ((l.slideIndex ?? -1) >= 0 || !!l.video?.playing)
+  }
+  if (busy()) return
+  let used = false
+  const show = () =>
+    st().toast(t('recovery.resumeOffer', { item: offer.itemTitle || '?', plan: offer.planTitle || '?' }), 'info', 120_000, {
+      label: t('recovery.resume', { slide: offer.slideIndex + 1 }),
+      run: () =>
+        void enqueue(async () => {
+          if (used) return // once only
+          const s = st()
+          // the toast stays up for 2 minutes: the operator may have gone live by hand meanwhile. Then it is offered
+          // again (the click closed it), for after Esc
+          if (busy()) {
+            s.toast(t('recovery.resumeBusy'), 'info')
+            return show()
+          }
+          used = true
+          const plan = s.plans.find((p) => p.id === offer.planId)
+          const index = plan ? plan.items.findIndex((i) => i.id === offer.itemId) : -1
+          if (!plan || index < 0) return s.toast(t('recovery.resumeGone'), 'err')
+          s.setActivePlan(plan.id)
+          await goItem(index, offer.slideIndex)
+        })
+    })
+  show()
 }

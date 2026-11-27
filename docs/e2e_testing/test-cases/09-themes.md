@@ -19,10 +19,17 @@
 - Song uses the new default theme. "Apply" changes the projector immediately.
 
 ### TC-THM-04 · Lower third (green screen)  `P2`
+**Pre:** default
 **Steps**
-1. Apply "Lower Third / Tercio Inferior", go live on a song.
+1. Go live on a song. Themes → "Lower Third / Tercio Inferior" → **📺 Apply to screen now**.
+2. Go live on another song.
+3. Themes → "Lower Third / Tercio Inferior" → **⭐ Make default**; go live on a song again. (Put the default back
+   afterwards.)
 **Expected**
-- Bright green background, smaller text at the bottom (for chroma key in OBS).
+- 1: bright green background, smaller text at the bottom (for chroma key in OBS), for the rest of that song's slides.
+- 2: the next item uses its own theme (the default), not the green one: **Apply to screen now** only changes what is
+  on screen.
+- 3: every item without its own theme is green.
 
 ### TC-THM-05 · Per-item theme override  `P1`
 **Steps**

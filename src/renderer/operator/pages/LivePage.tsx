@@ -9,6 +9,8 @@ import { SlideView } from '../../components/SlideView'
 import { TYPE_ICON, fmtMin, itemIcon } from '../../components/ui'
 import { toMediaUrl } from '../../lib/media'
 import { itemSourceMissing, playsTrack } from '../../lib/planRefs'
+import { ReadyCheck } from '../ReadyCheck'
+import { messageText } from '@shared/liveMessage'
 
 /** Replace every `{n}` placeholder in a message template. */
 function fillTemplate(text: string, n: string): string {
@@ -32,6 +34,7 @@ export function LivePage() {
   const plans = useMemo(() => s.plans.filter((p) => !p.isTemplate).sort((a, b) => b.date.localeCompare(a.date)), [s.plans])
   const selected = plan?.items.find((i) => i.id === s.selectedItemId)
   const liveItemInPlan = liveSt && plan && liveSt.planId === plan.id ? liveSt.itemId : undefined
+  const [readyCheck, setReadyCheck] = useState(false)
 
   return (
     <div className="live-page">
@@ -51,7 +54,11 @@ export function LivePage() {
           <button className="btn sm" title={t('live.editPlan')} onClick={() => s.setPage('plans', s.activePlanId)}>
             ✏️
           </button>
+          <button className="btn sm ready-btn" title={t('ready.button')} aria-label={t('ready.button')} onClick={() => setReadyCheck(true)}>
+            ✅
+          </button>
         </div>
+        {readyCheck && <ReadyCheck onClose={() => setReadyCheck(false)} />}
         <div className="col-body">
           {!plan && (
             <div className="empty">
@@ -78,6 +85,7 @@ export function LivePage() {
               index={idx}
               selected={item.id === s.selectedItemId}
               isLive={item.id === liveItemInPlan}
+              onAir={item.id === liveItemInPlan && !!liveSt && (liveSt.slideIndex >= 0 || !!liveSt.video?.playing)}
               onSelect={() => s.selectItem(item.id)}
               onGo={() => void live.enqueue(() => live.goItem(idx))}
             />
@@ -100,7 +108,7 @@ export function LivePage() {
   )
 }
 
-function PlanRow(p: { item: PlanItem; index: number; selected: boolean; isLive: boolean; onSelect: () => void; onGo: () => void }) {
+function PlanRow(p: { item: PlanItem; index: number; selected: boolean; isLive: boolean; onAir: boolean; onSelect: () => void; onGo: () => void }) {
   const { item } = p
   const { t } = useTranslation()
   const missing = useApp((s) => itemSourceMissing(item, s))
@@ -135,7 +143,8 @@ function PlanRow(p: { item: PlanItem; index: number; selected: boolean; isLive: 
         {(item.person || item.notes) && <div className="meta">{[item.person, item.notes].filter(Boolean).join(' · ')}</div>}
       </div>
       <div className="meta" style={{ textAlign: 'right' }}>
-        {p.isLive ? <span className="pill live">LIVE</span> : fmtMin(item.durationMin)}
+        {/* the live item: on air, or kept in place but cleared (Esc: Space puts it back) */}
+        {p.isLive ? <span className={`pill ${p.onAir ? 'live' : ''}`}>{p.onAir ? t('top.onAir') : t('top.offAir')}</span> : fmtMin(item.durationMin)}
       </div>
     </div>
   )
@@ -279,10 +288,11 @@ function Monitors() {
   const settings = useApp((s) => s.settings)
   if (!l?.theme) return null
   const cur = l.slideIndex >= 0 ? l.slides[l.slideIndex] : null
-  const nextIdx = upcomingSlideIndex(l)
+  // during a backing track's outro the next Space moves to the next item (see live.next)
+  const nextIdx = l.outro ? -1 : upcomingSlideIndex(l)
   const nextSlide = nextIdx >= 0 ? l.slides[nextIdx] : null
   const nextItem = !nextSlide && l.itemIndex >= 0 ? l.planItems[l.itemIndex + 1] : undefined
-  const msg = l.message && (!l.message.until || l.message.until > Date.now()) ? l.message.text : undefined
+  const msg = l.message && (!l.message.until || l.message.until > Date.now()) ? messageText(l.message, l.displayLang, l.bilingualOrder) : undefined
   return (
     <>
       <div className="monitor">
@@ -354,10 +364,10 @@ function Controls() {
 
   const sendTemplate = (tpl: { en: string; es: string }) => {
     const fill = (s: string) => fillTemplate(s, num || '?')
-    // both languages: follow the bilingual order setting (English on top for EN-first services)
-    const both = l.bilingualOrder === 'en-first' ? [fill(tpl.en), fill(tpl.es)] : [fill(tpl.es), fill(tpl.en)]
-    const text = l.displayLang === 'en' ? fill(tpl.en) : l.displayLang === 'es' ? fill(tpl.es) : both.join('\n')
-    void live.enqueue(() => live.showMessage(text))
+    // both languages kept: the projector orders them as the screen language and bilingual order are when shown
+    const bi = { en: fill(tpl.en), es: fill(tpl.es) }
+    const text = messageText({ text: '', bi, seq: 0 }, l.displayLang, l.bilingualOrder)
+    void live.enqueue(() => live.showMessage(text, bi))
   }
 
   return (
@@ -443,11 +453,31 @@ function Controls() {
           </div>
           <div
             className="progress"
+            role="slider"
+            tabIndex={0}
+            aria-label={t('live.seekBar')}
+            title={t('live.seekBar')}
+            aria-valuemin={0}
+            aria-valuemax={Math.round(progress?.duration || 0)}
+            aria-valuenow={Math.round(progress?.current || 0)}
+            aria-valuetext={formatClock((progress?.current || 0) * 1000)}
             onClick={(e) => {
               const r = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
               if (!progress?.duration) return
               const to = ((e.clientX - r.left) / r.width) * progress.duration
               void live.enqueue(() => live.videoSeek(to, videoSrc))
+            }}
+            onKeyDown={(e) => {
+              // the bar's own keys (focused with Tab): ← → seek 5 s, Home / End; never also the slide shortcuts
+              const d = progress?.duration
+              if (!d) return
+              const cur = progress.current || 0
+              const to = e.key === 'ArrowLeft' ? cur - 5 : e.key === 'ArrowRight' ? cur + 5 : e.key === 'Home' ? 0 : e.key === 'End' ? d - 1 : undefined
+              if (to === undefined) return
+              e.preventDefault()
+              e.stopPropagation()
+              const at = Math.max(0, Math.min(d, to))
+              void live.enqueue(() => live.videoSeek(at, videoSrc))
             }}
           >
             <div style={{ width: `${progress?.duration ? (progress.current / progress.duration) * 100 : 0}%` }} />
@@ -473,6 +503,8 @@ function Controls() {
               max={1}
               step={0.05}
               value={l.video.volume}
+              aria-label={t('live.videoVolume')}
+              title={t('live.videoVolume')}
               onChange={(e) => {
                 const volume = +e.target.value
                 void live.enqueue(() => live.videoSet({ volume }, videoSrc))

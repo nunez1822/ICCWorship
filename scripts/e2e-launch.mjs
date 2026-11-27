@@ -7,7 +7,7 @@
  *   pnpm e2e:launch --fullscreen  → let the projector go full-screen on a 2nd monitor
  *   pnpm e2e:launch --packaged    → run the installed-style build (dist/win-unpacked, from `pnpm build:dir`)
  *                                       instead of the dev build. A packaged app ignores ICCWORSHIP_E2E (see
- *                                       src/main/index.ts), so the window.api.e2e dialog hooks don't exist there:
+ *                                       src/main/env.ts), so the window.api.e2e dialog hooks don't exist there:
  *                                       only cases without native file dialogs can run against it.
  *
  * - Uses its own data folder (.e2e-data/) so your real Documents\ICCWorship is never touched.

@@ -3,15 +3,21 @@ import { useTranslation } from 'react-i18next'
 import type { Assignment, PlanItem, PlanItemType, ServicePlan } from '@shared/types'
 import { songName, uid } from '@shared/slides'
 import { localDate, nextSunday } from '@shared/dates'
-import { useApp } from '../store'
+import { toastError, useApp } from '../store'
 import { syncPlanSummary } from '../liveControl'
-import { Field, TYPE_ICON, fmtMin, confirmDel, itemIcon } from '../../components/ui'
+import { Field, Modal, TYPE_ICON, fmtMin, confirmDel, itemIcon } from '../../components/ui'
 import { addMinutes, runSheetHtml } from '../../lib/print'
 import { itemSourceMissing, playsTrack } from '../../lib/planRefs'
 import { DEFAULT_ITEM_TRACK } from '@shared/tracks'
 import { ItemEditor, SongPicker, ScripturePicker, MediaPicker, PresentationPicker } from './plan/ItemEditor'
 
 const today = () => localDate()
+
+/** the Team tab's count: positions filled by someone who still exists; open positions as "filled/total" */
+function teamCount(plan: ServicePlan, people: { id: string }[]): string {
+  const filled = plan.team.filter((a) => a.personId && people.some((p) => p.id === a.personId)).length
+  return filled === plan.team.length ? String(filled) : `${filled}/${plan.team.length}`
+}
 
 export function newPlanFrom(template: ServicePlan | undefined, title: string): ServicePlan {
   const t = Date.now()
@@ -106,48 +112,57 @@ function NewPlanModal({ onClose, onCreate }: { onClose: () => void; onCreate: (p
   const templates = useMemo(() => plans.filter((p) => p.isTemplate), [plans])
   const [tpl, setTpl] = useState(templates[0]?.id || '')
   const [date, setDate] = useState(nextSunday())
+  const lang = useApp((s) => s.settings.uiLang)
+  const create = () => {
+    const from = templates.find((x) => x.id === tpl)
+    // a blank plan is named by its date, so it is never confused with the sample plan or another blank one
+    const p = newPlanFrom(from, t('plans.blankTitle', { date: readableDate(date, lang) }))
+    p.date = date
+    onCreate(p)
+  }
   return (
-    <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
-        <div className="modal-head">
-          <h2>{t('plans.new')}</h2>
-        </div>
-        <div className="modal-body col">
-          <Field label={t('plans.startFrom')}>
-            <select className="select" value={tpl} onChange={(e) => setTpl(e.target.value)}>
-              <option value="">{t('plans.blank')}</option>
-              {templates.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.title}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label={t('plans.date')}>
-            <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          </Field>
-        </div>
-        <div className="modal-foot">
+    <Modal
+      title={t('plans.new')}
+      onClose={onClose}
+      footer={
+        <>
           <button className="btn" onClick={onClose}>
             {t('common.cancel')}
           </button>
-          <button
-            className="btn primary"
-            onClick={() => {
-              const p = newPlanFrom(
-                templates.find((x) => x.id === tpl),
-                t('plans.defaultTitle')
-              )
-              p.date = date
-              onCreate(p)
-            }}
-          >
+          <button className="btn primary" onClick={create}>
             {t('common.create')}
           </button>
-        </div>
+        </>
+      }
+    >
+      <div className="col">
+        <Field label={t('plans.startFrom')}>
+          <select className="select" value={tpl} onChange={(e) => setTpl(e.target.value)}>
+            <option value="">{t('plans.blank')}</option>
+            {templates.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.title}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label={t('plans.date')}>
+          <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </Field>
       </div>
-    </div>
+    </Modal>
   )
+}
+
+/** "domingo, 29 de noviembre" / "Sunday, November 29" (a plan's YYYY-MM-DD date, in the app's language) */
+function readableDate(date: string, lang: string): string {
+  const [y, m, d] = date.split('-').map(Number)
+  if (!y || !m || !d) return date
+  try {
+    return new Date(y, m - 1, d).toLocaleDateString(lang, { weekday: 'long', day: 'numeric', month: 'long' })
+  } catch {
+    return date
+  }
 }
 
 const ADD_TYPES: PlanItemType[] = ['song', 'scripture', 'announcement', 'media', 'presentation', 'countdown', 'notes', 'prayer', 'header', 'blank']
@@ -181,7 +196,15 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
   }
 
   const printSheet = async (mode: 'pdf' | 'print') => {
-    const html = runSheetHtml(plan, { people: s.people, teams: s.teams, lang: s.settings.uiLang, churchName: s.settings.churchName, songs: s.songs })
+    const html = runSheetHtml(plan, {
+      people: s.people,
+      teams: s.teams,
+      lang: s.settings.uiLang,
+      churchName: s.settings.churchName,
+      songs: s.songs,
+      media: s.media,
+      presentations: s.presentations
+    })
     if (mode === 'pdf') {
       const f = await window.api.print.pdf(html, `${plan.date || 'plan'} ${plan.title}.pdf`.replace(/[\\/:*?"<>|]/g, '-'))
       if (f) s.toast(t('common.savedTo', { file: f }))
@@ -233,7 +256,8 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
         <button
           className="btn sm"
           onClick={async () => {
-            const copy = { ...newPlanFrom(plan, plan.title), isTemplate: false }
+            // " (copy)": the two plans are told apart until the copy is renamed (also on the same date)
+            const copy = { ...newPlanFrom(plan, plan.title), title: `${plan.title} (${t('plans.copy')})`, isTemplate: false }
             await s.save('plans', copy)
             onDuplicated(copy.id)
             s.toast(t('plans.duplicated'))
@@ -256,8 +280,14 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
         <button
           className="btn sm ghost"
           onClick={async () => {
-            if (!confirmDel(t('plans.confirmDelete'))) return
-            await s.remove('plans', plan.id)
+            // the plan the Live page is running: say so before it goes
+            const onLive = s.activePlanId === plan.id
+            if (!confirmDel(t(onLive ? 'plans.confirmDeleteLive' : 'plans.confirmDelete'))) return
+            try {
+              await s.remove('plans', plan.id)
+            } catch (e) {
+              return toastError(e)
+            }
             if (useApp.getState().activePlanId === plan.id) {
               // pick the next upcoming plan instead of leaving the Live page pointing at nothing
               const today = localDate()
@@ -279,7 +309,7 @@ function PlanEditor({ plan, onDeleted, onDuplicated }: { plan: ServicePlan; onDe
           {t('plans.order')} ({plan.items.length})
         </button>
         <button className={tab === 'team' ? 'on' : ''} onClick={() => setTab('team')}>
-          {t('plans.team')} ({plan.team.length})
+          {t('plans.team')} ({teamCount(plan, s.people)})
         </button>
         <button className={tab === 'details' ? 'on' : ''} onClick={() => setTab('details')}>
           {t('plans.details')}

@@ -1,6 +1,7 @@
 import type { SectionType, Song, SongSection } from './types'
 import { uid } from './slides'
 import { stripTags } from './textDecode'
+import { guessLang } from './langGuess'
 
 /* --------------------------- section headers --------------------------- */
 
@@ -231,7 +232,9 @@ export function songFromChordPro(text: string): Song {
     while (r.lines.length && !r.lines[r.lines.length - 1].trim()) r.lines.pop()
   })
   const { sections, arrangement } = toSongSections(raw, [])
-  song.sections = sections
+  // ChordPro has one language: a Spanish song goes in the Español box (guessLang; English when it can't tell)
+  const spanish = guessLang(raw.flatMap((r) => r.lines).join('\n')) === 'es'
+  song.sections = spanish ? sections.map((s) => ({ ...s, en: '', es: s.en })) : sections
   song.arrangement = arrangement
   return song
 }

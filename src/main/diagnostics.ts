@@ -6,11 +6,12 @@
  */
 import { app, screen } from 'electron'
 import JSZip from 'jszip'
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { arch, homedir, release, totalmem, type as osType } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { COLLECTIONS, db, getSettings } from './db'
 import { dataDir, dataRoot } from './paths'
+import { isPortableExe, location } from './bootstrap'
 import { logDir, redact } from './log'
 
 const DAY = 24 * 60 * 60 * 1000
@@ -19,7 +20,8 @@ export function systemInfo(): Record<string, unknown> {
   return {
     app: `ICCWorship ${app.getVersion()}`,
     packaged: app.isPackaged,
-    portable: !!process.env.PORTABLE_EXECUTABLE_DIR,
+    portable: isPortableExe,
+    dataMode: location.mode, // where the data is (portable.ts): beside the exe, read-only, Documents…
     electron: process.versions.electron,
     chrome: process.versions.chrome,
     node: process.versions.node,
@@ -112,6 +114,7 @@ export async function exportDiagnostics(target: string, opts: { includeCrashDump
     'ICCWorship diagnostics. Logs never contain lyrics, people, prayer requests or the remote PIN.\n' +
       (opts.includeCrashDumps ? 'crash-dumps/ may contain text that was on screen when the app crashed.\n' : 'No crash dumps included.\n')
   )
+  mkdirSync(dirname(target), { recursive: true }) // (like Back up now: a folder that isn't there yet is made)
   writeFileSync(target, await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' }))
   return { ok: true, files }
 }

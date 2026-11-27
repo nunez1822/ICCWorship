@@ -5,6 +5,9 @@
 1. Plans → **New plan** → start from "Sunday Service / Servicio Dominical" template, pick a date → Create.
 **Expected**
 - New plan appears under Upcoming with 9 items and that date; it is independent from the template (editing one doesn't change the other).
+- The New plan box is a real dialog: the focus is inside it, Tab stays in it, Esc closes it.
+- From **Blank** instead, the plan is titled "Service — <weekday, month day>" (Spanish UI: "Servicio — …"), never the
+  sample plan's "Sunday Service / Servicio Dominical".
 
 ### TC-PLAN-02 · Start times follow durations  `P0`
 **Steps**
@@ -39,13 +42,15 @@
 **Steps**
 1. **Duplicate**. 2. On the copy, **Save as template**.
 **Expected**
-- A copy (next Sunday) appears; a new entry appears under Templates.
+- A copy (next Sunday) titled "<title> (copy)" appears, so the two are told apart; a new entry appears under Templates.
 
 ### TC-PLAN-07 · Run sheet PDF  `P1`
 **Steps**
 1. `queueSaveFile('<repo>/.e2e-data/runsheet.pdf')` → **PDF**.
 **Expected**
 - File exists and is a non-empty PDF (check with a file tool). Contains times, titles, and footer "Printed with ICCWorship…".
+- An item whose song, media or presentation was deleted is marked "⚠ deleted from the library: shows nothing" (as the
+  Live page marks it); an open team position reads "open — someone is needed".
 
 ### TC-PLAN-08 · Team assignment & conflict warning  `P1`
 **Pre:** add a person "Ana Test" (People page)
@@ -91,7 +96,7 @@
 **Expected**
 - Step 1: the plan row shows 🎵🎧 (tooltip "Plays the backing track"), also in the Live page's plan list and the run
   sheet PDF ("🎧 backing track").
-- Step 2: the options show **Play the backing track** (ticked), **Go to the next item when finished** and a volume.
+- Step 2: the options show **Play the backing track** (ticked), **Go to next item when finished** and a volume.
 - Step 3: the 🎧 is gone and the song goes live with lyrics only (`video` undefined).
 
 ### TC-PLAN-14 · Adding a track to a song never changes existing plans  `P0`

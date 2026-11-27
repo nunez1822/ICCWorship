@@ -4,9 +4,11 @@ Default start: welcome finished (English), Live page, sample plan selected.
 
 ### TC-LIVE-01 · Go live on a song  `P0` 📸
 **Steps**
-1. Double-click **Holy, Holy, Holy** in the plan list.
+1. Double-click **Holy, Holy, Holy** in the plan list. 2. Press `Esc`, then `Space`. 3. Switch the UI to Español.
 **Expected**
 - The item row shows a red **ON AIR** pill; top bar shows "ON AIR" and the item name.
+- 2: after Esc the row's pill turns grey and says "Off air" (like the top bar); Space brings back the slide and the red
+  **ON AIR** pill. 3: the pill says "AL AIRE" / "Fuera del aire" (never the English word).
 - Centre grid shows 4 slides (Verse 1–4); slide 1 has a red border.
 - Projector tab: Spanish lines on top ("¡Santo! ¡Santo! ¡Santo! Señor omnipotente,"), a thin divider,
   English below in italic gold ("Holy, holy, holy! Lord God Almighty!").
@@ -141,8 +143,8 @@ to a time of day, which would hide a rebuild). Welcome is live.
 **Expected**
 - Step 2: `video.playing === false` (nothing heard while the audience sees the logo). Step 3: the music starts.
 
-### TC-LIVE-18 · "Go to the next item when finished"  `P1`
-**Pre:** TC-PLAN-13 steps 1–2, with **Go to the next item when finished** ticked in the item's options
+### TC-LIVE-18 · "Go to next item when finished"  `P1`
+**Pre:** TC-PLAN-13 steps 1–2, with **Go to next item when finished** ticked in the item's options
 **Steps**
 1. Double-click the "Track Test" item and let the 12 s track play to its end.
 **Expected**
@@ -156,6 +158,8 @@ to a time of day, which would hide a rebuild). Welcome is live.
 - Step 1: the text goes off but the music keeps playing; the top bar shows "🎵 Music playing" (not "Off air") and the
   media bar "🎵 Music still playing — Space = next item". `live.get().outro === true`.
 - Step 2: the last slide comes back. Step 3: the outro again, then the next plan item.
+- During the outro the Live page's and the stage's **Next** show the next plan item ("⏭ <title>"), not the lyric
+  slide just taken off (the next Space brings up that item).
 
 ### TC-LIVE-20 · Entering a song part-way waits for P  `P2`
 **Pre:** TC-PLAN-13 steps 1–2 (the track plays in the plan); the track has **no** recorded timing (run before
@@ -172,8 +176,12 @@ resumes its music where it was, as in TC-LIVE-16)
 **Pre:** "Track Test" live from its plan item, music at about 0:05
 **Steps**
 1. Double-click the live "Track Test" plan item again, then click its 2nd thumbnail.
+2. With recorded timing (TC-SONG-17) and the music at ~6 s, double-click the live item again.
+3. Let the track play to its end (text stays on the last slide or the outro), then double-click the item again.
 **Expected**
 - The slides change but the music doesn't restart (`videoProgress.current` keeps growing from ~5).
+- 2: the slide the timing says for ~6 s comes up (slide 2 with timings 2 / 5 / 8), not slide 1; the music goes on.
+- 3: the ended track starts again from the top (intro, then slide 1 on time).
 
 ### TC-LIVE-22 · The lyrics follow the music (recorded timing)  `P1`
 **Pre:** TC-SONG-17 (timings 2 / 5 / 8)
@@ -228,7 +236,7 @@ second song's item (if its timing is recorded, enter it part-way so it starts wi
   song's start point, while it fades. `videoProgress.src` is the second track's url.
 
 ### TC-LIVE-28 · The top bar says "Off air" once the outro's music has finished  `P2`
-**Pre:** TC-LIVE-19 step 1 (the outro playing), the item without "Go to the next item when finished"
+**Pre:** TC-LIVE-19 step 1 (the outro playing), the item without "Go to next item when finished"
 **Steps**
 1. Let the track play to its end.
 **Expected**
@@ -244,7 +252,7 @@ second song's item (if its timing is recorded, enter it part-way so it starts wi
   doesn't carry on from about 0:08. (Esc, then `Space` instead still continues near 0:08, as in TC-LIVE-16.)
 
 ### TC-LIVE-30 · The "Music still playing" hint goes away when the outro's music ends  `P2`
-**Pre:** TC-LIVE-19 step 1 (the outro playing), the item without "Go to the next item when finished"
+**Pre:** TC-LIVE-19 step 1 (the outro playing), the item without "Go to next item when finished"
 **Steps**
 1. Let the track play to its end (or press `P` to pause it).
 **Expected**
@@ -267,3 +275,74 @@ second song's item (if its timing is recorded, enter it part-way so it starts wi
 1. Put item 1 live, press `→` until item 2's intro starts. 2. Press `←` during the intro.
 **Expected**
 - Step 2: item 1 comes back on its last slide; the intro's music fades out. The phone remote's Prev does the same.
+
+### TC-LIVE-33 · "Ready for Sunday?" checks the plan, screens, sound, phone remote and backups  `P1`
+**Pre:** a plan with a song, a video media item and a header (section label, no slides) as the active plan
+**Steps**
+1. Live page → ✅ (next to ✏️). Read the list; close it.
+2. Break things: delete a song the active plan uses; rename the video file a media item in the plan points to (its
+   library copy `media/<id>.<ext>` in the data folder; the original file only when "copy into the library" is off);
+   close the projector window (Settings → Screens); in Settings choose a sound output, then unplug that device.
+3. ✅ again. Click each row's button.
+4. Close the checklist, Settings → Backup → **Back up now**, then ✅ again.
+5. Make the projector give up (crash its page repeatedly, TC-RES-*), so it shows black (safe mode) or nothing; ✅.
+6. Put the files renamed in step 2 back. Give the header (section label) its own picture background in the plan
+   editor, then rename that picture's file (its library copy in `media/`); ✅.
+7. With the checklist open, press Tab repeatedly, then Shift+Tab; press **F1** (Shortcuts) over it, then Esc once;
+   then Esc again.
+8. Date the active plan a few days ago (Spanish UI once, English once); ✅.
+**Expected**
+- 1: "Everything is ready" or warnings only, e.g. "Only one screen is connected…" on a laptop alone, "No “Back up
+  now” copy yet…" until **Back up now** has been used on this computer (automatic backups don't count: they stay on
+  the same disk). The plan line names the active plan and its item count.
+- 2→3: errors, each naming the items: "1 item points to something that was deleted: <song>", "1 item needs a file
+  that isn't on this computer…: <media item>", "The projector window is closed…", "The chosen sound output … is not
+  connected" (an **error** when the plan plays a video or backing track).
+- A scripture item whose Bible version isn't on this computer is an **error** ("1 item would show nothing…"), not a
+  warning; a picture behind an announcement slide's text that moved counts as a missing file; a logo file that
+  moved says the Logo button would show nothing. A header row with slides of its own (a welcome video) is checked
+  like any item; a header without slides (a section label) isn't counted, but its own background file is checked.
+- 6: "1 item needs a file that isn't on this computer…: <header title>" (the section label shows a title card on that
+  picture when it comes up).
+- 4: the backup line is ✅ right away (a backup from Settings counts too, without restarting).
+- 5: "The projector window stopped after failing again and again…" (an error) with **Restart projector**, which
+  restarts it and re-checks. If opening or restarting the projector fails: "That didn't work. Try again, or open
+  Settings → Screens." (a toast, never nothing).
+- **Open projector** opens it and the list re-checks itself; **Open plan** opens the plan editor; **Back up now** asks
+  where to save, shows the same message as Settings → Backup (also "saved WITHOUT the media library…" when it had
+  to leave it out), and the backup line turns ✅; **Settings** opens Settings at the section that fixes it: **Screens**
+  for the screens, the sound output and the logo, **Phone remote & stage display** for the phone line.
+- 7: Tab and Shift+Tab move only between the checklist's own buttons (never the plan or the buttons behind it). The
+  first Esc closes only Shortcuts (the checklist stays); the second closes the checklist, and the focus is back on ✅.
+- With the checklist open while a video plays, it doesn't re-check by itself (the buttons stay enabled).
+- 8: A plan dated before today says it is for a day that has passed, with the date written out in the app's language
+  ("The plan “…” is for Sunday, November 22, 2026, a day that has passed…" / "…es para el domingo, 22 de noviembre de
+  2026…"), not `2026-11-22`. Running the check never changes anything on screen.
+
+### TC-LIVE-34 · After a Show-now item, Space continues the plan where it was  `P1`
+**Pre:** a plan with at least four items, the first a countdown or blank
+**Steps**
+1. Go live on plan item 3, and move to its last slide.
+2. Songs → any song → **● Show now** (an item not in the plan). Press `Space` until past its last slide.
+3. Pick another plan on the Live page, show a song from the Songs page again, and press `Space` past its end.
+**Expected**
+- 2: plan item 4 comes up (the item after the last plan item that was on screen), never plan item 1 again.
+- 3: with nothing from that plan live yet, it starts at its first item.
+
+### TC-LIVE-35 · The media bar works from the keyboard  `P2`
+**Pre:** a video or a backing track live, at least 20 s long
+**Steps**
+1. Press `Tab` until the media bar's position line is focused; press `→` three times, then `←`, `Home`.
+2. Tab to the volume slider and use the arrows.
+**Expected**
+- 1: the position line is announced as "Position in the video or track (← → move 5 seconds)" (a slider); each `→`
+  moves 5 s ahead, `←` 5 s back, `Home` to the start. The slides don't change (the arrows belong to the bar).
+- 2: the slider is announced as "Volume" and changes the volume.
+
+### TC-LIVE-36 · The selected plan survives a reload of the main window  `P2`
+**Pre:** two plans; the one selected on the Live page is not the next upcoming one; nothing live
+**Steps**
+1. Press `Ctrl+R` in the main window (or let it restart after a crash, TC-RES-*).
+**Expected**
+- The Live page shows the same plan as before (not the next upcoming one). After a full quit and relaunch, the next
+  upcoming plan is selected, as before.

@@ -3,15 +3,16 @@ import { app } from 'electron'
 import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync } from 'node:fs'
 import { stat, statfs } from 'node:fs/promises'
 import { Readable } from 'node:stream'
-import { basename, dirname, join, parse, relative, resolve, sep } from 'node:path'
+import { dirname, join, parse, relative, resolve, sep } from 'node:path'
 import { backupDir, dataRoot, trackMirrorDir } from './paths'
 import { dataStatus, db, getSettings } from './db'
 import { localDate, localStamp } from '@shared/dates'
 import { checkSchema, runMigrations, SCHEMA_VERSION } from '@shared/migrations'
 import type { Song } from '@shared/types'
 import { reload as reloadBibles } from './bible'
-import { isTracksEntry, RESTORE_DIRS, restoreTarget, TRACKS_DIR } from './restorePath'
-import { isTrackFileName, referencedTrackFiles } from '@shared/tracks'
+import { isMediaEntry, isTracksEntry, RESTORE_DIRS, restoreTarget, TRACKS_DIR } from './restorePath'
+import { isLibraryFileName, MEDIA_DIR } from '@shared/mediaLibrary'
+import { referencedTrackFiles } from '@shared/tracks'
 import {
   autoBackupDecision,
   autoBackupName,
@@ -23,6 +24,7 @@ import {
   makeManifest,
   mergeRestoredSettings,
   mustParseOnRestore,
+  settingsForBackup,
   parseAutoName,
   restoredMeta,
   SAFETY_WITH_TRACKS_PREFIX,
@@ -31,7 +33,7 @@ import {
   staleTrackTemps,
   trackMirrorPlan
 } from '@shared/backupCore'
-import { copyFileAtomic, renameSyncWithRetry, writeFileAtomic, writeStreamAtomic } from './atomicWrite'
+import { copyFileAtomic, isBeingWritten, renameSyncWithRetry, writeFileAtomic, writeStreamAtomic } from './atomicWrite'
 import { ZipError, ZipReader, type ZipEntry } from './zipReader'
 import { songsListIsComplete, tracksInUse } from './tracks'
 import { log } from './log'
@@ -70,13 +72,22 @@ function exclusive<T>(fn: () => Promise<T>): Promise<T> {
   return run
 }
 
+/** run `fn` once no backup or restore is running (deleting a media copy must not pull a file from under a backup) */
+export function afterBackups(fn: () => void): void {
+  void exclusive(async () => fn())
+}
+
 type BackupResult = {
   ok: true
   path: string
   files: number
   bytes: number
-  /** the tracks were too many for one .zip: this backup holds the data only (they stay in tracks/ and backups/tracks/) */
+  /** the backing tracks (tracks/) had to stay out of this backup (they stay in tracks/ and backups/tracks/) */
   tracksLeftOut?: boolean
+  /** the media library (media/) had to stay out of this backup */
+  mediaLeftOut?: boolean
+  /** why something stayed out: over 4 GB for one .zip, or not enough room on the target's drive */
+  leftOutBecause?: 'too-large' | 'no-space'
 }
 export type BackupError = 'no-space' | 'too-large' | 'failed'
 
@@ -114,6 +125,7 @@ function fileWhenRead(f: string): Readable {
 /**
  * `writes`: the store's write count when the files were read (saves after that are not in this backup).
  * `tracks`: include the backing tracks (manual backups, and the safety copy before a restore that replaces them).
+ * `media`: include the media library's own copies, media/ (manual backups only: a restore never deletes from it).
  * `reserve`: bytes that must stay free on the target's disk afterwards (else BackupRoomError, and nothing is written).
  *
  * The files in data/ are read in one go, synchronously: no save can land between two of them, so the backup is one
@@ -121,7 +133,7 @@ function fileWhenRead(f: string): Readable {
  * slide-image files are streamed into the .zip one at a time (a track never changes after it is written; slide images
  * neither), and the .zip is streamed to the disk: a backup with every track (GBs) is never all in memory.
  */
-async function writeBackup(target: string, tracks: boolean, reserve: number): Promise<BackupResult & { writes: number }> {
+async function writeBackup(target: string, tracks: boolean, reserve: number, media = false): Promise<BackupResult & { writes: number }> {
   const store = db()
   store.flush()
   const writes = store.writeCount
@@ -136,15 +148,21 @@ async function writeBackup(target: string, tracks: boolean, reserve: number): Pr
     for (const inc of INCLUDE) {
       const isTracks = inc === TRACKS_DIR
       if (isTracks && !tracks) continue
+      const isMedia = inc === MEDIA_DIR
+      if (isMedia && !media) continue
       const isData = inc === 'data'
       for (const f of walk(join(root, inc))) {
         const rel = relative(root, f).split(sep).join('/')
         const name = /^data\/([^/]+)\.json$/.exec(rel)?.[1]
         if (name && recovered.has(name)) continue // added below
-        if (isTracks && !isTrackFileName(basename(f))) continue
+        // only what a restore takes back (restoreTarget): track files and the library's own copies, directly in their
+        // folder. A folder of photos or a Thumbs.db dropped into media/ would only take room in the .zip, and could
+        // push the real library out of it
+        if ((isTracks || isMedia) && !restoreTarget(root, rel)) continue
         try {
           if (isData) {
-            const data = readFileSync(f)
+            // (settings.json without the remote PIN, see settingsForBackup)
+            const data = rel === 'data/settings.json' ? Buffer.from(settingsForBackup(readFileSync(f, 'utf8'))) : readFileSync(f)
             zip.file(rel, data)
             bytes += data.length
           } else {
@@ -152,8 +170,8 @@ async function writeBackup(target: string, tracks: boolean, reserve: number): Pr
             const s = fileWhenRead(f)
             opened.push(s)
             bytes += size
-            // track files are already compressed (Opus): stored as they are
-            zip.file(rel, s, isTracks ? { compression: 'STORE', binary: true } : { binary: true })
+            // tracks (Opus) and pictures / videos / sound are already compressed: stored as they are
+            zip.file(rel, s, isTracks || isMedia ? { compression: 'STORE', binary: true } : { binary: true })
           }
         } catch (e) {
           if ((e as NodeJS.ErrnoException).code === 'ENOENT') continue // removed since the folder was listed
@@ -167,7 +185,7 @@ async function writeBackup(target: string, tracks: boolean, reserve: number): Pr
       bytes += Buffer.byteLength(json)
       files++
     }
-    zip.file(MANIFEST, JSON.stringify(makeManifest(app.getVersion(), tracks)))
+    zip.file(MANIFEST, JSON.stringify(makeManifest(app.getVersion(), tracks, new Date(), media)))
     mkdirSync(dirname(target), { recursive: true })
     // the .zip is never bigger than its files, except a few headers each
     const room = backupRoom(bytes + (files + 1) * 512, await freeBytes(dirname(target)), reserve)
@@ -175,7 +193,15 @@ async function writeBackup(target: string, tracks: boolean, reserve: number): Pr
     const out = zip.generateNodeStream({ type: 'nodebuffer', streamFiles: true, compression: 'DEFLATE', compressionOptions: { level: 6 } }) as Readable
     // JSZip keeps a read error of a file it hasn't reached yet to itself (the backup would never finish): stop it
     for (const s of opened) s.on('error', (e) => out.destroy(e))
-    await writeStreamAtomic(target, out)
+    try {
+      await writeStreamAtomic(target, out)
+    } catch (e) {
+      // the disk filled up while writing (a quota'd share that reported the whole drive's free space, or something
+      // else writing to the stick meanwhile): the half-written .tmp is gone, so try again with less, like no room
+      const code = (e as NodeJS.ErrnoException).code
+      if (code === 'ENOSPC' || code === 'EDQUOT') throw new BackupRoomError('no-space')
+      throw e
+    }
     return { ok: true, path: target, files, bytes: statSync(target).size, writes }
   } finally {
     for (const s of opened) s.destroy() // a failed backup didn't read them all: close any still open
@@ -187,22 +213,35 @@ const reserveFor = (target: string) =>
   parse(resolve(target)).root.toLowerCase() === parse(resolve(dataRoot())).root.toLowerCase() ? MIN_FREE_BYTES : 1024 * 1024
 
 /**
- * "Back up now": everything, backing tracks included (the copy to take to another PC or a USB stick). When the tracks
- * are too many for one .zip (over 4 GB), the data is still backed up, without them (`tracksLeftOut`: the operator is
- * told to copy the tracks folder too) — a church with a big library must never be left with no backup at all.
+ * "Back up now": everything, the media library and backing tracks included (the copy to take to another PC or a USB
+ * stick). When that is too much for one .zip (over 4 GB) or for the room on the target's disk (a small USB stick), the
+ * media library is left out first (`mediaLeftOut`), then the tracks instead, then both (`tracksLeftOut`), and
+ * `leftOutBecause` says why: the operator is told which folders to copy as well, and where — a church with a big
+ * library must never be left with no backup at all.
  */
 export function createBackup(target: string): Promise<BackupResult | { ok: false; error: BackupError }> {
   return exclusive(async () => {
+    const tries = [
+      { tracks: true, media: true },
+      { tracks: true, media: false },
+      { tracks: false, media: true },
+      { tracks: false, media: false }
+    ]
+    let because: BackupRoomError['reason'] | undefined
     try {
-      try {
-        const { writes: _writes, ...r } = await writeBackup(target, true, reserveFor(target))
-        return r
-      } catch (e) {
-        if (!(e instanceof BackupRoomError && e.reason === 'too-large')) throw e
-        log.warn('backup too large with the backing tracks: saved without them')
-        const { writes: _writes, ...r } = await writeBackup(target, false, reserveFor(target))
-        return { ...r, tracksLeftOut: true }
+      for (const [n, a] of tries.entries()) {
+        try {
+          const { writes: _writes, ...r } = await writeBackup(target, a.tracks, reserveFor(target), a.media)
+          log.info(`backup made: ${r.files} files, ${Math.round(r.bytes / 1e6)} MB${a.tracks ? '' : ', tracks left out'}${a.media ? '' : ', media left out'}`)
+          if (!because) return r
+          return { ...r, mediaLeftOut: !a.media || undefined, tracksLeftOut: !a.tracks || undefined, leftOutBecause: because }
+        } catch (e) {
+          if (!(e instanceof BackupRoomError) || n === tries.length - 1) throw e
+          because = e.reason
+          log.warn(`backup (tracks ${a.tracks ? 'in' : 'out'}, media ${a.media ? 'in' : 'out'}): ${e.reason}, trying with less`)
+        }
       }
+      throw new Error('unreachable')
     } catch (e) {
       if (e instanceof BackupRoomError) {
         log.warn('backup not made:', e.reason)
@@ -323,8 +362,13 @@ async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: Restor
     const dest = restoreTarget(root, entry.name)
     if (!dest) continue
     const rel = relative(root, dest)
-    // tracks/ is replaced only by a backup that says it holds the tracks
+    // tracks/ is replaced only by a backup that says it holds the tracks; media/ is only added to, from one that holds it
     if (isTracksEntry(rel) && !m.hasTracks) continue
+    if (isMediaEntry(rel) && !m.hasMedia) continue
+    // a library copy is named by a unique id and never changes: one already here is the same file — not counted,
+    // unpacked or replaced (a playing video's file may be locked, restoring on the same PC needs no room, and a
+    // restore only ever adds to media/: one it replaced couldn't be put back if the restore then failed)
+    if (isMediaEntry(rel) && existsSync(join(root, rel))) continue
     wanted.push({ entry, rel })
   }
   // a full disk must stop the restore before anything is unpacked (the safety copy checks its own room next)
@@ -429,8 +473,11 @@ async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: Restor
     // tracks this restore adds to tracks/: with a data-only safety copy, putting it back leaves tracks/ alone, so
     // these must be taken out again by hand for "your previous data was put back" to be true
     const addedTracks: string[] = []
+    // media files this restore adds: never in the safety copy (media/ is only ever added to), so a failed restore
+    // takes them out again by hand
+    const addedMedia: string[] = []
     try {
-      replaceFrom(root, staged, replaceTracks, addedTracks)
+      replaceFrom(root, staged, replaceTracks, addedTracks, addedMedia)
     } catch (e) {
       log.error('restore failed while replacing files; putting the safety backup back', e)
       let putBackOk = true
@@ -441,6 +488,7 @@ async function doRestore(zipPath: string): Promise<{ ok: boolean; error?: Restor
         log.error('could not put the safety backup back', e2)
       }
       if (putBackOk && !replaceTracks) removeAddedTracks(root, addedTracks)
+      if (putBackOk) removeAdded(root, MEDIA_DIR, addedMedia)
       db().reset()
       reloadBibles()
       if (putBackOk) await fillMissingTracks(db().list<Song>('songs'))
@@ -473,21 +521,23 @@ function removeLeftoverTempDirs(root: string): void {
  * Staged tracks are always moved in. The other files in tracks/ are removed only when `replaceTracks` (the backup
  * holds the tracks, and so does the safety copy); otherwise they are left as they are. Track files that weren't in
  * tracks/ before are listed in `addedTracks` as they go in (even if a later file fails), so a failed restore can
- * take them out again.
+ * take them out again. media/ is only ever added to (its files are named by unique ids, and the church's library
+ * can be far bigger than any safety copy): new ones are listed in `addedMedia` the same way.
  */
-function replaceFrom(root: string, staged: Map<string, string>, replaceTracks: boolean, addedTracks: string[] = []): void {
+function replaceFrom(root: string, staged: Map<string, string>, replaceTracks: boolean, addedTracks: string[] = [], addedMedia: string[] = []): void {
   for (const [rel, tmp] of staged) {
     const dest = join(root, rel)
     mkdirSync(dirname(dest), { recursive: true })
-    const added = isTracksEntry(rel) && !existsSync(dest)
+    const added = (isTracksEntry(rel) || isMediaEntry(rel)) && !existsSync(dest)
     // the staged file is complete and already on the disk (written atomically, flushed), on the same disk: one
     // rename puts it in place — no second copy of a 60 MB track in memory or on the disk, and never half a file
     renameSyncWithRetry(tmp, dest)
-    if (added) addedTracks.push(dest)
+    if (added) (isMediaEntry(rel) ? addedMedia : addedTracks).push(dest)
   }
   const keep = new Set([...staged.keys()].map((r) => r.toLowerCase()))
   for (const inc of INCLUDE) {
     if (inc === TRACKS_DIR && !replaceTracks) continue
+    if (inc === MEDIA_DIR) continue // never removed by a restore (see above)
     for (const f of walk(join(root, inc), [], true)) {
       const rel = relative(root, f)
       if (!keep.has(rel.toLowerCase()) && !keptOnRestore(rel)) unlinkSync(f)
@@ -497,7 +547,12 @@ function replaceFrom(root: string, staged: Map<string, string>, replaceTracks: b
 
 /** Take out the track files a failed restore added (best effort: one that can't go now is only an unused track). */
 function removeAddedTracks(root: string, files: readonly string[]): void {
-  const dir = join(root, TRACKS_DIR)
+  removeAdded(root, TRACKS_DIR, files)
+}
+
+/** Take out the files a failed restore added to tracks/ or media/ (best effort: one left over is only unused). */
+function removeAdded(root: string, folder: string, files: readonly string[]): void {
+  const dir = join(root, folder)
   let n = 0
   for (const f of files) {
     if (!within(dir, f)) continue
@@ -506,10 +561,10 @@ function removeAddedTracks(root: string, files: readonly string[]): void {
       n++
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== 'ENOENT')
-        log.warn('could not take out a track the failed restore added', (e as NodeJS.ErrnoException).code || 'error')
+        log.warn(`could not take out a ${folder} file the failed restore added`, (e as NodeJS.ErrnoException).code || 'error')
     }
   }
-  if (n) log.info('tracks the failed restore added were taken out again:', n)
+  if (n) log.info(`${folder} files the failed restore added were taken out again:`, n)
 }
 
 async function putBack(root: string, safetyZip: string): Promise<void> {
@@ -546,8 +601,8 @@ async function putBack(root: string, safetyZip: string): Promise<void> {
 
 const mirrorDir = trackMirrorDir
 
-/** Remove `<track>.ogg.tmp` files a cut-off save or copy left in `dir` (nothing else ever would). Best effort. */
-function removeStaleTrackTemps(dir: string): void {
+/** Remove `<track>.ogg.tmp` (or media/'s `<id>.<ext>.tmp`) files a cut-off save or copy left in `dir`. Best effort. */
+function removeStaleTrackTemps(dir: string, isName?: (name: string) => boolean): void {
   try {
     if (!existsSync(dir)) return
     const files = readdirSync(dir).flatMap((name) => {
@@ -557,9 +612,9 @@ function removeStaleTrackTemps(dir: string): void {
         return []
       }
     })
-    for (const name of staleTrackTemps(files, Date.now())) {
+    for (const name of staleTrackTemps(files, Date.now(), undefined, isName)) {
       const f = join(dir, name)
-      if (!within(dir, f)) continue
+      if (!within(dir, f) || isBeingWritten(f)) continue // (a large copy still going)
       try {
         unlinkSync(f)
       } catch {
@@ -589,6 +644,7 @@ export async function mirrorTracks(): Promise<void> {
     const dst = mirrorDir()
     removeStaleTrackTemps(src)
     removeStaleTrackTemps(dst)
+    removeStaleTrackTemps(join(dataRoot(), MEDIA_DIR), isLibraryFileName) // a media copy cut off by a crash
     const tracks = existsSync(src) ? readdirSync(src) : []
     if (!tracks.length && !existsSync(dst)) return
     mkdirSync(dst, { recursive: true })

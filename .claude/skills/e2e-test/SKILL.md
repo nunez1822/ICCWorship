@@ -52,6 +52,13 @@ Do **not** fix bugs during the run — record them. Read `docs/e2e_testing/READM
 - Freezing / crashing the operator page (TC-RES-33): `queueMessageBox(0)` **before**, start `while (true) {}` from a
   `setTimeout` so the call returns, and use CDP `Page.crash` from a Node script, not the MCP (it may close the crashed
   page, which quits the app). A frozen page never answers the MCP again: don't call it until the window restarted.
+  After a crash the MCP may keep the restarted tab as "crashed": use plain CDP from Node for the rest of that case.
+- Queue every native dialog answer **before** the click: an unqueued Save As / Open hangs the MCP ~30 min. The queue
+  is first in, first out and survives a failed click (the next dialog then uses the stale answer): check `main.log`.
+- Error toasts stay 15 s; judge a retry's outcome from `main.log`, not the toast on screen.
+- On the Live page, target the plan row, not `getByText(<item>)` (it can match the top-bar label).
+- More gotchas (simulating a Windows shutdown, long generated media, Bash and `\\n` in inline JS): see
+  `docs/e2e_testing/README.md`.
 - App log (attach the relevant lines to failure reports): `.e2e-data/.userdata/logs/main.log`.
 - Remote PIN: `browser_evaluate` → `(await window.api.settings.get()).remotePin`. The phone `/stage` page needs it
   too: open `/stage#pin=<PIN>`. TC-SEC-04 locks out the whole device for minutes — run it last.

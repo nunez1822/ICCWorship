@@ -24,6 +24,7 @@
 ### TC-MSG-04 · Auto-hide  `P2`
 **Steps**
 1. Settings → Seconds on screen = 5. Send a message; wait 7 s.
+2. Set Seconds on screen back to 30 (later message cases expect the default).
 **Expected**
 - Banner disappears by itself.
 
@@ -66,8 +67,11 @@
 **Steps**
 1. Put the video live (Media → the video → Show now). 2. Look at the phone's stage page, then the app's stage window.
 **Expected**
-- Both show "🎬 <video title>" in the current-slide box — never an empty box. When the video is the next slide,
-  the "Next" column shows the same.
+- Both show "🎬 <video title>" in the current-slide box — never an empty box.
+- Next column: a video is always its own plan item, so after a song the stage's Next shows "⏭ <item title>". To see a
+  video *slide* as the next slide, push one from the operator tab's console:
+  `await window.api.live.update({ slides: [{ id: 'a', kind: 'text', text: { en: 'Line', es: 'Línea' } }, { id: 'b', kind: 'video', media: '<the video’s media:// url>', group: 'sample' }], slideIndex: 0 })`
+  — both stages show "🎬 sample" under Next.
 
 ### TC-STG-07 · A slide the stage can't draw doesn't blank the stage  `P1`
 **Pre:** stage window open (Settings → Screens → 🎤 Open stage display).

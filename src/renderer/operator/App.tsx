@@ -62,7 +62,11 @@ export function App() {
   const [clients, setClients] = useState(0)
 
   useEffect(() => {
-    void useApp.getState().load()
+    // then: ICCWorship closed unexpectedly mid-service last time? offer to put that item back on screen
+    void useApp
+      .getState()
+      .load()
+      .then(() => live.offerResume())
     const off = window.api.live.onCommand(live.handleCommand)
     const offSettings = window.api.settings.onChange((s) => {
       useApp.setState({ settings: s })
@@ -255,7 +259,18 @@ export function App() {
       </nav>
       {dataStatus?.readOnly && (
         <div className="readonly-banner" role="alert">
-          <span>⚠ {t(dataStatus.newerSchema ? 'data.readOnlyNewer' : dataStatus.upgradeFailed ? 'data.readOnlyUpgradeFailed' : 'data.readOnly')}</span>
+          <span>
+            ⚠{' '}
+            {t(
+              dataStatus.locked
+                ? 'data.readOnlyLocked'
+                : dataStatus.newerSchema
+                  ? 'data.readOnlyNewer'
+                  : dataStatus.upgradeFailed
+                    ? 'data.readOnlyUpgradeFailed'
+                    : 'data.readOnly'
+            )}
+          </span>
           <button
             className="btn sm"
             onClick={() => void window.api.app.openBackups().then((ok) => ok || useApp.getState().toast(t('data.openBackupsFailed'), 'err'))}
@@ -304,7 +319,14 @@ export function App() {
           <div key={x.id} className={`toast ${x.kind}`}>
             {x.text}
             {x.action && (
-              <button className="btn sm toast-action" onClick={x.action.run}>
+              <button
+                className="btn sm toast-action"
+                onClick={() => {
+                  // a toast's button is used once ("Put it back" clicked again later would put an old slide back)
+                  useApp.getState().dismissToast(x.id)
+                  x.action?.run()
+                }}
+              >
                 {x.action.label}
               </button>
             )}

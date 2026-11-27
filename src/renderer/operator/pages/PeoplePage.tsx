@@ -102,7 +102,13 @@ function People() {
         </div>
       </div>
       {person && (
-        <div className="card col" style={{ position: 'sticky', top: 0, alignSelf: 'start' }}>
+        // a side panel, not a dialog (it doesn't block the list): a named region for screen readers
+        <div
+          className="card col"
+          role="region"
+          aria-label={`${person.firstName} ${person.lastName}`.trim() || t('people.title')}
+          style={{ position: 'sticky', top: 0, alignSelf: 'start' }}
+        >
           <div className="grid2">
             <Field label={t('people.firstName')}>
               <input className="input" value={person.firstName} onChange={(e) => save({ ...person, firstName: e.target.value })} autoFocus />
@@ -141,7 +147,8 @@ function People() {
               ))}
             </div>
           </Field>
-          <Field label={t('item.notes')}>
+          {/* the person's own notes: "Notes", not the plan item's "Notes (operator & stage)" (never shown on stage) */}
+          <Field label={t('people.notes')}>
             <textarea className="textarea" rows={3} value={person.notes || ''} onChange={(e) => save({ ...person, notes: e.target.value })} />
           </Field>
           <button

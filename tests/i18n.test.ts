@@ -76,7 +76,7 @@ describe('translations', () => {
       stageQuick: ['wrap', 'slow', 'repeat', 'louder'],
       themes: ['bold', 'shadow', 'outline', 'uppercase'],
       // print.ts reads these directly (the run sheet is printed in the plan's language)
-      runSheet: ['time', 'item', 'who', 'min', 'notes', 'team', 'total', 'printed', 'position', 'person', 'status', 'track']
+      runSheet: ['time', 'item', 'who', 'min', 'notes', 'team', 'total', 'printed', 'position', 'person', 'status', 'track', 'missing', 'open']
     }
     const missing: string[] = []
     for (const [fam, keys] of Object.entries(families)) for (const k of keys) if (!EN.has(`${fam}.${k}`)) missing.push(`${fam}.${k}`)
