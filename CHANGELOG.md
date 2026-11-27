@@ -171,6 +171,42 @@ All notable changes to ICCWorship are documented here. The format is based on
 - The untested macOS and Linux build targets. ICCWorship is a Windows app.
 
 ### Fixed
+- **Data opened read-only (saved by a newer version) no longer pretends to save.** Adding media, editing or deleting
+  now says the data is read-only instead of "added", and nothing disappears after a restart.
+- **Typing in a dropdown no longer works the projector.** Letters, numbers and Esc typed in a list chosen with Tab
+  (to jump to an option) used to turn on Black or the Logo, change the screen language or clear the screen.
+- **Space after a song or verse shown with Show now** continues with the plan item after the last one shown, instead
+  of starting the plan again at its first item (the countdown).
+- The live plan row's **ON AIR** label is translated, and turns grey ("Off air") while the screen is cleared.
+- A quick message (nursery, parking…) follows the language order when it is changed while the message is up.
+- Double-clicking the item that is already live follows the backing track's timing (or restarts a track that ended)
+  instead of jumping to slide 1 while the music plays on.
+- The stage's **Next** during a song's instrumental ending shows the next item, and the stage shows both titles of a
+  bilingual announcement.
+- The red "the projector kept failing" message goes away once the projector is back.
+- The plan chosen on the Live page stays chosen if the window reloads.
+- A scripture item whose main Bible version is missing shows its second version instead of nothing (with a warning).
+- The chosen sound output is found again after a restart, instead of falling back to the default speakers.
+- Blank lines in a one-language song section start a new slide, as the editor says.
+- Spanish lyrics imported from ChordPro, and Spanish slides from a text-only PowerPoint import, go in the Spanish box.
+- Pictures for **Images as slides** are copied into the ICCWorship folder (backups carry them), like PDF pages.
+- The same picture or video added under another file name is recognised as already in the library.
+- Removing a picture used as a theme's background resets that theme to the default background.
+- A missing songs or plans file is reported on screen, not only in the log.
+- Backups no longer include the phone remote's PIN. **Back up now** and diagnostics are logged, and **Export
+  diagnostics** creates its folder.
+- The log's "(last message repeated N times)" line keeps the level of the repeated message.
+- Settings: the number of connected phones updates live, and the logo shows its picture instead of an internal path.
+- Presentations no longer says PowerPoint isn't installed while it is still looking for it.
+- The red read-only bar no longer covers the bottom of the page.
+- Plans: a duplicated plan is named "(copy)", a blank plan gets a dated name, deleting the plan on the Live page says
+  so, and the run sheet marks deleted items and open team slots.
+- Themes: deleting the theme on screen switches to the default at once; long theme names wrap.
+- People: the notes field says who reads it; the Team tab counts filled places.
+- Reports cover the whole year by default, so the coming Sunday's numbers show.
+- LBLA verses: deleting a saved verse asks first; the chosen versions stay when switching tabs; saving over the limit
+  still says the verses were saved; an abbreviation of symbols only is refused; a file with too few verses says so.
+- The phone remote says when the plan is empty. The media bar can be used from the keyboard.
 - **Dialogs take the keyboard focus**, so Enter or Space no longer also presses a button behind them. Tab stays inside
   the dialog, closing it puts the focus back on the button that opened it, Esc closes only the top one of two, and the
   close button is read out in the app's language.
