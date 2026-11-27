@@ -34,7 +34,10 @@ describe('keyBelongsToControl (do the live shortcuts leave this key alone?)', ()
     expect(keyBelongsToControl(kb({ tag: 'INPUT', type: 'range' }), 'ArrowRight')).toBe(true)
     expect(keyBelongsToControl(kb({ tag: 'INPUT', type: 'range' }), ' ')).toBe(false)
     expect(keyBelongsToControl(kb({ tag: 'SELECT' }), 'ArrowDown')).toBe(true)
-    expect(keyBelongsToControl(kb({ tag: 'SELECT' }), 'b')).toBe(false)
+    // typing in a dropdown jumps to an option; Esc closes it: never Black, Logo, the language keys or Clear all
+    for (const key of ['b', 'c', 'l', '1', '2', '3', '.', '?', 'Escape']) expect(keyBelongsToControl(kb({ tag: 'SELECT' }), key)).toBe(true)
+    expect(keyBelongsToControl({ tag: 'SELECT' }, 'b')).toBe(false) // clicked with the mouse: the shortcut, as before
+    expect(keyBelongsToControl(kb({ tag: 'SELECT' }), 'F1')).toBe(false)
     expect(keyBelongsToControl(kb({ tag: 'BUTTON' }), ' ')).toBe(false) // Space on a button: the shortcut (as before)
   })
 

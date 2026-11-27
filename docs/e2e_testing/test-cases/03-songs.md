@@ -28,6 +28,9 @@ Backing-track fixture: `tests/fixtures/sample-stereo.mp3` — 12 s, 1 kHz tone i
 1. Open **A Mighty Fortress Is Our God** (9 lines per verse). Change Lines / slide 3 → 9.
 **Expected**
 - Preview drops from 6 slides to 2. Spanish and English stay aligned line-for-line.
+- A section in one language only, with blank lines between groups of lines (e.g. English `Line one/Line two`,
+  blank, `Line three/Line four`, blank, `Line five/Line six`, Lines / slide 4): each group is its own slide (3
+  slides of 2 lines), as the editor's hint says.
 
 ### TC-SONG-04 · Accent-insensitive search  `P0`
 **Steps**
@@ -58,6 +61,8 @@ Backing-track fixture: `tests/fixtures/sample-stereo.mp3` — 12 s, 1 kHz tone i
 **Expected**
 - Song "E2E Chord Song", key G, CCLI 7654321. Projector shows lyrics **without** `[G]` brackets.
 - Stage shows chord names above the lyrics when 🎸 is on.
+- A ChordPro file with Spanish lyrics (e.g. `{title: Prueba}` / `{soc}` / `Cuán grande es Él, mi corazón entona` /
+  `{eoc}` in `.e2e-data/tmp/es.cho`) lands in the **Español** box (only the ES pill); an English one in English.
 
 ### TC-SONG-08 · Export OpenLyrics round trip  `P2`
 **Steps**
@@ -100,7 +105,8 @@ Reload the operator (`location.reload()`), then do TC-SONG-12.
 2. **📂 Choose a file…** (the queued `sample-stereo.mp3`). 3. **✓ Yes — use it as is**.
 **Expected**
 - The window shows a progress bar, then the toast "🎵 Backing track ready." and closes. A click beside the window
-  while it works does not close it.
+  while it works does not close it. (The 12 s fixture finishes in well under a second: check the click-beside bullet
+  with a long file, e.g. `ffmpeg -f lavfi -i "sine=frequency=440:duration=360" -ac 2 .e2e-data/tmp/six-min.mp3` queued for a **Replace…**.)
 - The card shows "▶ Listen · sample-stereo.mp3 · ⏱ Record timing · Replace… · Remove"; **🎵 Show with track** appears next to Show now.
 - `(await window.api.db.list('songs')).find(s => s.id === 'track-test').track` →
   `{ url: 'media://local/tracks%2Ftrack-test-<digits>.ogg', sourceName: 'sample-stereo.mp3', vocalsRemoved: false }`,
@@ -173,7 +179,8 @@ Reload the operator (`location.reload()`), then do TC-SONG-12.
 
 ### TC-SONG-18 · Cancel while the file is still being read makes no track  `P1`
 **Pre:** TC-SONG-12's setup, "Track Test" without a backing track; a large audio file queued
-(`window.api.e2e.queueOpenFiles([...])`, a few minutes long so reading takes a moment)
+(`window.api.e2e.queueOpenFiles([...])`) long enough that reading takes a moment — the 12 s fixture is too short;
+make one after launching, e.g. `ffmpeg -f lavfi -i "sine=frequency=440:duration=1080" -ac 2 .e2e-data/tmp/long18.mp3`
 **Steps**
 1. **＋ Add backing track…** → **📂 Choose a file…** → **✓ Yes — use it as is**.
 2. While it says "Reading…", **Cancel** and accept the confirm (stub `window.confirm = () => true` in the same call).
@@ -191,7 +198,9 @@ the sample again. Repeat 3 times.
 - The sample plays every time, and closing the window stops it at once (no sound left playing).
 
 ### TC-SONG-20 · Replacing the live song's track mid-song: Esc then Space still plays  `P1`
-**Pre:** "Track Test" live with its music; a second file queued (`window.api.e2e.queueOpenFiles([...])`)
+**Pre:** "Track Test" live with its music, using a track of several minutes (the 12 s fixture ends before steps 1–3
+can be done: Replace "Track Test"'s track first with `ffmpeg -f lavfi -i "sine=frequency=440:duration=360" -ac 2 .e2e-data/tmp/six-min.mp3`); a second file queued
+(`window.api.e2e.queueOpenFiles([...])`)
 **Steps**
 1. Songs → "Track Test" → **Replace…** → choose the file → **Use it as is**. 2. `Esc`. 3. `Space`.
 4. Double-click another plan item.

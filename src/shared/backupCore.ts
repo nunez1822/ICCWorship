@@ -224,6 +224,22 @@ export const MACHINE_SETTINGS = [
   'audioOutputLabel'
 ] as const
 
+/**
+ * settings.json as it goes into a backup: without the phone remote's PIN (a backup on a USB stick must not carry the
+ * key to the church's LAN remote; a restore keeps this PC's PIN anyway, see MACHINE_SETTINGS). A file that can't be
+ * parsed goes in as it is: keeping the church's data comes first.
+ */
+export function settingsForBackup(json: string): string {
+  try {
+    const s = JSON.parse(json.charCodeAt(0) === 0xfeff ? json.slice(1) : json) as unknown
+    if (!s || typeof s !== 'object' || Array.isArray(s) || !('remotePin' in s)) return json
+    const { remotePin: _pin, ...rest } = s as Record<string, unknown>
+    return JSON.stringify(rest, null, 1)
+  } catch {
+    return json
+  }
+}
+
 export function mergeRestoredSettings(restored: Record<string, unknown>, current: Record<string, unknown>): Record<string, unknown> {
   const out = { ...restored }
   for (const k of MACHINE_SETTINGS) {

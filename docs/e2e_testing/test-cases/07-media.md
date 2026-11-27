@@ -12,10 +12,11 @@ Fixtures: `sample.mp4` (5 s color bars + tone), `sample.jpg`, `sample.mp3` (4 s 
 - While adding: "Copying into the library: <file>". `.e2e-data/media/` now holds three `<id>.<ext>` copies, and
   `db.list('media')` paths are `media/<id>.<ext>` with `source` = the original file.
 - Adding the same three files again only says they are already in the library (no new copies).
-- If saving an added file fails partway (e.g. the data is open read-only because it was written by a newer version),
-  an error toast says so, the "Working… <file>" pill goes away (it never stays on screen), the library shows only
-  the items really saved, and the files added before it are announced ("n added"). A broken file whose thumbnail
-  can't be made is simply added without a thumbnail.
+- With the data open read-only (written by a newer version, red bar showing): **Add files** says once "Not saved: this
+  data is open read-only (see the red bar at the bottom)." — no "could not be copied" per file, no "n files added", no cards, nothing in `media/`.
+- If saving an added file fails partway for another reason, an error toast says so, the "Working… <file>" pill goes
+  away (it never stays on screen), the library shows only the items really saved, and the files added before it are
+  announced ("n added"). A broken file whose thumbnail can't be made is simply added without a thumbnail.
 
 ### TC-MED-02 · Play an MP4 on the projector  `P0` 📸
 **Steps**
@@ -78,7 +79,8 @@ Fixtures: `sample.mp4` (5 s color bars + tone), `sample.jpg`, `sample.mp3` (4 s 
 **Expected**
 - Cards disappear, and both copies in `.e2e-data/media/` are deleted, also while that default theme is the live one
   (the live theme doesn't keep a copy). The theme shows the built-in gradient (as the Themes page shows "—"): a theme
-  doesn't keep a removed item's file. The picture that was the background on screen (Use as background now) is
+  doesn't keep a removed item's file, and the theme itself is saved with that gradient (Themes shows it; previews no
+  longer ask for the missing file: no "Failed to load resource" in the console). The picture that was the background on screen (Use as background now) is
   replaced on the projector by the theme's background first, so its copy is deleted too.
 - A plan slide or something really on screen still keeps its copy (TC-MED-13).
 - 3: the original file on disk still exists (ICCWorship never deletes the church's own files).

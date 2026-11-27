@@ -10,7 +10,7 @@ import './bootstrap' // must stay the first import: it adjusts app paths before 
 import { app, dialog, powerMonitor, protocol, screen } from 'electron'
 import { db, getSettings, prepareData, seedIfEmpty } from './db'
 import { live } from './live'
-import { setCommandHandler, stopServer } from './server'
+import { setClientsHandler, setCommandHandler, stopServer } from './server'
 import { autoBackup, createSafetyBackup } from './backup'
 import { dataRoot } from './paths'
 import { log, setLogDataRoot } from './log'
@@ -141,6 +141,7 @@ app
     live.init()
     registerIpc()
     setCommandHandler((cmd) => forwardCommand(cmd))
+    setClientsHandler((count) => send(wins.operator, 'server:clients', count))
     createOperator()
     lifecycle.started = true
     if (getSettings().outputEnabled) createOutput()

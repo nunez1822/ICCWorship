@@ -51,6 +51,24 @@ describe('run sheet team', () => {
   it('drops slots whose person was deleted', () => {
     expect(html).not.toContain('Lights')
   })
+  it('says an open slot is open (not "pending" with a blank name)', () => {
+    const row = html.slice(html.indexOf('Projection'))
+    expect(row.slice(0, row.indexOf('</tr>'))).toContain('open — someone is needed')
+    expect(row.slice(0, row.indexOf('</tr>'))).not.toContain('pending')
+  })
+  it('marks items whose song, media or presentation was deleted, as the Live page does', () => {
+    const items: ServicePlan['items'] = [
+      { id: 'i1', type: 'song', title: 'Gone song', refId: 'nope', durationMin: 4 },
+      { id: 'i2', type: 'media', title: 'Gone video', refId: 'nope', durationMin: 4 },
+      { id: 'i3', type: 'song', title: 'Here', refId: 's1', durationMin: 4 }
+    ]
+    const out = runSheetHtml(
+      { ...plan, items },
+      { people: [], teams: [], lang: 'en', churchName: 'ICC', songs: [{ id: 's1' } as Song], media: [], presentations: [] }
+    )
+    expect(out.match(/⚠ deleted from the library/g)).toHaveLength(2)
+    expect(out.slice(out.indexOf('Here'))).not.toContain('⚠')
+  })
   it('tells the sound person which songs play a backing track', () => {
     const songs = [
       { id: 's1', track: { url: 'u', sourceName: '', vocalsRemoved: false } },

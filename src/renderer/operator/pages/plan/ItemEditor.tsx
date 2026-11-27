@@ -232,7 +232,7 @@ export function ItemEditor({ item, planDate, onClose, onSave }: { item: PlanItem
               <select className="select" value={it.refId} onChange={(e) => set({ refId: e.target.value })}>
                 {s.presentations.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name} ({p.slides.length})
+                    {p.name} · {t(`media.method.${p.method}`)} ({p.slides.length})
                   </option>
                 ))}
               </select>

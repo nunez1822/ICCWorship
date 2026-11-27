@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { MediaItem, MediaKind, Presentation, Slide } from '@shared/types'
 import { uid } from '@shared/slides'
-import { useApp } from '../store'
+import { toastError, useApp } from '../store'
 import { activePlan, showAdhoc, syncPlanSummary, updateLive } from '../liveControl'
 import { Modal, Seg, confirmDel } from '../../components/ui'
 import { SlideView } from '../../components/SlideView'
@@ -12,6 +12,10 @@ import { AUDIO_EXT, IMAGE_EXT, VIDEO_EXT, backgroundFromMedia, fileName, kindOf,
 import { renderPdfPages } from '../../lib/pdf'
 
 const PRES_EXT = ['pptx', 'ppt', 'ppsx', 'pps', 'odp', 'pdf']
+
+type Converters = { powerpoint: boolean; libreoffice: string | null }
+/** PowerPoint / LibreOffice found on this computer (asked once per session) */
+let convertersFound: Converters | null = null
 
 export function MediaPage() {
   const { t } = useTranslation()
@@ -55,6 +59,9 @@ export function MediaPage() {
   const addMediaPaths = async (paths: string[]) => {
     // the same file added again: by where it was copied from, or the file it links to
     const known = new Set(s.media.flatMap((m) => [m.path, m.source].filter((x): x is string => !!x).map((x) => x.toLowerCase())))
+    // data opened read-only (written by a newer version): nothing can be added — say so once, instead of "could not
+    // be copied" for each file and cards that vanish at the next start
+    if (s.dataStatus?.readOnly) return toastError(new Error('read-only'))
     const copy = s.settings.copyMediaToLibrary !== false
     let n = 0
     let already = 0
@@ -71,6 +78,13 @@ export function MediaPage() {
           setBusy(`${t('media.copying')} ${fileName(p)}`)
           // (read-only data refuses the copy: the item links to the file, like a copy that didn't fit)
           const r = await window.api.media.copyIn(p).catch(() => ({ ok: false as const, error: 'failed' as const }))
+          // the same picture or video under another name: it is in the library already
+          // (main found a byte-identical copy and returned its path; a copy no item uses yet is simply reused)
+          if (r.ok && r.duplicate && s.media.some((m) => m.path === r.path)) {
+            already++
+            known.add(p.toLowerCase())
+            continue
+          }
           if (r.ok) stored = r.path
           else s.toast(t(r.error === 'no-space' ? 'media.copyNoSpace' : 'media.copyFailed', { name: fileName(p) }), 'err', 10_000)
         }
@@ -88,10 +102,11 @@ export function MediaPage() {
           } satisfies MediaItem)
         } catch (e) {
           if (stored !== p) void window.api.media.discardCopy(stored) // no item points to the copy
-          // the card was shown before the save failed: show the library as it really is, and what did get added
+          // the card was shown before the save failed: show the library as it really is, say why (e.g. read-only),
+          // and stop the batch (what did get added is announced below)
           void s.reload('media')
-          if (n) s.toast(t('media.added', { count: n }))
-          throw e
+          toastError(e)
+          break
         }
         known.add(p.toLowerCase())
         n++
@@ -369,10 +384,18 @@ function Library() {
 function Presentations({ onReimport }: { onReimport: (p: Presentation) => void }) {
   const { t } = useTranslation()
   const s = useApp()
-  const [tools, setTools] = useState<{ powerpoint: boolean; libreoffice: string | null } | null>(null)
+  const [tools, setTools] = useState<Converters | null>(convertersFound)
   const [open, setOpen] = useState<Presentation | null>(null)
   useEffect(() => {
-    void window.api.pres.detect().then(setTools)
+    // looked up once per session (it takes ~2 s): every later visit shows it at once
+    if (convertersFound) return
+    void window.api.pres
+      .detect()
+      .then((r) => {
+        convertersFound = r
+        setTools(r)
+      })
+      .catch(() => setTools({ powerpoint: false, libreoffice: null }))
   }, [])
   return (
     <div className="col">
@@ -389,7 +412,8 @@ function Presentations({ onReimport }: { onReimport: (p: Presentation) => void }
           '…'
         )}
         <span className="small muted" style={{ flexBasis: '100%' }}>
-          {tools?.powerpoint ? t('media.ppHelpOk') : tools?.libreoffice ? t('media.ppHelpLo') : t('media.ppHelpNone')} {t('media.animNote')}
+          {!tools ? t('media.ppChecking') : tools.powerpoint ? t('media.ppHelpOk') : tools.libreoffice ? t('media.ppHelpLo') : t('media.ppHelpNone')}{' '}
+          {tools && t('media.animNote')}
         </span>
       </div>
       {!s.presentations.length && (
@@ -458,8 +482,12 @@ function PresentationModal({ pres, onClose, onReimport }: { pres: Presentation; 
             className="btn ghost"
             onClick={async () => {
               if (!confirmDel(t('media.confirmRemovePres') + usedInPlansNote(s.plans, pres.id, t))) return
-              await s.remove('presentations', pres.id)
-              onClose()
+              try {
+                await s.remove('presentations', pres.id)
+                onClose()
+              } catch (e) {
+                toastError(e) // e.g. data opened read-only: said, never an unhandled error
+              }
             }}
           >
             🗑️ {t('common.delete')}

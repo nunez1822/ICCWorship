@@ -24,6 +24,7 @@ import {
   makeManifest,
   mergeRestoredSettings,
   mustParseOnRestore,
+  settingsForBackup,
   parseAutoName,
   restoredMeta,
   SAFETY_WITH_TRACKS_PREFIX,
@@ -160,7 +161,8 @@ async function writeBackup(target: string, tracks: boolean, reserve: number, med
         if ((isTracks || isMedia) && !restoreTarget(root, rel)) continue
         try {
           if (isData) {
-            const data = readFileSync(f)
+            // (settings.json without the remote PIN, see settingsForBackup)
+            const data = rel === 'data/settings.json' ? Buffer.from(settingsForBackup(readFileSync(f, 'utf8'))) : readFileSync(f)
             zip.file(rel, data)
             bytes += data.length
           } else {
@@ -230,6 +232,7 @@ export function createBackup(target: string): Promise<BackupResult | { ok: false
       for (const [n, a] of tries.entries()) {
         try {
           const { writes: _writes, ...r } = await writeBackup(target, a.tracks, reserveFor(target), a.media)
+          log.info(`backup made: ${r.files} files, ${Math.round(r.bytes / 1e6)} MB${a.tracks ? '' : ', tracks left out'}${a.media ? '' : ', media left out'}`)
           if (!because) return r
           return { ...r, mediaLeftOut: !a.media || undefined, tracksLeftOut: !a.tracks || undefined, leftOutBecause: because }
         } catch (e) {

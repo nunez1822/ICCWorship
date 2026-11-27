@@ -16,6 +16,7 @@ browser (`/stage`) uses the same PIN.
 **Expected**
 - Green dot, plan title, current item, preview card with the live slide text, big ◀ ▶ buttons.
 - The URL no longer shows the PIN (it is removed from the address bar). Operator top bar 📱 count goes up by 1 within ~5 s (it counts every phone and browser stage page; the app's own stage window isn't counted).
+- With Settings open, its "N connected" goes up at once when the phone connects, and down when the phone tab is closed (no need to leave and reopen Settings).
 
 ### TC-REM-03 · Next / previous from the phone  `P0`
 **Steps**
@@ -31,9 +32,10 @@ browser (`/stage`) uses the same PIN.
 
 ### TC-REM-05 · Jump to plan item / slide  `P1`
 **Steps**
-1. Phone → Plan tab → tap "Doxology". 2. Slides tab → tap slide 1.
+1. Phone → Plan tab → tap "Doxology". 2. Plan tab → tap a song with several slides (e.g. "A Mighty Fortress"), then
+   Slides tab → tap slide 4.
 **Expected**
-- Doxology goes live; the tapped slide is highlighted on phone and projector.
+- Doxology goes live; then that song goes live on slide 4, and the tapped slide is highlighted on phone and projector.
 
 ### TC-REM-06 · Messages from the phone  `P1`
 **Steps**
@@ -56,6 +58,8 @@ browser (`/stage`) uses the same PIN.
 
 ### TC-REM-09 · Too many devices is not a wrong PIN  `P2`
 The server allows 32 phones and stage screens at once.
+**Pre:** close every other remote and stage page first (the phone's own remote/stage tabs, the stage window), or the
+script gets fewer than 32 places and the phone simply reconnects in the one it freed.
 **Steps**
 1. node, from the repo root, keep it running:
 ```js

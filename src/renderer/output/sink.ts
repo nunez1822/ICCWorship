@@ -29,13 +29,20 @@ function sinkFor(o: Output): Promise<string> {
   const key = keyOf(o)
   if (!o?.id && !o?.label) return Promise.resolve('')
   if (cache?.key === key) return cache.id
-  const id = (async () => {
+  const find = async () => {
     const outs = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audiooutput')
-    const d = outs.find((x) => !!o.id && x.deviceId === o.id) || outs.find((x) => !!o.label && x.label === o.label)
-    if (d) return d.deviceId
+    return (outs.find((x) => !!o.id && x.deviceId === o.id) || outs.find((x) => !!o.label && x.label === o.label))?.deviceId
+  }
+  const id = (async () => {
+    // right after the projector page starts (a relaunch), the device list can still be incomplete: look once more
+    // before telling the operator the device is gone
+    const found = (await find()) ?? (await new Promise((r) => setTimeout(r, 1000)).then(find))
+    if (found) return found
+    if (cache?.key === key) cache = null // not found: the next video looks again (no devicechange may ever come)
     report(key)
     return ''
   })().catch(() => {
+    if (cache?.key === key) cache = null
     report(key)
     return ''
   })

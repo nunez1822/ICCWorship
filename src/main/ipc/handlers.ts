@@ -61,11 +61,21 @@ export function createHandlers() {
     },
     'db:list': (c: string): unknown[] => (isCollection(c) ? db().list(c) : []),
     'db:get': (c: string, id: string): unknown => (isCollection(c) ? db().get(c, id) : undefined),
-    'db:upsert': (c: string, item: { id: string }): unknown => (isCollection(c) ? db().upsert(c, item) : item),
+    // Read-only data (from a newer version): a change the operator makes is refused, so the page says it isn't saved
+    // (the store would otherwise keep it in memory only, and it would be gone after a restart). Song usage is logged
+    // as a song goes live: it stays a quiet no-op, never an error in the middle of the service.
+    'db:upsert': (c: string, item: { id: string }): unknown => {
+      if (!isCollection(c)) return item
+      if (c !== 'usage') assertWritable()
+      return db().upsert(c, item)
+    },
     'db:upsertMany': (c: string, items: { id: string }[]): void => {
-      if (isCollection(c)) db().upsertMany(c, items)
+      if (!isCollection(c)) return
+      if (c !== 'usage') assertWritable()
+      db().upsertMany(c, items)
     },
     'db:remove': (c: string, id: string): void => {
+      if (isCollection(c) && c !== 'usage') assertWritable()
       if (c === 'presentations') deletePresentation(id)
       else if (c === 'media') removeMediaItem(id) // and its library copy, when nothing else shows it
       else if (isCollection(c)) {
@@ -214,7 +224,10 @@ export function createHandlers() {
     /* ---------------- backup ---------------- */
     'backup:create': async () => {
       const r = await saveDialog({ defaultPath: defaultBackupName(), filters: [{ name: 'ICCWorship backup', extensions: ['zip'] }] })
-      if (r.canceled || !r.filePath) return null
+      if (r.canceled || !r.filePath) {
+        log.info('backup: cancelled (no file chosen)')
+        return null
+      }
       const res = await createBackup(r.filePath)
       if (res.ok) setSettings({ lastManualBackup: Date.now() }) // "Ready for Sunday?" judges the backup line on it
       return res

@@ -52,6 +52,9 @@ Stop the app: `taskkill /F /IM electron.exe`. Relaunch keeping data: `pnpm e2e:l
 - No second set of windows; the existing operator window comes to the front; data untouched.
 
 ### TC-RES-07 · Media missing when it goes live  `P0`
+**Pre:** Settings → Backup → untick **Keep a copy of added pictures, videos and sound in the ICCWorship folder** (with
+it on, the library plays its own copy in `.e2e-data/media/` and deleting the original changes nothing; alternatively
+delete that copy instead of `gone.mp4`). Tick it again afterwards.
 **Steps**
 1. Copy sample.mp4 to `.e2e-data/tmp/gone.mp4`, add it to the library and to the plan, with another item after it.
 2. Delete `gone.mp4` from disk (simulates a USB stick that was removed). Go live on the item.
@@ -64,6 +67,9 @@ Stop the app: `taskkill /F /IM electron.exe`. Relaunch keeping data: `pnpm e2e:l
 - `Space` moves on to the next item normally.
 
 ### TC-RES-08 · Restore a backup made on another computer  `P1`
+**Pre:** Settings → Backup → untick **Keep a copy of added pictures, videos and sound in the ICCWorship folder**
+before step 1 (with it on, `other.jpg` is copied into the library and travels in the backup, so it is never missing).
+Tick it again afterwards.
 **Steps**
 1. Add `.e2e-data/tmp/other.jpg` to the library and a plan; import `tests/fixtures/sample.pdf` (Media → PowerPoint & PDF); **Back up now**.
 2. Delete `other.jpg` from disk; restore the backup **into a different data folder**: quit, copy the zip, launch with
@@ -169,7 +175,9 @@ projector first — earlier crashes in the last minute count toward the limit.
 **Expected**
 - After the 4th crash the projector shows plain black (URL ends in `#safe`) and the operator gets a red message
   pointing to Restart projector — it does not keep reloading.
-- Step 2: the projector shows the live song again.
+- Step 2: the projector shows the live song again, and the red "The projector kept failing…" message goes away at
+  once (it doesn't stay its 2 minutes). The same when the projector recovers by itself (the "restarted" message
+  replaces it).
 
 ### TC-RES-22 · Frozen projector is restarted  `P1`
 **Steps**
@@ -374,3 +382,6 @@ projector first — earlier crashes in the last minute count toward the limit.
 - 2: KJV and the imported Bible show the verse; RV1909 is simply not available (no crash, no frozen page, every other
   lookup that session still works).
 - `main.log` has `unreadable built-in bible skipped: rv1909 SyntaxError` and no verse text.
+- A plan scripture item with RV1909 as its main version and KJV as its second (the sample plan's John 3:16-17) shows
+  the KJV text alone, with the warning "One of this item's Bible versions is not installed on this computer: showing
+  the other one." (never an empty screen).

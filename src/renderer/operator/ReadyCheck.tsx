@@ -4,7 +4,7 @@ import { preflight, verdict, type Check, type CheckAction } from '@shared/prefli
 import { Modal } from '../components/ui'
 import { backupNow } from './backupNow'
 import { gatherPreflight } from './preflight'
-import { useApp } from './store'
+import { projectorBack, useApp } from './store'
 
 const ICON = { ok: '✅', warn: '⚠️', error: '❌' } as const
 
@@ -63,6 +63,7 @@ export function ReadyCheck({ onClose }: { onClose: () => void }) {
       setBusy(true)
       try {
         await (a === 'openOutput' ? window.api.output.open() : window.api.output.restart())
+        projectorBack()
       } catch (e) {
         window.api.app.log('warn', `ready check ${a} failed: ${e instanceof Error ? e.name : 'error'}`)
         useApp.getState().toast(t('ready.actFailed'), 'err')

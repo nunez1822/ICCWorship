@@ -26,6 +26,9 @@ export function BiblePage() {
   const [tab, setTab] = useState<Tab>('lookup')
   const [ref, setRef] = useState('')
   const [pasteRef, setPasteRef] = useState('')
+  // the versions chosen on Look up survive a visit to the other tabs ("Paste them now" and back keeps LBLA)
+  const app = useApp()
+  const versions = useState<{ primary?: string; secondary?: string }>({ primary: app.settings.bibleEs, secondary: app.settings.bibleEn })
   return (
     <div className="page">
       <div className="page-head">
@@ -42,6 +45,7 @@ export function BiblePage() {
         <Lookup
           refText={ref}
           setRefText={setRef}
+          versions={versions}
           onPasteMissing={(r) => {
             setPasteRef(r)
             setTab('paste')
@@ -56,7 +60,7 @@ export function BiblePage() {
           }}
         />
       )}
-      {tab === 'paste' && <PasteVerses initialRef={pasteRef} />}
+      {tab === 'paste' && <PasteVerses initialRef={pasteRef} initialVersion={versions[0].primary} />}
       {tab === 'versions' && <Versions />}
     </div>
   )
@@ -87,11 +91,23 @@ function VersionSelect({
   )
 }
 
-function Lookup({ refText, setRefText, onPasteMissing }: { refText: string; setRefText: (s: string) => void; onPasteMissing: (r: string) => void }) {
+type Versions = [{ primary?: string; secondary?: string }, (v: { primary?: string; secondary?: string }) => void]
+
+function Lookup({
+  refText,
+  setRefText,
+  onPasteMissing,
+  versions: [chosen, setChosen]
+}: {
+  refText: string
+  setRefText: (s: string) => void
+  onPasteMissing: (r: string) => void
+  versions: Versions
+}) {
   const { t } = useTranslation()
   const s = useApp()
-  const [primary, setPrimary] = useState<string | undefined>(s.settings.bibleEs)
-  const [secondary, setSecondary] = useState<string | undefined>(s.settings.bibleEn)
+  const { primary, secondary } = chosen
+
   const [res, setRes] = useState<{ p: PassageResult; s?: PassageResult } | null>(null)
   const parsed = refText.trim() ? parseReference(refText) : null
   const bookPart = refText.replace(/\s*\d+[\d:.,\- ]*$/, '')
@@ -165,8 +181,7 @@ function Lookup({ refText, setRefText, onPasteMissing }: { refText: string; setR
             value={primary}
             onChange={(v) => {
               // picking the second language's version as main swaps them (never the same text twice)
-              if (v && v === secondary) setSecondary(primary)
-              setPrimary(v)
+              setChosen(v && v === secondary ? { primary: v, secondary: primary } : { ...chosen, primary: v })
             }}
             bibles={s.bibles}
           />
@@ -183,9 +198,9 @@ function Lookup({ refText, setRefText, onPasteMissing }: { refText: string; setR
                   secondary ||
                   [s.settings.bibleEs, s.settings.bibleEn, ...s.bibles.map((b) => b.id)].find((id) => id && id !== v && s.bibles.some((b) => b.id === id))
                 if (!other) return
-                setPrimary(other)
+                return setChosen({ primary: other, secondary: v })
               }
-              setSecondary(v)
+              setChosen({ ...chosen, secondary: v })
             }}
             allowNone
             bibles={s.bibles}
@@ -288,11 +303,12 @@ function Search({ onPick }: { onPick: (ref: string) => void }) {
   )
 }
 
-function PasteVerses({ initialRef }: { initialRef: string }) {
+function PasteVerses({ initialRef, initialVersion }: { initialRef: string; initialVersion?: string }) {
   const { t } = useTranslation()
   const s = useApp()
   const pasted = s.bibles.filter((b) => b.source === 'pasted')
-  const [vid, setVid] = useState<string | undefined>(pasted[0]?.id)
+  // the pasted version chosen on Look up ("Paste them now"), else the first one
+  const [vid, setVid] = useState<string | undefined>(pasted.find((b) => b.id === initialVersion)?.id ?? pasted[0]?.id)
   const [ref, setRef] = useState(initialRef)
   const [text, setText] = useState('')
   const [parsed, setParsed] = useState<{ verses: Verse[]; notFound: number[] } | null>(null)
@@ -326,13 +342,17 @@ function PasteVerses({ initialRef }: { initialRef: string }) {
 
   const save = async () => {
     if (!vid || !parsed) return
-    const r = await window.api.bible.savePasted(
-      vid,
-      parsed.verses.filter((v) => v.text.trim())
-    )
+    const filled = parsed.verses.filter((v) => v.text.trim())
+    let r: Awaited<ReturnType<typeof window.api.bible.savePasted>>
+    try {
+      r = await window.api.bible.savePasted(vid, filled)
+    } catch (e) {
+      return toastError(e) // e.g. data opened read-only: said, and the verses stay in the boxes
+    }
     await s.refreshBibles()
+    // saved either way: say so, and over the limit warn as well
+    s.toast(t('bible.savedVerses', { count: filled.length }))
     if (r.overLimit) s.toast(t('bible.overLimit', { limit: info?.verseLimit }), 'err')
-    else s.toast(t('bible.savedVerses', { count: parsed.verses.filter((v) => v.text.trim()).length }))
     setParsed(null)
     setText('')
   }
@@ -458,9 +478,16 @@ function PasteVerses({ initialRef }: { initialRef: string }) {
                     <span style={{ flex: 1 }}>{v.text}</span>
                     <button
                       className="btn sm ghost"
+                      title={t('bible.deleteVerse', { ref: `${c}:${v.verse}` })}
+                      aria-label={t('bible.deleteVerse', { ref: `${c}:${v.verse}` })}
                       onClick={async () => {
-                        await window.api.bible.deletePastedVerse(vid!, v.book, v.chapter, v.verse)
-                        await s.refreshBibles()
+                        if (!confirmDel(t('bible.confirmDeleteVerse', { ref: `${bookName(b, info?.lang || 'es')} ${c}:${v.verse}` }))) return
+                        try {
+                          await window.api.bible.deletePastedVerse(vid!, v.book, v.chapter, v.verse)
+                          await s.refreshBibles()
+                        } catch (e) {
+                          toastError(e)
+                        }
                       }}
                     >
                       ✕

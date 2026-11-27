@@ -59,6 +59,7 @@ export function orderedSections(song: Song): SongSection[] {
 /**
  * Build slides for a song. English and Spanish lyrics are paired slide-by-slide:
  *  - if both languages have the same number of paragraphs, paragraph i ↔ paragraph i
+ *  - one language only: each of its paragraphs (a blank line) starts a new slide
  *  - otherwise each language is split into the same number of chunks by line count
  * Then each chunk is broken further so no slide exceeds `linesPerSlide` lines.
  */
@@ -76,7 +77,14 @@ export function songToSlides(song: Song, opts: { ccliLicense?: string } = {}): S
     let pairs: { en: string[]; es: string[]; enC: string[]; esC: string[] }[]
     if (enP.length && esP.length && enP.length === esP.length) {
       pairs = enP.map((p, i) => ({ en: p, es: esP[i], enC: enChordP[i] || p, esC: esChordP[i] || esP[i] }))
+    } else if (!enP.length || !esP.length) {
+      // one language only: its blank lines start a new slide, as the editor says
+      pairs = enP.length
+        ? enP.map((p, i) => ({ en: p, es: [], enC: enChordP[i] || p, esC: [] }))
+        : esP.map((p, i) => ({ en: [], es: p, enC: [], esC: esChordP[i] || p }))
     } else {
+      // both languages, a different number of paragraphs: split both evenly, so every slide has both languages
+      // (pairing paragraph by paragraph would leave one language blank on some slides)
       const enLines = enP.flat()
       const esLines = esP.flat()
       const enCL = enChordP.flat()

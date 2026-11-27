@@ -2,13 +2,14 @@
  * The media library's own copies (see @shared/mediaLibrary): copying a file in when it is added, and removing the
  * copy when its item is deleted and nothing else shows it.
  */
-import { randomUUID } from 'node:crypto'
-import { mkdirSync, statSync, unlinkSync } from 'node:fs'
+import { createHash, randomUUID } from 'node:crypto'
+import { createReadStream, mkdirSync, readdirSync, statSync, unlinkSync } from 'node:fs'
 import { statfs } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
-import { libraryFileName, libraryFileToDelete, MEDIA_DIR } from '@shared/mediaLibrary'
-import type { MediaItem, Presentation, ServicePlan } from '@shared/types'
+import { isLibraryFileName, libraryFileName, libraryFileToDelete, MEDIA_DIR, themesWithoutBackground } from '@shared/mediaLibrary'
+import type { MediaItem, Presentation, ServicePlan, Theme } from '@shared/types'
 import { copyFileAtomic } from './atomicWrite'
+import { notify } from './appState'
 import { afterBackups } from './backup'
 import { assertWritable, db, getSettings } from './db'
 import { live } from './live'
@@ -19,7 +20,41 @@ import { within } from './pathGuard'
 /** leave room for saving the church's data (like automatic backups do) */
 const MIN_FREE_BYTES = 300 * 1024 * 1024
 
-export type CopyResult = { ok: true; path: string } | { ok: false; error: 'bad-file' | 'no-space' | 'failed' }
+/** duplicate: the library already had a byte-identical copy (another name, same content): `path` is that copy and
+ *  nothing new was written */
+export type CopyResult = { ok: true; path: string; duplicate?: true } | { ok: false; error: 'bad-file' | 'no-space' | 'failed' }
+
+/** sha-256 of a file, streamed (a video can be gigabytes) */
+function hashFile(f: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const h = createHash('sha256')
+    createReadStream(f)
+      .on('error', reject)
+      .on('data', (d) => h.update(d))
+      .on('end', () => resolve(h.digest('hex')))
+  })
+}
+
+/** a library copy with the same content as `src` (same size first: only those are read), or undefined */
+async function sameContentIn(dir: string, src: string, size: number): Promise<string | undefined> {
+  let names: string[]
+  try {
+    names = readdirSync(dir).filter(isLibraryFileName)
+  } catch {
+    return undefined // no media/ yet
+  }
+  const candidates = names.filter((n) => statSync(join(dir, n), { throwIfNoEntry: false })?.size === size)
+  if (!candidates.length) return undefined
+  const want = await hashFile(src)
+  for (const n of candidates) {
+    try {
+      if ((await hashFile(join(dir, n))) === want) return n
+    } catch {
+      /* being written or gone: not a match */
+    }
+  }
+  return undefined
+}
 
 /**
  * Copy a picture / video / sound file into media/ → its data-relative path ("media/<id>.<ext>"). Only media file
@@ -36,6 +71,9 @@ export async function copyIntoLibrary(src: unknown): Promise<CopyResult> {
     if (!st.isFile()) return { ok: false, error: 'bad-file' }
     const size = st.size
     const dir = join(dataRoot(), MEDIA_DIR)
+    // the same picture or video added again under another name: reuse the copy already there
+    const same = await sameContentIn(dir, src, size)
+    if (same) return { ok: true, path: `${MEDIA_DIR}/${same}`, duplicate: true }
     const fs = await statfs(dataRoot())
     if (fs.bavail * fs.bsize - size < MIN_FREE_BYTES) return { ok: false, error: 'no-space' }
     mkdirSync(dir, { recursive: true })
@@ -56,7 +94,15 @@ export function removeMediaItem(id: string): void {
   const store = db()
   const item = store.get<MediaItem>('media', id)
   store.remove('media', id)
-  if (item) deleteCopyIfUnused(item)
+  if (!item) return
+  // a theme whose background was this file shows the built-in gradient from now on: save that, so previews stop
+  // asking for the missing file (the renderer's media:// url for the item's path, as the theme stored it)
+  const themes = themesWithoutBackground(store.list<Theme>('themes'), 'media://local/' + encodeURIComponent(item.path))
+  if (themes) {
+    store.write('themes', themes)
+    notify({ type: 'themesChanged' })
+  }
+  deleteCopyIfUnused(item)
 }
 
 /**

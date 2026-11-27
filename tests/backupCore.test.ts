@@ -15,7 +15,8 @@ import {
   staleTrackTemps,
   trackMirrorPlan,
   backupRoom,
-  MAX_BACKUP_BYTES
+  MAX_BACKUP_BYTES,
+  settingsForBackup
 } from '../src/shared/backupCore'
 import { checkSchema, MIGRATIONS, runMigrations, SCHEMA_VERSION, type Migration } from '@shared/migrations'
 import { isLibraryFileName } from '@shared/mediaLibrary'
@@ -273,5 +274,19 @@ describe('leftover backup temp files', () => {
       { name: 'notes.tmp', mtime: 0 }
     ]
     expect(staleBackupTemps(files, now)).toEqual(['auto-2026-11-24-0930.zip.tmp'])
+  })
+})
+
+describe('settingsForBackup (settings.json inside a backup)', () => {
+  it('leaves out the remote PIN and keeps everything else', () => {
+    const out = JSON.parse(settingsForBackup(JSON.stringify({ churchName: 'Iglesia', remotePin: '123456', uiLang: 'es' })))
+    expect(out).toEqual({ churchName: 'Iglesia', uiLang: 'es' })
+  })
+  it('keeps a file it can not parse as it is (the church data comes first), and one with no PIN untouched', () => {
+    expect(settingsForBackup('{ not json')).toBe('{ not json')
+    expect(settingsForBackup('{"a":1}')).toBe('{"a":1}')
+  })
+  it('reads a file saved with a byte-order mark', () => {
+    expect(JSON.parse(settingsForBackup(String.fromCharCode(0xfeff) + '{"remotePin":"1","a":2}'))).toEqual({ a: 2 })
   })
 })

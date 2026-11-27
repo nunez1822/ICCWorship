@@ -244,3 +244,13 @@ describe('OpenLyrics: one-language Spanish songs', () => {
     expect(songFromOpenLyrics(out).title).toBe('Señor mi Dios')
   })
 })
+
+describe('songFromChordPro language', () => {
+  it('puts a Spanish song in the Español box, an English one in English', () => {
+    const es = songFromChordPro('{title: Cuán grande}\n{soc}\nCuán grande es Él, cuán grande es Él\nMi corazón entona la canción\n{eoc}')
+    expect(es.sections[0].es).toContain('Mi corazón')
+    expect(es.sections[0].en).toBe('')
+    const en = songFromChordPro('{title: Grace}\n{sov}\nAmazing grace how sweet the sound\nThat saved a wretch like me\n{eov}')
+    expect(en.sections[0].en).toContain('Amazing grace')
+  })
+})

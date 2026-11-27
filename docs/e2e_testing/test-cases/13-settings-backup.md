@@ -10,7 +10,9 @@
 **Steps**
 1. `queueOpenFiles([sample.jpg])` → Logo → **Choose**. Press `L`.
 **Expected**
-- Projector shows the image centered on black. ✕ removes it (back to church name).
+- Projector shows the image centered on black. Settings shows a small picture of the logo and "Logo picture (kept in
+  the media library)" — never the internal `media/<id>.jpg` name (with copying off: the file name, `sample.jpg`). ✕
+  removes it (back to church name).
 
 ### TC-SET-03 · Screens list  `P2`
 **Expected**
@@ -49,6 +51,9 @@
 **Expected**
 - Toast "Backup saved (N files, x MB)"; the zip exists and contains `iccworship-backup.json` and `data/songs.json`.
 - `iccworship-backup.json` has `"schemaVersion": 2` and `"hasTracks": true` (a manual backup carries the backing tracks).
+- `data/settings.json` inside the zip has **no** `remotePin` (a backup on a USB stick doesn't carry the remote's PIN;
+  a restore keeps this PC's PIN anyway).
+- `main.log` says `backup made: N files, x MB` (or `backup: cancelled (no file chosen)` when the dialog is cancelled).
 
 ### TC-BAK-02 · Restore replaces data with the backup  `P0`
 **Pre:** TC-BAK-01
@@ -78,7 +83,8 @@
 
 ### TC-SET-08 · Export diagnostics  `P1`
 **Steps**
-1. Settings → About → 📦 Export diagnostics… (queue a save path `.e2e-data/tmp/diag.zip` first). Leave "Include crash dumps" off.
+1. Settings → About → 📦 Export diagnostics… (queue a save path `.e2e-data/tmp/diag.zip` first; a fresh launch has
+   no `.e2e-data/tmp/`, so create it first — `mkdir -p .e2e-data/tmp`). Leave "Include crash dumps" off.
 2. Unzip it (Bash: `unzip -l` / `unzip -p`).
 **Expected**
 - Contains `logs/main.log`, `system.json`, `settings.json`, `data-summary.json`, `README.txt` — no `crash-dumps/`.
@@ -87,6 +93,7 @@
   (in a test run: the `.e2e-data` path) — not just `<data>` — and `"customDataFolder": true` (false on a normal install).
 - No file contains the Windows user name, a song lyric, a person's name or a prayer request (grep for a few you added).
 - Help menu (press Alt) has the same Export diagnostics, plus Open logs folder, Report a problem, Keyboard shortcuts.
+- Saving into a folder that doesn't exist yet creates it (as Back up now does).
 
 ### TC-SET-09 · Update check is off until turned on  `P1`
 **Steps**
@@ -108,9 +115,11 @@
   `system.json` of a diagnostics export says features are software/disabled). Untick it afterwards.
 
 ### TC-SET-11 · Help buttons that can't open something say so  `P2`
-`pnpm build` doesn't create the licences file (only `pnpm build:win` / `build:dir` do), so a test run has none.
+`pnpm build` doesn't create the licences file (only `pnpm build:win` / `build:dir` do), but one of those run earlier
+leaves it in `out/`, so a test run may have one.
 **Steps**
-1. Check `out/THIRD_PARTY_NOTICES.md` does **not** exist (rename it away if it does).
+1. Check whether `out/THIRD_PARTY_NOTICES.md` exists (`ls out/THIRD_PARTY_NOTICES.md`); if it does, rename it away
+   (e.g. to `.bak`) for this case.
 2. Settings → About → 📜 Open-source licences. 3. Help menu (press Alt) → Open-source licences.
 **Expected**
 - Each time a red toast: "The open-source licences file is missing from this copy of ICCWorship…" /
@@ -169,8 +178,10 @@
 2. Show a song (a CCLI usage entry would normally be saved); edit a song title; quit; open `songs.json` and `usage.json`.
 **Expected**
 - A red bar at the bottom says the data was saved by a newer ICCWorship and changes are **not** saved, with "Open backups folder".
+  Nothing sits under it: on Songs scrolled to the end, the last song is above the bar and can be clicked.
 - The service runs normally (projector, remote). Trying to delete a presentation or save a pasted Bible verse
-  says "Not saved: this data is open read-only (see the red bar at the bottom)" — the bar really is at the bottom.
+  says "Not saved: this data is open read-only (see the red bar at the bottom)" — the bar really is at the bottom — and
+  `main.log` has no `unhandled rejection` line for either.
 - After quitting, `songs.json`, `usage.json` and `meta.json` are byte-for-byte unchanged; no automatic backup was added.
 - Restoring is refused while read-only: see TC-BAK-13.
 
@@ -248,6 +259,9 @@
   then Test sound): the beep still plays (default speakers) and the toast says “Gone” isn't connected; after
   reloading the operator (`location.reload()`: a direct `settings.set` doesn't update the page's copy) the Settings
   list shows "Gone (not connected)" with a warning under it.
+- With a real output chosen, quit and `pnpm e2e:launch --keep`, then start a video at once: it plays through the
+  chosen output and `main.log` has no "the chosen sound output is not available" line (the projector looks again when
+  its device list isn't ready yet).
 - Two outputs with the same name (e.g. two identical USB interfaces): picking the second one saves **its** id
   (`(await window.api.settings.get()).audioOutputId` is the second device's id, not the first's), and the list
   shows the second one as chosen.
@@ -415,7 +429,9 @@ in `.e2e-data/backups/tracks/`; at least one other song
 - After steps 2–3: the track file is still in `.e2e-data/tracks/` (the log never says "removed unused backing
   tracks"), and its copy is still directly in `.e2e-data/backups/tracks/` (not in `gone-…`).
 - Step 4: "Track Test" is back and plays its track.
-- Step 5: the same, with the log saying `songs list missing: …`.
+- Step 5: the same, with the log saying `songs list missing: …`; at start the operator sees "⚠ The songs file is
+  missing from the data folder (and there was no backup copy beside it), so the list is empty. Restore a backup…"
+  (never an empty library with no word).
 
 ### TC-BAK-23 · A backup with more than 65,535 files restores every one of them  `P2` (manual)
 **Pre:** more than 65,535 files in `data/`, `cache/presentations/` and `tracks/` together (e.g. many imported

@@ -22,6 +22,8 @@ export type AppEvent =
   | { type: 'menu'; action: 'shortcuts' | 'about' }
   | { type: 'openFailed'; what: 'logs' | 'notices' }
   | { type: 'soundOutputMissing'; label: string }
+  /** main changed the themes (a removed picture's theme now has the built-in gradient): read them again */
+  | { type: 'themesChanged' }
 
 export type ServerStatus = { ok: boolean; error?: string }
 
@@ -35,5 +37,7 @@ export interface MainEvents {
   'output:status': { open: boolean }
   'output:testSound': undefined
   'server:status': ServerStatus
+  /** phones and stage screens connected now (with the PIN) */
+  'server:clients': number
   'displays:changed': undefined
 }

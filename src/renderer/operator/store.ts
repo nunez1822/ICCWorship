@@ -48,7 +48,8 @@ interface AppState {
   refreshBibles: () => Promise<void>
   setActivePlan: (id?: string) => void
   selectItem: (id?: string) => void
-  toast: (text: string, kind?: Toast['kind'], ms?: number, action?: Toast['action']) => void
+  /** shows a toast; returns its id (for dismissToast) */
+  toast: (text: string, kind?: Toast['kind'], ms?: number, action?: Toast['action']) => number
   /** closes a toast now (its button was used) */
   dismissToast: (id: number) => void
   /** readOnly: the data was written by a newer ICCWorship; nothing is saved this session */
@@ -138,7 +139,9 @@ export const useApp = create<AppState>((set, get) => ({
       bibles,
       live,
       outputOpen: out.open,
-      activePlanId: live.planId || active?.id
+      // what is live, else the plan this window had selected before a reload (or a restart after a crash of this
+      // window), else the next service
+      activePlanId: live.planId || remembered(plans) || active?.id
     })
     if (!listening) {
       listening = true
@@ -166,10 +169,15 @@ export const useApp = create<AppState>((set, get) => ({
         if (e.type === 'mainError') toast(i18n.t('recovery.mainError'), 'err', 15_000)
         else if (e.type === 'windowRecovered') {
           if (e.window === 'stage') toast(i18n.t('recovery.stageRestarted'), 'info', 10_000)
-          else if (e.safe) toast(i18n.t('recovery.projectorSafe'), 'err', 120_000)
-          else toast(i18n.t('recovery.projectorRestarted'), 'info', 10_000)
-        } else if (e.type === 'windowFailed') toast(i18n.t(e.window === 'output' ? 'recovery.projectorFailed' : 'recovery.stageFailed'), 'err', 120_000)
-        else if (e.type === 'renderError') toast(i18n.t(e.window === 'stage' ? 'recovery.stageRenderError' : 'recovery.renderError'), 'err', 10_000)
+          else if (e.safe) projectorTrouble = toast(i18n.t('recovery.projectorSafe'), 'err', 120_000)
+          else {
+            projectorBack()
+            toast(i18n.t('recovery.projectorRestarted'), 'info', 10_000)
+          }
+        } else if (e.type === 'windowFailed') {
+          const id = toast(i18n.t(e.window === 'output' ? 'recovery.projectorFailed' : 'recovery.stageFailed'), 'err', 120_000)
+          if (e.window === 'output') projectorTrouble = id
+        } else if (e.type === 'renderError') toast(i18n.t(e.window === 'stage' ? 'recovery.stageRenderError' : 'recovery.renderError'), 'err', 10_000)
         else if (e.type === 'gpuCrashed') toast(i18n.t('recovery.gpuCrashed'), 'err', 30_000)
         else if (e.type === 'update')
           toast(i18n.t('updates.available', { version: e.latest }), 'info', 30_000, {
@@ -184,12 +192,14 @@ export const useApp = create<AppState>((set, get) => ({
         else if (e.type === 'updateInstallFailed') toast(i18n.t(e.reason === 'live' ? 'updates.notWhileLive' : 'updates.installFailed'), 'err', 15_000)
         else if (e.type === 'diagnostics') toast(i18n.t(e.ok ? 'about.diagSaved' : 'about.diagFailed'), e.ok ? 'ok' : 'err')
         else if (e.type === 'openFailed') toast(i18n.t(e.what === 'logs' ? 'about.openLogsFailed' : 'about.noticesMissing'), 'err')
+        else if (e.type === 'themesChanged') void get().reload('themes')
         else if (e.type === 'soundOutputMissing') toast(i18n.t('errors.soundOutputMissing', { label: e.label || '?' }), 'err', 15_000)
       })
     }
     // damaged data files found at startup: say so (and where the damaged copy was kept)
     for (const p of await api.db.problems()) {
-      get().toast(i18n.t(p.kind === 'recovered' ? 'errors.dataRecovered' : 'errors.dataUnreadable', { what: p.name, file: p.savedAs || '' }), 'err', 30_000)
+      const key = p.kind === 'recovered' ? 'errors.dataRecovered' : p.kind === 'missing' ? 'errors.dataMissing' : 'errors.dataUnreadable'
+      get().toast(i18n.t(key, { what: p.name, file: p.savedAs || '' }), 'err', 30_000)
     }
     // data written by a newer ICCWorship: shown as a banner (App)
     set({ dataStatus: await api.app.dataStatus() })
@@ -254,6 +264,12 @@ export const useApp = create<AppState>((set, get) => ({
 
   setActivePlan(id) {
     set({ activePlanId: id, selectedItemId: undefined })
+    try {
+      if (id) sessionStorage.setItem(PLAN_KEY, id)
+      else sessionStorage.removeItem(PLAN_KEY)
+    } catch {
+      // storage blocked: the next service is picked after a reload, as before
+    }
   },
 
   selectItem(id) {
@@ -279,11 +295,12 @@ export const useApp = create<AppState>((set, get) => ({
       hide(same.id, Math.max(left, duration))
       // an error repeating an info message with the same text is shown as an error
       if (kind === 'err' && same.kind !== 'err') set((s) => ({ toasts: s.toasts.map((t) => (t.id === same.id ? { ...t, kind } : t)) }))
-      return
+      return same.id
     }
     const id = ++toastId
     set((s) => ({ toasts: [...s.toasts, { id, text, kind, action }] }))
     hide(id, duration)
+    return id
   },
 
   dismissToast(id) {
@@ -319,12 +336,31 @@ export function refuseWhileReadOnly(): boolean {
 /** set when this window was restarted after a problem (read and cleared by liveControl's followTick) */
 export const afterRecovery = { followCatchUp: false }
 
+/** the plan selected in this window, kept over a reload of the window (sessionStorage: this window only) */
+const PLAN_KEY = 'activePlanId'
+function remembered(plans: { id: string }[]): string | undefined {
+  try {
+    const id = sessionStorage.getItem(PLAN_KEY)
+    return id && plans.some((p) => p.id === id) ? id : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** the "projector kept failing / gave up" toast (2 minutes long): taken down once the projector is back */
+let projectorTrouble: number | undefined
+/** the projector was restarted (Restart projector, or it recovered by itself): its trouble message is out of date */
+export function projectorBack(): void {
+  if (projectorTrouble !== undefined) useApp.getState().dismissToast(projectorTrouble)
+  projectorTrouble = undefined
+}
+
 /** Tell the operator an action failed (instead of failing silently). */
 export function toastError(e: unknown): void {
   // anything that isn't an error or a string gets the generic message, never "[object Object]"
   const msg = errorMessage(e)
   // data from a newer version is open read-only: say what that means instead of a technical message
-  if (msg === 'read-only') return toastReadOnly()
+  if (msg === 'read-only') return void toastReadOnly()
   useApp.getState().toast(`⚠ ${msg || i18n.t('errors.generic')}`, 'err', 8000)
 }
 

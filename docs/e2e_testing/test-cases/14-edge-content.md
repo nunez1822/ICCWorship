@@ -122,6 +122,8 @@ $t = "{title: Señor Jesús}`n[G]Canción de alabanza, ¡Señor!"
 - Step 2–4: a panel "1 song is already in your library" (matched by CCLI number, or title + first line) with Skip / Replace / Keep both.
   Skip: nothing changes ("1 song skipped"). Replace: same library entry (plans keep it), author back to the file's. Keep both: a second song "E2E Test Hymn (2)".
 - Step 5: the PDF asks "Already imported" — Update (same presentation) / Keep both / Cancel; the image says "1 file was already in the library".
+- The same picture under another file name (copy `sample.jpg` to `.e2e-data/tmp/otra.jpg`, add it): no second copy
+  in `.e2e-data/media/` (the library spots the same content and reuses the copy already there).
 
 ### TC-EDGE-13 · Long and emoji screen messages  `P1` 📸
 **Steps**
@@ -153,7 +155,7 @@ $t = "{title: Señor Jesús}`n[G]Canción de alabanza, ¡Señor!"
 2. Phone remote → Plan tab.
 **Expected**
 - Clear empty state; keys do nothing harmful (B still toggles black); no console errors.
-- Phone shows an empty plan gracefully.
+- Phone shows an empty plan gracefully: the Plan tab says "No items in this plan." (not a blank area).
 
 ### TC-EDGE-17 · Scripture with no second language  `P1`
 **Steps**

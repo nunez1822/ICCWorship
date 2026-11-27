@@ -5,6 +5,7 @@
 1. People → Directory → **Add person** → First `Ana`, Last `Test`, phone `555-0100`, language Español, teams Worship + Kids.
 **Expected**
 - Row shows Ana Test, phone, "Worship, Kids & Nursery", ES. Search `ana` finds her.
+- The editor's notes field is labelled "Notes (for the team leader)" (person notes are never shown on the stage).
 
 ### TC-PPL-02 · Teams & positions  `P2`
 **Steps**
@@ -28,7 +29,8 @@
 ### TC-REP-01 · Attendance & offering summary  `P1`
 **Pre:** TC-PLAN-09 on a plan dated within the current year
 **Steps**
-1. Reports (range = this year).
+1. Reports. The default range is the whole current year (From = 1 January, To = 31 December), so a plan dated
+   later this year (the coming Sunday) is included; if the plan is dated in another year, set From/To around it.
 **Expected**
 - Services count ≥ 1, average attendance 85, offerings $412.50, a bar for that date and a row for that month.
 

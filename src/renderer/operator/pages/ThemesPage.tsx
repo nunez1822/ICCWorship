@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Background, Slide, Theme } from '@shared/types'
 import { uid } from '@shared/slides'
-import { useApp } from '../store'
+import { toastError, useApp } from '../store'
 import { Field, Seg, confirmDel } from '../../components/ui'
 import { SlideView } from '../../components/SlideView'
 import { toMediaUrl } from '../../lib/media'
@@ -85,7 +85,10 @@ export function ThemesPage() {
                 <SlideView slide={SAMPLE} theme={th} displayLang="es" order="es-first" thumb />
               </div>
               <div style={{ minWidth: 0 }}>
-                <div className="title">{th.name}</div>
+                {/* the whole name: "(copy)" and "(copy 2)" must be told apart */}
+                <div className="title wrap" title={th.name}>
+                  {th.name}
+                </div>
                 <div className="sub">
                   {th.id === s.settings.defaultThemeId && <span className="pill gold">{t('themes.default')}</span>} {th.builtIn && t('themes.builtIn')}
                 </div>
@@ -273,8 +276,19 @@ function ThemeEditor({ theme, onDuplicate, onDeleted }: { theme: Theme; onDuplic
               className="btn ghost"
               onClick={async () => {
                 if (!confirmDel(t('themes.confirmDelete'))) return
-                if (s.settings.defaultThemeId === theme.id) await s.setSettings({ defaultThemeId: 'theme-classic' })
-                await s.remove('themes', theme.id)
+                try {
+                  if (s.settings.defaultThemeId === theme.id) await s.setSettings({ defaultThemeId: 'theme-classic' })
+                  await s.remove('themes', theme.id)
+                } catch (e) {
+                  return toastError(e)
+                }
+                // the theme on screen right now: the screen moves to the default theme at once (not only from the
+                // next item: a deleted theme's picture would otherwise stay up)
+                if (useApp.getState().live?.theme?.id === theme.id) {
+                  const st = useApp.getState()
+                  const fallback = st.themes.find((x) => x.id === st.settings.defaultThemeId) || st.themes[0]
+                  if (fallback) await updateLive({ theme: fallback, background: themeBackground(fallback, st.media) })
+                }
                 onDeleted()
               }}
             >

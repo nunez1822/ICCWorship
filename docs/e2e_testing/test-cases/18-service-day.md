@@ -47,7 +47,8 @@ run them before a release. Check the projector, stage and phone at every marked 
 2. Check projector, stage and phone preview.
 **Expected**
 - English on top everywhere (lyrics, verses, message banner, footer order); Spanish below in the second-language style.
-- Switch back to Spanish-first: all update.
+- Switch back to Spanish-first: all update, including a nursery message already on the projector (it reorders at
+  once). Pressing `1` / `2` shows that message in one language only, like the slides.
 
 ### TC-DAY-06 · Saturday rehearsal doesn't double-count CCLI  `P1`
 **Steps**
@@ -103,7 +104,9 @@ run them before a release. Check the projector, stage and phone at every marked 
 ### TC-DAY-12 · The choir sings with a timed backing track  `P1`
 **Pre:** "Track Test" with recorded timing (TC-SONG-17), in today's plan with the track on (TC-PLAN-13 steps 1–2)
 **Steps**
-1. Go live with the song from the plan; the volunteer presses nothing during the song. 2. After the last line, `Space`.
+1. Go live with the song from the plan; the volunteer presses nothing during the song. 2. After the last line, while
+   the music still plays: `Space` (the outro: text off, music finishing), then `Space` again (the next item).
 **Expected**
-- Intro without text, every slide on time by itself, the outro after the last line (music finishing), then the next
-  item on `Space`. The stage display counted the choir in.
+- Intro without text, every slide on time by itself; the first `Space` after the last line gives the outro, the
+  second the next item (by design: one press never skips the outro). The stage display counted the choir in.
+- During the outro the stage's **Next** shows "⏭ <next item>", not the last lyric slide.

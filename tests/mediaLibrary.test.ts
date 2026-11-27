@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vite-plus/test'
-import { isLibraryFileName, isLibraryPath, libraryFileName, libraryFileToDelete } from '@shared/mediaLibrary'
+import {
+  isLibraryFileName,
+  isLibraryPath,
+  libraryFileName,
+  libraryFileToDelete,
+  THEME_FALLBACK_BACKGROUND,
+  themesWithoutBackground
+} from '@shared/mediaLibrary'
+import type { Theme } from '@shared/types'
 
 describe('libraryFileName', () => {
   it('names a copy after its id, keeping the media extension', () => {
@@ -53,5 +61,18 @@ describe('libraryFileToDelete', () => {
     expect(libraryFileToDelete(item, { ...none, media: [{ id: 'm2', path: abs }] })).toBeNull()
     expect(libraryFileToDelete(item, { ...none, logoPath: abs })).toBeNull()
     expect(libraryFileToDelete(item, { ...none, elsewhere: [[], [{ slides: [{ image: abs }] }]] })).toBeNull()
+  })
+})
+
+describe('themesWithoutBackground (a removed picture or video behind a theme)', () => {
+  const url = 'media://local/' + encodeURIComponent('media/abc.jpg')
+  const theme = (id: string, background: Theme['background']) => ({ id, name: id, background }) as unknown as Theme
+  it('gives the built-in gradient to the themes that used that file, keeping their dim', () => {
+    const out = themesWithoutBackground([theme('a', { type: 'image', value: url, dim: 0.5 }), theme('b', { type: 'color', value: '#000' })], url)!
+    expect(out[0].background).toEqual({ ...THEME_FALLBACK_BACKGROUND, dim: 0.5 })
+    expect(out[1].background).toEqual({ type: 'color', value: '#000' })
+  })
+  it('null when no theme used it (nothing to save)', () => {
+    expect(themesWithoutBackground([theme('a', { type: 'video', value: 'media://local/other.mp4' })], url)).toBeNull()
   })
 })

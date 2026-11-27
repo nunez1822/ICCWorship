@@ -153,6 +153,14 @@ export function seedIfEmpty(): void {
   const meta = s.read<{ seeded?: number }>('meta', {})
   ensurePin()
   if (meta.seeded) {
+    // a data folder set up before whose songs or plans file is gone (deleted, a half-finished sync), with no .bak:
+    // the operator must be told (an empty song library with no word would look like every song was deleted)
+    for (const name of ['songs', 'plans'] as const) {
+      if (s.loadedAs(name) === 'missing') {
+        log.warn(`${name} file missing from a data folder that had it`)
+        s.problems.push({ name, kind: 'missing' })
+      }
+    }
     // make sure built-in themes are always present (they may be updated between versions)
     const themes = s.list<Theme>('themes')
     const custom = themes.filter((t) => !t.builtIn)

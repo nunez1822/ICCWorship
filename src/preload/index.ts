@@ -41,7 +41,7 @@ const api = {
     upsert: <T extends { id: string }>(c: string, item: T) => invoke('db:upsert', c, item) as Promise<T>,
     upsertMany: <T extends { id: string }>(c: string, items: T[]): Promise<void> => invoke('db:upsertMany', c, items),
     remove: (c: string, id: string): Promise<void> => invoke('db:remove', c, id),
-    problems: (): Promise<{ name: string; kind: 'recovered' | 'unreadable'; savedAs?: string }[]> => invoke('db:problems'),
+    problems: (): Promise<{ name: string; kind: 'recovered' | 'unreadable' | 'missing'; savedAs?: string }[]> => invoke('db:problems'),
     onWriteError: (cb: (e: { name: string; message: string }) => void) => on('db:writeError', cb)
   },
   settings: {
@@ -148,7 +148,9 @@ const api = {
     restart: (): Promise<{ ok: boolean; error?: string }> => invoke('server:restart'),
     /** generate a new 6-digit PIN in main (disconnects phones and stage screens using the old one) */
     newPin: (): Promise<Settings> => invoke('server:newPin'),
-    onStatus: (cb: (s: { ok: boolean; error?: string }) => void) => on('server:status', cb)
+    onStatus: (cb: (s: { ok: boolean; error?: string }) => void) => on('server:status', cb),
+    /** phones and stage screens connected now (with the PIN): whenever one connects or goes away */
+    onClients: (cb: (count: number) => void) => on('server:clients', cb)
   },
   backup: {
     create: (): Promise<

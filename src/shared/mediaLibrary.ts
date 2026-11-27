@@ -8,7 +8,7 @@
  * A copy is stored data-relative ("media/<id>.<ext>", like converted slides) and resolved by main's mediaFile().
  * Pure, unit tested (tests/mediaLibrary.test.ts).
  */
-import type { MediaItem } from './types'
+import type { Background, MediaItem, Theme } from './types'
 
 export const MEDIA_DIR = 'media'
 
@@ -69,4 +69,26 @@ export function libraryFileToDelete(
   )
     return null
   return item.path
+}
+
+/** the built-in gradient a theme falls back to when its picture or video was removed (as buildSlides shows it) */
+export const THEME_FALLBACK_BACKGROUND: Background = {
+  type: 'gradient',
+  value: 'radial-gradient(ellipse at 50% 30%, #1d3557 0%, #0b1324 70%, #05080f 100%)'
+}
+
+/**
+ * A media item was removed: the themes whose background was that file (its media:// url, `url`) get the built-in
+ * gradient instead, keeping their dim — what the screen already showed for them — so no preview keeps asking for a
+ * file that is gone. null when no theme used it (nothing to save).
+ */
+export function themesWithoutBackground(themes: Theme[], url: string): Theme[] | null {
+  let changed = false
+  const next = themes.map((t) => {
+    const bg = t.background
+    if ((bg?.type !== 'image' && bg?.type !== 'video') || bg.value !== url) return t
+    changed = true
+    return { ...t, background: { ...THEME_FALLBACK_BACKGROUND, dim: bg.dim } }
+  })
+  return changed ? next : null
 }

@@ -372,7 +372,8 @@ export interface LiveState {
   displayLang: DisplayLang
   bilingualOrder: BilingualOrder
   layers: LiveLayers
-  message?: { text: string; until?: number; seq: number }
+  /** a screen message. bi: a quick message's two languages, ordered when shown (see @shared/liveMessage) */
+  message?: { text: string; bi?: { en: string; es: string }; until?: number; seq: number }
   stageMessage?: { text: string; seq: number }
   video?: VideoState
   /** error: the projector could not load/play the video (missing file, damaged, unsupported) */

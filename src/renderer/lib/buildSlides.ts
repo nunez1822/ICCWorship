@@ -126,7 +126,13 @@ export async function scriptureSlides(
 ): Promise<{ slides: Slide[]; warning?: string; reference?: string }> {
   const pInfo = ctx.bibles.find((b) => b.id === primaryId)
   const sInfo = secondaryId ? ctx.bibles.find((b) => b.id === secondaryId) : undefined
-  if (!pInfo) return { slides: [], warning: 'warn.bibleMissing' }
+  if (!pInfo) {
+    // the main version isn't on this computer (deleted, or its file is damaged): the second one alone, still with the
+    // warning, rather than nothing on screen
+    const alone = sInfo ? await window.api.bible.passage(sInfo.id, ref) : undefined
+    if (alone?.ok) return { slides: scriptureToSlides({ lang: sInfo!.lang, passage: alone }), warning: 'warn.bibleMissingOther', reference: alone.reference }
+    return { slides: [], warning: 'warn.bibleMissing' }
+  }
   const primary = await window.api.bible.passage(primaryId, ref)
   // if the preferred version doesn't have it (pasted versions), say so instead of failing silently
   if (!primary.ok) {
@@ -142,5 +148,7 @@ export async function scriptureSlides(
     }
   }
   const slides = scriptureToSlides({ lang: pInfo.lang, passage: primary }, secondary ? { lang: sInfo!.lang, passage: secondary } : undefined)
-  return { slides, warning: primary.missing.length ? 'warn.someMissing' : undefined, reference: primary.reference }
+  // the second version was chosen but isn't on this computer: the main one alone, said once
+  const secondGone = !!secondaryId && !sInfo
+  return { slides, warning: primary.missing.length ? 'warn.someMissing' : secondGone ? 'warn.bibleMissingOther' : undefined, reference: primary.reference }
 }

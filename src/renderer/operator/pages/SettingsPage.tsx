@@ -3,9 +3,10 @@ import { useTranslation } from 'react-i18next'
 import type { BilingualOrder, Lang } from '@shared/types'
 import { uid } from '@shared/slides'
 import { SETTING_LIMITS } from '@shared/security'
-import { installUpdate, toastError, useApp } from '../store'
+import { installUpdate, projectorBack, toastError, useApp } from '../store'
 import { Field, Seg } from '../../components/ui'
-import { fileName, IMAGE_EXT } from '../../lib/media'
+import { fileName, IMAGE_EXT, toMediaUrl } from '../../lib/media'
+import { isLibraryPath } from '@shared/mediaLibrary'
 import { updateLive } from '../liveControl'
 import { backupNow } from '../backupNow'
 
@@ -48,14 +49,21 @@ export function SettingsPage() {
     refresh()
     void window.api.app.info().then(setInfo)
     // a new version downloading or downloaded (installed app): poll while this page is open
-    const poll = () => void window.api.app.updateStatus().then(setUpdateStatus)
+    // (the phone count too: phones connect and leave without the server restarting)
+    const poll = () => {
+      void window.api.app.updateStatus().then(setUpdateStatus)
+      void window.api.server.info().then(setServer)
+    }
     poll()
     const pollTimer = setInterval(poll, 2000)
     const off = window.api.displays.onChange(refresh)
     const off2 = window.api.server.onStatus(() => void window.api.server.info().then(setServer))
+    // a phone or stage screen connected or left: "N connected" follows at once
+    const off3 = window.api.server.onClients(() => void window.api.server.info().then(setServer))
     return () => {
       off()
       off2()
+      off3()
       clearInterval(pollTimer)
     }
   }, [])
@@ -141,7 +149,7 @@ export function SettingsPage() {
               <button className="btn" onClick={() => window.api.stage.open()}>
                 🎤 {t('settings.openStage')}
               </button>
-              <button className="btn" title={t('settings.restartOutputHelp')} onClick={() => void window.api.output.restart()}>
+              <button className="btn" title={t('settings.restartOutputHelp')} onClick={() => void window.api.output.restart().then(projectorBack)}>
                 🔄 {t('settings.restartOutput')}
               </button>
             </div>
@@ -168,8 +176,10 @@ export function SettingsPage() {
             <Field label={t('settings.logo')}>
               <div className="row">
                 {st.logoPath ? (
-                  <span className="small" style={{ flex: 1, wordBreak: 'break-all' }}>
-                    {st.logoPath}
+                  // the picture itself and a readable name: never the library's internal media/<id> file name
+                  <span className="small row" style={{ flex: 1, minWidth: 0, gap: 8 }} title={isLibraryPath(st.logoPath) ? undefined : st.logoPath}>
+                    <img src={toMediaUrl(st.logoPath)} alt="" style={{ height: 32, maxWidth: 64, objectFit: 'contain', background: '#000', borderRadius: 4 }} />
+                    <span style={{ wordBreak: 'break-all' }}>{isLibraryPath(st.logoPath) ? t('settings.logoInLibrary') : fileName(st.logoPath)}</span>
                   </span>
                 ) : (
                   <span className="small muted" style={{ flex: 1 }}>

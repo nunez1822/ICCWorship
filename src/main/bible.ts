@@ -16,7 +16,7 @@ import {
 } from '@shared/bibleCore'
 import type { BibleVersionInfo, Lang, PassageResult, Verse } from '@shared/types'
 import { bibleDataDir, dataRoot, resourcesDir } from './paths'
-import { isSafeId } from '@shared/security'
+import { isSafeId, versionIdFrom } from '@shared/security'
 import { within } from './pathGuard'
 import { log } from './log'
 import { writeFileAtomic } from './atomicWrite'
@@ -122,11 +122,7 @@ function savePartial(b: PartialBible): void {
 
 export function createPasted(meta: { id?: string; name: string; abbrev: string; lang: Lang; copyright?: string; verseLimit?: number }): BibleVersionInfo {
   loadAll()
-  const id =
-    meta.id ||
-    String(meta.abbrev ?? '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
+  const id = meta.id || versionIdFrom(meta.abbrev)
   if (!isSafeId(id)) throw new Error('bad-id') // e.g. an abbreviation made only of symbols
   const existing = partial.get(id)
   const b: PartialBible = {
@@ -180,14 +176,13 @@ export function listPastedVerses(id: string): Verse[] {
 
 export function importFile(path: string, meta: { name: string; abbrev: string; lang: Lang; copyright?: string }): BibleVersionInfo {
   loadAll()
-  const id = String(meta.abbrev ?? '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-  if (!isSafeId(id)) throw new Error('bad-id')
+  const id = versionIdFrom(meta.abbrev)
+  if (!isSafeId(id)) throw new Error('bad-id') // e.g. an abbreviation made only of symbols
   if (BUILTIN.includes(id)) throw new Error('id-taken')
   const bible = importBibleText(readFileSync(path, 'utf8').replace(/^\uFEFF/, ''), { id, ...meta })
   const verses = bible.books.reduce((a, b) => a + b.reduce((x, c) => x + c.filter(Boolean).length, 0), 0)
-  if (verses < 10) throw new Error('empty')
+  // text was found, but too little to be a Bible (a passage, a test file): say so, not "no text"
+  if (verses < 10) throw new Error(verses ? 'too-few' : 'empty')
   assertWritable()
   writeFileAtomic(bibleFile(id), JSON.stringify(bible))
   db().noteExternalWrite()
