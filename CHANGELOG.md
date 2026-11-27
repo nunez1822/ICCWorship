@@ -6,6 +6,8 @@ All notable changes to ICCWorship are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-27
+
 ### Security
 - The app's windows no longer learn the names of the computer's microphones and cameras (they never could use
   them). Listing and choosing the sound output works as before.
@@ -277,5 +279,6 @@ First public release: bilingual (Spanish/English) songs, Bible (KJV and Reina-Va
 LBLA and other copyrighted versions), video, PowerPoint/PDF, themes, service plans, people and teams, phone
 remote, stage display, backups.
 
-[Unreleased]: https://github.com/nunez1822/ICCWorship/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/nunez1822/ICCWorship/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/nunez1822/ICCWorship/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/nunez1822/ICCWorship/releases/tag/v1.0.0
