@@ -2,6 +2,7 @@ import { Children, cloneElement, isValidElement, useEffect, useId, useRef, type 
 import { useTranslation } from 'react-i18next'
 import type { MediaItem, PlanItem, PlanItemType } from '@shared/types'
 
+const openDialogs: object[] = []
 const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
 
 /**
@@ -9,11 +10,20 @@ const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabi
  * made — must not be lost to a stray click). Esc and ✕ still call onClose, which may ask first.
  */
 export function Modal(p: { title: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean; dismissable?: boolean }) {
+  // the dialogs open now, topmost last: Esc closes only the top one (Shortcuts opened over "Ready for Sunday?")
+  const me = useRef({})
+  useEffect(() => {
+    const self = me.current
+    openDialogs.push(self)
+    return () => {
+      openDialogs.splice(openDialogs.indexOf(self), 1)
+    }
+  }, [])
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation()
-        p.onClose()
+        if (openDialogs.at(-1) === me.current) p.onClose()
       }
     }
     window.addEventListener('keydown', k, true)

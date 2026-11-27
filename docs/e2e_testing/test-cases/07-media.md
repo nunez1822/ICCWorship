@@ -12,8 +12,10 @@ Fixtures: `sample.mp4` (5 s color bars + tone), `sample.jpg`, `sample.mp3` (4 s 
 - While adding: "Copying into the library: <file>". `.e2e-data/media/` now holds three `<id>.<ext>` copies, and
   `db.list('media')` paths are `media/<id>.<ext>` with `source` = the original file.
 - Adding the same three files again only says they are already in the library (no new copies).
-- If adding a file fails partway (e.g. a broken file whose thumbnail can't be made), an error toast says so and the
-  "Working… <file>" pill goes away (it never stays on screen).
+- If saving an added file fails partway (e.g. the data is open read-only because it was written by a newer version),
+  an error toast says so, the "Working… <file>" pill goes away (it never stays on screen), the library shows only
+  the items really saved, and the files added before it are announced ("n added"). A broken file whose thumbnail
+  can't be made is simply added without a thumbnail.
 
 ### TC-MED-02 · Play an MP4 on the projector  `P0` 📸
 **Steps**

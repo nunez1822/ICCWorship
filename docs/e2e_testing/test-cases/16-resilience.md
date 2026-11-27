@@ -305,8 +305,11 @@ projector first — earlier crashes in the last minute count toward the limit.
 - Second-crash variant: after the toast appears, kill the app again without answering → the next launch offers it
   again.
 - Went live by hand variant: while the toast is up, go live on another item, then click **Put it back** → "Something
-  else is on screen now, so nothing was changed." and nothing changes. The same while only a song's backing-track
-  intro plays (no text yet), while the **Logo** is up, or while a projector message shows.
+  else is on screen now, so nothing was changed. Clear it with Esc, then click Put it back again." and nothing
+  changes; the offer toast comes back. The same while only a song's backing-track intro plays (no text yet). Press
+  Esc, click **Put it back** again → the item is put back.
+- Covers variant: with the **Logo** (or Black) up, or a projector message showing, **Put it back** puts the item
+  back under the cover (the logo, black or message stays up; L/B reveal it).
 - Variants: a Show-now item (from Bible/Songs), or nothing live and nothing cleared mid-item → no toast. An offer more
   than 6 hours old → no toast. The item was deleted from the plan in between → clicking says it is no longer in the
   plan.
@@ -349,6 +352,8 @@ projector first — earlier crashes in the last minute count toward the limit.
    `session-end` on the operator window (Windows shutting down). Launch again.
 7. Go live on a plan item, kill the app. Launch again, let the toast appear and ignore it (nothing goes live), then
    emit `session-end`. Launch again.
+8. Go live on a plan item, kill the app. Launch again; as soon as the toast appears, crash the operator page once
+   (CDP `Page.crash`), so it restarts by itself.
 **Expected**
 - 2: no toast. The verse on screen replaced the old offer, so the item from step 1 is not offered hours later.
 - 3: the toast offers the item that was on screen: quitting after the operator window crashed mid-service is still an
@@ -357,6 +362,7 @@ projector first — earlier crashes in the last minute count toward the limit.
 - 5: the toast offers the item from step 5's first run: Quit after a crash, before the offer was answered, keeps it.
 - 6: the toast offers it: a shutdown before the offer was even seen keeps it for the next start.
 - 7: no toast: an offer that was shown and left alone is not kept after a shutdown with nothing on screen.
+- 8: the restarted window shows the offer again (a page that crashed right after taking it never showed it).
 
 ### TC-RES-37 · A damaged built-in Bible doesn't hide the other Bibles  `P1`
 **Pre:** an imported Bible in `.e2e-data/data/bibles/` (TC-BIB-*); a copy of `resources/bibles/rv1909.json` kept aside

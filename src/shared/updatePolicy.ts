@@ -63,3 +63,49 @@ export function installNow(o: { allowed: boolean; onScreen: boolean; phase: Upda
   if (o.onScreen) return 'live'
   return o.allowed ? 'install' : 'off'
 }
+
+/**
+ * When something was last on screen, for isLive's cleared-screen limit. Elapsed time is measured on the monotonic
+ * clock (Windows correcting its time during a cleared sermon must not end the service), and — as Chromium does with
+ * power events — the sleep the monotonic clock may have missed is added back at wake-up, measured on the wall clock:
+ * a laptop asleep all night after a cleared sermon ended that service. Never subtracted, so a monotonic clock that did
+ * run, or a wall clock set back meanwhile, changes nothing.
+ */
+export class OnScreenClock {
+  private lastMono: number | undefined
+  private suspendedAt: { wall: number; mono: number } | undefined
+  constructor(private clock: { wall: () => number; mono: () => number }) {}
+
+  /** something is (or was until now) on screen */
+  seen(): void {
+    this.lastMono = this.clock.mono()
+  }
+  suspended(): void {
+    this.suspendedAt = { wall: this.clock.wall(), mono: this.clock.mono() }
+  }
+  resumed(): void {
+    const at = this.suspendedAt
+    this.suspendedAt = undefined
+    if (!at || this.lastMono === undefined) return
+    const missed = this.clock.wall() - at.wall - (this.clock.mono() - at.mono)
+    if (missed > 0) this.lastMono -= missed
+  }
+  /** epoch ms; a timed message (`messageUntil`) counts until it ran out, though nothing updated the live state then */
+  lastAt(messageUntil: number | undefined, now = this.clock.wall()): number | undefined {
+    const seen = this.lastMono === undefined ? undefined : now - (this.clock.mono() - this.lastMono)
+    return messageUntil !== undefined && messageUntil <= now && (seen === undefined || messageUntil > seen) ? messageUntil : seen
+  }
+}
+
+/**
+ * The first line of an electron-updater log message, safe for logs that are attached to public bug reports: no URLs
+ * (CLAUDE.md), no file paths (they carry the Windows user name; a quoted path is cut at its closing quote, since user
+ * names can have spaces), no per-install id.
+ */
+export const updaterLogLine = (m: unknown): string =>
+  String(m)
+    .split(/\r?\n/)[0]
+    .replace(/https?:\/\/\S+/g, '<url>')
+    .replace(/(?:[A-Za-z]:[\\/]|\\\\)[^"'`]*/g, '<path>')
+    .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '<id>')
+    .slice(0, 120)

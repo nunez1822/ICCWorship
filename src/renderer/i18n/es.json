@@ -694,7 +694,7 @@
   "recovery": {
     "otherCopyDetail": "Otra copia de ICCWorship (la instalada o una portátil) ya está abierta en esta computadora. Use esa, o ciérrela antes de abrir esta. Si no la ve, termine ICCWorship en el Administrador de tareas (Ctrl+Mayús+Esc) o reinicie la computadora.",
     "otherCopy": "ICCWorship ya está abierto",
-    "resumeBusy": "Ahora hay otra cosa en pantalla, así que no se cambió nada.",
+    "resumeBusy": "Ahora hay otra cosa en pantalla, así que no se cambió nada. Límpiela con Esc y vuelva a hacer clic en Volver a mostrarlo.",
     "resumeOffer": "ICCWorship se cerró inesperadamente durante “{{item}}” ({{plan}}).",
     "resume": "▶ Volver a mostrarlo (diapositiva {{slide}})",
     "resumeGone": "Ese elemento ya no está en el plan, así que no se volvió a mostrar nada.",

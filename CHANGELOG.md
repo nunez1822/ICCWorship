@@ -68,10 +68,12 @@ All notable changes to ICCWorship are documented here. The format is based on
   no id for your computer is sent. The portable version only tells you.
 - **Put it back after a crash.** If ICCWorship closes unexpectedly (a crash, a power cut, Windows restarting for an
   update) during a plan item, the next start offers it back: one click on **▶ Put it back** shows that item again on
-  the slide it was on (or the one Esc cleared). Nothing goes on screen by itself, the button works once, it does
-  nothing if anything else is showing by then (a slide, a song's intro, the logo, a message), and a normal quit — or
+  the slide it was on (or the one Esc cleared). Nothing goes on screen by itself, it is put back once, it waits
+  while something else is live by then (a slide, a song's intro: Esc, then click again; the logo or black stay up
+  over it), and a normal quit — or
   shutting Windows down with no service running — leaves nothing to offer. Choosing Quit after the window crashed
-  mid-service offers it back too, and an offer not answered yet is kept through another crash or a shutdown.
+  mid-service offers it back too, and an offer not answered yet is kept through another crash (or a shutdown before
+  it was shown).
 - **The portable version is truly portable now.** `ICCWorship-Portable-x.y.z.exe` keeps the data, settings,
   backups and logs in an `ICCWorship Data` folder beside the exe, so it runs from a USB stick and leaves nothing on
   the computer. (Before, it used `Documents\ICCWorship` on whichever PC it ran on.)
@@ -169,8 +171,9 @@ All notable changes to ICCWorship are documented here. The format is based on
 - The untested macOS and Linux build targets. ICCWorship is a Windows app.
 
 ### Fixed
-- **Dialogs take the keyboard focus**, so Enter or Space no longer also presses a button behind them, and their close
-  button is read out in the app's language.
+- **Dialogs take the keyboard focus**, so Enter or Space no longer also presses a button behind them. Tab stays inside
+  the dialog, closing it puts the focus back on the button that opened it, Esc closes only the top one of two, and the
+  close button is read out in the app's language.
 - **A frozen ICCWorship window now says so.** If the main window stops responding (it hangs rather than crashes), a
   message asks **Restart the window** or **Keep waiting** — the projector, the music and the phone remote keep
   running, and the question goes away by itself if the window recovers. Before, it stayed frozen with no way out.

@@ -273,6 +273,7 @@
 4. With an update downloaded again (reinstall the old release, steps 1–2): put a song live and **close the window**
    (or Quit in the "window crashed" question); relaunch. Then, with an update downloaded: put a song live, press
    **Esc**, crash the operator page twice (TC-RES-*) and choose **Quit** in the "window crashed" question; relaunch.
+   Once more with nothing on screen at all (nothing live this run).
 5. With an update downloaded: untick "Download new versions…", click **Restart now** on a still-visible "is ready"
    toast, then quit with nothing on screen.
 6. Untick it while "Downloading… n%" shows; separately, put a song live while it downloads.
@@ -290,8 +291,8 @@
   installs silently and opens the new version with all data. A double click on **Restart now** starts only one
   installer. Quitting normally with nothing on screen installs it too. If the installer
   can't start, a toast says "The update could not be installed now…" and the app keeps running.
-- 4: **nothing installs**, also for Quit after a crash with the screen cleared by Esc (the volunteer is about to start
-  it again mid-service): the old version starts again at once (`main.log`: `update x.y.z not installed at this
+- 4: **nothing installs**, also for any Quit after a crash (screen cleared by Esc, or nothing on screen: the volunteer
+  is about to start it again): the old version starts again at once (`main.log`: `update x.y.z not installed at this
   quit`). It installs at a later quit with nothing on screen.
 - 5: unticking hides the "is ready" line and its **Restart now** in Settings; **Restart now** on the old toast says
   "Updates are turned off in Settings → About, so this update won't be installed."; nothing installs; the old version

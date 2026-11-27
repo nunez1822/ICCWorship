@@ -3,7 +3,7 @@ import { app } from 'electron'
 import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync } from 'node:fs'
 import { stat, statfs } from 'node:fs/promises'
 import { Readable } from 'node:stream'
-import { basename, dirname, join, parse, relative, resolve, sep } from 'node:path'
+import { dirname, join, parse, relative, resolve, sep } from 'node:path'
 import { backupDir, dataRoot, trackMirrorDir } from './paths'
 import { dataStatus, db, getSettings } from './db'
 import { localDate, localStamp } from '@shared/dates'
@@ -12,7 +12,7 @@ import type { Song } from '@shared/types'
 import { reload as reloadBibles } from './bible'
 import { isMediaEntry, isTracksEntry, RESTORE_DIRS, restoreTarget, TRACKS_DIR } from './restorePath'
 import { isLibraryFileName, MEDIA_DIR } from '@shared/mediaLibrary'
-import { isTrackFileName, referencedTrackFiles } from '@shared/tracks'
+import { referencedTrackFiles } from '@shared/tracks'
 import {
   autoBackupDecision,
   autoBackupName,
@@ -154,10 +154,10 @@ async function writeBackup(target: string, tracks: boolean, reserve: number, med
         const rel = relative(root, f).split(sep).join('/')
         const name = /^data\/([^/]+)\.json$/.exec(rel)?.[1]
         if (name && recovered.has(name)) continue // added below
-        if (isTracks && !isTrackFileName(basename(f))) continue
-        // only the library's own copies (a restore takes nothing else back: a folder or Thumbs.db dropped in media/
-        // would only take room in the .zip, and could push the real library out of it)
-        if (isMedia && !isLibraryFileName(basename(f))) continue
+        // only what a restore takes back (restoreTarget): track files and the library's own copies, directly in their
+        // folder. A folder of photos or a Thumbs.db dropped into media/ would only take room in the .zip, and could
+        // push the real library out of it
+        if ((isTracks || isMedia) && !restoreTarget(root, rel)) continue
         try {
           if (isData) {
             const data = readFileSync(f)

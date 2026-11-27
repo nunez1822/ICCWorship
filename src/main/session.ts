@@ -62,10 +62,17 @@ export function startSession(): void {
 }
 
 /** The offer, once (the operator page asks after it loads; a reload must not offer it again). */
+let taken: LiveSnapshot | null = null
 export function takeResumeOffer(): LiveSnapshot | null {
   const o = offer
+  if (o) taken = o
   offer = null
   return o
+}
+/** the operator page crashed: if nothing has replaced the last run's offer yet, the reloaded page offers it again
+ *  (taken by a page that crashed right after is not "seen") */
+export function offerAgainIfUnanswered(): void {
+  if (taken && recorder.holdsLastRunOffer) offer = taken
 }
 
 /** The live state changed: remember the place (written at most once a second, only when it moved). */
@@ -92,8 +99,13 @@ export function quitKeepingOffer(): void {
   recorder.flush()
   keepOffer = true
 }
-/** this quit is the volunteer's Quit after a crash mid-service (an update must not install now) */
-export const quittingAfterCrash = (): boolean => keepOffer
+let afterCrash = false
+/** the volunteer chose Quit after the operator window crashed: no update installs on the way out (they reopen the app
+ *  at once, and the silent install doesn't reopen it) */
+export function quittingAfterCrash(): void {
+  afterCrash = true
+}
+export const isQuittingAfterCrash = (): boolean => afterCrash
 
 /** A normal quit: nothing to resume next time. */
 export function endSession(): void {

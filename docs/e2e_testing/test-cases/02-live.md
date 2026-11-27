@@ -278,9 +278,10 @@ second song's item (if its timing is recorded, enter it part-way so it starts wi
 3. ✅ again. Click each row's button.
 4. Close the checklist, Settings → Backup → **Back up now**, then ✅ again.
 5. Make the projector give up (crash its page repeatedly, TC-RES-*), so it shows black (safe mode) or nothing; ✅.
-6. Give the header (section label) its own picture background in the plan editor, then rename that picture's file
-   (its library copy in `media/`); ✅.
-7. With the checklist open, press Tab repeatedly, then Shift+Tab; close it with Esc.
+6. Put the files renamed in step 2 back. Give the header (section label) its own picture background in the plan
+   editor, then rename that picture's file (its library copy in `media/`); ✅.
+7. With the checklist open, press Tab repeatedly, then Shift+Tab; press **F1** (Shortcuts) over it, then Esc once;
+   then Esc again.
 8. Date the active plan a few days ago (Spanish UI once, English once); ✅.
 **Expected**
 - 1: "Everything is ready" or warnings only, e.g. "Only one screen is connected…" on a laptop alone, "No “Back up
@@ -303,8 +304,8 @@ second song's item (if its timing is recorded, enter it part-way so it starts wi
   where to save, shows the same message as Settings → Backup (also "saved WITHOUT the media library…" when it had
   to leave it out), and the backup line turns ✅; **Settings** opens Settings at the section that fixes it: **Screens**
   for the screens, the sound output and the logo, **Phone remote & stage display** for the phone line.
-- 7: Tab and Shift+Tab move only between the checklist's own buttons (never the plan or the buttons behind it); after
-  Esc the focus is back on ✅.
+- 7: Tab and Shift+Tab move only between the checklist's own buttons (never the plan or the buttons behind it). The
+  first Esc closes only Shortcuts (the checklist stays); the second closes the checklist, and the focus is back on ✅.
 - With the checklist open while a video plays, it doesn't re-check by itself (the buttons stay enabled).
 - 8: A plan dated before today says it is for a day that has passed, with the date written out in the app's language
   ("The plan “…” is for Sunday, November 22, 2026, a day that has passed…" / "…es para el domingo, 22 de noviembre de

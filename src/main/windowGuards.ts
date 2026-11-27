@@ -11,7 +11,7 @@ import { t } from './i18n'
 import { live } from './live'
 import { log } from './log'
 import { loadPage } from './pages'
-import { endSession, flushSession, holdsLastRunOffer, lastRunOfferUnseen, quitKeepingOffer } from './session'
+import { endSession, flushSession, holdsLastRunOffer, lastRunOfferUnseen, offerAgainIfUnanswered, quitKeepingOffer, quittingAfterCrash } from './session'
 
 export type Guarded = 'output' | 'stage'
 const winOf = (kind: Guarded) => (kind === 'output' ? wins.output : wins.stage)
@@ -153,6 +153,13 @@ export function operatorAlive(): void {
 }
 
 /** the operator page opened / closed a confirm() (it blocks the page): waiting for the volunteer isn't a freeze */
+/** a confirm() that was open went away with its page: its pause of the heartbeat ends too */
+function clearOperatorBusy(): void {
+  if (!operatorBusy) return
+  operatorBusy = false
+  operatorBeat.resume()
+}
+
 export function setOperatorBusy(busy: boolean): void {
   operatorBusy = busy
   if (busy) operatorBeat.pause()
@@ -163,7 +170,7 @@ export function guardOperator(win: BrowserWindow): void {
   win.webContents.on('did-finish-load', () => {
     clearTimeout(operatorStable)
     operatorStable = setTimeout(() => operatorBudget.reset(), 60_000)
-    operatorBusy = false // a new page has no confirm() open (a reload while one was open never said it closed)
+    clearOperatorBusy() // a new page has no confirm() open (a reload while one was open never said it closed)
   })
   win.on('closed', () => {
     clearTimeout(operatorStable)
@@ -174,7 +181,8 @@ export function guardOperator(win: BrowserWindow): void {
     clearTimeout(operatorStable)
     operatorBeat.stop() // the new page starts watching again with its first beat
     frozenAsk?.abort()
-    operatorBusy = false // its confirm() went with it
+    clearOperatorBusy() // its confirm() went with it
+    offerAgainIfUnanswered() // the page took the last run's offer and then crashed: the reloaded page offers it again
     if (d.reason === 'clean-exit' || lifecycle.quitting || win.isDestroyed()) return
     db().flush()
     if (restartingFrozen) {
@@ -205,6 +213,7 @@ export function guardOperator(win: BrowserWindow): void {
       // quitting after a crash mid-service is still an interrupted service: offer the place back at the next start
       // (also the last run's offer if this run crashed before it was answered)
       if (live.serviceRunning() || holdsLastRunOffer()) quitKeepingOffer()
+      quittingAfterCrash() // (never installs an update on the way out: the volunteer reopens the app at once)
       app.quit()
     }
   })

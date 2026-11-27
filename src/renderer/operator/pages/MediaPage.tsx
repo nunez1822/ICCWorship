@@ -88,6 +88,9 @@ export function MediaPage() {
           } satisfies MediaItem)
         } catch (e) {
           if (stored !== p) void window.api.media.discardCopy(stored) // no item points to the copy
+          // the card was shown before the save failed: show the library as it really is, and what did get added
+          void s.reload('media')
+          if (n) s.toast(t('media.added', { count: n }))
           throw e
         }
         known.add(p.toLowerCase())

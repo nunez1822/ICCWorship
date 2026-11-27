@@ -694,7 +694,7 @@
   "recovery": {
     "otherCopyDetail": "Another copy of ICCWorship (the installed one or a portable one) is already open on this computer. Use that one, or close it before starting this one. If you can't see it, end ICCWorship in Task Manager (Ctrl+Shift+Esc) or restart the computer.",
     "otherCopy": "ICCWorship is already running",
-    "resumeBusy": "Something else is on screen now, so nothing was changed.",
+    "resumeBusy": "Something else is on screen now, so nothing was changed. Clear it with Esc, then click Put it back again.",
     "resumeOffer": "ICCWorship closed unexpectedly during “{{item}}” ({{plan}}).",
     "resume": "▶ Put it back (slide {{slide}})",
     "resumeGone": "That item is no longer in the plan, so nothing was put back on screen.",

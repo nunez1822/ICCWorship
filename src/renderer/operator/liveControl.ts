@@ -13,7 +13,6 @@ import type {
 } from '@shared/types'
 import { slidesTimingKey, songName, songToSlides, timedSlideAt, uid } from '@shared/slides'
 import { localDate } from '@shared/dates'
-import { onScreen } from '@shared/updatePolicy'
 import { buildItem, themeBackground } from '../lib/buildSlides'
 import { createActionQueue } from '../lib/actionQueue'
 import { afterRecovery, useApp, t, toastError } from './store'
@@ -722,27 +721,34 @@ export function handleCommand(cmd: RemoteCommand | VideoEndedCommand): void {
 export async function offerResume(): Promise<void> {
   const offer = await window.api.app.resumeOffer()
   if (!offer) return
-  // something is already on screen again: a slide, a backing track's intro, the logo, a message
+  // something else went live again, which putting the item back would replace: a slide, or a video or backing track
+  // playing (a song's intro). The logo, black and a message are covers: they stay up over the item put back
   const busy = () => {
     const l = live()
-    return !!l && onScreen(l)
+    return !!l && ((l.slideIndex ?? -1) >= 0 || !!l.video?.playing)
   }
   if (busy()) return
   let used = false
-  st().toast(t('recovery.resumeOffer', { item: offer.itemTitle || '?', plan: offer.planTitle || '?' }), 'info', 120_000, {
-    label: t('recovery.resume', { slide: offer.slideIndex + 1 }),
-    run: () =>
-      void enqueue(async () => {
-        if (used) return // once only
-        used = true
-        const s = st()
-        // the toast stays up for 2 minutes: the operator may have gone live by hand meanwhile
-        if (busy()) return s.toast(t('recovery.resumeBusy'), 'info')
-        const plan = s.plans.find((p) => p.id === offer.planId)
-        const index = plan ? plan.items.findIndex((i) => i.id === offer.itemId) : -1
-        if (!plan || index < 0) return s.toast(t('recovery.resumeGone'), 'err')
-        s.setActivePlan(plan.id)
-        await goItem(index, offer.slideIndex)
-      })
-  })
+  const show = () =>
+    st().toast(t('recovery.resumeOffer', { item: offer.itemTitle || '?', plan: offer.planTitle || '?' }), 'info', 120_000, {
+      label: t('recovery.resume', { slide: offer.slideIndex + 1 }),
+      run: () =>
+        void enqueue(async () => {
+          if (used) return // once only
+          const s = st()
+          // the toast stays up for 2 minutes: the operator may have gone live by hand meanwhile. Then it is offered
+          // again (the click closed it), for after Esc
+          if (busy()) {
+            s.toast(t('recovery.resumeBusy'), 'info')
+            return show()
+          }
+          used = true
+          const plan = s.plans.find((p) => p.id === offer.planId)
+          const index = plan ? plan.items.findIndex((i) => i.id === offer.itemId) : -1
+          if (!plan || index < 0) return s.toast(t('recovery.resumeGone'), 'err')
+          s.setActivePlan(plan.id)
+          await goItem(index, offer.slideIndex)
+        })
+    })
+  show()
 }

@@ -18,10 +18,10 @@ import { join } from 'node:path'
 import { autoUpdater, type AppUpdater } from 'electron-updater'
 import { isNewerVersion } from '@shared/version'
 import { loggableError } from '@shared/loggableError'
-import { automaticCheckDue, installNow, installOnQuit, mayDownload, onScreen, type UpdatePhase } from '@shared/updatePolicy'
+import { automaticCheckDue, installNow, installOnQuit, mayDownload, onScreen, updaterLogLine, type UpdatePhase } from '@shared/updatePolicy'
 import { lifecycle, notify } from './appState'
 import { isPortableExe } from './bootstrap'
-import { quittingAfterCrash } from './session'
+import { isQuittingAfterCrash } from './session'
 import { getSettings, setSettings } from './db'
 import { live } from './live'
 import { log } from './log'
@@ -55,15 +55,7 @@ function updateError(e: unknown): string {
   if (net) return net
   return loggableError(e)
 }
-/** the first line of an updater message, without the URLs it names (CLAUDE.md: no request URLs in the log) */
-const firstLine = (m: unknown) =>
-  String(m)
-    .split(/\r?\n/)[0]
-    .replace(/https?:\/\/\S+/g, '<url>')
-    // nor file paths (they carry the Windows user name) or the per-install id electron-updater warns about
-    .replace(/(?:[A-Za-z]:[\\/]|\\\\)[^"'`]*/g, '<path>') // (to the closing quote: user names can have spaces)
-    .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '<id>')
-    .slice(0, 120)
+const firstLine = updaterLogLine
 
 // Test hook (smoke.mjs; ignored by a packaged app, like every development switch): an update feed on this computer, so
 // the check → download → SHA-512 check → "ready" path runs for real. Nothing is ever installed from it.
@@ -197,7 +189,7 @@ export function beforeQuit(): void {
   if (!updater || TEST_FEED) return
   // Quit after the operator window crashed mid-service: the volunteer restarts ICCWorship at once, and a silent
   // install (which doesn't reopen the app) would kill it or leave it half replaced in the middle of the service
-  const install = installOnQuit({ allowed: autoUpdateOn(), onScreen: onScreen(live.state) || quittingAfterCrash(), phase })
+  const install = installOnQuit({ allowed: autoUpdateOn(), onScreen: onScreen(live.state) || isQuittingAfterCrash(), phase })
   updater.autoInstallOnAppQuit = install
   if (phase.phase === 'ready' && !install) log.info(`update ${phase.version} not installed at this quit (turned off or something on screen)`)
 }
