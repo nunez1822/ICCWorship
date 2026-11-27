@@ -15,6 +15,7 @@
  * attached to each release and attested by the release workflow — what scanners and security teams read.
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import { dirname, join, resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
@@ -114,6 +115,9 @@ const component = (e, type = 'library') => ({
 const sbom = {
   bomFormat: 'CycloneDX',
   specVersion: '1.5',
+  // a new serial number for every build (CycloneDX: urn:uuid). GitHub's attest action refuses a CycloneDX SBOM without
+  // one ("Unsupported SBOM format"), which stopped the 1.1.0 release at its last step
+  serialNumber: `urn:uuid:${randomUUID()}`,
   version: 1,
   metadata: {
     timestamp: new Date().toISOString(),
@@ -121,6 +125,10 @@ const sbom = {
     component: { type: 'application', 'bom-ref': 'iccworship', name: 'ICCWorship', version: rootPkg.version, licenses: [{ license: { id: rootPkg.license } }] }
   },
   components: [component({ name: 'electron', version: electronVersion, identifier: 'MIT' }, 'framework'), ...sorted.map((e) => component(e))]
+}
+// what actions/attest checks before it signs the SBOM: fail the build here, not 40 minutes later in the release
+for (const field of ['bomFormat', 'serialNumber', 'specVersion']) {
+  if (!sbom[field]) throw new Error(`SBOM: ${field} is missing (actions/attest would refuse it)`)
 }
 writeFileSync(join(out, 'sbom.cdx.json'), JSON.stringify(sbom, null, 2) + '\n')
 console.log(
